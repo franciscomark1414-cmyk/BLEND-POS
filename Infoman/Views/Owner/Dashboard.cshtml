@@ -1,0 +1,1428 @@
+﻿@using System.Linq;
+@model DashboardViewModel
+@{
+    ViewBag.Title = "Owner Dashboard";
+}
+
+<style>
+    .dashboard-container {
+        display: flex;
+        min-height: 90vh;
+    }
+
+    .sidebar {
+        width: 200px;
+        background: #f8f9fa;
+        padding: 20px;
+    }
+
+        .sidebar ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .sidebar li {
+            padding: 10px;
+            cursor: pointer;
+        }
+
+            .sidebar li:hover {
+                background: #e2e6ea;
+            }
+
+    .main-content {
+        flex: 1;
+        padding: 20px;
+    }
+
+    .module {
+        display: none;
+    }
+
+        .module.active {
+            display: block;
+        }
+
+    #addRawMaterialBox {
+        background-color: #f9f9f9;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+        #addRawMaterialBox .text-muted {
+            font-size: 12px;
+        }
+
+    .form-control:focus {
+        border-color: #80bdff;
+        box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+    }
+
+    .border-left-warning {
+        border-left: 4px solid #ffc107 !important;
+    }
+
+    .border-left-info {
+        border-left: 4px solid #17a2b8 !important;
+    }
+
+    .border-left-danger {
+        border-left: 4px solid #dc3545 !important;
+    }
+
+    .border-left-secondary {
+        border-left: 4px solid #6c757d !important;
+    }
+
+    .tab-button {
+        border: none;
+        background: none;
+        padding: 10px 20px;
+        border-radius: 0;
+        color: #6c757d;
+        font-weight: 500;
+        text-decoration: none;
+    }
+
+        .tab-button.active {
+            color: #ffc107;
+            border-bottom: 3px solid #ffc107;
+            background: none;
+        }
+
+        .tab-button:hover {
+            color: #ffc107;
+            background: none;
+        }
+
+    .alert-tab-content {
+        display: none;
+    }
+
+        .alert-tab-content.active {
+            display: block;
+        }
+
+    .border-left-critical {
+        border-left: 4px solid #dc3545 !important;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+        .border-left-critical:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(220, 53, 69, 0.15);
+        }
+
+    .card .badge {
+        font-size: 0.7rem;
+    }
+
+    .table-responsive {
+        overflow-x: auto;
+    }
+
+    .table {
+        width: 100%;
+        margin-bottom: 0;
+    }
+
+    .card {
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .product-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+        .product-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+    .table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+    }
+
+    .size-row {
+        background-color: #f9f9f9;
+        padding: 15px;
+        margin-bottom: 15px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        position: relative;
+    }
+
+    .remove-size-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+    }
+
+    .ingredient-row {
+        margin-bottom: 10px;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background: #f8f9fa;
+        border-radius: 12px;
+        margin: 20px 0;
+    }
+</style>
+
+<div class="dashboard-container">
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <ul>
+            <li onclick="showModule('dashboard')">Dashboard</li>
+            <li onclick="showModule('inventory')">Inventory</li>
+            <li onclick="showModule('products')">Products</li>
+            <li onclick="showModule('inventoryAlerts')">Alerts</li>
+            <li onclick="showModule('reports')">Reports</li>
+            <li onclick="showModule('employees')">Employees</li>
+            <li onclick="showModule('settings')">Settings</li>
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+
+        <!-- Dashboard Module -->
+        <div id="dashboardModule" class="module active">
+            <div class="row">
+                <!-- Today's Sales -->
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5>Today's Sales</h5>
+                            <p>@ViewBag.TodaysSales</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Total Orders Today -->
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5>Total Orders Today</h5>
+                            <p>@ViewBag.TotalOrdersToday</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Total Revenue -->
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5>Total Revenue</h5>
+                            <p>₱@ViewBag.TotalRevenue</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Critical Stock Alert -->
+                <div class="col-md-3">
+                    <a href="#" onclick="showModule('inventoryAlerts'); return false;" style="text-decoration:none;">
+                        <div class="card text-center border-left-critical h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <h6 class="text-danger mb-0 fw-bold">
+                                        <i class="fas fa-exclamation-triangle"></i> CRITICAL STOCK
+                                    </h6>
+                                    @if (ViewBag.TotalOtherAlerts > 0)
+                                    {
+                                        <span class="badge bg-warning text-dark rounded-pill">
+                                            +@ViewBag.TotalOtherAlerts more
+                                        </span>
+                                    }
+                                </div>
+                                <p class="display-4 fw-bold text-danger mb-0 mt-2">@ViewBag.CriticalStockCount</p>
+                                <small class="text-muted">item@(ViewBag.CriticalStockCount != 1 ? "s" : "") critical</small>
+
+                                @if (ViewBag.TotalOtherAlerts > 0)
+                                {
+                                    <hr class="my-2">
+                                    <div class="small">
+                                        @if (ViewBag.ExpiringCount > 0)
+                                        {
+                                            <span class="badge bg-info me-1">⏰ @ViewBag.ExpiringCount expiring</span>
+                                        }
+                                        @if (ViewBag.ExpiredCount > 0)
+                                        {
+                                            <span class="badge bg-danger me-1">❌ @ViewBag.ExpiredCount expired</span>
+                                        }
+                                        @if (ViewBag.WasteCount > 0)
+                                        {
+                                            <span class="badge bg-secondary">🗑️ @ViewBag.WasteCount waste</span>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Sales Trend -->
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5>Sales Trend (Last 7 Days)</h5>
+                            <canvas id="salesChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Best Selling Products -->
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5>Best Selling Products</h5>
+                            <div class="d-flex flex-wrap gap-3">
+                                @if (Model.BestSellingProducts.Any())
+                                {
+                                    foreach (var item in Model.BestSellingProducts)
+                                    {
+                                        <div class="border p-3 rounded" style="width:200px;">
+                                            <div style="font-size:20px;">🥤</div>
+                                            <strong>#@item.Rank @item.Name</strong><br />
+                                            <small>₱@item.Price.ToString("N2")</small><br />
+                                            <small>@item.TotalSold sold</small>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <p>No data yet.</p>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inventory Module -->
+        <div id="inventoryModule" class="module">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h3>RAW MATERIAL</h3>
+                <button class="btn btn-success" onclick="toggleAddForm()">ADD RAW MATERIAL</button>
+            </div>
+
+            <div class="mb-3">
+                <input type="text" id="searchRawMaterial" class="form-control" placeholder="Search raw materials..." onkeyup="filterTable()">
+            </div>
+
+            <div class="d-flex gap-3">
+                <!-- LEFT: Raw Material Table -->
+                <div style="flex: 2;">
+                    <table class="table table-bordered" id="rawMaterialTable">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Category</th>
+                                <th>Stock</th>
+                                <th>Min Qty</th>
+                                <th>Price</th>
+                                <th>Expiry Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (ViewBag.RawMaterials != null)
+                            {
+                                foreach (var item in ViewBag.RawMaterials)
+                                {
+                                    <tr data-id="@item.RawMaterialId">
+                                        <td>@item.Name</td>
+                                        <td data-value="@((int)item.Category)">@item.Category</td>
+                                        <td data-stock="@item.Stock" data-unit="@item.Unit">@item.StockWithUnit</td>
+                                        <td data-minqty="@item.MinQty" data-unit="@item.Unit">@item.MinQtyWithUnit</td>
+                                        <td>₱@item.Price.ToString("N2")</td>
+                                        <td>@item.ExpirationDate?.ToString("yyyy-MM-dd")</td>
+                                        <td>@item.Status</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-primary" onclick="editMaterial(@item.RawMaterialId)">Edit</button>
+                                            <button class="btn btn-sm btn-danger" onclick="deleteMaterial(@item.RawMaterialId, event)">Delete</button>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr><td colspan="9">No raw materials yet.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- RIGHT: Add/Edit Raw Material Box -->
+                <div id="addRawMaterialBox" style="flex: 1; display:none; border:1px solid #ccc; padding:10px; border-radius:5px;">
+                    <h5 id="formHeader">Add Raw Material</h5>
+                    <form id="addRawMaterialForm">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="RawMaterialId" id="RawMaterialId">
+                        <div class="mb-2">
+                            <label>Name</label>
+                            <input type="text" name="Name" id="Name" class="form-control" required>
+                        </div>
+                        <div class="mb-2">
+                            <label>Category</label>
+                            <select name="Category" id="Category" class="form-control" required>
+                                @foreach (var cat in Enum.GetValues(typeof(Infoman.Models.RawMaterialCategory)))
+                                {
+                                    var intValue = (int)cat;
+                                    <option value="@intValue">@cat</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="mb-2">
+                            <label>Stock</label>
+                            <input type="number" name="Stock" id="Stock" step="0.1" class="form-control" required value="0">
+                        </div>
+                        <div class="mb-2">
+                            <label>Min Qty</label>
+                            <input type="number" name="MinQty" id="MinQty" class="form-control" required value="0">
+                        </div>
+                        <div class="mb-2">
+                            <label>Unit</label>
+                            <input type="text" name="Unit" id="Unit" class="form-control" required>
+                        </div>
+                        <div class="mb-2">
+                            <label>Price</label>
+                            <input type="number" name="Price" id="Price" step="0.01" class="form-control" required value="0.00">
+                        </div>
+                        <div class="mb-2">
+                            <label>Expiration Date (Optional)</label>
+                            <input type="date" name="ExpirationDate" id="ExpirationDate" class="form-control" value="">
+                            <small class="text-muted">Leave blank if no expiration date</small>
+                        </div>
+                        <button type="submit" class="btn btn-success" id="saveButton">Save</button>
+                        <button type="button" class="btn btn-secondary" onclick="toggleAddForm()">Cancel</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Products Module -->
+        <div id="productsModule" class="module">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">🧋 PRODUCTS MENU</h2>
+                <button class="btn btn-primary" onclick="showAddProductModal()">
+                    <i class="fas fa-plus"></i> Add Product
+                </button>
+            </div>
+
+            <!-- Search and Filter Bar -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <input type="text" id="searchProduct" class="form-control" placeholder="🔍 Search Products..." onkeyup="filterProducts()">
+                </div>
+                <div class="col-md-3">
+                    <select id="filterCategory" class="form-control" onchange="filterProducts()">
+                        <option value="">Filter by Category ▼</option>
+                        <option value="Fruit Shake">Fruit Shake</option>
+                        <option value="Milk Shake">Milk Shake</option>
+                        <option value="Specialty">Specialty</option>
+                    </select>
+                </div>
+                <div class="col-md-3 text-end">
+                    <button class="btn btn-outline-secondary" onclick="refreshProducts()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+            </div>
+
+            <!-- Products List Container -->
+            <div id="productsList">
+                @if (ViewBag.Products != null && ((List<Infoman.Models.Product>)ViewBag.Products).Any())
+                {
+                    foreach (var product in ViewBag.Products)
+                    {
+                        <div class="product-card card mb-4" data-product-id="@product.ProductId" data-category="@product.Category">
+                            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h4 class="mb-0">🥤 @product.Name</h4>
+                                    <small class="text-muted">SKU: @product.SKU | Category: @product.Category</small>
+                                </div>
+                                <div>
+                                    <button class="btn btn-sm btn-outline-primary me-2" onclick="editProduct(@product.ProductId)">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="archiveProduct(@product.ProductId)">
+                                        <i class="fas fa-archive"></i> Archive
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h5 class="mb-0">Sizes & Inventory</h5>
+                                    <button class="btn btn-sm btn-success" onclick="addSize(@product.ProductId)">
+                                        <i class="fas fa-plus"></i> Add Size
+                                    </button>
+                                </div>
+
+                                <div class="table-responsive">
+                                    <table class="table table-bordered table-hover">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Size</th>
+                                                <th>Price</th>
+                                                <th>Stock</th>
+                                                <th>Recipe</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @if (product.Sizes != null && ((IEnumerable<Infoman.Models.ProductSize>)product.Sizes).Any())
+                                            {
+                                                foreach (var size in product.Sizes)
+                                                {
+                                                    <tr>
+                                                        <td>
+                                                            @{
+                                                                string emoji = size.SizeName == "Small" ? "🟢" : (size.SizeName == "Medium" ? "🟡" : "🔴");
+                                                            }
+                                                            @emoji @size.SizeName
+                                                        </td>
+                                                        <td>₱@size.Price.ToString("N2")</td>
+                                                        <td>@size.Stock pcs</td>
+                                                        <td>
+                                                            <button class="btn btn-sm btn-info me-1" onclick="viewRecipe(@size.ProductSizeId)">
+                                                                <i class="fas fa-eye"></i> View Recipe
+                                                            </button>
+                                                            <button class="btn btn-sm btn-warning" onclick="editRecipe(@size.ProductSizeId)">
+                                                                <i class="fas fa-edit"></i> Edit Recipe
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <tr>
+                                                    <td colspan="4" class="text-center text-muted">No sizes added yet</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="text-center py-5">
+                        <h4 class="text-muted">No products yet</h4>
+                        <p>Click "Add Product" to get started</p>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Add Product Modal -->
+        <div class="modal fade" id="addProductModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">➕ Add New Product</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form asp-action="AddProduct" asp-controller="Owner" method="post" id="addProductForm">
+                        @Html.AntiForgeryToken()
+                        <div class="modal-body">
+                            <h6 class="mb-3">BASIC INFORMATION</h6>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Product Name <span class="text-danger">*</span></label>
+                                    <input type="text" name="Name" class="form-control" required />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">SKU <span class="text-danger">*</span></label>
+                                    <input type="text" name="SKU" class="form-control" required placeholder="e.g., MS-001" />
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Profit Margin</label>
+                                    <select name="SelectedProfitMargin" class="form-control">
+                                        <option value="30%">30%</option>
+                                        <option value="40%">40%</option>
+                                        <option value="50%">50%</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Category (Optional)</label>
+                                    <input type="text" name="Category" class="form-control" placeholder="e.g., Fruit Shake" />
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Description (Optional)</label>
+                                <textarea name="Description" class="form-control" rows="2" placeholder="Product description..."></textarea>
+                            </div>
+
+                            <hr />
+
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0">SIZES & VARIATIONS</h6>
+                                <button type="button" class="btn btn-sm btn-success" onclick="addSizeRow()">
+                                    <i class="fas fa-plus"></i> Add Size
+                                </button>
+                            </div>
+
+                            <div id="sizesContainer">
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save Product</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Recipe Modal -->
+        <div class="modal fade" id="editRecipeModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">📝 Edit Recipe: <span id="recipeProductName"></span> - <span id="recipeSizeName"></span></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Product</label>
+                                <input type="text" id="recipeProductDisplay" class="form-control" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Size</label>
+                                <input type="text" id="recipeSizeDisplay" class="form-control" readonly>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Selling Price</label>
+                                <input type="text" id="recipeSellingPrice" class="form-control" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Margin</label>
+                                <select id="marginSelect" class="form-control" onchange="updateSellingPrice()">
+                                    <option value="0.3">30%</option>
+                                    <option value="0.4">40%</option>
+                                    <option value="0.5">50%</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Total Recipe Cost</label>
+                                <input type="text" id="recipeTotalCost" class="form-control" readonly>
+                                <small id="costPercentage" class="text-muted"></small>
+                            </div>
+                        </div>
+
+                        <hr />
+
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0">INGREDIENTS</h6>
+                            <button type="button" class="btn btn-sm btn-success" onclick="addIngredientRow()">
+                                <i class="fas fa-plus"></i> Add Ingredient
+                            </button>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-bordered" id="ingredientsTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Ingredient</th>
+                                        <th>Quantity</th>
+                                        <th>Unit</th>
+                                        <th>Cost/Unit</th>
+                                        <th>Total</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ingredientsBody">
+                                </tbody>
+                                <tfoot>
+                                    <tr class="table-warning">
+                                        <td colspan="4" class="text-end fw-bold">TOTAL COST:</td>
+                                        <td id="totalCostDisplay" class="fw-bold">₱0.00</td>
+                                        <td></td>
+                                    </tr>
+                                    <tr class="table-info">
+                                        <td colspan="4" class="text-end fw-bold">SELLING PRICE:</td>
+                                        <td id="sellingPriceDisplay" class="fw-bold">₱0.00</td>
+                                        <td></td>
+                                    </tr>
+                                    <tr id="profitLossRow">
+                                        <td colspan="4" class="text-end fw-bold">PROFIT/LOSS:</td>
+                                        <td id="profitLossDisplay" class="fw-bold"></td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" onclick="saveRecipe()">Save Recipe</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- View Recipe Modal -->
+        <div class="modal fade" id="viewRecipeModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-info text-white">
+                        <h5 class="modal-title">
+                            <i class="fas fa-receipt"></i> Recipe Details:
+                            <span id="viewProductName"></span> - <span id="viewSizeName"></span>
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h6 class="text-muted">Selling Price</h6>
+                                        <h3 class="text-success" id="viewSellingPrice">₱0.00</h3>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h6 class="text-muted">Total Cost</h6>
+                                        <h3 class="text-danger" id="viewTotalCost">₱0.00</h3>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h6 class="text-muted">Profit</h6>
+                                        <h3 class="text-primary" id="viewProfit">₱0.00</h3>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <small class="text-muted">Product SKU</small>
+                                        <p class="mb-0 fw-bold" id="viewProductSKU">-</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <small class="text-muted">Category</small>
+                                        <p class="mb-0 fw-bold" id="viewProductCategory">-</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <small class="text-muted">Stock Available</small>
+                                        <p class="mb-0 fw-bold" id="viewStock">-</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="alert alert-info">
+                                    <strong>Margin:</strong> <span id="viewMargin">0</span>%
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="alert alert-secondary">
+                                    <strong>Markup:</strong> <span id="viewMarkup">0</span>%
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr />
+
+                        <h6 class="mb-3"><i class="fas fa-list"></i> INGREDIENTS</h6>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Ingredient</th>
+                                        <th>Quantity</th>
+                                        <th>Unit</th>
+                                        <th>Cost/Unit</th>
+                                        <th>Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="viewIngredientsBody">
+                                    <tr>
+                                        <td colspan="5" class="text-center">Loading...</td>
+                                    </tr>
+                                </tbody>
+                                <tfoot class="table-warning">
+                                    <tr>
+                                        <td colspan="4" class="text-end fw-bold">GRAND TOTAL COST:</td>
+                                        <td id="viewGrandTotal" class="fw-bold">₱0.00</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" onclick="editRecipeFromView()">
+                            <i class="fas fa-edit"></i> Edit Recipe
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inventory Alerts Module -->
+        <div id="inventoryAlertsModule" class="module">
+            <div class="container-fluid">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h2 class="mb-1">⚠️ Alerts & Monitoring</h2>
+                        <p class="text-muted">Track inventory alerts, waste, and expiring items</p>
+                    </div>
+                </div>
+
+                <div class="row mb-4 g-3">
+                    <div class="col-md-3">
+                        <div class="card border-left-warning shadow h-100 text-center">
+                            <div class="card-body">
+                                <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Low Stock Items</div>
+                                <div class="h5 mb-0 font-weight-bold" id="statLowStock">0</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-left-info shadow h-100 text-center">
+                            <div class="card-body">
+                                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Expiring Soon</div>
+                                <div class="h5 mb-0 font-weight-bold" id="statExpiring">0</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-left-danger shadow h-100 text-center">
+                            <div class="card-body">
+                                <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Expired</div>
+                                <div class="h5 mb-0 font-weight-bold" id="statExpired">0</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-left-secondary shadow h-100 text-center">
+                            <div class="card-body">
+                                <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">Waste Logs</div>
+                                <div class="h5 mb-0 font-weight-bold" id="statWaste">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <ul class="nav nav-tabs mb-3">
+                    <li class="nav-item">
+                        <button class="nav-link active" onclick="switchAlertTab('lowstock', event)">
+                            📦 Low Stock Items <span class="badge bg-warning ms-1" id="lowStockBadge">0</span>
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" onclick="switchAlertTab('expiring', event)">
+                            ⏰ Expiring Soon <span class="badge bg-info ms-1" id="expiringBadge">0</span>
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" onclick="switchAlertTab('expired', event)">
+                            ❌ Expired <span class="badge bg-danger ms-1" id="expiredBadge">0</span>
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" onclick="switchAlertTab('waste', event)">
+                            🗑️ Waste Logs <span class="badge bg-secondary ms-1" id="wasteBadge">0</span>
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content">
+                    <div id="lowstockTabContent" class="tab-pane fade show active">
+                        <div class="card"><div class="card-body" id="lowStockContent">Loading...</div></div>
+                    </div>
+                    <div id="expiringTabContent" class="tab-pane fade">
+                        <div class="card"><div class="card-body" id="expiringContent">Loading...</div></div>
+                    </div>
+                    <div id="expiredTabContent" class="tab-pane fade">
+                        <div class="card"><div class="card-body" id="expiredContent">Loading...</div></div>
+                    </div>
+                    <div id="wasteTabContent" class="tab-pane fade">
+                        <div class="card"><div class="card-body" id="wasteContent">Loading...</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Waste Modal -->
+        <div class="modal fade" id="addWasteModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-warning">
+                        <h5 class="modal-title">🗑️ Log Waste</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="wasteForm">
+                            @Html.AntiForgeryToken()
+                            <div class="mb-3">
+                                <label class="form-label">Raw Material <span class="text-danger">*</span></label>
+                                <select class="form-control" id="wasteMaterialId" required>
+                                    <option value="">Select Material</option>
+                                    @if (ViewBag.RawMaterials != null)
+                                    {
+                                        foreach (var item in ViewBag.RawMaterials)
+                                        {
+                                            <option value="@item.RawMaterialId" data-unit="@item.Unit" data-price="@item.Price">
+                                                @item.Name (@item.StockWithUnit in stock)
+                                            </option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Quantity <span class="text-danger">*</span></label>
+                                <input type="number" step="0.01" class="form-control" id="wasteQuantity" required>
+                                <small class="text-muted" id="wasteUnitHint">Unit: </small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Reason <span class="text-danger">*</span></label>
+                                <select class="form-control" id="wasteReason" required>
+                                    <option value="Expired">Expired</option>
+                                    <option value="Damaged">Damaged</option>
+                                    <option value="Spilled">Spilled</option>
+                                    <option value="Overprepared">Overprepared</option>
+                                    <option value="QualityIssue">Quality Issue</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Notes (Optional)</label>
+                                <textarea class="form-control" id="wasteNotes" rows="2"></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Recorded By</label>
+                                <input type="text" class="form-control" id="wasteRecordedBy" value="Owner">
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-warning" onclick="saveWasteLog()">Save Waste Log</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports Module -->
+        <div id="reportsModule" class="module">
+            <h3>Reports Module</h3>
+            <p>Coming soon...</p>
+        </div>
+
+        <!-- Employees Module -->
+        <div id="employeesModule" class="module">
+            <h3>Employees Module</h3>
+            <p>Coming soon...</p>
+        </div>
+
+        <!-- Settings Module -->
+        <div id="settingsModule" class="module">
+            <h3>Settings Module</h3>
+            <p>Coming soon...</p>
+        </div>
+
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    let sizeCounter = 0;
+    let currentProductSizeId = null;
+    let currentViewProductSizeId = null;
+    let ingredientCounter = 0;
+
+    // Chart
+    var labels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.SalesLabels ?? new List<string>()));
+    var data = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.SalesValues ?? new List<decimal>()));
+    var ctx = document.getElementById('salesChart')?.getContext('2d');
+    if (ctx) {
+        new Chart(ctx, {
+            type: 'line',
+            data: { labels: labels, datasets: [{ label: 'Sales (₱)', data: data, borderWidth: 2, fill: false, tension: 0.3 }] },
+            options: { responsive: true }
+        });
+    }
+
+    function showModule(module) {
+        var modules = ['dashboard', 'inventory', 'products', 'inventoryAlerts', 'reports', 'employees', 'settings'];
+        modules.forEach(m => {
+            var el = document.getElementById(m + 'Module');
+            if (el) el.classList.remove('active');
+        });
+        document.getElementById(module + 'Module').classList.add('active');
+        if (module === 'inventoryAlerts') {
+            loadInventoryAlerts();
+        }
+    }
+
+    // Inventory Functions
+    function toggleAddForm() {
+        var box = document.getElementById('addRawMaterialBox');
+        if (box.style.display === 'none') {
+            box.style.display = 'block';
+            document.getElementById('formHeader').innerText = 'Add Raw Material';
+            document.getElementById('addRawMaterialForm').reset();
+            document.getElementById('RawMaterialId').value = '';
+            document.getElementById('ExpirationDate').value = '';
+        } else {
+            box.style.display = 'none';
+        }
+    }
+
+    function filterTable() {
+        var input = document.getElementById("searchRawMaterial").value.toLowerCase();
+        var rows = document.getElementById("rawMaterialTable").getElementsByTagName("tbody")[0].getElementsByTagName("tr");
+        for (var i = 0; i < rows.length; i++) {
+            rows[i].style.display = rows[i].innerText.toLowerCase().includes(input) ? "" : "none";
+        }
+    }
+
+    function editMaterial(id) {
+        var row = document.querySelector('tr[data-id="' + id + '"]');
+        if (!row) { alert('Material not found'); return; }
+        var categoryInt = row.children[1].getAttribute('data-value');
+        var stockCell = row.children[2];
+        var stock = parseFloat(stockCell.getAttribute('data-stock'));
+        var unit = stockCell.getAttribute('data-unit');
+        var minQtyCell = row.children[3];
+        var minQtyText = minQtyCell.innerText;
+        var minQty = parseFloat(minQtyText.split(' ')[0]);
+        var priceText = row.children[4].innerText;
+        var priceValue = parseFloat(priceText.replace('₱', '').replace(',', ''));
+        var expiryDate = row.children[5].innerText;
+        document.getElementById('RawMaterialId').value = id;
+        document.getElementById('Name').value = row.children[0].innerText;
+        document.getElementById('Category').value = categoryInt;
+        document.getElementById('Stock').value = isNaN(stock) ? 0 : stock;
+        document.getElementById('MinQty').value = isNaN(minQty) ? 0 : minQty;
+        document.getElementById('Unit').value = unit;
+        document.getElementById('Price').value = isNaN(priceValue) ? 0 : priceValue;
+        document.getElementById('ExpirationDate').value = expiryDate && expiryDate !== '—' ? expiryDate : '';
+        document.getElementById('formHeader').innerText = 'Edit Raw Material';
+        document.getElementById('addRawMaterialBox').style.display = 'block';
+    }
+
+    function deleteMaterial(id, clickEvent) {
+        if (confirm("Are you sure you want to delete this raw material?")) {
+            const deleteButton = clickEvent ? clickEvent.target : event.target;
+            const originalText = deleteButton.innerText;
+            deleteButton.innerText = 'Deleting...';
+            deleteButton.disabled = true;
+            const token = document.querySelector('input[name="__RequestVerificationToken"]');
+            if (!token) {
+                alert('Security token missing. Please refresh the page.');
+                deleteButton.innerText = originalText;
+                deleteButton.disabled = false;
+                return;
+            }
+            const formData = new FormData();
+            formData.append('__RequestVerificationToken', token.value);
+            formData.append('id', id);
+            fetch('@Url.Action("DeleteConfirmed", "RawMaterial")', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('Error: ' + (data.message || 'Unknown error occurred'));
+                    deleteButton.innerText = originalText;
+                    deleteButton.disabled = false;
+                }
+            })
+            .catch(err => {
+                alert('Error deleting material: ' + err.message);
+                deleteButton.innerText = originalText;
+                deleteButton.disabled = false;
+            });
+        }
+    }
+
+    document.getElementById('addRawMaterialForm')?.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var id = document.getElementById('RawMaterialId').value;
+        var name = document.getElementById('Name').value.trim();
+        var category = parseInt(document.getElementById('Category').value);
+        if (isNaN(category) || category < 0 || category > 4) { alert('Please select a valid category'); return; }
+        var stock = parseFloat(document.getElementById('Stock').value) || 0;
+        var minQty = parseFloat(document.getElementById('MinQty').value) || 0;
+        var price = parseFloat(document.getElementById('Price').value) || 0;
+        var unit = document.getElementById('Unit').value.trim();
+        var expiration = document.getElementById('ExpirationDate').value;
+        if (!name) { alert('Please enter a name'); return; }
+        if (!unit) { alert('Please enter a unit'); return; }
+        var expirationValue = expiration ? expiration : null;
+        var formData = new FormData();
+        formData.append('RawMaterialId', id || '0');
+        formData.append('Name', name);
+        formData.append('Category', category);
+        formData.append('Stock', stock);
+        formData.append('MinQty', minQty);
+        formData.append('Unit', unit);
+        formData.append('Price', price);
+        formData.append('ExpirationDate', expirationValue);
+        var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+        var url = id ? '@Url.Action("Edit", "RawMaterial")' : '@Url.Action("Create", "RawMaterial")';
+        if (id) { url = url + '/' + id; }
+        fetch(url, {
+            method: 'POST',
+            headers: { 'RequestVerificationToken': token },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) { location.reload(); }
+            else { alert('Error: ' + (data.errors ? data.errors.join(', ') : (data.message || 'Unknown error'))); }
+        })
+        .catch(err => { alert('An error occurred. Please try again.'); });
+    });
+
+    // Products Functions
+    function showAddProductModal() {
+        const form = document.getElementById('addProductForm');
+        form.reset();
+        document.getElementById('sizesContainer').innerHTML = '';
+        sizeCounter = 0;
+        addSizeRow('Small');
+        addSizeRow('Medium');
+        addSizeRow('Large');
+        form.onsubmit = async function(e) {
+            e.preventDefault();
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = 'Saving...';
+            submitBtn.disabled = true;
+            try {
+                const formData = new FormData(form);
+                const response = await fetch('/Owner/AddProduct', {
+                    method: 'POST',
+                    headers: { 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value },
+                    body: formData
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert(result.message);
+                    bootstrap.Modal.getInstance(document.getElementById('addProductModal')).hide();
+                    location.reload();
+                } else {
+                    let errorMsg = result.message || 'Please check all fields';
+                    if (result.errors && typeof result.errors === 'object') errorMsg = Object.values(result.errors).flat().join('\n');
+                    alert('Error:\n' + errorMsg);
+                }
+            } catch (error) {
+                alert('An error occurred. Please try again.');
+            } finally {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        };
+        new bootstrap.Modal(document.getElementById('addProductModal')).show();
+    }
+
+    function addSizeRow(predefinedName = null) {
+        const container = document.getElementById('sizesContainer');
+        const sizeId = sizeCounter++;
+        const sizeName = predefinedName || '';
+        const sizeHtml = `<div class="size-row border p-3 mb-3 rounded" data-size-id="${sizeId}">
+            <button type="button" class="btn btn-sm btn-danger float-end" onclick="removeSizeRow(${sizeId})">✕</button>
+            <div class="row">
+                <div class="col-md-3"><label class="form-label">Size Name</label><input type="text" name="Sizes[${sizeId}].SizeName" class="form-control" value="${sizeName}" required></div>
+                <div class="col-md-2"><label class="form-label">Stock</label><input type="number" name="Sizes[${sizeId}].Stock" class="form-control" value="0" min="0" required></div>
+                <div class="col-md-2"><label class="form-label">Price</label><input type="number" name="Sizes[${sizeId}].Price" class="form-control" step="0.01" value="0"></div>
+                <div class="col-md-5"><label class="form-label">Recipe</label>
+                    <div class="recipe-items" id="recipe-items-${sizeId}">
+                        <div class="row mb-2">
+                            <div class="col-md-8"><select name="Sizes[${sizeId}].RecipeItems[0].RawMaterialId" class="form-control" required><option value="">Select Ingredient</option>@if(ViewBag.RawMaterials != null){ foreach(var item in ViewBag.RawMaterials){
+                            <option value="@item.RawMaterialId">@item.Name (@item.Unit - ₱@item.Price)</option>
+                                                        }}
+</select></div>
+                            <div class="col-md-4"><input type="number" name="Sizes[${sizeId}].RecipeItems[0].Quantity" class="form-control" placeholder="Quantity" step="0.01" min="0.01" value="1" required></div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-link" onclick="addRecipeItem(${sizeId})">+ Add Ingredient</button>
+                </div>
+            </div>
+        </div>`;
+        container.insertAdjacentHTML('beforeend', sizeHtml);
+    }
+
+    function removeSizeRow(sizeId) { document.querySelector(`.size-row[data-size-id="${sizeId}"]`).remove(); }
+    function addRecipeItem(sizeId) {
+        const container = document.getElementById(`recipe-items-${sizeId}`);
+        const itemCount = container.children.length;
+        const html = `<div class="row mb-2"><div class="col-md-8"><select name="Sizes[${sizeId}].RecipeItems[${itemCount}].RawMaterialId" class="form-control" required><option value="">Select Ingredient</option>@if(ViewBag.RawMaterials != null){ foreach(var item in ViewBag.RawMaterials){
+        <option value="@item.RawMaterialId">@item.Name (@item.Unit)</option>
+                }}
+</select></div><div class="col-md-4"><input type="number" name="Sizes[${sizeId}].RecipeItems[${itemCount}].Quantity" class="form-control" placeholder="Quantity" required></div></div>`;
+        container.insertAdjacentHTML('beforeend', html);
+    }
+
+    function filterProducts() {
+        const searchTerm = document.getElementById('searchProduct').value.toLowerCase();
+        const categoryFilter = document.getElementById('filterCategory').value;
+        const products = document.querySelectorAll('.product-card');
+        products.forEach(product => {
+            const name = product.querySelector('h4')?.innerText.toLowerCase() || '';
+            const category = product.getAttribute('data-category') || '';
+            product.style.display = (name.includes(searchTerm) && (!categoryFilter || category === categoryFilter)) ? '' : 'none';
+        });
+    }
+
+    function refreshProducts() { location.reload(); }
+    function editProduct(productId) { alert('Edit product feature - implement based on your needs'); }
+    function archiveProduct(productId) {
+        if (confirm('Are you sure you want to archive this product?')) {
+            fetch(`/Owner/ArchiveProduct/${productId}`, {
+                method: 'POST',
+                headers: { 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value }
+            }).then(response => response.json()).then(data => { if (data.success) { alert('Product archived successfully'); location.reload(); } else { alert('Error archiving product'); } });
+        }
+    }
+    function addSize(productId) { showAddProductModal(); }
+
+    // Recipe Functions
+    function viewRecipe(productSizeId) {
+        const modal = new bootstrap.Modal(document.getElementById('viewRecipeModal'));
+        document.getElementById('viewIngredientsBody').innerHTML = '<tr><td colspan="5" class="text-center">Loading recipe details...</td></tr>';
+        modal.show();
+        fetch(`/Owner/GetRecipe/${productSizeId}`).then(response => response.json()).then(data => {
+            if (data.error) { alert(data.error); modal.hide(); return; }
+            document.getElementById('viewProductName').innerText = data.productName;
+            document.getElementById('viewSizeName').innerText = data.sizeName;
+            document.getElementById('viewProductSKU').innerText = data.productSKU || 'N/A';
+            document.getElementById('viewProductCategory').innerText = data.productCategory || 'N/A';
+            document.getElementById('viewStock').innerText = data.stock + ' pcs';
+            document.getElementById('viewSellingPrice').innerHTML = `₱${data.sellingPrice.toFixed(2)}`;
+            document.getElementById('viewTotalCost').innerHTML = `₱${data.totalCost.toFixed(2)}`;
+            document.getElementById('viewProfit').innerHTML = `₱${data.profit.toFixed(2)}`;
+            document.getElementById('viewMargin').innerText = (data.margin * 100).toFixed(0);
+            const markupPercent = ((data.sellingPrice - data.totalCost) / data.totalCost * 100).toFixed(0);
+            document.getElementById('viewMarkup').innerHTML = markupPercent;
+            const tbody = document.getElementById('viewIngredientsBody');
+            tbody.innerHTML = '';
+            if (data.ingredients && data.ingredients.length > 0) {
+                data.ingredients.forEach(ing => { tbody.insertAdjacentHTML('beforeend', `<tr><td><strong>${ing.name}</strong></td><td>${ing.quantity}</td><td>${ing.unit}</td><td>₱${ing.price.toFixed(2)}</td><td class="text-end">₱${ing.total.toFixed(2)}</td></tr>`); });
+                document.getElementById('viewGrandTotal').innerHTML = `₱${data.totalCost.toFixed(2)}`;
+            } else { tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No ingredients added yet</td></tr>'; document.getElementById('viewGrandTotal').innerHTML = '₱0.00'; }
+            currentViewProductSizeId = productSizeId;
+        }).catch(error => { document.getElementById('viewIngredientsBody').innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error loading recipe.</td></tr>'; });
+    }
+
+    function editRecipeFromView() { if (currentViewProductSizeId) { bootstrap.Modal.getInstance(document.getElementById('viewRecipeModal')).hide(); editRecipe(currentViewProductSizeId); } }
+    function editRecipe(productSizeId) {
+        currentProductSizeId = productSizeId;
+        fetch(`/Owner/GetRecipe/${productSizeId}`).then(response => response.json()).then(data => {
+            document.getElementById('recipeProductName').innerText = data.productName;
+            document.getElementById('recipeSizeName').innerText = data.sizeName;
+            document.getElementById('recipeProductDisplay').value = data.productName;
+            document.getElementById('recipeSizeDisplay').value = data.sizeName;
+            document.getElementById('recipeSellingPrice').value = `₱${data.sellingPrice.toFixed(2)}`;
+            document.getElementById('recipeTotalCost').value = `₱${data.totalCost.toFixed(2)}`;
+            const marginPercent = (data.margin * 100).toFixed(0);
+            if (marginPercent === "30") document.getElementById('marginSelect').value = "0.3";
+            else if (marginPercent === "40") document.getElementById('marginSelect').value = "0.4";
+            else if (marginPercent === "50") document.getElementById('marginSelect').value = "0.5";
+            const percentage = (data.totalCost / data.sellingPrice * 100).toFixed(1);
+            document.getElementById('costPercentage').innerText = `${percentage}% of selling price`;
+            const tbody = document.getElementById('ingredientsBody');
+            tbody.innerHTML = '';
+            data.ingredients.forEach((ing, index) => addIngredientRowToTable(ing, index));
+            updateTotals();
+            new bootstrap.Modal(document.getElementById('editRecipeModal')).show();
+        });
+    }
+
+    function addIngredientRow() { addIngredientRowToTable(null, ingredientCounter++); }
+    function addIngredientRowToTable(ingredient, index) {
+        const tbody = document.getElementById('ingredientsBody');
+        const row = `<tr data-ingredient-index="${index}">
+            <td><select class="form-control ingredient-select" onchange="calculateIngredientTotal(this)"><option value="">Select Ingredient</option>@if(ViewBag.RawMaterials != null){ foreach(var item in ViewBag.RawMaterials){
+            <option value="@item.RawMaterialId" data-price="@item.Price" data-unit="@item.Unit">@item.Name (@item.Unit - ₱@item.Price)</option>
+                        }}
+</select></td>
+            <td><input type="number" class="form-control quantity-input" onchange="calculateIngredientTotal(this)" placeholder="Quantity"></td>
+            <td class="unit-display">-</td><td class="cost-per-unit">-</td><td class="total-cost">₱0.00</td>
+            <td><button type="button" class="btn btn-sm btn-danger" onclick="removeIngredientRow(this)">✕</button></td>
+        </tr>`;
+        tbody.insertAdjacentHTML('beforeend', row);
+        if (ingredient) {
+            const rowElement = tbody.lastElementChild;
+            rowElement.querySelector('.ingredient-select').value = ingredient.rawMaterialId;
+            rowElement.querySelector('.quantity-input').value = ingredient.quantity;
+            calculateIngredientTotal(rowElement.querySelector('.ingredient-select'));
+        }
+    }
+
+    function calculateIngredientTotal(element) {
+        const row = element.closest('tr');
+        const select = row.querySelector('.ingredient-select');
+        const selectedOption = select.options[select.selectedIndex];
+        const price = parseFloat(selectedOption.getAttribute('data-price') || 0);
+        const unit = selectedOption.getAttribute('data-unit') || '';
+        const quantity = parseFloat(row.querySelector('.quantity-input').value || 0);
+        const total = price * quantity;
+        row.querySelector('.unit-display').innerText = unit;
+        row.querySelector('.cost-per-unit').innerText = `₱${price.toFixed(2)}`;
+        row.querySelector('.total-cost').innerText = `₱${total.toFixed(2)}`;
+        updateSellingPrice();
+    }
+
+    function removeIngredientRow(button) { button.closest('tr').remove(); updateTotals(); }
+    function updateSellingPrice() {
+        let totalCostText = document.getElementById('totalCostDisplay').innerText;
+        let totalCost = parseFloat(totalCostText.replace('₱', '')) || 0;
+        let margin = parseFloat(document.getElementById('marginSelect')?.value || 0.3);
+        let sellingPrice = totalCost / (1 - margin);
+        document.getElementById('recipeSellingPrice').value = `₱${sellingPrice.toFixed(2)}`;
+        updateTotals();
+    }
+
+    function updateTotals() {
+        let totalCost = 0;
+        document.querySelectorAll('#ingredientsBody tr').forEach(row => {
+            const totalText = row.querySelector('.total-cost')?.innerText || '₱0.00';
+            totalCost += parseFloat(totalText.replace('₱', '')) || 0;
+        });
+        document.getElementById('totalCostDisplay').innerHTML = `₱${totalCost.toFixed(2)}`;
+        const margin = parseFloat(document.getElementById('marginSelect')?.value || 0.3);
+        const sellingPrice = totalCost / (1 - margin);
+        document.getElementById('sellingPriceDisplay').innerHTML = `₱${sellingPrice.toFixed(2)}`;
+        document.getElementById('recipeSellingPrice').value = `₱${sellingPrice.toFixed(2)}`;
+        let profitLoss = sellingPrice - totalCost;
+        const profitLossDisplay = document.getElementById('profitLossDisplay');
+        profitLossDisplay.innerHTML = `₱${profitLoss.toFixed(2)}`;
+        profitLossDisplay.className = profitLoss >= 0 ? 'fw-bold text-success' : 'fw-bold text-danger';
+    }
+
+    function saveRecipe() {
+        const ingredients = [];
+        document.querySelectorAll('#ingredientsBody tr').forEach(row => {
+            const select = row.querySelector('.ingredient-select');
+            const quantity = row.querySelector('.quantity-input').value;
+            if (select.value && quantity) ingredients.push({ rawMaterialId: parseInt(select.value), quantity: parseFloat(quantity) });
+        });
+        const margin = parseFloat(document.getElementById('marginSelect').value);
+        fetch('/Owner/SaveRecipe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value },
+            body: JSON.stringify({ productSizeId: currentProductSizeId, margin: margin, ingredients: ingredients })
+        }).then(response => response.json()).then(data => {
+            if (data.success) { alert('Recipe saved successfully!'); bootstrap.Modal.getInstance(document.getElementById('editRecipeModal')).hide(); location.reload(); }
+            else { alert('Error saving recipe: ' + data.message); }
+        }).catch(err => { alert('An error occurred. Please try again.'); });
+    }
+
+    // Alerts Functions
+    function loadInventoryAlerts() {
+        fetch('/Owner/GetInventoryAlertsData').then(response => response.json()).then(data => {
+            document.getElementById('statLowStock').innerText = data.lowStockCount;
+            document.getElementById('statExpiring').innerText = data.expiringCount;
+            document.getElementById('statExpired').innerText = data.expiredCount;
+            document.getElementById('statWaste').innerText = data.wasteCount;
+            document.getElementById('lowStockBadge').innerText = data.lowStockCount;
+            document.getElementById('expiringBadge').innerText = data.expiringCount;
+            document.getElementById('expiredBadge').innerText = data.expiredCount;
+            document.getElementById('wasteBadge').innerText = data.wasteCount;
+            loadLowStockTab(data.lowStockItems);
+            loadExpiringTab(data.expiringItems);
+            loadExpiredTab(data.expiredItems);
+            loadWasteTab(data.wasteLogs);
+        }).catch(error => console.error('Error loading alerts:', error));
+    }
+
+    function loadLowStockTab(items) {
+        const container = document.getElementById('lowStockContent');
+        if (!items || items.length === 0) container.innerHTML = '<div class="empty-state"><i class="fas fa-check-circle fa-4x text-success mb-3"></i><h4 class="text-success">✨ All Good!</h4><p class="text-muted">No low stock alerts at the moment.</p></div>';
+        else container.innerHTML = `<div class="table-responsive"><table class="table table-bordered"><thead class="table-warning"><tr><th>Name</th><th>Category</th><th>Current Stock</th><th>Min Qty</th><th>Unit</th><th>Status</th><th>Action</th></tr></thead><tbody>${items.map(item => `<tr><td><strong>${escapeHtml(item.name)}</strong></td><td>${escapeHtml(item.category)}</td><td class="text-danger fw-bold">${item.stockWithUnit}</td><td>${item.minQty}</td><td>${escapeHtml(item.unit)}</td><td><span class="badge bg-warning">⚠️ Low Stock</span></td><td><button class="btn btn-sm btn-outline-primary" onclick="restockMaterial(${item.rawMaterialId})">Restock</button></td></tr>`).join('')}</tbody></table></div>`;
+    }
+
+    function loadExpiringTab(items) {
+        const container = document.getElementById('expiringContent');
+        if (!items || items.length === 0) container.innerHTML = '<div class="empty-state"><i class="fas fa-calendar-check fa-4x text-info mb-3"></i><h4 class="text-info">✨ All Good!</h4><p class="text-muted">No items expiring in the next 7 days.</p></div>';
+        else container.innerHTML = `<div class="table-responsive"><table class="table table-bordered"><thead class="table-info"><tr><th>Name</th><th>Category</th><th>Current Stock</th><th>Expiry Date</th><th>Days Left</th><th>Status</th><th>Action</th></tr></thead><tbody>${items.map(item => `<tr><td><strong>${escapeHtml(item.name)}</strong></td><td>${escapeHtml(item.category)}</td><td>${item.stockWithUnit}</td><td class="text-danger">${item.expiryDate}</td><td class="text-danger fw-bold">${item.daysLeft} days</td><td><span class="badge bg-info">⏰ Expiring Soon</span></td><td><button class="btn btn-sm btn-outline-warning" onclick="useMaterialFirst(${item.rawMaterialId})">Use First</button></td></tr>`).join('')}</tbody></table></div>`;
+    }
+
+    function loadExpiredTab(items) {
+        const container = document.getElementById('expiredContent');
+        if (!items || items.length === 0) container.innerHTML = '<div class="empty-state"><i class="fas fa-leaf fa-4x text-success mb-3"></i><h4 class="text-success">✨ Clean Record!</h4><p class="text-muted">No expired items found.</p></div>';
+        else container.innerHTML = `<div class="table-responsive"><table class="table table-bordered"><thead class="table-danger"><tr><th>Name</th><th>Category</th><th>Current Stock</th><th>Expiry Date</th><th>Days Overdue</th><th>Status</th><th>Action</th></tr></thead><tbody>${items.map(item => `<tr><td><strong>${escapeHtml(item.name)}</strong></td><td>${escapeHtml(item.category)}</td><td class="text-danger">${item.stockWithUnit}</td><td class="text-danger">${item.expiryDate}</td><td class="text-danger fw-bold">${item.daysOverdue} days ago</td><td><span class="badge bg-danger">❌ Expired</span></td><td><button class="btn btn-sm btn-outline-danger" onclick="logExpiredAsWaste(${item.rawMaterialId})">Log as Waste</button></td></tr>`).join('')}</tbody></table></div>`;
+    }
+
+    function loadWasteTab(wasteLogs) {
+        const container = document.getElementById('wasteContent');
+        if (!wasteLogs || wasteLogs.length === 0) container.innerHTML = '<div class="empty-state"><i class="fas fa-trash-alt fa-4x text-secondary mb-3"></i><h4 class="text-secondary">No Waste Logs</h4><p class="text-muted">No waste has been logged yet.</p><button class="btn btn-warning btn-sm mt-2" onclick="showAddWasteModal()">Log Your First Waste</button></div>';
+        else container.innerHTML = `<div class="table-responsive"><table class="table table-bordered"><thead class="table-secondary"><tr><th>Date</th><th>Material</th><th>Quantity</th><th>Reason</th><th>Total Cost</th><th>Recorded By</th><th>Notes</th></tr></thead><tbody>${wasteLogs.map(log => `<tr><td>${log.date}</td><td><strong>${escapeHtml(log.materialName)}</strong></td><td class="text-danger">${log.quantity} ${log.unit}</td><td><span class="badge bg-secondary">${log.reason}</span></td><td class="text-danger">₱${log.totalCost}</td><td>${escapeHtml(log.recordedBy)}</td><td>${escapeHtml(log.notes) || '-'}</td></tr>`).join('')}</tbody></table></div>`;
+    }
+
+    function switchAlertTab(tabName, clickEvent) {
+        document.querySelectorAll('.nav-link').forEach(btn => btn.classList.remove('active'));
+        if (clickEvent && clickEvent.target) clickEvent.target.classList.add('active');
+        document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('show', 'active'));
+        document.getElementById(`${tabName}TabContent`).classList.add('show', 'active');
+    }
+
+    function showAddWasteModal() { document.getElementById('wasteForm').reset(); new bootstrap.Modal(document.getElementById('addWasteModal')).show(); }
+    function restockMaterial(id) { alert(`Restock feature for material ID: ${id}`); }
+    function useMaterialFirst(id) { alert(`Priority usage for material ID: ${id}`); }
+    function logExpiredAsWaste(id) { if (confirm('Log this expired item as waste?')) { showAddWasteModal(); document.getElementById('wasteMaterialId').value = id; document.getElementById('wasteReason').value = 'Expired'; document.getElementById('wasteNotes').value = 'Auto-logged from expired items'; } }
+
+    function saveWasteLog() {
+        const materialId = document.getElementById('wasteMaterialId').value;
+        const quantity = document.getElementById('wasteQuantity').value;
+        const reason = document.getElementById('wasteReason').value;
+        const notes = document.getElementById('wasteNotes').value;
+        const recordedBy = document.getElementById('wasteRecordedBy').value;
+        if (!materialId || !quantity || !reason) { alert('Please fill in all required fields'); return; }
+        const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+        fetch('/Owner/AddWasteLog', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
+            body: JSON.stringify({ rawMaterialId: parseInt(materialId), quantity: parseFloat(quantity), reason: reason, notes: notes, recordedBy: recordedBy })
+        }).then(response => response.json()).then(data => {
+            if (data.success) { bootstrap.Modal.getInstance(document.getElementById('addWasteModal')).hide(); loadInventoryAlerts(); alert('Waste logged successfully!'); }
+            else { alert('Error: ' + data.message); }
+        }).catch(error => { alert('An error occurred'); });
+    }
+
+    function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
+</script>

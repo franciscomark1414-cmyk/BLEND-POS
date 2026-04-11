@@ -1,0 +1,61 @@
+﻿using System;
+using System.ComponentModel.DataAnnotations;
+
+namespace Infoman.Models
+{
+    public enum RawMaterialCategory
+    {
+        Fruits,
+        Dairy,
+        Others,
+        Sweeteners,
+        Toppings
+    }
+
+    public class RawMaterial
+    {
+        [Key]
+        public int RawMaterialId { get; set; }
+
+        [Required]
+        public string Name { get; set; }
+
+        [Required]
+        public decimal Stock { get; set; }
+
+        [Required]
+        public int MinQty { get; set; } // minimum quantity para sa low stock alert
+
+        [Required]
+        public decimal Price { get; set; }
+
+        [DataType(DataType.Date)]
+        [Display(Name = "Expiration Date")]
+        public DateTime? ExpirationDate { get; set; } // nullable kung walang expiration
+
+        [Required]
+        public RawMaterialCategory Category { get; set; } // Fruits, Dairy, etc.
+        [Required]
+        [Display(Name = "Unit")]
+        public string Unit { get; set; }
+
+        // Computed property for total value
+        public decimal TotalValue => Stock * Price;
+
+        // Computed property for status
+        public string Status
+        {
+            get
+            {
+                if (Stock <= MinQty)
+                    return "Low Stock";
+                if (ExpirationDate.HasValue && ExpirationDate.Value <= DateTime.Today.AddDays(3))
+                    return "Expiring Soon";
+                return "In Stock";
+            }
+        }
+        public string StockWithUnit => $"{Stock:N1} {Unit}";
+        public string MinQtyWithUnit => $"{MinQty:N1} {Unit}";
+        public bool IsDeleted { get; set; } = false;
+    }
+}

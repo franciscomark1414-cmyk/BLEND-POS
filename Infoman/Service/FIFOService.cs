@@ -22,58 +22,75 @@ namespace Infoman.Service
         /// <param name="productId">ID ng product na ginamitan (e.g., Mango Shake)</param>
         /// <param name="referenceNo">Reference number (order/production #)</param>
         /// <returns>True kung successful, False kung kulang ang stock</returns>
-        public bool DeductStock(int rawMaterialId, decimal quantityToDeduct, int productId, string referenceNo = "")
+        public bool DeductStock(int rawMaterialId, decimal quantity, int productId, string referenceNo)
         {
-            if (quantityToDeduct <= 0)
-                return true;
+            using var transaction = _context.Database.BeginTransaction();
 
-            // Kunin ang lahat ng batches na may natitirang stock
-            // Inorder by ReceivedDate (FIFO: pinakamatanda muna)
-            var availableBatches = _context.RawMaterialBatches
-                .Where(b => b.RawMaterialId == rawMaterialId && b.QuantityRemaining > 0)
-                .OrderBy(b => b.ReceivedDate)  // ← FIFO logic dito
-                .ToList();
-
-            // Compute total available stock
-            decimal totalAvailable = availableBatches.Sum(b => b.QuantityRemaining);
-
-            if (totalAvailable < quantityToDeduct)
-                return false;  // Insufficient stock
-
-            decimal remainingToDeduct = quantityToDeduct;
-
-            // Loop sa bawat batch at bawasan simula sa pinakamatanda
-            foreach (var batch in availableBatches)
+            try
             {
-                if (remainingToDeduct <= 0)
-                    break;
+                // Kunin ang mga batches na may remaining stock, FIFO (oldest first)
+                var batches = _context.RawMaterialBatches
+                    .Where(b => b.RawMaterialId == rawMaterialId && b.QuantityRemaining > 0)
+                    .OrderBy(b => b.ReceivedDate)
+                    .ToList();
 
-                decimal deductFromThisBatch = Math.Min(batch.QuantityRemaining, remainingToDeduct);
+                if (!batches.Any())
+                    return false;
 
-                // Bawasan ang batch
-                batch.QuantityRemaining -= deductFromThisBatch;
-                remainingToDeduct -= deductFromThisBatch;
+                decimal remainingToDeduct = quantity;
+                var usedBatches = new List<(RawMaterialBatch batch, decimal usedQty)>();
 
-                // I-record kung saang batch galing ang ginamit
-                var usage = new ProductionUsage
+                foreach (var batch in batches)
                 {
-                    BatchId = batch.BatchId,
-                    ProductId = productId,
-                    QuantityUsed = deductFromThisBatch,
-                    DateUsed = DateTime.Now,
-                    ReferenceNo = referenceNo
-                };
+                    if (remainingToDeduct <= 0) break;
 
-                _context.ProductionUsages.Add(usage);
+                    decimal deductFromBatch = Math.Min(remainingToDeduct, batch.QuantityRemaining);
+
+                    usedBatches.Add((batch, deductFromBatch));
+                    batch.QuantityRemaining -= deductFromBatch;
+                    remainingToDeduct -= deductFromBatch;
+                }
+
+                if (remainingToDeduct > 0)
+                    return false;
+
+                // Mag-record ng bawat deduction per batch
+                foreach (var (batch, usedQty) in usedBatches)
+                {
+                    var usage = new ProductionUsage
+                    {
+                        BatchId = batch.BatchId,
+                        QuantityUsed = usedQty,
+                        DateUsed = DateTime.Now,
+                        ReferenceNo = referenceNo,
+                        ProductId = productId
+                    };
+                    _context.ProductionUsages.Add(usage);
+                }
+
+                // ✅ IMPORTANTE: I-UPDATE ANG MAIN STOCK NG RAW MATERIAL
+                var rawMaterial = _context.RawMaterials.Find(rawMaterialId);
+                if (rawMaterial != null)
+                {
+                    // I-compute ang total remaining stock mula sa lahat ng batches
+                    decimal totalRemaining = _context.RawMaterialBatches
+                        .Where(b => b.RawMaterialId == rawMaterialId)
+                        .Sum(b => b.QuantityRemaining);
+
+                    rawMaterial.Stock = totalRemaining;  // ← ITO ANG KULANG MO!
+                }
+
+                _context.SaveChanges();
+                transaction.Commit();
+
+                return true;
             }
-
-            // I-update ang main Stock column (for display purposes only)
-            UpdateMainStockColumn(rawMaterialId);
-
-            _context.SaveChanges();
-            return true;
+            catch (Exception)
+            {
+                transaction.Rollback();
+                throw;
+            }
         }
-
         /// <summary>
         /// I-update ang Stock column sa RawMaterials table (for display)
         /// </summary>
@@ -108,9 +125,11 @@ namespace Infoman.Service
             _context.RawMaterialBatches.Add(batch);
 
             // I-update ang main Stock column
-            UpdateMainStockColumn(rawMaterialId);
+            _context.RawMaterialBatches.Add(batch);
+            _context.SaveChanges(); // save muna batch
 
-            _context.SaveChanges();
+            UpdateMainStockColumn(rawMaterialId);
+            _context.SaveChanges(); // then update stock
         }
 
         /// <summary>

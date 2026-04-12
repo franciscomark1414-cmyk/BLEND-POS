@@ -1,5 +1,6 @@
 ﻿using Infoman.Data;
 using Infoman.Models;
+using Infoman.Service;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using static Infoman.Models.WasteLog;
@@ -9,9 +10,11 @@ namespace Infoman.Controllers
     public class OwnerController : Controller
     {
         private readonly ConnectionDatabase _db;
+        private readonly FIFOService _fifoService;
         public OwnerController(ConnectionDatabase db)
         {
             _db = db;
+            _fifoService = new FIFOService(_db);
         }
 
         public ActionResult Dashboard()
@@ -124,7 +127,24 @@ namespace Infoman.Controllers
 
 
             // Raw materials for inventory module
-            ViewBag.RawMaterials = _db.RawMaterials.Where(r => r.IsDeleted == false).ToList();
+            ViewBag.RawMaterials = _db.RawMaterials
+    .Where(r => !r.IsDeleted)
+    .Select(r => new RawMaterial
+    {
+        RawMaterialId = r.RawMaterialId,
+        Name = r.Name,
+        Category = r.Category,
+        MinQty = r.MinQty,
+        Price = r.Price,
+        Unit = r.Unit,
+        ExpirationDate = r.ExpirationDate,
+
+        // 🔥 IMPORTANT: recompute stock from batches
+        Stock = _db.RawMaterialBatches
+            .Where(b => b.RawMaterialId == r.RawMaterialId)
+            .Sum(b => (decimal?)b.QuantityRemaining) ?? 0
+    })
+    .ToList();
             var products = _db.Products
         .Include(p => p.Sizes)
         .ThenInclude(ps => ps.RecipeItems)
@@ -323,8 +343,6 @@ namespace Infoman.Controllers
             }
         }
 
-
-        [HttpGet]
         [HttpGet]
         public IActionResult GetRecipe(int id)
         {
@@ -341,6 +359,7 @@ namespace Infoman.Controllers
                     margin = ps.Margin,
                     stock = ps.Stock,
                     profit = ps.Price - ps.RecipeItems.Sum(r => r.Quantity * r.RawMaterial.Price),
+                    hasStock = ps.Stock > 0,  // ✅ Flag para sa warning
                     ingredients = ps.RecipeItems.Select(r => new
                     {
                         rawMaterialId = r.RawMaterialId,
@@ -356,8 +375,35 @@ namespace Infoman.Controllers
             if (recipe == null)
                 return Json(new { error = "Recipe not found" });
 
+            // ✅ PARA SA VIEW: I-return pa rin ang data, may warning lang
+            // PARA SA EDIT: Iba ang tawag (kailangan ng separate action or parameter)
+
             return Json(recipe);
         }
+
+        [HttpGet]
+        public IActionResult CanEditRecipe(int id)
+        {
+            var productSize = _db.ProductSizes
+                .FirstOrDefault(ps => ps.ProductSizeId == id);
+
+            if (productSize == null)
+                return Json(new { canEdit = false, message = "Product not found" });
+
+            if (productSize.Stock > 0)
+            {
+                return Json(new
+                {
+                    canEdit = false,
+                    message = $"⚠️ Cannot edit recipe!\n\nThis product has {productSize.Stock} pcs in stock.\n\nPlease sell or waste remaining stock before editing the recipe.",
+                    stock = productSize.Stock
+                });
+            }
+
+            return Json(new { canEdit = true });
+        }
+
+
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -365,23 +411,36 @@ namespace Infoman.Controllers
         {
             try
             {
-                // I-load ang product size
+                // I-load ang product size kasama ang recipe items at raw materials
                 var productSize = await _db.ProductSizes
                     .Include(ps => ps.RecipeItems)
                         .ThenInclude(ri => ri.RawMaterial)
+                    .Include(ps => ps.Product)
                     .FirstOrDefaultAsync(ps => ps.ProductSizeId == model.ProductSizeId);
 
                 if (productSize == null)
                     return Json(new { success = false, message = "Product size not found" });
 
-                // ✅ IMPORTANTE: I-SAVE ANG MARGIN SA DATABASE
+                // ✅ CHECK KUNG MAY STOCK BAGO I-EDIT
+                if (productSize.Stock > 0)
+                {
+                    return Json(new
+                    {
+                        success = false,
+                        message = $"Cannot save recipe changes. This product has {productSize.Stock} pcs in stock. Please sell or waste remaining stock first.",
+                        hasStock = true,
+                        stock = productSize.Stock
+                    });
+                }
+
+                // I-save ang margin
                 productSize.Margin = model.Margin;
 
                 // I-delete ang existing recipe items
                 if (productSize.RecipeItems != null && productSize.RecipeItems.Any())
                 {
                     _db.RecipeItems.RemoveRange(productSize.RecipeItems);
-                    await _db.SaveChangesAsync(); // I-save agad ang deletion
+                    await _db.SaveChangesAsync();
                 }
 
                 // I-clear ang collection
@@ -398,11 +457,9 @@ namespace Infoman.Controllers
                     });
                 }
 
-                // I-save ang recipe items at margin
                 await _db.SaveChangesAsync();
 
                 // I-recompute ang total cost
-                // I-reload ang recipe items para fresh
                 await _db.Entry(productSize).Collection(ps => ps.RecipeItems).LoadAsync();
                 foreach (var item in productSize.RecipeItems)
                 {
@@ -419,7 +476,7 @@ namespace Infoman.Controllers
 
                 await _db.SaveChangesAsync();
 
-                return Json(new { success = true, newPrice = newSellingPrice });
+                return Json(new { success = true, newPrice = newSellingPrice, message = "Recipe saved successfully!" });
             }
             catch (Exception ex)
             {
@@ -552,7 +609,12 @@ namespace Infoman.Controllers
                 };
 
                 // Reduce stock
-                material.Stock -= model.Quantity;
+                _fifoService.DeductStock(
+                 model.RawMaterialId,
+                 model.Quantity,
+                 0, // no product
+                 "WASTE"
+                 );
 
                 _db.WasteLogs.Add(wasteLog);
                 await _db.SaveChangesAsync();
@@ -573,6 +635,90 @@ namespace Infoman.Controllers
             public string Reason { get; set; }
             public string Notes { get; set; }
             public string RecordedBy { get; set; }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ProduceProduct([FromBody] ProduceRequest request)
+        {
+            try
+            {
+                var productSize = await _db.ProductSizes
+                    .Include(ps => ps.Product)
+                    .Include(ps => ps.RecipeItems)
+                        .ThenInclude(ri => ri.RawMaterial)
+                    .FirstOrDefaultAsync(ps => ps.ProductSizeId == request.ProductSizeId);
+
+                if (productSize == null)
+                    return Json(new { success = false, message = "Product size not found" });
+
+                if (request.Quantity <= 0)
+                    return Json(new { success = false, message = "Invalid quantity" });
+
+                // Check kung may sapat na raw materials
+                foreach (var recipeItem in productSize.RecipeItems)
+                {
+                    decimal neededQty = recipeItem.Quantity * request.Quantity;
+                    var material = await _db.RawMaterials.FindAsync(recipeItem.RawMaterialId);
+
+                    if (material.Stock < neededQty)
+                    {
+                        return Json(new
+                        {
+                            success = false,
+                            message = $"Insufficient {material.Name}. Need {neededQty} {material.Unit}, only {material.Stock} available."
+                        });
+                    }
+                }
+
+                string referenceNo = request.ReferenceNo ?? $"PROD-{DateTime.Now:yyyyMMddHHmmss}";
+
+                // Deduct raw materials gamit ang FIFO
+                foreach (var recipeItem in productSize.RecipeItems)
+                {
+                    decimal neededQty = recipeItem.Quantity * request.Quantity;
+
+                    bool success = _fifoService.DeductStock(
+                        recipeItem.RawMaterialId,
+                        neededQty,
+                        productSize.ProductId,
+                        $"{referenceNo}-{productSize.ProductSizeId}"
+                    );
+
+                    if (!success)
+                    {
+                        return Json(new
+                        {
+                            success = false,
+                            message = $"Failed to deduct {recipeItem.RawMaterial?.Name ?? "raw material"}. Insufficient batch stock."
+                        });
+                    }
+                }
+
+                // Add sa product stock
+                productSize.Stock += request.Quantity;
+                await _db.SaveChangesAsync();
+
+                return Json(new
+                {
+                    success = true,
+                    message = $"Successfully produced {request.Quantity} pcs of {productSize.Product.Name} - {productSize.SizeName}",
+                    newStock = productSize.Stock,
+                    referenceNo = referenceNo
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        // Request model
+        public class ProduceRequest
+        {
+            public int ProductSizeId { get; set; }
+            public int Quantity { get; set; }
+            public string? ReferenceNo { get; set; }
         }
     }
 }

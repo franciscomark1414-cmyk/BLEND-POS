@@ -74,7 +74,6 @@ namespace Infoman.Controllers
             return View(material);
         }
 
-        // EDIT - POST (FIXED)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, RawMaterial model)
@@ -88,15 +87,24 @@ namespace Infoman.Controllers
                 // Check kung nagbago ang presyo
                 bool priceChanged = rawMaterial.Price != model.Price;
 
-                // I-update ang raw material
+                // I-update ang raw material (EXCEPT STOCK)
                 rawMaterial.Name = model.Name;
                 rawMaterial.Category = model.Category;
-                rawMaterial.Stock = model.Stock;
+                // HUWAG GAMITIN ANG model.Stock - ITO ANG PROBLEMA!
+                // rawMaterial.Stock = model.Stock;  // ← COMMENT OUT
                 rawMaterial.MinQty = model.MinQty;
                 rawMaterial.Unit = model.Unit;
                 rawMaterial.Price = model.Price;
                 rawMaterial.ExpirationDate = model.ExpirationDate;
 
+                // ✅ FORCE RECOMPUTE ng stock mula sa batches
+                var totalFromBatches = await _context.RawMaterialBatches
+                    .Where(b => b.RawMaterialId == id)
+                    .SumAsync(b => (decimal?)b.QuantityRemaining) ?? 0;
+
+                rawMaterial.Stock = totalFromBatches;
+
+                // I-save muna ito
                 await _context.SaveChangesAsync();
 
                 // 🔥 KUNG NAGBAGO ANG PRESYO, I-UPDATE ANG LAHAT NG PRODUCT PRICES
@@ -105,7 +113,7 @@ namespace Infoman.Controllers
                     await UpdateAllProductPricesAffectedByRawMaterial(id);
                 }
 
-                return Json(new { success = true, message = "Raw material updated successfully" });
+                return Json(new { success = true, message = "Raw material updated successfully", newStock = totalFromBatches });
             }
             catch (Exception ex)
             {
@@ -186,6 +194,40 @@ namespace Infoman.Controllers
                     return Json(new { success = false, message = "Material is already deleted" });
                 }
 
+                // ✅ CHECK KUNG GINAGAMIT SA KAHIT ANONG RECIPE
+                var recipeItems = await _context.RecipeItems
+                    .Include(ri => ri.ProductSize)
+                        .ThenInclude(ps => ps.Product)
+                    .Where(ri => ri.RawMaterialId == id)
+                    .ToListAsync();
+
+                if (recipeItems.Any())
+                {
+                    // Kunin ang mga unique na product na apektado
+                    var affectedProducts = recipeItems
+                        .Select(ri => new
+                        {
+                            ProductName = ri.ProductSize.Product.Name,
+                            SizeName = ri.ProductSize.SizeName,
+                            Stock = ri.ProductSize.Stock,
+                            ProductSizeId = ri.ProductSize.ProductSizeId
+                        })
+                        .Distinct()
+                        .ToList();
+
+                    // I-format ang message
+                    var productList = string.Join("\n", affectedProducts.Select(p => $"  • {p.ProductName} - {p.SizeName} (Stock: {p.Stock} pcs)"));
+
+                    return Json(new
+                    {
+                        success = false,
+                        message = $"❌ Cannot delete '{material.Name}'!\n\nThis raw material is used in the following products:\n{productList}\n\nPlease remove this ingredient from recipes first before deleting.",
+                        affectedProducts = affectedProducts,
+                        hasAffectedProducts = true
+                    });
+                }
+
+                // Kung hindi ginagamit, safe i-delete
                 material.IsDeleted = true;
                 await _context.SaveChangesAsync();
 
@@ -194,7 +236,7 @@ namespace Infoman.Controllers
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Delete error: {ex.Message}");
-                return Json(new { success = false, message = "An error occurred while deleting" });
+                return Json(new { success = false, message = "An error occurred while deleting: " + ex.Message });
             }
         }
 
@@ -333,6 +375,58 @@ namespace Infoman.Controllers
                 });
             }
         }
+
+        [HttpGet]
+        public async Task<IActionResult> GetProductsUsingRawMaterial(int id)
+        {
+            var products = await _context.RecipeItems
+                .Include(ri => ri.ProductSize)
+                    .ThenInclude(ps => ps.Product)
+                .Where(ri => ri.RawMaterialId == id)
+                .Select(ri => new
+                {
+                    productId = ri.ProductSize.Product.ProductId,
+                    productName = ri.ProductSize.Product.Name,
+                    sizeName = ri.ProductSize.SizeName,
+                    stock = ri.ProductSize.Stock,
+                    recipeQuantity = ri.Quantity,
+                    price = ri.ProductSize.Price
+                })
+                .Distinct()
+                .ToListAsync();
+
+            return Json(products);
+        }
+        [HttpGet]
+        public async Task<IActionResult> GetMaterialDetails(int id)
+        {
+            var material = await _context.RawMaterials
+                .Where(r => !r.IsDeleted && r.RawMaterialId == id)
+                .Select(r => new
+                {
+                    r.RawMaterialId,
+                    r.Name,
+                    r.Stock,
+                    r.Unit,
+                    r.Price,
+                    r.MinQty,
+                    r.Category
+                })
+                .FirstOrDefaultAsync();
+
+            if (material == null)
+                return Json(new { success = false, message = "Material not found" });
+
+            return Json(new
+            {
+                success = true,
+                name = material.Name,
+                stock = material.Stock,
+                unit = material.Unit,
+                price = material.Price
+            });
+        }
+
 
 
     }

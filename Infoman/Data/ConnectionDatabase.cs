@@ -17,6 +17,8 @@ namespace Infoman.Data
         public DbSet<ProductSize> ProductSizes { get; set; }
         public DbSet<RecipeItem> RecipeItems { get; set; }
         public DbSet<WasteLog> WasteLogs { get; set; }
+        public DbSet<ProductionUsage> ProductionUsages { get; set; }
+        public DbSet<RawMaterialBatch> RawMaterialBatches { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -49,6 +51,28 @@ namespace Infoman.Data
             modelBuilder.Entity<WasteLog>()
                 .Property(p => p.Quantity)
                 .HasPrecision(10, 2);
+            modelBuilder.Entity<RawMaterialBatch>()
+                .Property(b => b.QuantityReceived)
+               .HasPrecision(18, 2);
+
+            modelBuilder.Entity<RawMaterialBatch>()
+                .Property(b => b.QuantityRemaining)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<RawMaterialBatch>()
+                .Property(b => b.UnitPrice)
+                .HasPrecision(18, 2);
+
+            // For ProductionUsage table
+            modelBuilder.Entity<ProductionUsage>()
+                .Property(p => p.QuantityUsed)
+                .HasPrecision(18, 2);
+            // Optional: Configure table mappings kung hindi conventional ang pangalan
+            modelBuilder.Entity<RawMaterialBatch>()
+                .ToTable("RawMaterialBatches");
+
+            modelBuilder.Entity<ProductionUsage>()
+                .ToTable("ProductionUsages");
 
             modelBuilder.Entity<User>().HasData(
                 new User

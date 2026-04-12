@@ -149,6 +149,38 @@ namespace Infoman.Migrations
                     b.ToTable("ProductSizes");
                 });
 
+            modelBuilder.Entity("Infoman.Models.ProductionUsage", b =>
+                {
+                    b.Property<int>("UsageId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("UsageId"));
+
+                    b.Property<int>("BatchId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("DateUsed")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("QuantityUsed")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ReferenceNo")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("UsageId");
+
+                    b.HasIndex("BatchId");
+
+                    b.ToTable("ProductionUsages", (string)null);
+                });
+
             modelBuilder.Entity("Infoman.Models.RawMaterial", b =>
                 {
                     b.Property<int>("RawMaterialId")
@@ -188,6 +220,39 @@ namespace Infoman.Migrations
                     b.HasKey("RawMaterialId");
 
                     b.ToTable("RawMaterials");
+                });
+
+            modelBuilder.Entity("Infoman.Models.RawMaterialBatch", b =>
+                {
+                    b.Property<int>("BatchId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("BatchId"));
+
+                    b.Property<DateTime?>("ExpiryDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("QuantityReceived")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("QuantityRemaining")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("RawMaterialId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ReceivedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("BatchId");
+
+                    b.HasIndex("RawMaterialId");
+
+                    b.ToTable("RawMaterialBatches", (string)null);
                 });
 
             modelBuilder.Entity("Infoman.Models.RecipeItem", b =>
@@ -263,7 +328,6 @@ namespace Infoman.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Notes")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Quantity")
@@ -277,7 +341,6 @@ namespace Infoman.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("RecordedBy")
-                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
@@ -316,6 +379,28 @@ namespace Infoman.Migrations
                         .IsRequired();
 
                     b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("Infoman.Models.ProductionUsage", b =>
+                {
+                    b.HasOne("Infoman.Models.RawMaterialBatch", "Batch")
+                        .WithMany("ProductionUsages")
+                        .HasForeignKey("BatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Batch");
+                });
+
+            modelBuilder.Entity("Infoman.Models.RawMaterialBatch", b =>
+                {
+                    b.HasOne("Infoman.Models.RawMaterial", "RawMaterial")
+                        .WithMany("Batches")
+                        .HasForeignKey("RawMaterialId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RawMaterial");
                 });
 
             modelBuilder.Entity("Infoman.Models.RecipeItem", b =>
@@ -361,6 +446,16 @@ namespace Infoman.Migrations
             modelBuilder.Entity("Infoman.Models.ProductSize", b =>
                 {
                     b.Navigation("RecipeItems");
+                });
+
+            modelBuilder.Entity("Infoman.Models.RawMaterial", b =>
+                {
+                    b.Navigation("Batches");
+                });
+
+            modelBuilder.Entity("Infoman.Models.RawMaterialBatch", b =>
+                {
+                    b.Navigation("ProductionUsages");
                 });
 #pragma warning restore 612, 618
         }

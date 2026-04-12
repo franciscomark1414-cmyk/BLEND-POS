@@ -1,5 +1,6 @@
 ﻿using Infoman.Data;
 using Infoman.Models;
+using Infoman.Service;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
@@ -10,10 +11,13 @@ namespace Infoman.Controllers
     public class RawMaterialController : Controller
     {
         private readonly ConnectionDatabase _context;
+        private readonly FIFOService _fifoService;
 
         public RawMaterialController(ConnectionDatabase context)
         {
             _context = context;
+            _fifoService = new FIFOService(_context);
+
         }
 
         // READ - List all raw materials (excluding deleted)
@@ -221,5 +225,108 @@ namespace Infoman.Controllers
 
             return Json(new { price = material.Price });
         }
+        [HttpPost]
+        public JsonResult DeductStockForProduction(int rawMaterialId, decimal quantity, int productId, string referenceNo)
+        {
+            try
+            {
+                bool success = _fifoService.DeductStock(rawMaterialId, quantity, productId, referenceNo);
+
+                if (success)
+                {
+                    return Json(new { success = true, message = "Stock deducted using FIFO" });
+                }
+                else
+                {
+                    return Json(new { success = false, message = "Insufficient stock" });
+                }
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+        [HttpGet]
+        public IActionResult BatchHistory(int rawMaterialId)
+        {
+            try
+            {
+                var history = _fifoService.GetBatchHistory(rawMaterialId);
+                return Ok(history);  // Returns JSON
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        // BAGONG ACTION: Magdagdag ng bagong delivery
+        // Add this class inside RawMaterialController.cs
+        public class AddDeliveryRequest
+        {
+            public int RawMaterialId { get; set; }
+            public decimal Quantity { get; set; }
+            public decimal UnitPrice { get; set; }
+            public DateTime? ExpiryDate { get; set; }
+        }
+
+        // Then update your AddDelivery method:
+        [HttpPost]
+        public async Task<JsonResult> AddDelivery([FromBody] AddDeliveryRequest request)
+        {
+            try
+            {
+                if (request == null)
+                {
+                    return Json(new { success = false, message = "Invalid request data" });
+                }
+
+                // I-check kung existing ang raw material
+                var rawMaterial = await _context.RawMaterials.FindAsync(request.RawMaterialId);
+                if (rawMaterial == null)
+                {
+                    return Json(new { success = false, message = $"Raw material with ID {request.RawMaterialId} not found" });
+                }
+
+                // I-create ang batch
+                var batch = new RawMaterialBatch
+                {
+                    RawMaterialId = request.RawMaterialId,
+                    QuantityReceived = request.Quantity,
+                    QuantityRemaining = request.Quantity,
+                    ReceivedDate = DateTime.Now,
+                    ExpiryDate = request.ExpiryDate,
+                    UnitPrice = request.UnitPrice
+                };
+
+                _context.RawMaterialBatches.Add(batch);
+
+                // I-save
+                await _context.SaveChangesAsync();
+
+                // I-update ang main stock
+                var totalRemaining = await _context.RawMaterialBatches
+                    .Where(b => b.RawMaterialId == request.RawMaterialId)
+                    .SumAsync(b => (decimal?)b.QuantityRemaining) ?? 0;
+
+                rawMaterial.Stock = totalRemaining;
+                await _context.SaveChangesAsync();
+
+                return Json(new { success = true, message = "Delivery added successfully! Batch ID: " + batch.BatchId });
+            }
+            catch (Exception ex)
+            {
+                // I-return ang buong error details
+                return Json(new
+                {
+                    success = false,
+                    message = ex.Message,
+                    innerException = ex.InnerException?.Message,
+                    stackTrace = ex.StackTrace
+                });
+            }
+        }
+
+
     }
 }

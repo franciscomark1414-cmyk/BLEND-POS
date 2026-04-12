@@ -49,8 +49,8 @@ namespace Infoman.Controllers
                             r.Stock > 0)
                 .Count();
             ViewBag.ExpiredCount = expiredCount;
-
-            // ========== WASTE LOGS (today) ==========
+            
+            // ========== WASTE LOGS (today) ============
             int wasteCount = _db.WasteLogs.Count();
             ViewBag.WasteCount = wasteCount;
 

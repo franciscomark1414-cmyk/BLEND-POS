@@ -309,6 +309,7 @@
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <h3>RAW MATERIAL</h3>
                 <button class="btn btn-success" onclick="toggleAddForm()">ADD RAW MATERIAL</button>
+                <button class="btn btn-primary" onclick="showAddDeliveryForm()" style="margin-left: 10px;">📦 ADD DELIVERY (BATCH)</button>
             </div>
 
             <div class="mb-3">
@@ -345,6 +346,7 @@
                                         <td>@item.ExpirationDate?.ToString("yyyy-MM-dd")</td>
                                         <td>@item.Status</td>
                                         <td>
+                                            <button class="btn btn-sm btn-info" onclick="viewBatchHistory(@item.RawMaterialId, '@item.Name')">📦 Batches</button>
                                             <button class="btn btn-sm btn-primary" onclick="editMaterial(@item.RawMaterialId)">Edit</button>
                                             <button class="btn btn-sm btn-danger" onclick="deleteMaterial(@item.RawMaterialId, event)">Delete</button>
                                         </td>
@@ -404,6 +406,86 @@
                         <button type="button" class="btn btn-secondary" onclick="toggleAddForm()">Cancel</button>
                     </form>
                 </div>
+            </div>
+        </div>
+        <!-- Add Delivery Box (for FIFO batches) -->
+        <!-- Add Delivery Box (for FIFO batches) - SIMPLIFIED FIXED VERSION -->
+        <div id="addDeliveryBox" style="display: none; margin-top: 20px; border: 1px solid #28a745; padding: 15px; border-radius: 5px; background-color: #f8fff8;">
+            <h5 style="color: #28a745;">📦 Add New Delivery (FIFO Batch)</h5>
+            <form id="addDeliveryForm">
+                @Html.AntiForgeryToken()
+
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <label>Raw Material</label>
+                        <select id="deliveryMaterialSelect" name="RawMaterialId" class="form-control" required>
+                            <option value="">-- Select Raw Material --</option>
+                            @if (ViewBag.RawMaterials != null)
+                            {
+                                foreach (var item in ViewBag.RawMaterials)
+                                {
+                                    <option value="@item.RawMaterialId">@item.Name (@item.Unit) - Stock: @item.StockWithUnit</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <label>Quantity (kg)</label>
+                        <input type="number" id="deliveryQuantity" name="Quantity" class="form-control" step="0.01" min="0.01" required placeholder="Enter quantity">
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <label>Unit Price (₱)</label>
+                        <input type="number" id="deliveryUnitPrice" name="UnitPrice" class="form-control" step="0.01" min="0" required placeholder="Price per unit">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <label>Expiry Date (Optional)</label>
+                        <input type="date" id="deliveryExpiryDate" name="ExpiryDate" class="form-control">
+                        <small class="text-muted">Leave blank if no expiry date</small>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label>&nbsp;</label>
+                        <div>
+                            <button type="submit" class="btn btn-success">✅ Save Delivery</button>
+                            <button type="button" class="btn btn-secondary" onclick="closeAddDeliveryForm()">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <!-- Add this AFTER the addRawMaterialBox div, before closing inventoryModule -->
+        <div id="batchHistoryContainer" style="margin-top: 20px; display: none;">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">📦 Batch History (FIFO) - <span id="batchMaterialName"></span></h5>
+                    <button type="button" class="btn-close btn-close-white float-end" onclick="closeBatchHistory()"></button>
+                </div>
+                <div class="card-body">
+                    <div id="batchHistoryContent">
+                        <p class="text-muted">Loading...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Add this somewhere in your page, hidden initially -->
+        <div id="batchHistoryTableTemplate" style="display: none;">
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Received Date</th>
+                            <th>Quantity Received</th>
+                            <th>Quantity Remaining</th>
+                            <th>Expiry Date</th>
+                            <th>Unit Price</th>
+                            <th>Status</th>
+                            <th>Usage History</th>
+                        </tr>
+                    </thead>
+                    <tbody id="batchHistoryBody">
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -991,6 +1073,108 @@
             loadInventoryAlerts();
         }
     }
+        // Add Delivery Form Functions
+    function showAddDeliveryForm() {
+        document.getElementById('addDeliveryBox').style.display = 'block';
+        document.getElementById('addDeliveryForm').reset();
+        // Scroll to the form
+        document.getElementById('addDeliveryBox').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function closeAddDeliveryForm() {
+        document.getElementById('addDeliveryBox').style.display = 'none';
+    }
+
+        function updateDeliveryMaterialId() {
+        const select = document.getElementById('deliveryMaterialSelect');
+        const selectedOption = select.options[select.selectedIndex];
+        const hiddenField = document.getElementById('deliveryRawMaterialId');
+
+        if (selectedOption && selectedOption.value) {
+            hiddenField.value = selectedOption.value;
+            console.log('Selected material ID:', hiddenField.value); // For debugging
+        } else {
+            hiddenField.value = '';
+        }
+    }
+
+    // Submit delivery form
+        // Submit delivery form - FIXED VERSION
+    document.getElementById('addDeliveryForm')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        // Kunin ang values diretso mula sa select, hindi sa hidden field
+        const selectElement = document.getElementById('deliveryMaterialSelect');
+        const rawMaterialId = selectElement.value;
+        const quantity = document.getElementById('deliveryQuantity').value;
+        const unitPrice = document.getElementById('deliveryUnitPrice').value;
+        const expiryDate = document.getElementById('deliveryExpiryDate').value;
+
+        // Debug: I-print ang values
+        console.log('Raw Material ID:', rawMaterialId);
+        console.log('Quantity:', quantity);
+        console.log('Unit Price:', unitPrice);
+        console.log('Expiry Date:', expiryDate);
+
+        if (!rawMaterialId || rawMaterialId === '') {
+            alert('Please select a raw material');
+            return;
+        }
+
+        if (!quantity || quantity <= 0) {
+            alert('Please enter a valid quantity');
+            return;
+        }
+
+        if (!unitPrice || unitPrice <= 0) {
+            alert('Please enter a valid unit price');
+            return;
+        }
+
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = 'Saving...';
+        submitBtn.disabled = true;
+
+        try {
+            const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+
+            const requestBody = {
+                rawMaterialId: parseInt(rawMaterialId),
+                quantity: parseFloat(quantity),
+                unitPrice: parseFloat(unitPrice),
+                expiryDate: expiryDate || null
+            };
+
+            console.log('Sending request:', requestBody);
+
+            const response = await fetch('/RawMaterial/AddDelivery', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            const result = await response.json();
+            console.log('Response:', result);
+
+            if (result.success) {
+                alert('✅ ' + result.message);
+                closeAddDeliveryForm();
+                location.reload();
+            } else {
+                alert('❌ Error: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Error details:', error);
+            alert('❌ Error adding delivery: ' + error.message);
+        } finally {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }
+    });
 
     // Inventory Functions
     function toggleAddForm() {
@@ -1422,6 +1606,101 @@
             if (data.success) { bootstrap.Modal.getInstance(document.getElementById('addWasteModal')).hide(); loadInventoryAlerts(); alert('Waste logged successfully!'); }
             else { alert('Error: ' + data.message); }
         }).catch(error => { alert('An error occurred'); });
+    }
+        // Batch History Functions
+           async function viewBatchHistory(materialId, materialName) {
+        const container = document.getElementById('batchHistoryContainer');
+        const materialNameSpan = document.getElementById('batchMaterialName');
+        const tbody = document.getElementById('batchHistoryBody');
+
+        if (!container) return;
+
+        materialNameSpan.innerText = materialName;
+        container.style.display = 'block';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">Loading batch history...</td></tr>';
+
+        try {
+            const response = await fetch(`/RawMaterial/BatchHistory?rawMaterialId=${materialId}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const batches = await response.json();
+
+            // CHECK KUNG WALANG DATA
+            if (!batches || batches.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">
+                            <div class="alert alert-info">
+                                <strong>ℹ️ No batches found for ${materialName}</strong><br/>
+                                Click the <strong>"📦 ADD DELIVERY (BATCH)"</strong> button above to add your first delivery.
+                                <br/><br/>
+                                <button class="btn btn-sm btn-primary" onclick="showAddDeliveryForm()">
+                                    ➕ Add First Delivery
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            // Display batches (same as before)
+            tbody.innerHTML = '';
+            batches.forEach(batch => {
+                const isActive = batch.quantityRemaining > 0;
+                const status = isActive ?
+                    '<span class="badge bg-success">✓ Active (Next to Use)</span>' :
+                    '<span class="badge bg-secondary">Depleted</span>';
+
+                const expiryDate = batch.expiryDate ? new Date(batch.expiryDate).toLocaleDateString() : 'N/A';
+                const receivedDate = new Date(batch.receivedDate).toLocaleDateString();
+
+                tbody.innerHTML += `
+                    <tr class="${isActive ? 'table-success' : 'table-secondary'}">
+                        <td>${receivedDate}</td>
+                        <td>${batch.quantityReceived} kg</td>
+                        <td class="fw-bold">${batch.quantityRemaining} kg</td>
+                        <td>${expiryDate}</td>
+                        <td>₱${batch.unitPrice.toFixed(2)}</td>
+                        <td>${status}</td>
+                    </tr>
+                `;
+            });
+
+            const totalRemaining = batches.reduce((sum, b) => sum + b.quantityRemaining, 0);
+            tbody.innerHTML += `
+                <tr class="table-info fw-bold">
+                    <td colspan="2" class="text-end">TOTAL REMAINING STOCK:</td>
+                    <td colspan="4">${totalRemaining} kg</td>
+                </tr>
+            `;
+
+        } catch (error) {
+            console.error('Error:', error);
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-danger">
+                        Error loading batch history: ${error.message}
+                    </td>
+                </tr>
+            `;
+        }
+    }
+    function closeBatchHistory() {
+        document.getElementById('batchHistoryContainer').style.display = 'none';
+    }
+
+    function showUsageDetails(usageList) {
+        if (!usageList || usageList.length === 0) return;
+
+        let message = 'Usage History:\n';
+        usageList.forEach(use => {
+            message += `- ${new Date(use.dateUsed).toLocaleDateString()}: ${use.quantityUsed} kg (Ref: ${use.referenceNo || 'N/A'})\n`;
+        });
+        alert(message);
     }
 
     function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }

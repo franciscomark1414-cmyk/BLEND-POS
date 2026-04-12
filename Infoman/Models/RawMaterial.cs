@@ -57,5 +57,13 @@ namespace Infoman.Models
         public string StockWithUnit => $"{Stock:N1} {Unit}";
         public string MinQtyWithUnit => $"{MinQty:N1} {Unit}";
         public bool IsDeleted { get; set; } = false;
+
+       
+        public virtual ICollection<RawMaterialBatch> Batches { get; set; }
+
+        public RawMaterial()
+        {
+            Batches = new HashSet<RawMaterialBatch>();
+        }
     }
 }

@@ -455,37 +455,37 @@
             </form>
         </div>
         <!-- Add this AFTER the addRawMaterialBox div, before closing inventoryModule -->
+        <!-- Replace the entire batchHistoryContainer div -->
         <div id="batchHistoryContainer" style="margin-top: 20px; display: none;">
             <div class="card">
-                <div class="card-header bg-info text-white">
+                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">📦 Batch History (FIFO) - <span id="batchMaterialName"></span></h5>
-                    <button type="button" class="btn-close btn-close-white float-end" onclick="closeBatchHistory()"></button>
+                    <button type="button" class="btn-close btn-close-white" onclick="closeBatchHistory()"></button>
                 </div>
                 <div class="card-body">
-                    <div id="batchHistoryContent">
-                        <p class="text-muted">Loading...</p>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 20%">Batch Info</th>
+                                    <th style="width: 15%">Received Qty</th>
+                                    <th style="width: 15%">Remaining Qty</th>
+                                    <th style="width: 15%">Expiry Date</th>
+                                    <th style="width: 10%">Unit Price</th>
+                                    <th style="width: 15%">FIFO Status</th>
+                                    <th style="width: 10%">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="batchHistoryBody">
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted">
+                                        Click "Batches" button to view history
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-            </div>
-        </div>
-        <!-- Add this somewhere in your page, hidden initially -->
-        <div id="batchHistoryTableTemplate" style="display: none;">
-            <div class="table-responsive">
-                <table class="table table-bordered table-sm">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Received Date</th>
-                            <th>Quantity Received</th>
-                            <th>Quantity Remaining</th>
-                            <th>Expiry Date</th>
-                            <th>Unit Price</th>
-                            <th>Status</th>
-                            <th>Usage History</th>
-                        </tr>
-                    </thead>
-                    <tbody id="batchHistoryBody">
-                    </tbody>
-                </table>
             </div>
         </div>
 
@@ -1608,36 +1608,52 @@
         }).catch(error => { alert('An error occurred'); });
     }
         // Batch History Functions
-           async function viewBatchHistory(materialId, materialName) {
+             // Replace your existing viewBatchHistory function with this:
+        // Replace the entire viewBatchHistory function with this:
+    async function viewBatchHistory(materialId, materialName) {
         const container = document.getElementById('batchHistoryContainer');
         const materialNameSpan = document.getElementById('batchMaterialName');
         const tbody = document.getElementById('batchHistoryBody');
 
-        if (!container) return;
+        if (!container) {
+            console.error('Container not found');
+            return;
+        }
 
+        // Show container and set loading state
         materialNameSpan.innerText = materialName;
         container.style.display = 'block';
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center">Loading batch history...</td></tr>';
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center">
+                    <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
+                    Loading batches for ${materialName}...
+                </td>
+            </tr>
+        `;
 
         try {
             const response = await fetch(`/RawMaterial/BatchHistory?rawMaterialId=${materialId}`);
 
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
             const batches = await response.json();
 
-            // CHECK KUNG WALANG DATA
+            // Debug log to see what we got
+            console.log('Batches received:', batches);
+
+            // Check if we have data
             if (!batches || batches.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="6" class="text-center text-muted">
+                        <td colspan="7" class="text-center text-muted">
                             <div class="alert alert-info">
-                                <strong>ℹ️ No batches found for ${materialName}</strong><br/>
+                                <strong>ℹ️ No batches found for ${escapeHtml(materialName)}</strong><br/>
                                 Click the <strong>"📦 ADD DELIVERY (BATCH)"</strong> button above to add your first delivery.
                                 <br/><br/>
-                                <button class="btn btn-sm btn-primary" onclick="showAddDeliveryForm()">
+                                <button class="btn btn-sm btn-primary" onclick="showAddDeliveryForm(); closeBatchHistory();">
                                     ➕ Add First Delivery
                                 </button>
                             </div>
@@ -1647,46 +1663,125 @@
                 return;
             }
 
-            // Display batches (same as before)
+            // Clear the table body
             tbody.innerHTML = '';
-            batches.forEach(batch => {
-                const isActive = batch.quantityRemaining > 0;
-                const status = isActive ?
-                    '<span class="badge bg-success">✓ Active (Next to Use)</span>' :
-                    '<span class="badge bg-secondary">Depleted</span>';
+            let totalRemaining = 0;
 
-                const expiryDate = batch.expiryDate ? new Date(batch.expiryDate).toLocaleDateString() : 'N/A';
-                const receivedDate = new Date(batch.receivedDate).toLocaleDateString();
+            // Loop through each batch and display
+            batches.forEach((batch, index) => {
+                // Extract data (these are camelCase from JSON)
+                const batchId = batch.batchId;
+                const receivedDate = batch.receivedDate;
+                const quantityReceived = batch.quantityReceived;
+                const quantityRemaining = batch.quantityRemaining;
+                const expiryDate = batch.expiryDate;
+                const unitPrice = batch.unitPrice;
+                const usage = batch.usage || [];
 
+                // Format dates
+                const formattedReceivedDate = receivedDate ? new Date(receivedDate).toLocaleString() : 'N/A';
+                const formattedExpiryDate = expiryDate ? new Date(expiryDate).toLocaleDateString() : 'No Expiry';
+
+                // Determine status for FIFO
+                let status = '';
+                let statusClass = '';
+
+                if (quantityRemaining <= 0) {
+                    status = '<span class="badge bg-secondary">❌ Depleted</span>';
+                    statusClass = 'table-secondary';
+                } else if (index === 0 && quantityRemaining > 0) {
+                    status = '<span class="badge bg-success">✅ ACTIVE (Next to Use - FIFO)</span>';
+                    statusClass = 'table-success fw-bold';
+                } else if (quantityRemaining > 0) {
+                    status = '<span class="badge bg-info">📦 In Stock</span>';
+                    statusClass = 'table-info';
+                }
+
+                totalRemaining += quantityRemaining;
+
+                // Usage button
+                let usageButton = '';
+                if (usage.length > 0) {
+                    const usageJson = JSON.stringify(usage).replace(/"/g, '&quot;');
+                    usageButton = `<button class="btn btn-sm btn-outline-info" onclick="showUsageDetails(${usageJson})">
+                        📋 View Usage (${usage.length})
+                    </button>`;
+                } else {
+                    usageButton = '<span class="text-muted">No usage yet</span>';
+                }
+
+                // Add row to table
                 tbody.innerHTML += `
-                    <tr class="${isActive ? 'table-success' : 'table-secondary'}">
-                        <td>${receivedDate}</td>
-                        <td>${batch.quantityReceived} kg</td>
-                        <td class="fw-bold">${batch.quantityRemaining} kg</td>
-                        <td>${expiryDate}</td>
-                        <td>₱${batch.unitPrice.toFixed(2)}</td>
+                    <tr class="${statusClass}">
+                        <td>
+                            <strong>Batch #${batchId}</strong><br/>
+                            <small class="text-muted">Received: ${formattedReceivedDate}</small>
+                        </td>
+                        <td>${quantityReceived.toFixed(2)} kg</td>
+                        <td class="${quantityRemaining === 0 ? 'text-danger' : 'text-success'} fw-bold">
+                            ${quantityRemaining.toFixed(2)} kg
+                            ${quantityRemaining > 0 && quantityRemaining < quantityReceived ? '<br/><small class="text-muted">(Partially used)</small>' : ''}
+                        </td>
+                        <td>${formattedExpiryDate}</td>
+                        <td>₱${unitPrice.toFixed(2)}</td>
                         <td>${status}</td>
+                        <td>${usageButton}</td>
                     </tr>
                 `;
             });
 
-            const totalRemaining = batches.reduce((sum, b) => sum + b.quantityRemaining, 0);
+            // Add total row
             tbody.innerHTML += `
-                <tr class="table-info fw-bold">
+                <tr class="table-dark fw-bold">
                     <td colspan="2" class="text-end">TOTAL REMAINING STOCK:</td>
-                    <td colspan="4">${totalRemaining} kg</td>
+                    <td colspan="5">${totalRemaining.toFixed(2)} kg</td>
                 </tr>
             `;
 
+            // Scroll to the container
+            container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
         } catch (error) {
-            console.error('Error:', error);
+            console.error('Error loading batch history:', error);
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="6" class="text-center text-danger">
-                        Error loading batch history: ${error.message}
+                    <td colspan="7" class="text-center text-danger">
+                        <strong>Error loading batch history:</strong><br/>
+                        ${error.message}<br/>
+                        <button class="btn btn-sm btn-warning mt-2" onclick="viewBatchHistory(${materialId}, '${escapeHtml(materialName)}')">
+                            🔄 Click to Retry
+                        </button>
                     </td>
                 </tr>
             `;
+        }
+    }
+
+    // Helper function to show usage details
+    function showUsageDetails(usageList) {
+        if (!usageList || usageList.length === 0) {
+            alert('No usage records found for this batch.');
+            return;
+        }
+
+        let message = '📋 USAGE HISTORY:\n\n';
+        usageList.forEach((use, index) => {
+            const dateUsed = use.dateUsed ? new Date(use.dateUsed).toLocaleString() : 'Unknown date';
+            const quantity = use.quantityUsed || 0;
+            const reference = use.referenceNo || 'N/A';
+            message += `${index + 1}. Date: ${dateUsed}\n`;
+            message += `   Quantity: ${quantity.toFixed(2)} kg\n`;
+            message += `   Reference: ${reference}\n\n`;
+        });
+
+        alert(message);
+    }
+
+    // Make sure closeBatchHistory exists
+    function closeBatchHistory() {
+        const container = document.getElementById('batchHistoryContainer');
+        if (container) {
+            container.style.display = 'none';
         }
     }
     function closeBatchHistory() {

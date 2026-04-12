@@ -116,27 +116,50 @@ namespace Infoman.Service
         /// <summary>
         /// Tingnan ang batch history ng isang raw material
         /// </summary>
-        public dynamic GetBatchHistory(int rawMaterialId)
+        // In FIFOService.cs - Update the method signature
+        // In FIFOService.cs - Replace the GetBatchHistory method with this:
+        public List<BatchHistoryViewModel> GetBatchHistory(int rawMaterialId)
         {
-            return _context.RawMaterialBatches
+            var batches = _context.RawMaterialBatches
                 .Where(b => b.RawMaterialId == rawMaterialId)
-                .OrderByDescending(b => b.ReceivedDate)
-                .Select(b => new
+                .OrderBy(b => b.ReceivedDate)
+                .Select(b => new BatchHistoryViewModel
                 {
-                    b.BatchId,
-                    b.ReceivedDate,
-                    b.QuantityReceived,
-                    b.QuantityRemaining,
-                    b.ExpiryDate,
-                    b.UnitPrice,
-                    Usage = b.ProductionUsages.Select(u => new
+                    BatchId = b.BatchId,
+                    ReceivedDate = b.ReceivedDate,
+                    QuantityReceived = b.QuantityReceived,
+                    QuantityRemaining = b.QuantityRemaining,
+                    ExpiryDate = b.ExpiryDate,
+                    UnitPrice = b.UnitPrice,
+                    Usage = b.ProductionUsages.Select(u => new UsageViewModel
                     {
-                        u.QuantityUsed,
-                        u.DateUsed,
-                        u.ReferenceNo
-                    })
+                        QuantityUsed = u.QuantityUsed,
+                        DateUsed = u.DateUsed,
+                        ReferenceNo = u.ReferenceNo
+                    }).ToList()
                 })
                 .ToList();
+
+            return batches;
+        }
+
+        // Add these ViewModel classes at the end of your FIFOService.cs file (outside the class)
+        public class BatchHistoryViewModel
+        {
+            public int BatchId { get; set; }
+            public DateTime ReceivedDate { get; set; }
+            public decimal QuantityReceived { get; set; }
+            public decimal QuantityRemaining { get; set; }
+            public DateTime? ExpiryDate { get; set; }
+            public decimal UnitPrice { get; set; }
+            public List<UsageViewModel> Usage { get; set; }
+        }
+
+        public class UsageViewModel
+        {
+            public decimal QuantityUsed { get; set; }
+            public DateTime DateUsed { get; set; }
+            public string ReferenceNo { get; set; }
         }
     }
 }

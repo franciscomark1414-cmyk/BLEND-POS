@@ -246,13 +246,14 @@ namespace Infoman.Controllers
                 return Json(new { success = false, message = ex.Message });
             }
         }
+        // In RawMaterialController.cs - Update BatchHistory action
         [HttpGet]
         public IActionResult BatchHistory(int rawMaterialId)
         {
             try
             {
                 var history = _fifoService.GetBatchHistory(rawMaterialId);
-                return Ok(history);  // Returns JSON
+                return Ok(history);  // This returns JSON automatically
             }
             catch (Exception ex)
             {
@@ -276,6 +277,12 @@ namespace Infoman.Controllers
         {
             try
             {
+                // Add debug logging
+                System.Diagnostics.Debug.WriteLine($"=== ADD DELIVERY CALLED ===");
+                System.Diagnostics.Debug.WriteLine($"RawMaterialId: {request?.RawMaterialId}");
+                System.Diagnostics.Debug.WriteLine($"Quantity: {request?.Quantity}");
+                System.Diagnostics.Debug.WriteLine($"UnitPrice: {request?.UnitPrice}");
+                System.Diagnostics.Debug.WriteLine($"ExpiryDate: {request?.ExpiryDate}");
                 if (request == null)
                 {
                     return Json(new { success = false, message = "Invalid request data" });

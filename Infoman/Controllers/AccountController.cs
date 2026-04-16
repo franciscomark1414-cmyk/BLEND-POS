@@ -5,19 +5,20 @@ using System.Linq;
 
 namespace Infoman.Controllers
 {
-    public class AccountController:Controller
+    public class AccountController : Controller
     {
         private readonly ConnectionDatabase _context;
 
-        public AccountController(ConnectionDatabase context) {
-
+        public AccountController(ConnectionDatabase context)
+        {
             _context = context;
-
         }
-        public IActionResult Login() { 
-         
+
+        public IActionResult Login()
+        {
             return View();
         }
+
         [HttpPost]
         public IActionResult Login(LoginViewModel model)
         {
@@ -37,10 +38,33 @@ namespace Infoman.Controllers
                 return View(model);
             }
 
+            // ✅ I-save ang user info sa session (optional pero recommended)
+            HttpContext.Session.SetString("UserId", user.Id.ToString());
+            HttpContext.Session.SetString("Username", user.Username);
+            HttpContext.Session.SetString("UserRole", user.Role);
+
+            // ✅ I-redirect base sa role
             if (user.Role.Trim().ToLower() == "owner")
+            {
                 return RedirectToAction("Dashboard", "Owner");
+            }
+            else if (user.Role.Trim().ToLower() == "staff")
+            {
+                return RedirectToAction("POS", "Staff");  // ← Staff mapupunta sa POS
+            }
             else
-                return RedirectToAction("Sales", "Staff");
+            {
+                // Kung hindi owner o staff, default sa Login
+                ViewBag.Error = "Invalid User Role";
+                return View(model);
+            }
+        }
+
+        // Optional: Logout function
+        public IActionResult Logout()
+        {
+            HttpContext.Session.Clear();
+            return RedirectToAction("Login");
         }
     }
 }

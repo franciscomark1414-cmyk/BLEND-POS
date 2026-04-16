@@ -1,0 +1,813 @@
+﻿@{
+    ViewBag.Title = "Point of Sale";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Neldie's Mango & More - POS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #f5f5f5;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Main Layout */
+        .pos-container {
+            display: flex;
+            height: 100vh;
+            width: 100%;
+        }
+
+        /* LEFT SIDEBAR - Categories */
+        .pos-categories {
+            width: 250px;
+            background: white;
+            border-right: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+        }
+
+        .store-info {
+            padding: 20px;
+            background: #ff6b35;
+            color: white;
+            text-align: center;
+        }
+
+            .store-info h3 {
+                font-size: 18px;
+                margin-bottom: 5px;
+            }
+
+            .store-info p {
+                font-size: 12px;
+                opacity: 0.9;
+            }
+
+        .category-list {
+            flex: 1;
+            padding: 10px 0;
+        }
+
+        .category-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+            font-weight: 500;
+        }
+
+            .category-item:hover {
+                background: #f0f0f0;
+            }
+
+            .category-item.active {
+                background: #fff0e8;
+                border-left-color: #ff6b35;
+                color: #ff6b35;
+            }
+
+        /* MIDDLE - Products */
+        .pos-products {
+            flex: 1;
+            background: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .pos-header {
+            background: white;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+            .pos-header h2 {
+                font-size: 20px;
+                color: #333;
+            }
+
+        .datetime {
+            text-align: right;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .products-grid {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 15px;
+        }
+
+        /* Product Card */
+        .product-card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border: 1px solid #e0e0e0;
+            position: relative;
+        }
+
+            .product-card:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+                border-color: #ff6b35;
+            }
+
+            .product-card.out-of-stock {
+                opacity: 0.5;
+                background: #f5f5f5;
+            }
+
+        .product-emoji {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .product-name {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .product-size {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 8px;
+        }
+
+        .product-price {
+            font-weight: bold;
+            font-size: 16px;
+            color: #ff6b35;
+        }
+
+        .stock-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 10px;
+            padding: 3px 6px;
+            border-radius: 10px;
+        }
+
+        /* RIGHT SIDEBAR - Cart */
+        .pos-cart {
+            width: 350px;
+            background: white;
+            border-left: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            box-shadow: -2px 0 5px rgba(0,0,0,0.05);
+        }
+
+        .cart-header {
+            padding: 20px;
+            background: #ff6b35;
+            color: white;
+        }
+
+            .cart-header h4 {
+                margin: 0;
+                font-size: 18px;
+            }
+
+        .cart-items {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .cart-item-info {
+            flex: 1;
+        }
+
+        .cart-item-name {
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .cart-item-size {
+            font-size: 11px;
+            color: #888;
+        }
+
+        .cart-item-price {
+            font-size: 13px;
+            color: #ff6b35;
+        }
+
+        .cart-item-qty {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .qty-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+            .qty-btn:hover {
+                background: #f0f0f0;
+            }
+
+        .cart-item-total {
+            font-weight: bold;
+            font-size: 14px;
+            min-width: 70px;
+            text-align: right;
+        }
+
+        .remove-item {
+            color: #dc3545;
+            cursor: pointer;
+            margin-left: 10px;
+            font-size: 14px;
+        }
+
+        .cart-footer {
+            padding: 20px;
+            border-top: 1px solid #e0e0e0;
+            background: #fafafa;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .checkout-btn {
+            width: 100%;
+            padding: 14px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+            .checkout-btn:hover {
+                background: #218838;
+            }
+
+            .checkout-btn:disabled {
+                background: #ccc;
+                cursor: not-allowed;
+            }
+
+        .clear-cart {
+            width: 100%;
+            padding: 10px;
+            background: none;
+            border: 1px solid #dc3545;
+            color: #dc3545;
+            border-radius: 8px;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+
+        .empty-cart {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+
+        /* Quantity Modal */
+        .modal-qty {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-qty-content {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            width: 300px;
+            text-align: center;
+        }
+
+            .modal-qty-content h4 {
+                margin-bottom: 20px;
+            }
+
+        .qty-selector {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+            .qty-selector button {
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                border: 1px solid #ddd;
+                background: white;
+                font-size: 20px;
+                cursor: pointer;
+            }
+
+            .qty-selector span {
+                font-size: 24px;
+                font-weight: bold;
+                min-width: 50px;
+                text-align: center;
+            }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+            .modal-buttons button {
+                flex: 1;
+                padding: 10px;
+                border-radius: 8px;
+                cursor: pointer;
+            }
+
+        .btn-confirm {
+            background: #ff6b35;
+            color: white;
+            border: none;
+        }
+
+        .btn-cancel {
+            background: #f0f0f0;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="pos-container">
+        <!-- LEFT: Categories -->
+        <div class="pos-categories">
+            <div class="store-info">
+                <h3>🥭 Neldie's Mango & More</h3>
+                <p>Point of Sale System</p>
+            </div>
+            <div class="category-list">
+                <div class="category-item active" data-category="all" onclick="filterByCategory('all')">
+                    📋 All Products
+                </div>
+                @if (ViewBag.Categories != null)
+                {
+                    foreach (var cat in ViewBag.Categories)
+                    {
+                        <div class="category-item" data-category="@cat" onclick="filterByCategory('@cat')">
+                            🏷️ @cat
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+
+        <!-- MIDDLE: Products -->
+        <div class="pos-products">
+            <div class="pos-header">
+                <h2>🥤 Menu</h2>
+                <div class="datetime">
+                    <div id="currentTime"></div>
+                    <div id="currentDate"></div>
+                </div>
+            </div>
+            <div class="products-grid" id="productsGrid">
+                @if (((System.Collections.IEnumerable)Model).Cast<dynamic>().Any())
+                {
+                    foreach (var product in Model)
+                    {
+                        <div class="product-card" data-category="@product.ProductCategory" data-size-id="@product.ProductSizeId" onclick="selectProduct(@product.ProductSizeId, '@product.ProductName', '@product.SizeName', @product.Price)">
+                            <span class="stock-badge" id="status-@product.ProductSizeId">Loading...</span>
+                            <div class="product-emoji">🥤</div>
+                            <div class="product-name">@product.ProductName</div>
+                            <div class="product-size">@product.SizeName</div>
+                            <div class="product-price">₱@product.Price.ToString("N2")</div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div style="grid-column: 1/-1; text-align: center; padding: 50px;">
+                        <h4>⚠️ No products displayed in POS</h4>
+                        <p>Go to Owner Dashboard → Products → Click "Display in POS" to add products here.</p>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- RIGHT: Cart -->
+        <div class="pos-cart">
+            <div class="cart-header">
+                <h4>🛒 Order Summary</h4>
+            </div>
+            <div class="cart-items" id="cartItems">
+                <div class="empty-cart">
+                    <div style="font-size: 48px; margin-bottom: 10px;">🛍️</div>
+                    <p>No items in cart</p>
+                </div>
+            </div>
+            <div class="cart-footer">
+                <div class="total-row">
+                    <span>Total:</span>
+                    <span id="cartTotal">₱0.00</span>
+                </div>
+                <button class="checkout-btn" id="checkoutBtn" onclick="checkout()">
+                    💳 Confirm Order
+                </button>
+                <button class="clear-cart" onclick="clearCart()">
+                    🗑️ Clear Cart
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quantity Modal (hidden by default) -->
+    <div id="quantityModal" class="modal-qty" style="display: none;">
+        <div class="modal-qty-content">
+            <h4 id="modalProductName">Product Name</h4>
+            <div class="qty-selector">
+                <button onclick="decrementModalQty()">-</button>
+                <span id="modalQty">1</span>
+                <button onclick="incrementModalQty()">+</button>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeQuantityModal()">Cancel</button>
+                <button class="btn-confirm" onclick="confirmAddToCart()">Add to Order</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        // Cart array
+        let cart = [];
+
+        // Variables for modal
+        let selectedProduct = {
+            productSizeId: null,
+            productName: null,
+            sizeName: null,
+            price: null
+        };
+        let modalQuantity = 1;
+        let currentMaxOrders = 0;
+
+        // Update date/time
+        function updateDateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').innerHTML = now.toLocaleTimeString();
+            document.getElementById('currentDate').innerHTML = now.toLocaleDateString('en-US', {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+        setInterval(updateDateTime, 1000);
+        updateDateTime();
+
+        // Load availability on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadAllAvailability();
+        });
+
+        // Load availability for all products
+        async function loadAllAvailability() {
+            const productCards = document.querySelectorAll('.product-card');
+            for (const card of productCards) {
+                const sizeId = card.getAttribute('data-size-id');
+                await updateAvailabilityStatus(sizeId);
+            }
+        }
+
+        // Update availability for a single product
+        async function updateAvailabilityStatus(productSizeId) {
+            const statusSpan = document.getElementById(`status-${productSizeId}`);
+            const card = document.querySelector(`.product-card[data-size-id="${productSizeId}"]`);
+
+            if (!statusSpan) return;
+
+            try {
+                const response = await fetch(`/Staff/CheckAvailability?productSizeId=${productSizeId}&quantity=1`);
+                const data = await response.json();
+
+                if (data.available) {
+                    statusSpan.innerHTML = `✅ ${data.maxPossibleOrders}`;
+                    statusSpan.style.background = '#d4edda';
+                    statusSpan.style.color = '#155724';
+                    if (card) card.classList.remove('out-of-stock');
+                } else {
+                    statusSpan.innerHTML = `❌ Out`;
+                    statusSpan.style.background = '#f8d7da';
+                    statusSpan.style.color = '#721c24';
+                    if (card) card.classList.add('out-of-stock');
+                }
+            } catch (error) {
+                statusSpan.innerHTML = `⚠️ Error`;
+                statusSpan.style.background = '#fff3cd';
+                statusSpan.style.color = '#856404';
+            }
+        }
+
+        // Filter products by category
+        function filterByCategory(category) {
+            // Update active state
+            document.querySelectorAll('.category-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Filter products
+            const products = document.querySelectorAll('.product-card');
+            products.forEach(product => {
+                if (category === 'all') {
+                    product.style.display = '';
+                } else {
+                    const productCategory = product.getAttribute('data-category');
+                    product.style.display = productCategory === category ? '' : 'none';
+                }
+            });
+        }
+
+        // Select product - show quantity modal
+        async function selectProduct(productSizeId, productName, sizeName, price) {
+            // Check availability first
+            const response = await fetch(`/Staff/CheckAvailability?productSizeId=${productSizeId}&quantity=1`);
+            const data = await response.json();
+
+            if (!data.available) {
+                alert(`❌ ${productName} - ${sizeName} is currently OUT OF STOCK!\n\n${data.message}`);
+                return;
+            }
+
+            currentMaxOrders = data.maxPossibleOrders;
+
+            selectedProduct = {
+                productSizeId: productSizeId,
+                productName: productName,
+                sizeName: sizeName,
+                price: price
+            };
+
+            modalQuantity = 1;
+            document.getElementById('modalProductName').innerHTML = `${productName} - ${sizeName}`;
+            document.getElementById('modalQty').innerHTML = '1';
+            document.getElementById('quantityModal').style.display = 'flex';
+        }
+
+        function decrementModalQty() {
+            if (modalQuantity > 1) {
+                modalQuantity--;
+                document.getElementById('modalQty').innerHTML = modalQuantity;
+            }
+        }
+
+        function incrementModalQty() {
+            if (modalQuantity < currentMaxOrders) {
+                modalQuantity++;
+                document.getElementById('modalQty').innerHTML = modalQuantity;
+            } else {
+                alert(`Maximum available is ${currentMaxOrders} order(s).`);
+            }
+        }
+
+        function closeQuantityModal() {
+            document.getElementById('quantityModal').style.display = 'none';
+            selectedProduct = null;
+        }
+
+        async function confirmAddToCart() {
+            if (!selectedProduct) return;
+
+            // Final availability check with selected quantity
+            const response = await fetch(`/Staff/CheckAvailability?productSizeId=${selectedProduct.productSizeId}&quantity=${modalQuantity}`);
+            const data = await response.json();
+
+            if (!data.available) {
+                alert(`❌ Cannot add to cart:\n${data.message}`);
+                closeQuantityModal();
+                return;
+            }
+
+            // Add to cart
+            const existingIndex = cart.findIndex(item => item.productSizeId === selectedProduct.productSizeId);
+            if (existingIndex !== -1) {
+                cart[existingIndex].quantity += modalQuantity;
+            } else {
+                cart.push({
+                    productSizeId: selectedProduct.productSizeId,
+                    productName: selectedProduct.productName,
+                    sizeName: selectedProduct.sizeName,
+                    price: selectedProduct.price,
+                    quantity: modalQuantity
+                });
+            }
+
+            updateCartDisplay();
+            closeQuantityModal();
+
+            // Update availability for this product
+            await updateAvailabilityStatus(selectedProduct.productSizeId);
+        }
+
+        function updateCartDisplay() {
+            const cartDiv = document.getElementById('cartItems');
+            const totalSpan = document.getElementById('cartTotal');
+
+            if (cart.length === 0) {
+                cartDiv.innerHTML = '<div class="empty-cart"><div style="font-size: 48px; margin-bottom: 10px;">🛍️</div><p>No items in cart</p></div>';
+                totalSpan.innerHTML = '₱0.00';
+                return;
+            }
+
+            let html = '';
+            let total = 0;
+
+            cart.forEach((item, index) => {
+                const itemTotal = item.price * item.quantity;
+                total += itemTotal;
+                html += `
+                    <div class="cart-item">
+                        <div class="cart-item-info">
+                            <div class="cart-item-name">${item.productName}</div>
+                            <div class="cart-item-size">${item.sizeName}</div>
+                            <div class="cart-item-price">₱${item.price.toFixed(2)}</div>
+                        </div>
+                        <div class="cart-item-qty">
+                            <button class="qty-btn" onclick="updateCartItemQty(${index}, ${item.quantity - 1})">-</button>
+                            <span>${item.quantity}</span>
+                            <button class="qty-btn" onclick="updateCartItemQty(${index}, ${item.quantity + 1})">+</button>
+                        </div>
+                        <div class="cart-item-total">
+                            ₱${itemTotal.toFixed(2)}
+                        </div>
+                        <div class="remove-item" onclick="removeFromCart(${index})">✕</div>
+                    </div>
+                `;
+            });
+
+            cartDiv.innerHTML = html;
+            totalSpan.innerHTML = `₱${total.toFixed(2)}`;
+        }
+
+        async function updateCartItemQty(index, newQty) {
+            if (newQty <= 0) {
+                removeFromCart(index);
+                return;
+            }
+
+            const item = cart[index];
+
+            // Check availability for new quantity
+            const response = await fetch(`/Staff/CheckAvailability?productSizeId=${item.productSizeId}&quantity=${newQty}`);
+            const data = await response.json();
+
+            if (!data.available) {
+                alert(`❌ Cannot update quantity:\n${data.message}`);
+                return;
+            }
+
+            cart[index].quantity = newQty;
+            updateCartDisplay();
+
+            // Update availability display
+            await updateAvailabilityStatus(item.productSizeId);
+        }
+
+        function removeFromCart(index) {
+            const item = cart[index];
+            cart.splice(index, 1);
+            updateCartDisplay();
+
+            if (item) {
+                updateAvailabilityStatus(item.productSizeId);
+            }
+        }
+
+        function clearCart() {
+            if (cart.length === 0) return;
+            if (confirm('Clear all items from cart?')) {
+                const sizeIds = [...new Set(cart.map(item => item.productSizeId))];
+                cart = [];
+                updateCartDisplay();
+
+                // Update availability for affected products
+                sizeIds.forEach(id => updateAvailabilityStatus(id));
+            }
+        }
+
+        async function checkout() {
+            if (cart.length === 0) {
+                alert('Cart is empty!');
+                return;
+            }
+
+            const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+            if (!confirm(`Confirm order for ${totalItems} item(s) - Total: ₱${total.toFixed(2)}?`)) {
+                return;
+            }
+
+            const checkoutBtn = document.getElementById('checkoutBtn');
+            const originalText = checkoutBtn.innerHTML;
+            checkoutBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+            checkoutBtn.disabled = true;
+
+            const token = '@Html.AntiForgeryToken().ToString()';
+
+            try {
+                for (const item of cart) {
+                    const response = await fetch('/Staff/PlaceOrder', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': token
+                        },
+                        body: JSON.stringify({
+                            productSizeId: item.productSizeId,
+                            quantity: item.quantity,
+                            orderNumber: `POS-${Date.now()}`
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (!data.success) {
+                        alert(`❌ Error with ${item.productName}: ${data.message}`);
+                        checkoutBtn.innerHTML = originalText;
+                        checkoutBtn.disabled = false;
+                        return;
+                    }
+                }
+
+                alert(`✅ Order completed successfully!\n\nTotal: ₱${total.toFixed(2)}\n\nRaw materials have been deducted from inventory.`);
+
+                // Clear cart and refresh
+                cart = [];
+                updateCartDisplay();
+                loadAllAvailability();
+
+            } catch (error) {
+                alert('❌ Error processing order: ' + error.message);
+            } finally {
+                checkoutBtn.innerHTML = originalText;
+                checkoutBtn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

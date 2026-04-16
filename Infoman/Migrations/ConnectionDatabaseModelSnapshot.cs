@@ -33,6 +33,10 @@ namespace Infoman.Migrations
                     b.Property<DateTime>("Date")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("OrderNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -54,6 +58,9 @@ namespace Infoman.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("OrderItemId"));
 
+                    b.Property<decimal>("ActualCost")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<int>("OrderId")
                         .HasColumnType("int");
 
@@ -62,6 +69,9 @@ namespace Infoman.Migrations
                         .HasColumnType("decimal(10,2)");
 
                     b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ProductSizeId")
                         .HasColumnType("int");
 
                     b.Property<int>("Quantity")
@@ -124,6 +134,9 @@ namespace Infoman.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ProductSizeId"));
 
+                    b.Property<bool>("IsAvailableInPOS")
+                        .HasColumnType("bit");
+
                     b.Property<decimal>("Margin")
                         .HasPrecision(10, 2)
                         .HasColumnType("decimal(10,2)");
@@ -167,6 +180,7 @@ namespace Infoman.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal>("QuantityUsed")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("ReferenceNo")
@@ -234,9 +248,11 @@ namespace Infoman.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<decimal>("QuantityReceived")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("QuantityRemaining")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("RawMaterialId")
@@ -246,6 +262,7 @@ namespace Infoman.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.HasKey("BatchId");

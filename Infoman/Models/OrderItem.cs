@@ -10,6 +10,8 @@ namespace Infoman.Models
         public int OrderItemId { get; set; }
         [Required]
         public int ProductId { get; set; }
+        [Required]
+        public int ProductSizeId { get; set; }
         [ForeignKey("ProductId")]
         public virtual Product Product { get; set; }
         [Required]
@@ -20,5 +22,7 @@ namespace Infoman.Models
         public int Quantity { get; set; }
         [Required]
         public decimal Price { get; set; }
+        [Required]
+        public decimal ActualCost { get; set; }
     }
 }

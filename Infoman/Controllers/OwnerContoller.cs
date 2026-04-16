@@ -285,12 +285,15 @@ namespace Infoman.Controllers
                     {
                         if (recipeVM.RawMaterialId > 0 && recipeVM.Quantity > 0)
                         {
-                            var material = await _db.RawMaterials
-                                .FirstOrDefaultAsync(x => x.RawMaterialId == recipeVM.RawMaterialId);
+                            var latestPrice = await _db.RawMaterialBatches
+           .Where(b => b.RawMaterialId == recipeVM.RawMaterialId)
+           .OrderByDescending(b => b.ReceivedDate)
+           .Select(b => b.UnitPrice)
+           .FirstOrDefaultAsync();
 
-                            if (material != null)
+                            if (latestPrice > 0)
                             {
-                                var cost = recipeVM.Quantity * material.Price;
+                                var cost = recipeVM.Quantity * latestPrice;
                                 totalCost += cost;
                                 validRecipeCount++;
 
@@ -344,43 +347,69 @@ namespace Infoman.Controllers
         }
 
         [HttpGet]
-        public IActionResult GetRecipe(int id)
+        public async Task<IActionResult> GetRecipe(int id)
         {
-            var recipe = _db.ProductSizes
-                .Where(ps => ps.ProductSizeId == id)
-                .Select(ps => new
-                {
-                    productName = ps.Product.Name,
-                    productSKU = ps.Product.SKU,
-                    productCategory = ps.Product.Category,
-                    sizeName = ps.SizeName,
-                    sellingPrice = ps.Price,
-                    totalCost = ps.RecipeItems.Sum(r => r.Quantity * r.RawMaterial.Price),
-                    margin = ps.Margin,
-                    stock = ps.Stock,
-                    profit = ps.Price - ps.RecipeItems.Sum(r => r.Quantity * r.RawMaterial.Price),
-                    hasStock = ps.Stock > 0,  // ✅ Flag para sa warning
-                    ingredients = ps.RecipeItems.Select(r => new
-                    {
-                        rawMaterialId = r.RawMaterialId,
-                        quantity = r.Quantity,
-                        name = r.RawMaterial.Name,
-                        unit = r.RawMaterial.Unit,
-                        price = r.RawMaterial.Price,
-                        total = r.Quantity * r.RawMaterial.Price
-                    }).ToList()
-                })
-                .FirstOrDefault();
+            var productSize = await _db.ProductSizes
+                .Include(ps => ps.RecipeItems)
+                    .ThenInclude(ri => ri.RawMaterial)
+                .Include(ps => ps.Product)
+                .FirstOrDefaultAsync(ps => ps.ProductSizeId == id);
 
-            if (recipe == null)
+            if (productSize == null)
                 return Json(new { error = "Recipe not found" });
 
-            // ✅ PARA SA VIEW: I-return pa rin ang data, may warning lang
-            // PARA SA EDIT: Iba ang tawag (kailangan ng separate action or parameter)
+            // ✅ DEBUG: I-print ang mga RawMaterialId na ginagamit
+            var recipeMaterialIds = productSize.RecipeItems.Select(r => r.RawMaterialId).ToList();
+            System.Diagnostics.Debug.WriteLine($"Recipe Material IDs: {string.Join(", ", recipeMaterialIds)}");
+
+            decimal totalCost = 0;
+            var ingredientsWithPrices = new List<object>();
+
+            foreach (var recipeItem in productSize.RecipeItems)
+            {
+                var latestPrice = await _db.RawMaterialBatches
+                    .Where(b => b.RawMaterialId == recipeItem.RawMaterialId)
+                    .OrderByDescending(b => b.ReceivedDate)
+                    .Select(b => b.UnitPrice)
+                    .FirstOrDefaultAsync();
+
+                // ✅ DEBUG: I-print ang price na nakuha
+                System.Diagnostics.Debug.WriteLine($"RawMaterialId: {recipeItem.RawMaterialId}, LatestPrice: {latestPrice}");
+
+                var total = recipeItem.Quantity * latestPrice;
+                totalCost += total;
+
+                ingredientsWithPrices.Add(new
+                {
+                    rawMaterialId = recipeItem.RawMaterialId,
+                    quantity = recipeItem.Quantity,
+                    name = recipeItem.RawMaterial.Name,
+                    unit = recipeItem.RawMaterial.Unit,
+                    price = latestPrice,
+                    total = total
+                });
+            }
+
+            // ✅ DEBUG: I-print ang total cost
+            System.Diagnostics.Debug.WriteLine($"Total Cost: {totalCost}");
+
+            var recipe = new
+            {
+                productName = productSize.Product.Name,
+                productSKU = productSize.Product.SKU,
+                productCategory = productSize.Product.Category,
+                sizeName = productSize.SizeName,
+                sellingPrice = productSize.Price,
+                totalCost = totalCost,
+                margin = productSize.Margin,
+                stock = productSize.Stock,
+                profit = productSize.Price - totalCost,
+                hasStock = productSize.Stock > 0,
+                ingredients = ingredientsWithPrices
+            };
 
             return Json(recipe);
         }
-
         [HttpGet]
         public IActionResult CanEditRecipe(int id)
         {
@@ -459,15 +488,19 @@ namespace Infoman.Controllers
 
                 await _db.SaveChangesAsync();
 
-                // I-recompute ang total cost
-                await _db.Entry(productSize).Collection(ps => ps.RecipeItems).LoadAsync();
-                foreach (var item in productSize.RecipeItems)
+                // ========== BAGONG CODE: Compute total cost gamit ang LATEST BATCH PRICES ==========
+                decimal totalCost = 0;
+                foreach (var ingredient in model.Ingredients)
                 {
-                    await _db.Entry(item).Reference(r => r.RawMaterial).LoadAsync();
-                }
+                    // Kunin ang latest batch price para sa raw material na ito
+                    var latestPrice = await _db.RawMaterialBatches
+                        .Where(b => b.RawMaterialId == ingredient.RawMaterialId)
+                        .OrderByDescending(b => b.ReceivedDate)
+                        .Select(b => b.UnitPrice)
+                        .FirstOrDefaultAsync();
 
-                // Compute total cost
-                decimal totalCost = productSize.RecipeItems.Sum(r => r.Quantity * r.RawMaterial.Price);
+                    totalCost += ingredient.Quantity * latestPrice;
+                }
 
                 // Compute new selling price using the saved margin
                 decimal newSellingPrice = Math.Round(totalCost / (1 - productSize.Margin), 2);
@@ -483,6 +516,7 @@ namespace Infoman.Controllers
                 return Json(new { success = false, message = ex.Message });
             }
         }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ArchiveProduct(int id)
@@ -719,6 +753,66 @@ namespace Infoman.Controllers
             public int ProductSizeId { get; set; }
             public int Quantity { get; set; }
             public string? ReferenceNo { get; set; }
+        }
+
+        // Idagdag sa OwnerController.cs
+
+        [HttpPost]
+        public async Task<IActionResult> TogglePOSVisibility([FromBody] ToggleVisibilityRequest request)
+        {
+            try
+            {
+                var productSize = await _db.ProductSizes
+                    .FirstOrDefaultAsync(ps => ps.ProductSizeId == request.ProductSizeId);
+
+                if (productSize == null)
+                    return Json(new { success = false, message = "Product size not found" });
+
+                productSize.IsAvailableInPOS = request.IsAvailable;
+                await _db.SaveChangesAsync();
+
+                string status = request.IsAvailable ? "displayed in POS menu" : "hidden from POS";
+                return Json(new { success = true, message = $"Product is now {status}" });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        public class ToggleVisibilityRequest
+        {
+            public int ProductSizeId { get; set; }
+            public bool IsAvailable { get; set; }
+        }
+        // Sa OwnerController.cs - Dashboard o kung saan naglo-load ng products
+
+        // Kunin ang average o latest price ng raw materials para i-compute ang suggested selling price
+        private async Task<decimal> GetSuggestedSellingPrice(int productSizeId)
+        {
+            var productSize = await _db.ProductSizes
+                .Include(ps => ps.RecipeItems)
+                .FirstOrDefaultAsync(ps => ps.ProductSizeId == productSizeId);
+
+            if (productSize == null) return 0;
+
+            decimal totalCost = 0;
+
+            foreach (var recipeItem in productSize.RecipeItems)
+            {
+                // Kunin ang latest batch price para sa suggestion
+                var latestPrice = await _db.RawMaterialBatches
+                    .Where(b => b.RawMaterialId == recipeItem.RawMaterialId)
+                    .OrderByDescending(b => b.ReceivedDate)
+                    .Select(b => b.UnitPrice)
+                    .FirstOrDefaultAsync();
+
+                totalCost += recipeItem.Quantity * latestPrice;
+            }
+
+            // Apply margin
+            decimal suggestedPrice = totalCost / (1 - productSize.Margin);
+            return Math.Round(suggestedPrice, 2);
         }
     }
 }

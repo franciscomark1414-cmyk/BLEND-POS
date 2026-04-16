@@ -19,6 +19,7 @@ namespace Infoman.Models
         [Required]
         public int Stock { get; set; } // Stock per size
         public decimal Margin { get; set; } = 0.3m;
+        public bool IsAvailableInPOS { get; set; } = false;
 
         [Required]
         public int ProductId { get; set; }

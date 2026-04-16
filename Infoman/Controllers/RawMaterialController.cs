@@ -427,7 +427,22 @@ namespace Infoman.Controllers
             });
         }
 
+        [HttpGet]
+        public async Task<IActionResult> DebugBatches()
+        {
+            var batches = await _context.RawMaterialBatches
+                .Select(b => new
+                {
+                    b.BatchId,
+                    b.RawMaterialId,
+                    b.UnitPrice,
+                    b.QuantityRemaining,
+                    b.ReceivedDate
+                })
+                .ToListAsync();
 
+            return Json(batches);
+        }
 
     }
 }

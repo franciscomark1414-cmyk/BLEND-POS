@@ -28,10 +28,11 @@ namespace Infoman.Service
 
             try
             {
-                // Kunin ang mga batches na may remaining stock, FIFO (oldest first)
+                // ✅ FEFO with secondary sort by Received Date
                 var batches = _context.RawMaterialBatches
                     .Where(b => b.RawMaterialId == rawMaterialId && b.QuantityRemaining > 0)
-                    .OrderBy(b => b.ReceivedDate)
+                    .OrderBy(b => b.ExpiryDate.HasValue ? b.ExpiryDate.Value : DateTime.MaxValue)  // Primary: Expiry (null = max)
+                    .ThenBy(b => b.ReceivedDate)  // Secondary: Received date
                     .ToList();
 
                 if (!batches.Any())
@@ -68,16 +69,15 @@ namespace Infoman.Service
                     _context.ProductionUsages.Add(usage);
                 }
 
-                // ✅ IMPORTANTE: I-UPDATE ANG MAIN STOCK NG RAW MATERIAL
+                // I-update ang main stock
                 var rawMaterial = _context.RawMaterials.Find(rawMaterialId);
                 if (rawMaterial != null)
                 {
-                    // I-compute ang total remaining stock mula sa lahat ng batches
                     decimal totalRemaining = _context.RawMaterialBatches
                         .Where(b => b.RawMaterialId == rawMaterialId)
                         .Sum(b => b.QuantityRemaining);
 
-                    rawMaterial.Stock = totalRemaining;  // ← ITO ANG KULANG MO!
+                    rawMaterial.Stock = totalRemaining;
                 }
 
                 _context.SaveChanges();
@@ -91,9 +91,107 @@ namespace Infoman.Service
                 throw;
             }
         }
+
+        // FIFOService.cs - Baguhin ang return type at mag-track ng cost
+
         /// <summary>
-        /// I-update ang Stock column sa RawMaterials table (for display)
+        /// Magbawas ng stock gamit ang FEFO (First Expiry, First Out)
+        /// Returns: (success, totalCost, usedBatchesDetails)
         /// </summary>
+        public (bool success, decimal totalCost, List<BatchUsage> usedBatches) DeductStockWithCost(
+            int rawMaterialId,
+            decimal quantity,
+            int productId,
+            string referenceNo)
+        {
+            using var transaction = _context.Database.BeginTransaction();
+
+            try
+            {
+                // FEFO: Order by Expiry Date (nulls last), then by Received Date
+                var batches = _context.RawMaterialBatches
+                    .Where(b => b.RawMaterialId == rawMaterialId && b.QuantityRemaining > 0)
+                    .OrderBy(b => b.ExpiryDate.HasValue ? b.ExpiryDate.Value : DateTime.MaxValue)
+                    .ThenBy(b => b.ReceivedDate)
+                    .ToList();
+
+                if (!batches.Any())
+                    return (false, 0, null);
+
+                decimal remainingToDeduct = quantity;
+                var usedBatches = new List<BatchUsage>();
+                decimal totalCost = 0;
+
+                foreach (var batch in batches)
+                {
+                    if (remainingToDeduct <= 0) break;
+
+                    decimal deductFromBatch = Math.Min(remainingToDeduct, batch.QuantityRemaining);
+                    decimal batchCost = deductFromBatch * batch.UnitPrice;  // ← ITO ANG ACTUAL COST
+
+                    usedBatches.Add(new BatchUsage
+                    {
+                        BatchId = batch.BatchId,
+                        QuantityUsed = deductFromBatch,
+                        UnitPrice = batch.UnitPrice,
+                        TotalCost = batchCost
+                    });
+
+                    batch.QuantityRemaining -= deductFromBatch;
+                    remainingToDeduct -= deductFromBatch;
+                    totalCost += batchCost;
+                }
+
+                if (remainingToDeduct > 0)
+                    return (false, 0, null);
+
+                // Mag-record ng bawat deduction per batch
+                foreach (var usage in usedBatches)
+                {
+                    var productionUsage = new ProductionUsage
+                    {
+                        BatchId = usage.BatchId,
+                        QuantityUsed = usage.QuantityUsed,
+                        DateUsed = DateTime.Now,
+                        ReferenceNo = referenceNo,
+                        ProductId = productId
+                    };
+                    _context.ProductionUsages.Add(productionUsage);
+                }
+
+                // I-update ang main stock ng raw material
+                var rawMaterial = _context.RawMaterials.Find(rawMaterialId);
+                if (rawMaterial != null)
+                {
+                    decimal totalRemaining = _context.RawMaterialBatches
+                        .Where(b => b.RawMaterialId == rawMaterialId)
+                        .Sum(b => b.QuantityRemaining);
+
+                    rawMaterial.Stock = totalRemaining;
+                }
+
+                _context.SaveChanges();
+                transaction.Commit();
+
+                return (true, totalCost, usedBatches);
+            }
+            catch (Exception)
+            {
+                transaction.Rollback();
+                throw;
+            }
+        }
+
+        // Helper class para sa batch usage details
+        public class BatchUsage
+        {
+            public int BatchId { get; set; }
+            public decimal QuantityUsed { get; set; }
+            public decimal UnitPrice { get; set; }
+            public decimal TotalCost { get; set; }
+        }
+
+
         private void UpdateMainStockColumn(int rawMaterialId)
         {
             var totalRemaining = _context.RawMaterialBatches
@@ -141,7 +239,8 @@ namespace Infoman.Service
         {
             var batches = _context.RawMaterialBatches
                 .Where(b => b.RawMaterialId == rawMaterialId)
-                .OrderBy(b => b.ReceivedDate)
+                .OrderBy(b => b.ExpiryDate.HasValue ? b.ExpiryDate.Value : DateTime.MaxValue)  // Primary: Expiry
+                .ThenBy(b => b.ReceivedDate)  // Secondary: Received date
                 .Select(b => new BatchHistoryViewModel
                 {
                     BatchId = b.BatchId,
@@ -161,7 +260,6 @@ namespace Infoman.Service
 
             return batches;
         }
-
         // Add these ViewModel classes at the end of your FIFOService.cs file (outside the class)
         public class BatchHistoryViewModel
         {

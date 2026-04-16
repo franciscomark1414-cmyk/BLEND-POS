@@ -83,6 +83,8 @@ namespace Infoman.Migrations
 
                     b.HasIndex("ProductId");
 
+                    b.HasIndex("ProductSizeId");
+
                     b.ToTable("OrderItems");
                 });
 
@@ -382,9 +384,17 @@ namespace Infoman.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Infoman.Models.ProductSize", "ProductSize")
+                        .WithMany()
+                        .HasForeignKey("ProductSizeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Order");
 
                     b.Navigation("Product");
+
+                    b.Navigation("ProductSize");
                 });
 
             modelBuilder.Entity("Infoman.Models.ProductSize", b =>

@@ -12,6 +12,8 @@ namespace Infoman.Models
         public int ProductId { get; set; }
         [Required]
         public int ProductSizeId { get; set; }
+        [ForeignKey("ProductSizeId")]  // ✅ IDAGDAG ITO
+        public virtual ProductSize ProductSize { get; set; }
         [ForeignKey("ProductId")]
         public virtual Product Product { get; set; }
         [Required]

@@ -157,6 +157,18 @@ namespace Infoman.Controllers
         .ToList();
             ViewBag.Products = products;
 
+            // ========== ENSURE ALL ViewBag PROPERTIES HAVE VALUES ==========
+            ViewBag.TotalRevenue = ViewBag.TotalRevenue ?? 0;
+            ViewBag.EstimatedProfit = ViewBag.EstimatedProfit ?? 0;
+            ViewBag.TotalWasteCost = ViewBag.TotalWasteCost ?? 0;
+            ViewBag.CriticalStockCount = ViewBag.CriticalStockCount ?? 0;
+            ViewBag.ExpiringCount = ViewBag.ExpiringCount ?? 0;
+            ViewBag.ExpiredCount = ViewBag.ExpiredCount ?? 0;
+            ViewBag.WasteCount = ViewBag.WasteCount ?? 0;
+            ViewBag.TotalOtherAlerts = ViewBag.TotalOtherAlerts ?? 0;
+            ViewBag.LowStockCount = ViewBag.LowStockCount ?? 0;
+
+
             return View(dashboardViewModel);
         }
         
@@ -845,6 +857,141 @@ namespace Infoman.Controllers
             // Apply margin
             decimal suggestedPrice = totalCost / (1 - productSize.Margin);
             return Math.Round(suggestedPrice, 2);
+        }
+        [HttpGet]
+        public async Task<IActionResult> GetReportsData()
+        {
+            var today = DateTime.Today;
+
+            // ========== SALES PERFORMANCE ==========
+            var last7Days = Enumerable.Range(0, 7).Select(i => today.AddDays(-6 + i)).ToList();
+            var salesLabels = last7Days.Select(d => d.ToString("MMM dd")).ToList();
+            var salesRevenue = new List<decimal>();
+            var salesOrders = new List<int>();
+
+            foreach (var day in last7Days)
+            {
+                var dailyRevenue = await _db.Orders
+                    .Where(o => o.Date.Date == day && o.Status != "Cancelled")
+                    .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
+                salesRevenue.Add(dailyRevenue);
+
+                var dailyOrders = await _db.Orders
+                    .CountAsync(o => o.Date.Date == day && o.Status != "Cancelled");
+                salesOrders.Add(dailyOrders);
+            }
+
+            // ========== CATEGORY DISTRIBUTION ==========
+            var categoryDistribution = await _db.OrderItems
+                .Include(oi => oi.Order)
+                .Include(oi => oi.Product)
+                .Where(oi => oi.Order.Status != "Cancelled")
+                .GroupBy(oi => oi.Product.Category ?? "Uncategorized")
+                .Select(g => new
+                {
+                    Category = g.Key,
+                    Revenue = g.Sum(oi => oi.Price * oi.Quantity)
+                })
+                .ToListAsync();
+
+            // ========== TOP SELLING PRODUCTS ==========
+            var topSelling = await _db.OrderItems
+                .Include(oi => oi.Order)
+                .Include(oi => oi.Product)
+                .Include(oi => oi.ProductSize)
+                .Where(oi => oi.Order.Status != "Cancelled")
+                .GroupBy(oi => new {
+                    oi.Product.Name,
+                    SizeName = oi.ProductSize != null ? oi.ProductSize.SizeName : "Regular"
+                })
+                .Select(g => new
+                {
+                    Name = g.Key.Name,
+                    SizeName = g.Key.SizeName,
+                    UnitsSold = g.Sum(oi => oi.Quantity),
+                    Revenue = g.Sum(oi => oi.Price * oi.Quantity)
+                })
+                .OrderByDescending(p => p.Revenue)
+                .Take(5)
+                .ToListAsync();
+
+            // ========== WASTE LOGS (FIXED - compute TotalCost in memory) ==========
+            var wasteLogsRaw = await _db.WasteLogs
+                .Include(w => w.RawMaterial)
+                .OrderByDescending(w => w.Date)
+                .Select(w => new
+                {
+                    w.WasteLogId,
+                    MaterialName = w.RawMaterial.Name,
+                    w.Quantity,
+                    Unit = w.RawMaterial.Unit,
+                    Reason = w.Reason.ToString(),
+                    RawMaterialPrice = w.RawMaterial.Price,
+                    Date = w.Date.ToString("yyyy-MM-dd"),
+                    w.RecordedBy,
+                    w.Notes
+                })
+                .ToListAsync();
+
+            // Compute TotalCost in memory
+            var wasteLogs = wasteLogsRaw.Select(w => new
+            {
+                w.WasteLogId,
+                w.MaterialName,
+                w.Quantity,
+                w.Unit,
+                w.Reason,
+                TotalCost = w.Quantity * w.RawMaterialPrice,
+                w.Date,
+                w.RecordedBy,
+                w.Notes
+            }).ToList();
+
+            var totalWasteCost = wasteLogs.Sum(w => w.TotalCost);
+
+            // ========== TOTAL REVENUE ==========
+            var totalRevenue = await _db.Orders
+                .Where(o => o.Status != "Cancelled")
+                .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
+
+            // ========== REVENUE BY CATEGORY ==========
+            var categoryRevenue = await _db.OrderItems
+                .Include(oi => oi.Order)
+                .Include(oi => oi.Product)
+                .Where(oi => oi.Order.Status != "Cancelled")
+                .GroupBy(oi => oi.Product.Category ?? "Uncategorized")
+                .Select(g => new
+                {
+                    Category = g.Key,
+                    Revenue = g.Sum(oi => oi.Price * oi.Quantity),
+                    Orders = g.Select(oi => oi.OrderId).Distinct().Count()
+                })
+                .ToListAsync();
+
+            // ========== SET ViewBag VALUES ==========
+            ViewBag.TotalRevenue = totalRevenue;
+            ViewBag.EstimatedProfit = totalRevenue * 0.3m;
+            ViewBag.TotalWasteCost = totalWasteCost;
+
+            return Json(new
+            {
+                salesPerformance = new { labels = salesLabels, revenue = salesRevenue, orders = salesOrders },
+                categoryDistribution = categoryDistribution,
+                topSellingProducts = topSelling,
+                wasteLogs = wasteLogs,
+                discountRecords = new List<object>(),
+                categoryRevenue = categoryRevenue
+            });
+
+        }
+        public ActionResult Reports()
+        {
+            // Calculate total waste cost from database
+            var wasteLogs = _db.WasteLogs.ToList(); // or whatever your data source is
+            var totalWasteCost = wasteLogs.Sum(w => w.TotalCost);
+            ViewBag.TotalWasteCost = totalWasteCost; // ₱1000.10
+
+            return View();
         }
     }
 }

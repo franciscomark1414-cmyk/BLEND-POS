@@ -1,20 +1,141 @@
 ﻿@model Infoman.Models.LoginViewModel
+<style>
+    body {
+        margin: 0;
+        font-family: 'Segoe UI', sans-serif;
+        background: linear-gradient(to bottom, #f5f1e6, #e8dcc7);
+    }
 
-<h2>Login</h2>
+    .login-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+    }
 
-<form asp-action="Login" method="post">
-    <div>
-        <label>Username</label>
-        <input asp-for="Username" />
+    .brand {
+        text-align: center;
+        margin-bottom: 25px;
+    }
+
+    .logo {
+        background: linear-gradient(to right, orange, #ffb347);
+        color: white;
+        font-size: 28px;
+        padding: 10px 16px;
+        border-radius: 12px;
+        display: inline-block;
+    }
+
+    .brand h1 {
+        margin: 10px 0 5px;
+        font-size: 30px;
+    }
+
+    .brand p {
+        color: #666;
+        font-size: 14px;
+    }
+
+    .login-card {
+        background: #fff;
+        padding: 30px;
+        width: 380px; /* mas malaki */
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+
+        .login-card h3 {
+            margin-bottom: 5px;
+        }
+
+    .subtitle {
+        font-size: 13px;
+        color: #777;
+        margin-bottom: 15px;
+    }
+
+        .role-toggle .active {
+            background: #fff;
+            font-weight: bold;
+        }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+        .form-group label {
+            font-size: 13px;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+
+    .login-btn {
+        width: 100%;
+        padding: 12px;
+        background: linear-gradient(to right, orange, #ffb347);
+        border: none;
+        border-radius: 8px;
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+        .login-btn:hover {
+            opacity: 0.9;
+        }
+
+    .error {
+        color: red;
+        margin-top: 10px;
+        font-size: 13px;
+    }
+
+    .demo {
+        margin-top: 15px;
+        color: #777;
+        font-size: 12px;
+    }
+</style>
+
+<div class="login-container">
+    <div class="brand">
+        <div class="logo">🍹</div>
+        <h1>Neldie's Mango & More</h1>
+        <p>Quandew Systems Inc.</p>
     </div>
-    <div>
-        <label>Password</label>
-        <input asp-for="Password" type="password" />
-    </div>
-    <button type="submit">Login</button>
-</form>
 
-@if (ViewBag.Error != null)
-{
-    <p style="color:red">@ViewBag.Error</p>
-}
+    <div class="login-card">
+        <h3>Sign In</h3>
+        <p class="subtitle">Select your role and enter your credentials</p>
+
+
+        <form asp-action="Login" method="post">
+            <div class="form-group">
+                <label>Username</label>
+                <input asp-for="Username" placeholder="Enter username" />
+            </div>
+
+            <div class="form-group">
+                <label>Password</label>
+                <input asp-for="Password" type="password" placeholder="Enter password" />
+            </div>
+
+            <button type="submit" class="login-btn">LogIn</button>
+        </form>
+
+        @if (ViewBag.Error != null)
+        {
+            <p class="error">@ViewBag.Error</p>
+        }
+
+    </div>
+</div>

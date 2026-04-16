@@ -17,7 +17,7 @@ namespace Infoman.Controllers
             _fifoService = new FIFOService(_db);
         }
 
-        public ActionResult Dashboard()
+        public async Task<ActionResult> Dashboard()
         {// Get current date
             DateTime today = DateTime.Today;
 
@@ -34,25 +34,30 @@ namespace Infoman.Controllers
                 .Count();
             ViewBag.CriticalStockCount = criticalStockCount;
 
-            // ========== EXPIRING SOON (within 7 days) ==========
-            int expiringCount = _db.RawMaterials
-                .Where(r => r.IsDeleted == false &&
-                            r.ExpirationDate != null &&
-                            r.ExpirationDate.Value.Date <= today.AddDays(7) &&
-                            r.ExpirationDate.Value.Date > today &&
-                            r.Stock > 0)
-                .Count();
+            // ========== EXPIRING SOON (from BATCHES) ==========
+            var todayBatch = DateTime.Today;
+            var expiringCount = await _db.RawMaterialBatches
+                .Where(b => b.ExpiryDate.HasValue &&
+                            b.ExpiryDate.Value >= todayBatch &&
+                            b.ExpiryDate.Value <= todayBatch.AddDays(7) &&
+                            b.QuantityRemaining > 0 &&
+                            !b.RawMaterial.IsDeleted)
+                .Select(b => b.RawMaterialId)
+                .Distinct()
+                .CountAsync();
             ViewBag.ExpiringCount = expiringCount;
 
-            // ========== EXPIRED ==========
-            int expiredCount = _db.RawMaterials
-                .Where(r => r.IsDeleted == false &&
-                            r.ExpirationDate != null &&
-                            r.ExpirationDate.Value.Date < today &&
-                            r.Stock > 0)
-                .Count();
+            // ========== EXPIRED (from BATCHES) ==========
+            var expiredCount = await _db.RawMaterialBatches
+                .Where(b => b.ExpiryDate.HasValue &&
+                            b.ExpiryDate.Value < todayBatch &&
+                            b.QuantityRemaining > 0 &&
+                            !b.RawMaterial.IsDeleted)
+                .Select(b => b.RawMaterialId)
+                .Distinct()
+                .CountAsync();
             ViewBag.ExpiredCount = expiredCount;
-            
+
             // ========== WASTE LOGS (today) ============
             int wasteCount = _db.WasteLogs.Count();
             ViewBag.WasteCount = wasteCount;
@@ -534,11 +539,13 @@ namespace Infoman.Controllers
         [HttpGet]
         public async Task<IActionResult> GetInventoryAlertsData()
         {
+            var today = DateTime.Today;  // ✅ Isang beses lang ideclare
+
             var allMaterials = await _db.RawMaterials
                 .Where(r => !r.IsDeleted)
                 .ToListAsync();
 
-            // Low Stock Items
+            // ========== LOW STOCK ITEMS ==========
             var lowStockItems = allMaterials
                 .Where(r => r.Stock <= r.MinQty)
                 .Select(r => new
@@ -552,41 +559,65 @@ namespace Infoman.Controllers
                     StockWithUnit = r.StockWithUnit
                 })
                 .ToList();
+            int lowStockCount = lowStockItems.Count;
 
-            // Expiring Soon (within next 7 days, future only)
-            var expiringItems = allMaterials
-                .Where(r => r.ExpirationDate.HasValue &&
-                            r.ExpirationDate.Value >= DateTime.Today &&
-                            r.ExpirationDate.Value <= DateTime.Today.AddDays(7))
-                .Select(r => new
+            // ========== FIXED: EXPIRING SOON (from BATCHES within 7 days ONLY) ==========
+            var expiringDateThreshold = today.AddDays(7);
+
+            var expiringBatches = await _db.RawMaterialBatches
+                .Include(b => b.RawMaterial)
+                .Where(b => b.ExpiryDate.HasValue &&
+                            b.ExpiryDate.Value >= today &&
+                            b.ExpiryDate.Value <= expiringDateThreshold &&
+                            b.QuantityRemaining > 0 &&
+                            !b.RawMaterial.IsDeleted)
+                .ToListAsync();
+
+            // I-group at i-sum ang quantity ng MGA BATCH LANG NA WITHIN 7 DAYS
+            var expiringItems = expiringBatches
+                .GroupBy(b => b.RawMaterial)
+                .Select(g => new
                 {
-                    r.RawMaterialId,
-                    r.Name,
-                    Category = r.Category.ToString(),
-                    StockWithUnit = r.StockWithUnit,
-                    ExpiryDate = r.ExpirationDate.Value.ToString("yyyy-MM-dd"),
-                    DaysLeft = (r.ExpirationDate.Value - DateTime.Today).Days,
-                    r.Unit
+                    RawMaterialId = g.Key.RawMaterialId,
+                    Name = g.Key.Name,
+                    Category = g.Key.Category.ToString(),
+                    ExpiringStockQuantity = g.Sum(b => b.QuantityRemaining),
+                    ExpiringStockWithUnit = $"{g.Sum(b => b.QuantityRemaining):F2} {g.Key.Unit}",
+                    EarliestExpiryDate = g.Min(b => b.ExpiryDate).Value.ToString("yyyy-MM-dd"),
+                    DaysLeft = (g.Min(b => b.ExpiryDate).Value - today).Days,
+                    Unit = g.Key.Unit,
+                    BatchCount = g.Count()
                 })
                 .ToList();
+            int expiringCount = expiringItems.Count;
 
-            // Expired (past expiry date)
-            var expiredItems = allMaterials
-                .Where(r => r.ExpirationDate.HasValue &&
-                            r.ExpirationDate.Value < DateTime.Today)
-                .Select(r => new
+            // ========== FIXED: EXPIRED (from BATCHES) ==========
+            var expiredBatches = await _db.RawMaterialBatches
+                .Include(b => b.RawMaterial)
+                .Where(b => b.ExpiryDate.HasValue &&
+                            b.ExpiryDate.Value < today &&
+                            b.QuantityRemaining > 0 &&
+                            !b.RawMaterial.IsDeleted)
+                .ToListAsync();
+
+            var expiredItems = expiredBatches
+                .GroupBy(b => b.RawMaterial)
+                .Select(g => new
                 {
-                    r.RawMaterialId,
-                    r.Name,
-                    Category = r.Category.ToString(),
-                    StockWithUnit = r.StockWithUnit,
-                    ExpiryDate = r.ExpirationDate.Value.ToString("yyyy-MM-dd"),
-                    DaysOverdue = (DateTime.Today - r.ExpirationDate.Value).Days,
-                    r.Unit
+                    RawMaterialId = g.Key.RawMaterialId,
+                    Name = g.Key.Name,
+                    Category = g.Key.Category.ToString(),
+                    ExpiredStockQuantity = g.Sum(b => b.QuantityRemaining),
+                    ExpiredStockWithUnit = $"{g.Sum(b => b.QuantityRemaining):F2} {g.Key.Unit}",
+                    ExpiryDate = g.Min(b => b.ExpiryDate).Value.ToString("yyyy-MM-dd"),
+                    DaysOverdue = (today - g.Min(b => b.ExpiryDate).Value).Days,
+                    Unit = g.Key.Unit,
+                    BatchCount = g.Count()
                 })
                 .ToList();
+            int expiredCount = expiredItems.Count;
 
-            // Waste Logs
+            // ========== WASTE LOGS ==========
             var wasteLogs = await _db.WasteLogs
                 .Include(w => w.RawMaterial)
                 .OrderByDescending(w => w.Date)
@@ -603,13 +634,14 @@ namespace Infoman.Controllers
                     w.Notes
                 })
                 .ToListAsync();
+            int wasteCount = wasteLogs.Count;
 
             return Json(new
             {
-                lowStockCount = lowStockItems.Count,
-                expiringCount = expiringItems.Count,
-                expiredCount = expiredItems.Count,
-                wasteCount = wasteLogs.Count,
+                lowStockCount = lowStockCount,
+                expiringCount = expiringCount,
+                expiredCount = expiredCount,
+                wasteCount = wasteCount,
                 lowStockItems = lowStockItems,
                 expiringItems = expiringItems,
                 expiredItems = expiredItems,

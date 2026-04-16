@@ -170,6 +170,92 @@
         border-radius: 12px;
         margin: 20px 0;
     }
+    /* Dashboard Cards with Hover Effect */
+    /* Dashboard Cards with Colors */
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        cursor: pointer;
+    }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+        }
+
+        /* Today's Sales - Blue */
+        .stat-card:nth-child(1) .card-body h5 {
+            color: #3b82f6;
+        }
+
+        .stat-card:nth-child(1) .card-body p {
+            color: #3b82f6;
+        }
+
+        /* Total Orders Today - Green */
+        .stat-card:nth-child(2) .card-body h5 {
+            color: #10b981;
+        }
+
+        .stat-card:nth-child(2) .card-body p {
+            color: #10b981;
+        }
+
+        /* Total Revenue - Purple */
+        .stat-card:nth-child(3) .card-body h5 {
+            color: #8b5cf6;
+        }
+
+        .stat-card:nth-child(3) .card-body p {
+            color: #8b5cf6;
+        }
+
+        /* Critical Stock - Red */
+        .stat-card:nth-child(4) .card-body h5 {
+            color: #ef4444;
+        }
+
+        .stat-card:nth-child(4) .card-body p {
+            color: #ef4444;
+        }
+
+        .stat-card .card-body h5 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .stat-card .card-body p {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 0;
+        }
+
+    /* Critical Card Special Style */
+    .critical-card {
+        border-left: 4px solid #ef4444;
+    }
+
+        .critical-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(239, 68, 68, 0.15);
+        }
+
+    /* Product Items Hover */
+    .product-item {
+        background: white;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        width: 200px;
+    }
+
+        .product-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            background: #f8f9fa;
+        }
 </style>
 
 <div class="dashboard-container">
@@ -191,20 +277,20 @@
 
         <!-- Dashboard Module -->
         <div id="dashboardModule" class="module active">
-            <div class="row">
+            <div class="row g-4">
                 <!-- Today's Sales -->
                 <div class="col-md-3">
-                    <div class="card text-center">
-                        <div class="card-body">
+                    <div class="stat-card">
+                        <div class="card-body text-center">
                             <h5>Today's Sales</h5>
-                            <p>@ViewBag.TodaysSales</p>
+                            <p>₱@ViewBag.TotalRevenue.ToString("N2")</p>
                         </div>
                     </div>
                 </div>
                 <!-- Total Orders Today -->
                 <div class="col-md-3">
-                    <div class="card text-center">
-                        <div class="card-body">
+                    <div class="stat-card">
+                        <div class="card-body text-center">
                             <h5>Total Orders Today</h5>
                             <p>@ViewBag.TotalOrdersToday</p>
                         </div>
@@ -212,22 +298,22 @@
                 </div>
                 <!-- Total Revenue -->
                 <div class="col-md-3">
-                    <div class="card text-center">
-                        <div class="card-body">
+                    <div class="stat-card">
+                        <div class="card-body text-center">
                             <h5>Total Revenue</h5>
-                            <p>₱@ViewBag.TotalRevenue</p>
+                            <p>₱@ViewBag.TotalRevenue.ToString("N2")</p>
                         </div>
                     </div>
                 </div>
-                <!-- Critical Stock Alert -->
+                <!-- Critical Stock Alert (with +2 more) -->
                 <div class="col-md-3">
                     <a href="#" onclick="showModule('inventoryAlerts'); return false;" style="text-decoration:none;">
-                        <div class="card text-center border-left-critical h-100">
-                            <div class="card-body">
+                        <div class="stat-card critical-card">
+                            <div class="card-body text-center">
                                 <div class="d-flex justify-content-between align-items-start">
-                                    <h6 class="text-danger mb-0 fw-bold">
+                                    <h5 class="text-danger mb-0 fw-bold">
                                         <i class="fas fa-exclamation-triangle"></i> CRITICAL STOCK
-                                    </h6>
+                                    </h5>
                                     @if (ViewBag.TotalOtherAlerts > 0)
                                     {
                                         <span class="badge bg-warning text-dark rounded-pill">
@@ -285,7 +371,7 @@
                                 {
                                     foreach (var item in Model.BestSellingProducts)
                                     {
-                                        <div class="border p-3 rounded" style="width:200px;">
+                                        <div class="product-item border p-3 rounded">
                                             <div style="font-size:20px;">🥤</div>
                                             <strong>#@item.Rank @item.Name</strong><br />
                                             <small>₱@item.Price.ToString("N2")</small><br />
@@ -1770,10 +1856,49 @@
         }
     }
 
-    function loadExpiringTab(items) {
+        function loadExpiringTab(items) {
         const container = document.getElementById('expiringContent');
-        if (!items || items.length === 0) container.innerHTML = '<div class="empty-state"><i class="fas fa-calendar-check fa-4x text-info mb-3"></i><h4 class="text-info">✨ All Good!</h4><p class="text-muted">No items expiring in the next 7 days.</p></div>';
-        else container.innerHTML = `<div class="table-responsive"><table class="table table-bordered"><thead class="table-info"><tr><th>Name</th><th>Category</th><th>Current Stock</th><th>Expiry Date</th><th>Days Left</th><th>Status</th><th>Action</th></tr></thead><tbody>${items.map(item => `<tr><td><strong>${escapeHtml(item.name)}</strong></td><td>${escapeHtml(item.category)}</td><td>${item.stockWithUnit}</td><td class="text-danger">${item.expiryDate}</td><td class="text-danger fw-bold">${item.daysLeft} days</td><td><span class="badge bg-info">⏰ Expiring Soon</span></td><td><button class="btn btn-sm btn-outline-warning" onclick="useMaterialFirst(${item.rawMaterialId})">Use First</button></td></tr>`).join('')}</tbody></table></div>`;
+        if (!items || items.length === 0) {
+            container.innerHTML = '<div class="empty-state">✨ No items expiring soon</div>';
+        } else {
+            container.innerHTML = `
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead class="table-info">
+                            <tr>
+                                <th>Name</th>
+                                <th>Category</th>
+                                <th>Current Stock (Expiring Batches)</th>
+                                <th>Expiry Date</th>
+                                <th>Days Left</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${items.map(item => `
+                                <tr>
+                                    <td><strong>${escapeHtml(item.name)}</strong></td>
+                                    <td>${escapeHtml(item.category)}</td>
+                                    <td class="text-danger fw-bold">
+                                        ${item.expiringStockWithUnit}
+                                        ${item.batchCount > 1 ? `<br/><small class="text-muted">(${item.batchCount} batches)</small>` : ''}
+                                    </td>
+                                    <td class="text-danger">${item.earliestExpiryDate}</td>
+                                    <td class="text-danger fw-bold">${item.daysLeft} days</td>
+                                    <td><span class="badge bg-info">⏰ Expiring Soon</span></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-warning" onclick="useMaterialFirst(${item.rawMaterialId})">
+                                            Use First
+                                        </button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
     }
 
     function loadExpiredTab(items) {

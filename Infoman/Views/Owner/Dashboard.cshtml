@@ -5,30 +5,119 @@
 }
 
 <style>
+    <style >
+    body {
+        background: linear-gradient(to bottom, #f5f1e6, #e8dcc7);
+        font-family: 'Segoe UI', sans-serif;
+    }
+
+    /* Dashboard Container */
+    .dashboard-container {
+        display: flex;
+        min-height: 100vh;
+    }
+
+    /* ========== SIDEBAR - DARK BLUE DESIGN (gaya sa Employee) ========== */
+    .sidebar {
+        width: 260px;
+        background: #1e293b;
+        color: white;
+        position: fixed;
+        height: 100vh;
+        left: 0;
+        top: 0;
+        padding: 20px 0;
+        z-index: 100;
+    }
+
+        .sidebar .logo-area {
+            text-align: center;
+            padding: 20px;
+            border-bottom: 1px solid #334155;
+            margin-bottom: 20px;
+        }
+
+            .sidebar .logo-area .logo-icon {
+                background: linear-gradient(135deg, #f59e0b, #d97706);
+                width: 50px;
+                height: 50px;
+                line-height: 50px;
+                border-radius: 12px;
+                font-size: 24px;
+                margin: 0 auto 10px;
+            }
+
+        .sidebar .nav-item {
+            padding: 12px 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: #94a3b8;
+        }
+
+            .sidebar .nav-item:hover, .sidebar .nav-item.active {
+                background: #334155;
+                color: #f59e0b;
+            }
+
+            .sidebar .nav-item i {
+                width: 24px;
+                margin-right: 12px;
+            }
+
+    /* ========== MAIN CONTENT ========== */
+    .main-content {
+        flex: 1;
+        margin-left: 260px;
+        padding: 20px 30px;
+        min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .user-info {
+        text-align: right;
+    }
+
+        .user-info .user-name {
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .user-info .user-role {
+            font-size: 12px;
+            color: #f59e0b;
+        }
+
+    .logout-btn {
+        background: none;
+        border: none;
+        color: #ef4444;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    /* Module styles */
+    .module {
+        display: none;
+    }
+
+        .module.active {
+            display: block;
+        }
+
+    /* Dashboard specific styles only */
     .dashboard-container {
         display: flex;
         min-height: 90vh;
     }
-
-    .sidebar {
-        width: 200px;
-        background: #f8f9fa;
-        padding: 20px;
-    }
-
-        .sidebar ul {
-            list-style: none;
-            padding: 0;
-        }
-
-        .sidebar li {
-            padding: 10px;
-            cursor: pointer;
-        }
-
-            .sidebar li:hover {
-                background: #e2e6ea;
-            }
 
     .main-content {
         flex: 1;
@@ -45,17 +134,12 @@
 
     #addRawMaterialBox {
         background-color: #f9f9f9;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
 
         #addRawMaterialBox .text-muted {
             font-size: 12px;
         }
-
-    .form-control:focus {
-        border-color: #80bdff;
-        box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
-    }
 
     .border-left-warning {
         border-left: 4px solid #ffc107 !important;
@@ -80,18 +164,15 @@
         border-radius: 0;
         color: #6c757d;
         font-weight: 500;
-        text-decoration: none;
     }
 
         .tab-button.active {
             color: #ffc107;
             border-bottom: 3px solid #ffc107;
-            background: none;
         }
 
         .tab-button:hover {
             color: #ffc107;
-            background: none;
         }
 
     .alert-tab-content {
@@ -170,8 +251,7 @@
         border-radius: 12px;
         margin: 20px 0;
     }
-    /* Dashboard Cards with Hover Effect */
-    /* Dashboard Cards with Colors */
+
     .stat-card {
         background: white;
         border-radius: 12px;
@@ -185,7 +265,6 @@
             box-shadow: 0 8px 20px rgba(0,0,0,0.12);
         }
 
-        /* Today's Sales - Blue */
         .stat-card:nth-child(1) .card-body h5 {
             color: #3b82f6;
         }
@@ -194,7 +273,6 @@
             color: #3b82f6;
         }
 
-        /* Total Orders Today - Green */
         .stat-card:nth-child(2) .card-body h5 {
             color: #10b981;
         }
@@ -203,7 +281,6 @@
             color: #10b981;
         }
 
-        /* Total Revenue - Purple */
         .stat-card:nth-child(3) .card-body h5 {
             color: #8b5cf6;
         }
@@ -212,7 +289,6 @@
             color: #8b5cf6;
         }
 
-        /* Critical Stock - Red */
         .stat-card:nth-child(4) .card-body h5 {
             color: #ef4444;
         }
@@ -233,7 +309,6 @@
             margin-bottom: 0;
         }
 
-    /* Critical Card Special Style */
     .critical-card {
         border-left: 4px solid #ef4444;
     }
@@ -243,7 +318,6 @@
             box-shadow: 0 8px 20px rgba(239, 68, 68, 0.15);
         }
 
-    /* Product Items Hover */
     .product-item {
         background: white;
         transition: all 0.2s ease;
@@ -284,24 +358,98 @@
             transform: translateX(5px);
         }
 
+    .employee-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 15px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        border-left: 4px solid #f59e0b;
+    }
+
+    .employee-avatar {
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 20px;
+        margin-right: 15px;
+        flex-shrink: 0;
+    }
+
+    .employee-name {
+        font-weight: bold;
+        font-size: 16px;
+    }
+
+    .employee-username {
+        color: #6c757d;
+        font-size: 13px;
+    }
+
+    .employee-detail {
+        font-size: 13px;
+        color: #6c757d;
+        margin-top: 4px;
+    }
+
+    .status-badge {
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .status-active {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-inactive {
+        background: #fee2e2;
+        color: #991b1b;
+    }
 </style>
 
 <div class="dashboard-container">
     <!-- Sidebar -->
+    <!-- Sidebar - Dark Blue Design -->
     <div class="sidebar">
-        <ul>
-            <li onclick="showModule('dashboard')">Dashboard</li>
-            <li onclick="showModule('inventory')">Inventory</li>
-            <li onclick="showModule('products')">Products</li>
-            <li onclick="showModule('inventoryAlerts')">Alerts</li>
-            <li onclick="showModule('reports')">Reports</li>
-            <li onclick="showModule('employees')">Employees</li>
-            <li onclick="showModule('settings')">Settings</li>
-        </ul>
+        <div class="logo-area">
+            <div class="logo-icon mx-auto">🍹</div>
+            <h5 class="mt-2 mb-0">Neldie's Mango</h5>
+            <small>Owner Portal</small>
+        </div>
+        <div class="nav-item active" onclick="showModule('dashboard')">
+            <i class="fas fa-tachometer-alt"></i> Dashboard
+        </div>
+        <div class="nav-item" onclick="showModule('inventory')">
+            <i class="fas fa-boxes"></i> Inventory
+        </div>
+        <div class="nav-item" onclick="showModule('products')">
+            <i class="fas fa-cube"></i> Products
+        </div>
+        <div class="nav-item" onclick="showModule('inventoryAlerts')">
+            <i class="fas fa-bell"></i> Alerts
+        </div>
+        <div class="nav-item" onclick="showModule('reports')">
+            <i class="fas fa-chart-line"></i> Reports
+        </div>
+        <div class="nav-item" onclick="showModule('employees')">
+            <i class="fas fa-users"></i> Employees
+        </div>
+        <div class="nav-item" onclick="showModule('settings')">
+            <i class="fas fa-cog"></i> Settings
+        </div>
     </div>
 
     <!-- Main Content -->
     <div class="main-content">
+
 
         <!-- Dashboard Module -->
         <div id="dashboardModule" class="module active">
@@ -1332,6 +1480,7 @@
                             </div>
                         </div>
                     </div>
+                    </div>
 
                 <!-- Tabs for Sales Reports / Best Selling / Discount Tracker -->
                 <ul class="nav nav-tabs mb-3">
@@ -1508,11 +1657,113 @@
             </div>
         </div>
 
-        <!-- Employees Module -->
-        <div id="employeesModule" class="module">
-            <h3>Employees Module</h3>
-            <p>Coming soon...</p>
-        </div>
+            <!-- Employees Module -->
+            <div id="employeesModule" class="module">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h2 class="mb-1"><i class="fas fa-users me-2" style="color:#f59e0b;"></i> Employee Management</h2>
+                        <p class="text-muted">Manage your team and track their performance</p>
+                    </div>
+                    <button class="btn btn-warning" onclick="showEmployeeAddModal()">
+                        <i class="fas fa-plus me-2"></i> Add Employee
+                    </button>
+                </div>
+
+                <!-- Tabs -->
+                <ul class="nav nav-tabs mb-4">
+                    <li class="nav-item">
+                        <button class="nav-link active" onclick="switchEmployeeTab('list')">Employee List</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" onclick="switchEmployeeTab('performance')">Performance</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" onclick="switchEmployeeTab('attendance')">Attendance</button>
+                    </li>
+                </ul>
+
+                <!-- Employee List Tab -->
+                <div id="employeeListTab">
+                    <div id="employeesContainer">
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-warning"></div>
+                            <p class="mt-2">Loading employees...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Performance Tab (Placeholder) -->
+                <div id="employeePerformanceTab" style="display:none;">
+                    <div class="card">
+                        <div class="card-body text-center py-5">
+                            <i class="fas fa-chart-line fa-4x text-muted mb-3"></i>
+                            <h5>Performance Analytics</h5>
+                            <p class="text-muted">Coming soon: Track employee sales, efficiency, and ratings.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Attendance Tab (Placeholder) -->
+                <div id="employeeAttendanceTab" style="display:none;">
+                    <div class="card">
+                        <div class="card-body text-center py-5">
+                            <i class="fas fa-clock fa-4x text-muted mb-3"></i>
+                            <h5>Attendance Tracking</h5>
+                            <p class="text-muted">Coming soon: Monitor employee check-ins, leaves, and schedules.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Employee Add/Edit Modal -->
+            <div class="modal fade" id="employeeModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header" style="background: #f8f9fa;">
+                            <h5 class="modal-title" id="employeeModalTitle">Add Employee</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="employeeForm">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" id="employeeId" value="0">
+                                <div class="mb-3">
+                                    <label class="form-label">Username *</label>
+                                    <input type="text" class="form-control" id="empUsername" required>
+                                </div>
+                                <div class="mb-3" id="empPasswordField">
+                                    <label class="form-label">Password *</label>
+                                    <input type="password" class="form-control" id="empPassword">
+                                    <small class="text-muted">Leave blank to keep current password (for edit)</small>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Full Name *</label>
+                                    <input type="text" class="form-control" id="empFullName" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Phone</label>
+                                    <input type="text" class="form-control" id="empPhone">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="empEmail">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Status</label>
+                                    <select class="form-control" id="empStatus">
+                                        <option value="Active">Active</option>
+                                        <option value="Inactive">Inactive</option>
+                                    </select>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" onclick="saveEmployee()">Save Employee</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
         <!-- Settings Module -->
         <div id="settingsModule" class="module">
@@ -2925,28 +3176,294 @@ function produceProduct(productSizeId, sizeName, currentStock) {
                 });
             }
 
-                   // TANGGALIN ITO (nasa pinakababa ng script mo):
-    const originalShowModuleForReports = window.showModule;
-    window.showModule = function(module) {
-        originalShowModuleForReports(module);
-        if (module === 'reports') {
-            reportsDataLoaded = false;
-            setTimeout(function() { loadReportsData(); }, 100);
-        }
-    };
 
-    // PALITAN NG GANITO — i-patch yung showModule function mismo sa itaas:
+// ========== EMPLOYEE MODULE FUNCTIONS ==========
 
-            // Helper function (iisa lang, walang duplicate)
-            function escapeHtml(str) {
-                if (!str) return '';
-                return String(str).replace(/[&<>]/g, function(m) {
-                    if (m === '&') return '&amp;';
-                    if (m === '<') return '&lt;';
-                    if (m === '>') return '&gt;';
-                    return m;
-                });
+function loadEmployees() {
+    console.log("Loading employees...");
+    
+    fetch('/Employee/GetAllEmployees')
+        .then(function(res) { 
+            console.log("Response status:", res.status);
+            return res.json(); 
+        })
+        .then(function(data) {
+            console.log("Raw data received:", data);
+            console.log("Data type:", typeof data);
+            console.log("Is array?", Array.isArray(data));
+            
+            var container = document.getElementById('employeesContainer');
+            if (!container) {
+                console.error("Container not found!");
+                return;
             }
+            
+            // ✅ Handle the data - it should be an array directly
+            var employees = data;
+            
+            // If it's not an array, try to extract it
+            if (!Array.isArray(employees)) {
+                if (employees && employees.$values) {
+                    employees = employees.$values;
+                } else if (employees && employees.data) {
+                    employees = employees.data;
+                } else if (employees && typeof employees === 'object') {
+                    // Check if it's a single object with employee properties
+                    if (employees.id !== undefined || employees.username !== undefined) {
+                        employees = [employees];
+                    } else {
+                        employees = [];
+                    }
+                } else {
+                    employees = [];
+                }
+            }
+            
+            console.log("Processed employees:", employees);
+            console.log("Employee count:", employees.length);
+            
+            if (!employees || employees.length === 0) {
+                console.log("No employees found");
+                container.innerHTML = '<div class="text-center py-5"><i class="fas fa-users fa-4x text-muted mb-3"></i><h5>No Employees Yet</h5><p class="text-muted">Click "Add Employee" to get started.</p></div>';
+                return;
+            }
+            
+            var html = '';
+            for (var i = 0; i < employees.length; i++) {
+                var emp = employees[i];
+                console.log("Employee " + i + ":", emp);
+                
+                // Get values with fallbacks
+                var empId = emp.id || emp.Id;
+                var empUsername = emp.username || emp.Username || '';
+                var empFullName = emp.fullName || emp.FullName || 'No Name';
+                var empEmail = emp.email || emp.Email || 'No email';
+                var empPhone = emp.phone || emp.Phone || 'No phone';
+                var empStatus = emp.status || emp.Status || 'Active';
+                var empDateJoined = emp.dateJoined || emp.DateJoined || 'Unknown';
+                
+                html += '<div class="employee-card">' +
+                    '<div class="d-flex">' +
+                    '<div class="employee-avatar">' +
+                    '<i class="fas fa-user"></i>' +
+                    '</div>' +
+                    '<div class="flex-grow-1">' +
+                    '<div class="d-flex justify-content-between align-items-start">' +
+                    '<div>' +
+                    '<div class="employee-name">' + escapeHtml(empFullName) + '</div>' +
+                        '<div class="employee-username">\u0040' + escapeHtml(empUsername) + '</div>' +
+                    '</div>' +
+                    '<button class="btn btn-sm btn-outline-warning" onclick="editEmployee(' + empId + ')">' +
+                    '<i class="fas fa-edit"></i> Edit' +
+                    '</button>' +
+                    '</div>' +
+                    '<div class="row mt-2">' +
+                    '<div class="col-md-6">' +
+                    '<div class="employee-detail">' +
+                    '<i class="fas fa-envelope"></i> ' + escapeHtml(empEmail) +
+                    '</div>' +
+                    '<div class="employee-detail">' +
+                    '<i class="fas fa-phone"></i> ' + escapeHtml(empPhone) +
+                    '</div>' +
+                    '</div>' +
+                    '<div class="col-md-6">' +
+                    '<div class="employee-detail">' +
+                    '<i class="fas fa-calendar-alt"></i> Joined: ' + escapeHtml(empDateJoined) +
+                    '</div>' +
+                    '<div class="employee-detail">' +
+                    '<span class="status-badge ' + (empStatus === 'Active' ? 'status-active' : 'status-inactive') + '">' +
+                    escapeHtml(empStatus) +
+                    '</span>' +
+                    '</div>' +
+                    '</div>' +
+                    '</div>' +
+                    '</div>' +
+                    '</div>' +
+                    '</div>';
+            }
+            container.innerHTML = html;
+            console.log("HTML rendered successfully");
+        })
+        .catch(function(err) {
+            console.error('Error loading employees:', err);
+            var container = document.getElementById('employeesContainer');
+            if (container) {
+                container.innerHTML = '<div class="alert alert-danger">Error loading employees: ' + err.message + '</div>';
+            }
+        });
+}
+
+
+function switchEmployeeTab(tab) {
+    var listTab = document.getElementById('employeeListTab');
+    var perfTab = document.getElementById('employeePerformanceTab');
+    var attendTab = document.getElementById('employeeAttendanceTab');
+    var tabs = document.querySelectorAll('#employeesModule .nav-link');
+    
+    for (var i = 0; i < tabs.length; i++) {
+        tabs[i].classList.remove('active');
+    }
+    
+    if (tab === 'list') {
+        if (tabs[0]) tabs[0].classList.add('active');
+        if (listTab) listTab.style.display = 'block';
+        if (perfTab) perfTab.style.display = 'none';
+        if (attendTab) attendTab.style.display = 'none';
+        loadEmployees();
+    } else if (tab === 'performance') {
+        if (tabs[1]) tabs[1].classList.add('active');
+        if (listTab) listTab.style.display = 'none';
+        if (perfTab) perfTab.style.display = 'block';
+        if (attendTab) attendTab.style.display = 'none';
+    } else if (tab === 'attendance') {
+        if (tabs[2]) tabs[2].classList.add('active');
+        if (listTab) listTab.style.display = 'none';
+        if (perfTab) perfTab.style.display = 'none';
+        if (attendTab) attendTab.style.display = 'block';
+    }
+}
+
+    function showEmployeeAddModal() {
+        console.log("Opening add employee modal");
+        document.getElementById('employeeModalTitle').innerText = 'Add Employee';
+        document.getElementById('employeeForm').reset();
+        document.getElementById('employeeId').value = 0;
+        document.getElementById('empPasswordField').style.display = 'block';
+        document.getElementById('empPassword').required = true;
+        document.getElementById('empUsername').readOnly = false;
+        document.getElementById('empUsername').value = '';
+        document.getElementById('empFullName').value = '';
+        document.getElementById('empPhone').value = '';
+        document.getElementById('empEmail').value = '';
+        document.getElementById('empStatus').value = 'Active';
+
+        // Make sure modal exists
+        var modalElement = document.getElementById('employeeModal');
+        if (modalElement) {
+            var modal = new bootstrap.Modal(modalElement);
+            modal.show();
+        } else {
+            console.error("Modal element not found!");
+            alert("Error: Modal not found");
+        }
+    }
+
+function editEmployee(id) {
+    fetch('/Employee/GetEmployee/' + id)
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if (data.success) {
+                document.getElementById('employeeModalTitle').innerText = 'Edit Employee';
+                document.getElementById('employeeId').value = data.id;
+                document.getElementById('empUsername').value = data.username;
+                document.getElementById('empUsername').readOnly = true;
+                document.getElementById('empFullName').value = data.fullName;
+                document.getElementById('empPhone').value = data.phone || '';
+                document.getElementById('empEmail').value = data.email || '';
+                document.getElementById('empStatus').value = data.status;
+                document.getElementById('empPassword').value = '';
+                document.getElementById('empPassword').required = false;
+                document.getElementById('empPasswordField').style.display = 'block';
+                var modal = new bootstrap.Modal(document.getElementById('employeeModal'));
+                modal.show();
+            } else {
+                alert('Error loading employee');
+            }
+        })
+        .catch(function(err) { alert('Error: ' + err.message); });
+}
+
+    function saveEmployee() {
+        var id = parseInt(document.getElementById('employeeId').value);
+        var username = document.getElementById('empUsername').value.trim();
+        var password = document.getElementById('empPassword').value;
+        var fullName = document.getElementById('empFullName').value.trim();
+        var phone = document.getElementById('empPhone').value.trim();
+        var email = document.getElementById('empEmail').value.trim();
+        var status = document.getElementById('empStatus').value;
+
+        console.log("Saving employee:", {id, username, fullName, phone, email, status});
+
+        if (!fullName) {
+            alert('Please enter full name');
+            return;
+        }
+
+        if (id === 0 && !username) {
+            alert('Please enter username');
+            return;
+        }
+
+        if (id === 0 && !password) {
+            alert('Please enter password');
+            return;
+        }
+
+        var url = id === 0 ? '/Employee/Create' : '/Employee/Edit';
+        var data = id === 0 ? {
+            username: username,
+            password: password,
+            fullName: fullName,
+            phone: phone,
+            email: email,
+            status: status
+        } : {
+            id: id,
+            fullName: fullName,
+            phone: phone,
+            email: email,
+            status: status,
+            password: password || null
+        };
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(result) {
+            console.log("Save result:", result);
+            if (result.success) {
+                alert(result.message);
+                var modal = bootstrap.Modal.getInstance(document.getElementById('employeeModal'));
+                if (modal) modal.hide();
+                loadEmployees(); // Refresh the list
+            } else {
+                alert('Error: ' + result.message);
+            }
+        })
+        .catch(function(err) {
+            console.error("Save error:", err);
+            alert('Error: ' + err.message);
+        });
+    }
+
+// ========== OVERRIDE SHOWMODULE FUNCTION (NASA DULO ITO) ==========
+var originalShowModule = window.showModule;
+window.showModule = function(module) {
+    originalShowModule(module);
+    if (module === 'reports') {
+        reportsDataLoaded = false;
+        setTimeout(function() { loadReportsData(); }, 100);
+    }
+    if (module === 'employees') {
+        setTimeout(function() { loadEmployees(); }, 100);
+    }
+};
+
+// ========== HELPER FUNCTION ==========
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
 
 
 </script>

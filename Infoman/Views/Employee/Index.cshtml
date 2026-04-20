@@ -1,0 +1,557 @@
+﻿@model IEnumerable<Infoman.Models.User>
+@{
+    ViewBag.Title = "Employee Management";
+    Layout = null; // Or use your existing layout
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Employee Management - Neldie's Mango & More</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(to bottom, #f5f1e6, #e8dcc7);
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: #1e293b;
+            color: white;
+            position: fixed;
+            height: 100vh;
+            left: 0;
+            top: 0;
+            padding: 20px 0;
+        }
+
+            .sidebar .logo-area {
+                text-align: center;
+                padding: 20px;
+                border-bottom: 1px solid #334155;
+                margin-bottom: 20px;
+            }
+
+                .sidebar .logo-area .logo-icon {
+                    background: linear-gradient(135deg, #f59e0b, #d97706);
+                    width: 50px;
+                    height: 50px;
+                    line-height: 50px;
+                    border-radius: 12px;
+                    font-size: 24px;
+                    margin: 0 auto 10px;
+                }
+
+            .sidebar .nav-item {
+                padding: 12px 24px;
+                cursor: pointer;
+                transition: all 0.3s;
+                color: #94a3b8;
+            }
+
+                .sidebar .nav-item:hover, .sidebar .nav-item.active {
+                    background: #334155;
+                    color: #f59e0b;
+                }
+
+                .sidebar .nav-item i {
+                    width: 24px;
+                    margin-right: 12px;
+                }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 260px;
+            padding: 20px 30px;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .user-info {
+            text-align: right;
+        }
+
+            .user-info .user-name {
+                font-weight: bold;
+                font-size: 16px;
+            }
+
+            .user-info .user-role {
+                font-size: 12px;
+                color: #f59e0b;
+            }
+
+        .logout-btn {
+            background: none;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        /* Tabs */
+        .custom-tabs {
+            border-bottom: 2px solid #e2e8f0;
+            margin-bottom: 25px;
+        }
+
+        .custom-tab {
+            border: none;
+            background: none;
+            padding: 10px 24px;
+            font-weight: 500;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+            .custom-tab.active {
+                color: #f59e0b;
+            }
+
+                .custom-tab.active::after {
+                    content: '';
+                    position: absolute;
+                    bottom: -2px;
+                    left: 0;
+                    right: 0;
+                    height: 2px;
+                    background: #f59e0b;
+                }
+
+        /* Employee Cards */
+        .employee-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+
+            .employee-card:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+            }
+
+        .employee-avatar {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+            margin-right: 15px;
+        }
+
+        .employee-name {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .employee-username {
+            font-size: 13px;
+            color: #6c757d;
+            margin-bottom: 8px;
+        }
+
+        .employee-detail {
+            font-size: 13px;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+
+            .employee-detail i {
+                width: 20px;
+                color: #f59e0b;
+            }
+
+        .status-badge {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 20px;
+        }
+
+        .status-active {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-inactive {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* Add Button */
+        .add-btn {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-weight: 500;
+            color: white;
+        }
+
+            .add-btn:hover {
+                background: linear-gradient(135deg, #d97706, #b45309);
+                color: white;
+            }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="logo-area">
+            <div class="logo-icon mx-auto">🍹</div>
+            <h5 class="mt-2 mb-0">Neldie's Mango</h5>
+            <small>Owner Portal</small>
+        </div>
+        <div class="nav-item" onclick="window.location.href='/Owner/Dashboard'">
+            <i class="fas fa-tachometer-alt"></i> Dashboard
+        </div>
+        <div class="nav-item" onclick="window.location.href='/Owner/Dashboard#inventoryModule'">
+            <i class="fas fa-boxes"></i> Inventory
+        </div>
+        <div class="nav-item" onclick="window.location.href='/Owner/Dashboard#productsModule'">
+            <i class="fas fa-cube"></i> Products
+        </div>
+        <div class="nav-item" onclick="window.location.href='/Owner/Dashboard#inventoryAlertsModule'">
+            <i class="fas fa-bell"></i> Alerts
+        </div>
+        <div class="nav-item" onclick="window.location.href='/Owner/Dashboard#reportsModule'">
+            <i class="fas fa-chart-line"></i> Reports
+        </div>
+        <div class="nav-item active">
+            <i class="fas fa-users"></i> Employees
+        </div>
+        <div class="nav-item" onclick="window.location.href='/Owner/Dashboard#settingsModule'">
+            <i class="fas fa-cog"></i> Settings
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Header -->
+        <div class="header">
+            <h3 class="mb-0"><i class="fas fa-users me-2" style="color:#f59e0b;"></i> Employee Management</h3>
+            <div class="user-info">
+                <div class="user-name">John Doe</div>
+                <div class="user-role">Owner</div>
+                <button class="logout-btn mt-1" onclick="window.location.href='/Account/Logout'">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </div>
+
+        <p class="text-muted mb-4">Manage your team and track their performance</p>
+
+        <!-- Tabs -->
+        <div class="custom-tabs">
+            <button class="custom-tab active" onclick="switchTab('list')">Employee List</button>
+            <button class="custom-tab" onclick="switchTab('performance')">Performance</button>
+            <button class="custom-tab" onclick="switchTab('attendance')">Attendance</button>
+        </div>
+
+        <!-- Tab Content: Employee List -->
+        <div id="listTab" class="tab-content active">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="mb-0">All Employees</h5>
+                <button class="add-btn" onclick="showAddModal()">
+                    <i class="fas fa-plus me-2"></i> Add Employee
+                </button>
+            </div>
+
+            <div id="employeesContainer">
+                @foreach (var emp in Model)
+                {
+                    <div class="employee-card" data-id="@emp.Id">
+                        <div class="d-flex">
+                            <div class="employee-avatar">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <div class="employee-name">@emp.FullName</div>
+                                        <div class="employee-username">@@@emp.Username</div>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-warning" onclick="editEmployee(@emp.Id)">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </button>
+                                </div>
+                                <div class="row mt-2">
+                                    <div class="col-md-6">
+                                        <div class="employee-detail">
+                                            <i class="fas fa-envelope"></i> @(string.IsNullOrEmpty(emp.Email) ? "No email" : emp.Email)
+                                        </div>
+                                        <div class="employee-detail">
+                                            <i class="fas fa-phone"></i> @(string.IsNullOrEmpty(emp.Phone) ? "No phone" : emp.Phone)
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="employee-detail">
+                                            <i class="fas fa-calendar-alt"></i> Joined: @emp.DateJoined.ToString("MM/dd/yyyy")
+                                        </div>
+                                        <div class="employee-detail">
+                                            <span class="status-badge @(emp.Status == "Active" ? "status-active" : "status-inactive")">
+                                                @emp.Status
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Tab Content: Performance (Placeholder) -->
+        <div id="performanceTab" class="tab-content" style="display:none;">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-chart-line fa-4x text-muted mb-3"></i>
+                    <h5>Performance Analytics</h5>
+                    <p class="text-muted">Coming soon: Track employee sales, efficiency, and ratings.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: Attendance (Placeholder) -->
+        <div id="attendanceTab" class="tab-content" style="display:none;">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-clock fa-4x text-muted mb-3"></i>
+                    <h5>Attendance Tracking</h5>
+                    <p class="text-muted">Coming soon: Monitor employee check-ins, leaves, and schedules.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div class="modal fade" id="employeeModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header" style="background: #f8f9fa;">
+                    <h5 class="modal-title" id="modalTitle">Add Employee</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="employeeForm">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" id="employeeId" name="Id" value="0">
+                        <div class="mb-3">
+                            <label class="form-label">Username *</label>
+                            <input type="text" class="form-control" id="empUsername" required>
+                        </div>
+                        <div class="mb-3" id="passwordField">
+                            <label class="form-label">Password *</label>
+                            <input type="password" class="form-control" id="empPassword">
+                            <small class="text-muted">Leave blank to keep current password (for edit)</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Full Name *</label>
+                            <input type="text" class="form-control" id="empFullName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Phone</label>
+                            <input type="text" class="form-control" id="empPhone">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" id="empEmail">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Status</label>
+                            <select class="form-control" id="empStatus">
+                                <option value="Active">Active</option>
+                                <option value="Inactive">Inactive</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveEmployee()">Save Employee</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        let currentEditId = 0;
+
+        function switchTab(tab) {
+            document.querySelectorAll('.custom-tab').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
+
+            if (tab === 'list') {
+                document.querySelector('.custom-tab:first-child').classList.add('active');
+                document.getElementById('listTab').style.display = 'block';
+            } else if (tab === 'performance') {
+                document.querySelectorAll('.custom-tab')[1].classList.add('active');
+                document.getElementById('performanceTab').style.display = 'block';
+            } else if (tab === 'attendance') {
+                document.querySelectorAll('.custom-tab')[2].classList.add('active');
+                document.getElementById('attendanceTab').style.display = 'block';
+            }
+        }
+
+        function showAddModal() {
+            currentEditId = 0;
+            document.getElementById('modalTitle').innerText = 'Add Employee';
+            document.getElementById('employeeForm').reset();
+            document.getElementById('employeeId').value = 0;
+            document.getElementById('passwordField').style.display = 'block';
+            document.getElementById('empPassword').required = true;
+            new bootstrap.Modal(document.getElementById('employeeModal')).show();
+        }
+
+        function editEmployee(id) {
+            currentEditId = id;
+            fetch(`/Employee/GetEmployee/${id}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('modalTitle').innerText = 'Edit Employee';
+                        document.getElementById('employeeId').value = data.id;
+                        document.getElementById('empUsername').value = data.username;
+                        document.getElementById('empUsername').readOnly = true;
+                        document.getElementById('empFullName').value = data.fullName;
+                        document.getElementById('empPhone').value = data.phone;
+                        document.getElementById('empEmail').value = data.email;
+                        document.getElementById('empStatus').value = data.status;
+                        document.getElementById('empPassword').value = '';
+                        document.getElementById('empPassword').required = false;
+                        document.getElementById('passwordField').style.display = 'block';
+                        new bootstrap.Modal(document.getElementById('employeeModal')).show();
+                    } else {
+                        alert('Error loading employee');
+                    }
+                })
+                .catch(err => alert('Error: ' + err.message));
+        }
+
+               function saveEmployee() {
+            const id = parseInt(document.getElementById('employeeId').value);
+            const username = document.getElementById('empUsername').value.trim();
+            const password = document.getElementById('empPassword').value;
+            const fullName = document.getElementById('empFullName').value.trim();
+            const phone = document.getElementById('empPhone').value.trim();
+            const email = document.getElementById('empEmail').value.trim();
+            const status = document.getElementById('empStatus').value;
+
+            // Validation
+            if (!fullName) {
+                alert('Please enter full name');
+                return;
+            }
+
+            if (id === 0 && !username) {
+                alert('Please enter username');
+                return;
+            }
+
+            if (id === 0 && !password) {
+                alert('Please enter password');
+                return;
+            }
+
+            // Kunin ang AntiForgeryToken - IMPORTANTE ITO!
+            const tokenElement = document.querySelector('input[name="__RequestVerificationToken"]');
+            let token = '';
+
+            if (tokenElement) {
+                token = tokenElement.value;
+            } else {
+                // Alternative: hanapin sa form
+                const tokenInForm = document.querySelector('#employeeForm input[name="__RequestVerificationToken"]');
+                if (tokenInForm) {
+                    token = tokenInForm.value;
+                }
+            }
+
+            console.log('Token found:', token ? 'Yes' : 'No');
+
+            const url = id === 0 ? '/Employee/Create' : '/Employee/Edit';
+            const data = id === 0 ? {
+                username: username,
+                password: password,
+                fullName: fullName,
+                phone: phone,
+                email: email,
+                status: status
+            } : {
+                id: id,
+                fullName: fullName,
+                phone: phone,
+                email: email,
+                status: status,
+                password: password || null
+            };
+
+            console.log('Sending to:', url);
+            console.log('Data:', data);
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                console.log('Response status:', response.status);
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        throw new Error(`HTTP ${response.status}: ${text.substring(0, 200)}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(result => {
+                if (result.success) {
+                    alert(result.message);
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('employeeModal'));
+                    modal.hide();
+                    location.reload();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            })
+            .catch(err => {
+                console.error('Error:', err);
+                alert('Error: ' + err.message);
+            });
+        }
+        // Reset username readonly when modal is closed
+        document.getElementById('employeeModal').addEventListener('hidden.bs.modal', function () {
+            document.getElementById('empUsername').readOnly = false;
+        });
+    </script>
+</body>
+</html>

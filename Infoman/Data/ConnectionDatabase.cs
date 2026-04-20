@@ -74,15 +74,7 @@ namespace Infoman.Data
             modelBuilder.Entity<ProductionUsage>()
                 .ToTable("ProductionUsages");
 
-            modelBuilder.Entity<User>().HasData(
-                new User
-                {
-                    Id = 1,
-                    Username = "staff",
-                    Password = "staff123", // learning only; later hash this
-                    Role = "Staff"
-                }
-            );
+            
         }
 
     }

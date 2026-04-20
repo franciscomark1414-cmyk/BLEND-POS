@@ -123,12 +123,14 @@ namespace Infoman.Controllers
                 if (request.Quantity <= 0)
                     return Json(new { success = false, message = "Invalid quantity" });
 
-                // Check raw materials availability
+                // Check raw materials availability (excluding expired)
                 foreach (var recipeItem in productSize.RecipeItems)
                 {
                     decimal neededQty = recipeItem.Quantity * request.Quantity;
                     decimal availableQty = await _db.RawMaterialBatches
-                        .Where(b => b.RawMaterialId == recipeItem.RawMaterialId)
+                        .Where(b => b.RawMaterialId == recipeItem.RawMaterialId
+                            && b.QuantityRemaining > 0
+                            && (!b.ExpiryDate.HasValue || b.ExpiryDate.Value >= DateTime.Today)) // Skip expired
                         .SumAsync(b => b.QuantityRemaining);
 
                     if (availableQty < neededQty)
@@ -150,8 +152,8 @@ namespace Infoman.Controllers
                 {
                     decimal neededQty = recipeItem.Quantity * request.Quantity;
 
-                    // ✅ GAMITIN ANG BAGONG METHOD NA MAY COST
-                    var (success, cost, usedBatches) = _fifoService.DeductStockWithCost(
+                    // ✅ FIXED: May AWAIT at tamang method name (ASYNC)
+                    var (success, cost, usedBatches) = await _fifoService.DeductStockWithCostAsync(
                         recipeItem.RawMaterialId,
                         neededQty,
                         productSize.ProductId,

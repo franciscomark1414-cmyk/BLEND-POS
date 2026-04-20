@@ -375,25 +375,15 @@ namespace Infoman.Controllers
             if (productSize == null)
                 return Json(new { error = "Recipe not found" });
 
-            // ✅ DEBUG: I-print ang mga RawMaterialId na ginagamit
-            var recipeMaterialIds = productSize.RecipeItems.Select(r => r.RawMaterialId).ToList();
-            System.Diagnostics.Debug.WriteLine($"Recipe Material IDs: {string.Join(", ", recipeMaterialIds)}");
-
             decimal totalCost = 0;
             var ingredientsWithPrices = new List<object>();
 
             foreach (var recipeItem in productSize.RecipeItems)
             {
-                var latestPrice = await _db.RawMaterialBatches
-                    .Where(b => b.RawMaterialId == recipeItem.RawMaterialId)
-                    .OrderByDescending(b => b.ReceivedDate)
-                    .Select(b => b.UnitPrice)
-                    .FirstOrDefaultAsync();
+                // 🔥 FIX: Gamitin ang FIFO cost (pinakamatandang batch na may stock)
+                decimal fifoPrice = await GetFIFOUnitPrice(recipeItem.RawMaterialId);
 
-                // ✅ DEBUG: I-print ang price na nakuha
-                System.Diagnostics.Debug.WriteLine($"RawMaterialId: {recipeItem.RawMaterialId}, LatestPrice: {latestPrice}");
-
-                var total = recipeItem.Quantity * latestPrice;
+                var total = recipeItem.Quantity * fifoPrice;
                 totalCost += total;
 
                 ingredientsWithPrices.Add(new
@@ -402,13 +392,13 @@ namespace Infoman.Controllers
                     quantity = recipeItem.Quantity,
                     name = recipeItem.RawMaterial.Name,
                     unit = recipeItem.RawMaterial.Unit,
-                    price = latestPrice,
+                    price = fifoPrice,
                     total = total
                 });
             }
 
-            // ✅ DEBUG: I-print ang total cost
-            System.Diagnostics.Debug.WriteLine($"Total Cost: {totalCost}");
+            // Compute profit/loss
+            decimal profit = productSize.Price - totalCost;
 
             var recipe = new
             {
@@ -420,12 +410,79 @@ namespace Infoman.Controllers
                 totalCost = totalCost,
                 margin = productSize.Margin,
                 stock = productSize.Stock,
-                profit = productSize.Price - totalCost,
+                profit = profit,
                 hasStock = productSize.Stock > 0,
                 ingredients = ingredientsWithPrices
             };
 
             return Json(recipe);
+        }
+
+        // Helper method para kumuha ng FIFO unit price
+        // Palitan ang GetFIFOUnitPrice ng ganito:
+        private async Task<decimal> GetFIFOUnitPrice(int rawMaterialId)
+        {
+            return await _fifoService.GetActiveBatchPrice(rawMaterialId);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> EditRecipe(int id)
+        {
+            var productSize = await _db.ProductSizes
+                .Include(ps => ps.RecipeItems)
+                    .ThenInclude(ri => ri.RawMaterial)
+                .Include(ps => ps.Product)
+                .FirstOrDefaultAsync(ps => ps.ProductSizeId == id);
+
+            if (productSize == null)
+                return Json(new { success = false, message = "Product not found" });
+
+            // Compute total cost using LATEST batch prices (for display only)
+            decimal totalCost = 0;
+            var ingredientsWithPrices = new List<object>();
+
+            foreach (var recipeItem in productSize.RecipeItems)
+            {
+                // 🔥 IMPORTANT: Kunin ang latest batch price para sa raw material
+                var latestPrice = await _db.RawMaterialBatches
+                    .Where(b => b.RawMaterialId == recipeItem.RawMaterialId)
+                    .OrderByDescending(b => b.ReceivedDate)
+                    .Select(b => b.UnitPrice)
+                    .FirstOrDefaultAsync();
+
+                // Kung walang batch, gamitin ang Price mula sa RawMaterial
+                if (latestPrice == 0 && recipeItem.RawMaterial != null)
+                {
+                    latestPrice = recipeItem.RawMaterial.Price;
+                }
+
+                var total = recipeItem.Quantity * latestPrice;
+                totalCost += total;
+
+                ingredientsWithPrices.Add(new
+                {
+                    rawMaterialId = recipeItem.RawMaterialId,
+                    quantity = recipeItem.Quantity,
+                    name = recipeItem.RawMaterial?.Name ?? "Unknown",
+                    unit = recipeItem.RawMaterial?.Unit ?? "",
+                    price = latestPrice,      // ✅ SIGURADUHIN MAY VALUE ITO
+                    total = total              // ✅ SIGURADUHIN MAY VALUE ITO
+                });
+            }
+
+            var result = new
+            {
+                success = true,
+                productSizeId = productSize.ProductSizeId,
+                productName = productSize.Product?.Name ?? "",
+                sizeName = productSize.SizeName,
+                sellingPrice = productSize.Price,
+                margin = productSize.Margin,
+                totalCost = totalCost,
+                ingredients = ingredientsWithPrices
+            };
+
+            return Json(result);
         }
         [HttpGet]
         public IActionResult CanEditRecipe(int id)
@@ -509,14 +566,9 @@ namespace Infoman.Controllers
                 decimal totalCost = 0;
                 foreach (var ingredient in model.Ingredients)
                 {
-                    // Kunin ang latest batch price para sa raw material na ito
-                    var latestPrice = await _db.RawMaterialBatches
-                        .Where(b => b.RawMaterialId == ingredient.RawMaterialId)
-                        .OrderByDescending(b => b.ReceivedDate)
-                        .Select(b => b.UnitPrice)
-                        .FirstOrDefaultAsync();
-
-                    totalCost += ingredient.Quantity * latestPrice;
+                    // 🔥 FIX: Gamitin ang FIFO cost (pinakamatandang batch na may stock)
+                    decimal fifoPrice = await GetFIFOUnitPrice(ingredient.RawMaterialId);
+                    totalCost += ingredient.Quantity * fifoPrice;
                 }
 
                 // Compute new selling price using the saved margin
@@ -992,6 +1044,46 @@ namespace Infoman.Controllers
             ViewBag.TotalWasteCost = totalWasteCost; // ₱1000.10
 
             return View();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> RefreshAllProductPrices()
+        {
+            try
+            {
+                var allProductSizes = await _db.ProductSizes
+                    .Include(ps => ps.RecipeItems)
+                        .ThenInclude(ri => ri.RawMaterial)
+                    .ToListAsync();
+
+                int updatedCount = 0;
+
+                foreach (var productSize in allProductSizes)
+                {
+                    decimal totalCost = 0;
+                    foreach (var ri in productSize.RecipeItems)
+                    {
+                        decimal activePrice = await GetFIFOUnitPrice(ri.RawMaterialId);
+                        totalCost += ri.Quantity * activePrice;
+                    }
+
+                    decimal newPrice = Math.Round(totalCost / (1 - productSize.Margin), 2);
+
+                    if (productSize.Price != newPrice)
+                    {
+                        productSize.Price = newPrice;
+                        updatedCount++;
+                    }
+                }
+
+                await _db.SaveChangesAsync();
+
+                return Json(new { success = true, message = $"Updated {updatedCount} product prices", updatedCount = updatedCount });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
         }
     }
 }

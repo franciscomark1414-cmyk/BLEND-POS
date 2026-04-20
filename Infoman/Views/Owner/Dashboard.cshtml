@@ -1470,7 +1470,7 @@
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
                                         <h6 class="text-white-50 mb-1">Total Waste Cost</h6>
-                                        <h2 class="mb-0 fw-bold" id="totalWasteCostDisplay">₱@ViewBag.TotalWasteCost.ToString("N2")</h2>  <!-- ✅ Added ID -->
+                                        <h2 class="mb-0 fw-bold" id="totalWasteCostDisplay">₱@ViewBag.TotalWasteCost.ToString("N2")</h2>
                                         <small class="text-white-50">Lost from expired/damaged</small>
                                     </div>
                                     <div class="bg-white bg-opacity-25 rounded-circle p-3">
@@ -1480,9 +1480,9 @@
                             </div>
                         </div>
                     </div>
-                    </div>
+                </div>
 
-                <!-- Tabs for Sales Reports / Best Selling / Discount Tracker -->
+                <!-- Tabs: Sales Report | Best Selling | Discount Tracker | Waste Tracking -->
                 <ul class="nav nav-tabs mb-3">
                     <li class="nav-item">
                         <button class="nav-link active" onclick="switchReportTab('sales', event)">
@@ -1499,11 +1499,16 @@
                             <i class="fas fa-tags me-1"></i> Discount Tracker
                         </button>
                     </li>
+                    <li class="nav-item">
+                        <button class="nav-link" onclick="switchReportTab('waste', event)">
+                            <i class="fas fa-trash-alt me-1"></i> Waste Tracking
+                        </button>
+                    </li>
                 </ul>
 
                 <!-- Tab Content Container -->
                 <div class="tab-content">
-                    <!-- SALES REPORTS TAB -->
+                    <!-- ========== SALES REPORTS TAB ========== -->
                     <div id="salesReportTab" class="tab-pane fade show active">
                         <div class="row">
                             <!-- Sales Performance Chart -->
@@ -1530,9 +1535,7 @@
                                     </div>
                                     <div class="card-body">
                                         <canvas id="categoryPieChart" height="220"></canvas>
-                                        <div class="mt-3 text-center" id="categoryLegend">
-                                            <!-- Legend will be populated by JS -->
-                                        </div>
+                                        <div class="mt-3 text-center" id="categoryLegend"></div>
                                     </div>
                                 </div>
                             </div>
@@ -1567,12 +1570,11 @@
                         </div>
                     </div>
 
-                    <!-- BEST SELLING TAB -->
+                    <!-- ========== BEST SELLING TAB ========== -->
                     <div id="bestSellingTab" class="tab-pane fade">
                         <div class="row">
-                            <!-- Top Selling Products -->
-                            <div class="col-lg-6 mb-4">
-                                <div class="card shadow-sm h-100">
+                            <div class="col-lg-12 mb-4">
+                                <div class="card shadow-sm">
                                     <div class="card-header bg-white">
                                         <h5 class="mb-0"><i class="fas fa-crown text-warning me-2"></i> Top Selling Products</h5>
                                     </div>
@@ -1583,45 +1585,10 @@
                                     </div>
                                 </div>
                             </div>
-
-                            <!-- Waste Tracking Summary -->
-                            <div class="col-lg-6 mb-4">
-                                <div class="card shadow-sm h-100">
-                                    <div class="card-header bg-white">
-                                        <h5 class="mb-0"><i class="fas fa-trash-alt text-danger me-2"></i> Waste Tracking Summary</h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="row text-center mb-3">
-                                            <div class="col-6">
-                                                <div class="border rounded p-3 bg-light">
-                                                    <h6 class="text-muted mb-1">Total Waste (kg)</h6>
-                                                    <h3 class="text-danger mb-0" id="totalWasteQty">0</h3>
-                                                </div>
-                                            </div>
-                                            <div class="col-6">
-                                                <div class="border rounded p-3 bg-light">
-                                                    <h6 class="text-muted mb-1">Waste Cost (₱)</h6>
-                                                    <h3 class="text-warning mb-0" id="totalWasteCostDisplay">₱0</h3>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="table-responsive mt-3">
-                                            <table class="table table-sm">
-                                                <thead class="table-light">
-                                                    <tr><th>Material</th><th>Qty</th><th>Reason</th><th>Cost</th></tr>
-                                                </thead>
-                                                <tbody id="wasteSummaryBody">
-                                                    <tr><td colspan="4" class="text-center">No waste records</td></tr>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </div>
 
-                    <!-- DISCOUNT TRACKER TAB -->
+                    <!-- ========== DISCOUNT TRACKER TAB ========== -->
                     <div id="discountsTab" class="tab-pane fade">
                         <div class="row">
                             <div class="col-12 mb-4">
@@ -1653,124 +1620,287 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- ========== WASTE TRACKING TAB (BAGO) ========== -->
+                    <div id="wasteTrackingTab" class="tab-pane fade">
+                        <div class="row">
+                            <div class="col-12 mb-4">
+                                <div class="card shadow-sm">
+                                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-0"><i class="fas fa-trash-alt text-danger me-2"></i> Waste Tracking Summary</h5>
+                                        <div class="d-flex gap-2">
+                                            <button class="btn btn-sm btn-outline-info" onclick="summarizeWaste()">
+                                                <i class="fas fa-chart-simple"></i> Summarize
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-secondary" onclick="printWasteReport()">
+                                                <i class="fas fa-print"></i> Print
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-primary" onclick="exportWasteReport()">
+                                                <i class="fas fa-download"></i> Export
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <!-- Summary Cards -->
+                                        <div class="row text-center mb-4">
+                                            <div class="col-md-6">
+                                                <div class="border rounded p-3 bg-light">
+                                                    <h6 class="text-muted mb-1">Total Waste Quantity</h6>
+                                                    <h3 class="text-danger mb-0" id="totalWasteQty">0</h3>
+                                                    <small class="text-muted">kg / units</small>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="border rounded p-3 bg-light">
+                                                    <h6 class="text-muted mb-1">Total Waste Cost</h6>
+                                                    <h3 class="text-warning mb-0" id="totalWasteCostDisplay2">₱0</h3>
+                                                    <small class="text-muted">Lost from expired/damaged</small>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Waste Table -->
+                                        <div class="table-responsive">
+                                            <table class="table table-bordered table-hover">
+                                                <thead class="table-danger">
+                                                    <tr>
+                                                        <th>Material</th>
+                                                        <th>Quantity</th>
+                                                        <th>Reason</th>
+                                                        <th>Cost</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="wasteSummaryBody">
+                                                    <tr><td colspan="4" class="text-center">No waste records</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-            <!-- Employees Module -->
-            <div id="employeesModule" class="module">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <div>
-                        <h2 class="mb-1"><i class="fas fa-users me-2" style="color:#f59e0b;"></i> Employee Management</h2>
-                        <p class="text-muted">Manage your team and track their performance</p>
-                    </div>
-                    <button class="btn btn-warning" onclick="showEmployeeAddModal()">
-                        <i class="fas fa-plus me-2"></i> Add Employee
-                    </button>
+        <!-- Employees Module - COMPLETE WORKING VERSION (gaya sa images) -->
+        <div id="employeesModule" class="module">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="mb-1"><i class="fas fa-users me-2" style="color:#f59e0b;"></i> Employee Management</h2>
+                    <p class="text-muted">Manage your team and track their performance</p>
                 </div>
+                <button class="btn btn-warning" onclick="showEmployeeAddModal()">
+                    <i class="fas fa-plus me-2"></i> Add Employee
+                </button>
+            </div>
 
-                <!-- Tabs -->
-                <ul class="nav nav-tabs mb-4">
-                    <li class="nav-item">
-                        <button class="nav-link active" onclick="switchEmployeeTab('list')">Employee List</button>
-                    </li>
-                    <li class="nav-item">
-                        <button class="nav-link" onclick="switchEmployeeTab('performance')">Performance</button>
-                    </li>
-                    <li class="nav-item">
-                        <button class="nav-link" onclick="switchEmployeeTab('attendance')">Attendance</button>
-                    </li>
-                </ul>
+            <!-- Tabs -->
+            <ul class="nav nav-tabs mb-4">
+                <li class="nav-item">
+                    <button class="nav-link active" onclick="switchEmployeeTab('list')">Employee List</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" onclick="switchEmployeeTab('performance')">Performance</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" onclick="switchEmployeeTab('attendance')">Attendance</button>
+                </li>
+            </ul>
 
-                <!-- Employee List Tab -->
-                <div id="employeeListTab">
-                    <div id="employeesContainer">
-                        <div class="text-center py-5">
-                            <div class="spinner-border text-warning"></div>
-                            <p class="mt-2">Loading employees...</p>
+            <!-- ==================== EMPLOYEE LIST TAB ==================== -->
+            <div id="employeeListTab">
+                <div id="employeesContainer" class="row g-4">
+                    <!-- Dynamic employee cards will be injected here -->
+                    <div class="col-12 text-center py-5">
+                        <div class="spinner-border text-warning"></div>
+                        <p class="mt-2">Loading employees...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== PERFORMANCE TAB ==================== -->
+            <div id="employeePerformanceTab" style="display:none;">
+                <div class="row mb-4 g-3">
+                    <div class="col-md-3">
+                        <div class="card bg-primary text-white border-0 shadow-sm">
+                            <div class="card-body">
+                                <h6 class="card-title fw-semibold">Select Employee</h6>
+                                <select id="perfEmployeeSelect" class="form-select mt-2 bg-light border-0 rounded-pill" onchange="loadPerformanceData()">
+                                    <option value="">-- Select Employee --</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-success text-white border-0 shadow-sm">
+                            <div class="card-body">
+                                <h6 class="card-title fw-semibold">Total Sales (30 days)</h6>
+                                <h2 class="mb-0 fw-bold" id="perfTotalSales">₱0.00</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-info text-white border-0 shadow-sm">
+                            <div class="card-body">
+                                <h6 class="card-title fw-semibold">Orders Processed</h6>
+                                <h2 class="mb-0 fw-bold" id="perfTotalOrders">0</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-warning text-dark border-0 shadow-sm">
+                            <div class="card-body">
+                                <h6 class="card-title fw-semibold">Average Rating</h6>
+                                <h2 class="mb-0 fw-bold" id="perfAvgRating">0.0</h2>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Performance Tab (Placeholder) -->
-                <div id="employeePerformanceTab" style="display:none;">
-                    <div class="card">
-                        <div class="card-body text-center py-5">
-                            <i class="fas fa-chart-line fa-4x text-muted mb-3"></i>
-                            <h5>Performance Analytics</h5>
-                            <p class="text-muted">Coming soon: Track employee sales, efficiency, and ratings.</p>
-                        </div>
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="card-header bg-white fw-semibold border-0 pt-3 pb-2">
+                        <i class="fas fa-chart-line me-2" style="color:#f59e0b;"></i> Performance History
                     </div>
-                </div>
-
-                <!-- Attendance Tab (Placeholder) -->
-                <div id="employeeAttendanceTab" style="display:none;">
-                    <div class="card">
-                        <div class="card-body text-center py-5">
-                            <i class="fas fa-clock fa-4x text-muted mb-3"></i>
-                            <h5>Attendance Tracking</h5>
-                            <p class="text-muted">Coming soon: Monitor employee check-ins, leaves, and schedules.</p>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover align-middle" id="performanceTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Sales</th>
+                                        <th>Orders</th>
+                                        <th>Rating</th>
+                                        <th>Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="performanceTableBody">
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted">Select an employee to view performance</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Employee Add/Edit Modal -->
-            <div class="modal fade" id="employeeModal" tabindex="-1">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header" style="background: #f8f9fa;">
-                            <h5 class="modal-title" id="employeeModalTitle">Add Employee</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <!-- ==================== ATTENDANCE TAB ==================== -->
+            <div id="employeeAttendanceTab" style="display:none;">
+                <div class="row mb-4 g-3">
+                    <div class="col-md-4">
+                        <div class="card bg-primary text-white border-0 shadow-sm">
+                            <div class="card-body">
+                                <h6 class="card-title fw-semibold">Select Employee</h6>
+                                <select id="attEmployeeSelect" class="form-select mt-2 bg-light border-0 rounded-pill" onchange="loadAttendanceData()">
+                                    <option value="">-- Select Employee --</option>
+                                </select>
+                            </div>
                         </div>
-                        <div class="modal-body">
-                            <form id="employeeForm">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" id="employeeId" value="0">
-                                <div class="mb-3">
-                                    <label class="form-label">Username *</label>
-                                    <input type="text" class="form-control" id="empUsername" required>
-                                </div>
-                                <div class="mb-3" id="empPasswordField">
-                                    <label class="form-label">Password *</label>
-                                    <input type="password" class="form-control" id="empPassword">
-                                    <small class="text-muted">Leave blank to keep current password (for edit)</small>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Full Name *</label>
-                                    <input type="text" class="form-control" id="empFullName" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Phone</label>
-                                    <input type="text" class="form-control" id="empPhone">
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Email</label>
-                                    <input type="email" class="form-control" id="empEmail">
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Status</label>
-                                    <select class="form-control" id="empStatus">
-                                        <option value="Active">Active</option>
-                                        <option value="Inactive">Inactive</option>
-                                    </select>
-                                </div>
-                            </form>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card bg-secondary text-white border-0 shadow-sm text-center">
+                            <div class="card-body">
+                                <h6 class="card-title">Month</h6>
+                                <input type="month" id="attMonth" class="form-control bg-light border-0 rounded-pill" onchange="loadAttendanceData()" value="2026-03">
+                            </div>
                         </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="button" class="btn btn-primary" onclick="saveEmployee()">Save Employee</button>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card bg-success text-white border-0 shadow-sm text-center">
+                            <div class="card-body">
+                                <h6>Present</h6>
+                                <h3 id="attPresent">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card bg-danger text-white border-0 shadow-sm text-center">
+                            <div class="card-body">
+                                <h6>Absent</h6>
+                                <h3 id="attAbsent">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card bg-warning text-dark border-0 shadow-sm text-center">
+                            <div class="card-body">
+                                <h6>Late</h6>
+                                <h3 id="attLate">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mb-4 g-3">
+                    <div class="col-md-3">
+                        <div class="card bg-info text-white border-0 shadow-sm text-center">
+                            <div class="card-body">
+                                <h6>On Leave</h6>
+                                <h3 id="attOnLeave">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-dark text-white border-0 shadow-sm text-center">
+                            <div class="card-body">
+                                <h6>Half Day</h6>
+                                <h3 id="attHalfDay">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-secondary text-white border-0 shadow-sm text-center">
+                            <div class="card-body">
+                                <h6>Total Hours</h6>
+                                <h3 id="attTotalHours">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-primary text-white border-0 shadow-sm text-center">
+                            <div class="card-body">
+                                <h6>Working Days</h6>
+                                <h3 id="attWorkingDays">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="card-header bg-white fw-semibold border-0 pt-3 pb-2">
+                        <i class="fas fa-calendar-check me-2" style="color:#f59e0b;"></i> Attendance Log
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover" id="attendanceTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Status</th>
+                                        <th>Check In</th>
+                                        <th>Check Out</th>
+                                        <th>Hours</th>
+                                        <th>Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="attendanceTableBody">
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted">Select an employee to view attendance</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
             </div>
-
+        </div>
+      
         <!-- Settings Module -->
         <div id="settingsModule" class="module">
             <h3>Settings Module</h3>
             <p>Coming soon...</p>
         </div>
-
     </div>
 </div>
 
@@ -1796,7 +1926,7 @@
         });
     }
 
-        function showModule(module) {
+            function showModule(module) {
         var modules = ['dashboard', 'inventory', 'products', 'inventoryAlerts', 'reports', 'employees', 'settings'];
         modules.forEach(m => {
             var el = document.getElementById(m + 'Module');
@@ -1808,10 +1938,13 @@
             loadInventoryAlerts();
         }
 
-        // DAGDAG NA ITO:
         if (module === 'reports') {
             reportsDataLoaded = false;
             setTimeout(function() { loadReportsData(); }, 150);
+        }
+
+        if (module === 'employees') {
+            setTimeout(function() { loadEmployees(); }, 100);
         }
     }
         // Add Delivery Form Functions
@@ -2067,6 +2200,86 @@
         .catch(err => { alert('An error occurred. Please try again.'); });
     });
 
+        async function adjustBatchStock(batchId, currentRemaining, materialName) {
+        const newQuantity = prompt(`Adjust stock for ${materialName}\n\nCurrent remaining: ${currentRemaining} kg\nEnter new quantity:`, currentRemaining);
+
+        if (newQuantity === null) return;
+
+        const newQty = parseFloat(newQuantity);
+        if (isNaN(newQty) || newQty < 0) {
+            alert('Please enter a valid quantity (0 or positive number)');
+            return;
+        }
+
+        if (newQty === currentRemaining) {
+            alert('No changes made');
+            return;
+        }
+
+        if (!confirm(`Adjust stock from ${currentRemaining} kg to ${newQty} kg?\n\nThis will create a waste log if stock is reduced.`)) {
+            return;
+        }
+
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+
+        try {
+            const response = await fetch('/RawMaterial/AdjustBatchStock', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token
+                },
+                body: JSON.stringify({
+                    batchId: batchId,
+                    newQuantity: newQty,
+                    reason: 'Manual adjustment'
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert('✅ Stock adjusted successfully');
+                location.reload();
+            } else {
+                alert('❌ Error: ' + result.message);
+            }
+        } catch (error) {
+            alert('❌ Error: ' + error.message);
+        }
+    }
+
+    // Mark as Expired
+    async function markBatchAsExpired(batchId, materialName) {
+        if (!confirm(`Mark this batch of ${materialName} as EXPIRED?\n\nAll remaining stock will be moved to waste.`)) {
+            return;
+        }
+
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+
+        try {
+            const response = await fetch('/RawMaterial/MarkBatchAsExpired', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token
+                },
+                body: JSON.stringify({ batchId: batchId })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert('✅ Batch marked as expired. Stock moved to waste.');
+                location.reload();
+            } else {
+                alert('❌ Error: ' + result.message);
+            }
+        } catch (error) {
+            alert('❌ Error: ' + error.message);
+        }
+    }
+
     // Products Functions
     function showAddProductModal() {
         const form = document.getElementById('addProductForm');
@@ -2224,7 +2437,7 @@
     function editRecipeFromView() { if (currentViewProductSizeId) { bootstrap.Modal.getInstance(document.getElementById('viewRecipeModal')).hide(); editRecipe(currentViewProductSizeId); } }
 
 
-           function editRecipe(productSizeId) {
+               function editRecipe(productSizeId) {
         // Una, i-check kung pwedeng i-edit
         fetch(`/Owner/CanEditRecipe/${productSizeId}`)
             .then(response => response.json())
@@ -2235,60 +2448,139 @@
                 }
 
                 // Kung pwede, i-load ang recipe para i-edit
-                fetch(`/Owner/GetRecipe/${productSizeId}`)
+                fetch(`/Owner/EditRecipe/${productSizeId}`)
                     .then(response => response.json())
                     .then(recipeData => {
-                        if (recipeData.error) {
-                            alert(recipeData.error);
+                        if (!recipeData.success || recipeData.error) {
+                            alert(recipeData.error || 'Error loading recipe');
                             return;
                         }
 
-                        // I-proceed sa edit recipe modal (existing code mo)
-                        currentProductSizeId = productSizeId;
+                        // I-set ang currentProductSizeId
+                        currentProductSizeId = recipeData.productSizeId;
+
+                        // I-fill ang modal fields
                         document.getElementById('recipeProductName').innerText = recipeData.productName;
                         document.getElementById('recipeSizeName').innerText = recipeData.sizeName;
-                        // ... rest of your edit recipe code
+                        document.getElementById('recipeSellingPrice').value = `₱${recipeData.sellingPrice.toFixed(2)}`;
+                        document.getElementById('recipeTotalCost').value = `₱${recipeData.totalCost.toFixed(2)}`;
 
+                        // I-set ang margin select
+                        const marginSelect = document.getElementById('marginSelect');
+                        const marginValue = recipeData.margin || 0.3;
+                        if (marginValue === 0.3) marginSelect.value = '0.3';
+                        else if (marginValue === 0.4) marginSelect.value = '0.4';
+                        else if (marginValue === 0.5) marginSelect.value = '0.5';
+                        else marginSelect.value = '0.3';
+
+                        // I-load ang ingredients
+                        const tbody = document.getElementById('ingredientsBody');
+                        tbody.innerHTML = '';
+
+                        if (recipeData.ingredients && recipeData.ingredients.length > 0) {
+                            ingredientCounter = 0;
+                            recipeData.ingredients.forEach(ing => {
+                                addIngredientRowToTable(ing, ingredientCounter++);
+                            });
+                        } else {
+                            addIngredientRowToTable(null, 0);
+                        }
+
+                        updateTotals();
+
+                        // Ipakita ang modal
                         new bootstrap.Modal(document.getElementById('editRecipeModal')).show();
+                    })
+                    .catch(err => {
+                        console.error('Error:', err);
+                        alert('Error loading recipe: ' + err.message);
                     });
+            })
+            .catch(err => {
+                console.error('Error checking edit permission:', err);
+                alert('Error: ' + err.message);
             });
     }
 
     function addIngredientRow() { addIngredientRowToTable(null, ingredientCounter++); }
-    function addIngredientRowToTable(ingredient, index) {
-        const tbody = document.getElementById('ingredientsBody');
-        const row = `<tr data-ingredient-index="${index}">
-            <td><select class="form-control ingredient-select" onchange="calculateIngredientTotal(this)"><option value="">Select Ingredient</option>@if(ViewBag.RawMaterials != null){ foreach(var item in ViewBag.RawMaterials){
-            <option value="@item.RawMaterialId" data-price="@item.Price" data-unit="@item.Unit">@item.Name (@item.Unit - ₱@item.Price)</option>
-                        }}
-</select></td>
-            <td><input type="number" class="form-control quantity-input" onchange="calculateIngredientTotal(this)" placeholder="Quantity"></td>
-            <td class="unit-display">-</td><td class="cost-per-unit">-</td><td class="total-cost">₱0.00</td>
-            <td><button type="button" class="btn btn-sm btn-danger" onclick="removeIngredientRow(this)">✕</button></td>
-        </tr>`;
-        tbody.insertAdjacentHTML('beforeend', row);
-        if (ingredient) {
-            const rowElement = tbody.lastElementChild;
-            rowElement.querySelector('.ingredient-select').value = ingredient.rawMaterialId;
-            rowElement.querySelector('.quantity-input').value = ingredient.quantity;
-            calculateIngredientTotal(rowElement.querySelector('.ingredient-select'));
-        }
-    }
 
-    function calculateIngredientTotal(element) {
+           function addIngredientRowToTable(ingredient, index) {
+        const tbody = document.getElementById('ingredientsBody');
+
+        // START LOADING INDICATOR
+        let optionsHtml = '<option value="">Loading ingredients...</option>';
+
+        tbody.insertAdjacentHTML('beforeend', `
+            <tr data-ingredient-index="${index}">
+                <td><select class="form-control ingredient-select" onchange="calculateIngredientTotal(this)">${optionsHtml}</select></td>
+                <td><input type="number" class="form-control quantity-input" onchange="calculateIngredientTotal(this)" placeholder="Quantity" step="0.01" min="0.01"></td>
+                <td class="unit-display">-</td>
+                <td class="cost-per-unit">₱0.00</td>
+                <td class="total-cost">₱0.00</td>
+                <td><button type="button" class="btn btn-sm btn-danger" onclick="removeIngredientRow(this)">✖</button></td>
+            </tr>
+        `);
+
+        const row = tbody.lastElementChild;
+        const select = row.querySelector('.ingredient-select');
+
+        // FETCH raw materials WITH their LATEST BATCH PRICE
+        fetch('/RawMaterial/GetAllWithLatestPrice')
+            .then(response => response.json())
+            .then(materials => {
+                let newOptions = '<option value="">Select Ingredient</option>';
+                materials.forEach(m => {
+                    const price = m.latestBatchPrice > 0 ? m.latestBatchPrice : m.defaultPrice;
+                    newOptions += `<option value="${m.id}" data-price="${price}" data-unit="${m.unit}">${m.name} (${m.unit} - ₱${price})</option>`;
+                });
+                select.innerHTML = newOptions;
+
+                // If editing existing ingredient, set the value
+                if (ingredient) {
+                    select.value = ingredient.rawMaterialId;
+                    row.querySelector('.quantity-input').value = ingredient.quantity;
+                    calculateIngredientTotal(select);
+                }
+            })
+            .catch(err => {
+                console.error('Error loading materials:', err);
+                select.innerHTML = '<option value="">Error loading ingredients</option>';
+            });
+    }
+       function calculateIngredientTotal(element) {
         const row = element.closest('tr');
         const select = row.querySelector('.ingredient-select');
         const selectedOption = select.options[select.selectedIndex];
-        const price = parseFloat(selectedOption.getAttribute('data-price') || 0);
+
+        // Kunin ang price mula sa data-price attribute
+        let price = parseFloat(selectedOption.getAttribute('data-price') || 0);
         const unit = selectedOption.getAttribute('data-unit') || '';
         const quantity = parseFloat(row.querySelector('.quantity-input').value || 0);
+
+        // Kung price ay 0, subukan kumuha mula sa server
+        if (price === 0 && select.value) {
+            // Optional: Fetch price from server
+            fetch(`/RawMaterial/GetPrice/${select.value}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.price > 0) {
+                        price = data.price;
+                        const total = price * quantity;
+                        row.querySelector('.unit-display').innerText = unit;
+                        row.querySelector('.cost-per-unit').innerText = `₱${price.toFixed(2)}`;
+                        row.querySelector('.total-cost').innerText = `₱${total.toFixed(2)}`;
+                        updateTotals();
+                    }
+                });
+            return;
+        }
+
         const total = price * quantity;
         row.querySelector('.unit-display').innerText = unit;
         row.querySelector('.cost-per-unit').innerText = `₱${price.toFixed(2)}`;
         row.querySelector('.total-cost').innerText = `₱${total.toFixed(2)}`;
-        updateSellingPrice();
+        updateTotals();
     }
-
     function removeIngredientRow(button) { button.closest('tr').remove(); updateTotals(); }
     function updateSellingPrice() {
         let totalCostText = document.getElementById('totalCostDisplay').innerText;
@@ -2299,18 +2591,25 @@
         updateTotals();
     }
 
-    function updateTotals() {
+       function updateTotals() {
         let totalCost = 0;
         document.querySelectorAll('#ingredientsBody tr').forEach(row => {
             const totalText = row.querySelector('.total-cost')?.innerText || '₱0.00';
-            totalCost += parseFloat(totalText.replace('₱', '')) || 0;
+            const totalValue = parseFloat(totalText.replace('₱', '')) || 0;
+            totalCost += totalValue;
         });
+
+        // I-update ang display
         document.getElementById('totalCostDisplay').innerHTML = `₱${totalCost.toFixed(2)}`;
+        document.getElementById('recipeTotalCost').value = `₱${totalCost.toFixed(2)}`;
+
         const margin = parseFloat(document.getElementById('marginSelect')?.value || 0.3);
         const sellingPrice = totalCost / (1 - margin);
+
         document.getElementById('sellingPriceDisplay').innerHTML = `₱${sellingPrice.toFixed(2)}`;
         document.getElementById('recipeSellingPrice').value = `₱${sellingPrice.toFixed(2)}`;
-        let profitLoss = sellingPrice - totalCost;
+
+        const profitLoss = sellingPrice - totalCost;
         const profitLossDisplay = document.getElementById('profitLossDisplay');
         profitLossDisplay.innerHTML = `₱${profitLoss.toFixed(2)}`;
         profitLossDisplay.className = profitLoss >= 0 ? 'fw-bold text-success' : 'fw-bold text-danger';
@@ -2899,19 +3198,7 @@ function produceProduct(productSizeId, sizeName, currentStock) {
             container.style.display = 'none';
         }
     }
-    function closeBatchHistory() {
-        document.getElementById('batchHistoryContainer').style.display = 'none';
-    }
 
-    function showUsageDetails(usageList) {
-        if (!usageList || usageList.length === 0) return;
-
-        let message = 'Usage History:\n';
-        usageList.forEach(use => {
-            message += `- ${new Date(use.dateUsed).toLocaleDateString()}: ${use.quantityUsed} kg (Ref: ${use.referenceNo || 'N/A'})\n`;
-        });
-        alert(message);
-    }
                     // ========== REPORTS MODULE FUNCTIONS (UPDATED - COMPLETE) ==========
 
                 var lastReportsData = null;
@@ -2926,7 +3213,7 @@ function produceProduct(productSizeId, sizeName, currentStock) {
 
                               let reportsDataLoaded = false; // Add this at the top of your <script>
 
-           function switchReportTab(tabName, clickEvent) {
+              function switchReportTab(tabName, clickEvent) {
         document.querySelectorAll('#reportsModule .nav-link').forEach(function(btn) {
             btn.classList.remove('active');
         });
@@ -2938,11 +3225,12 @@ function produceProduct(productSizeId, sizeName, currentStock) {
             pane.classList.remove('show', 'active');
         });
 
-        // FIX: correct ID mapping
+        // FIX: complete ID mapping kasama ang waste
         var tabIdMap = {
             'sales': 'salesReportTab',
             'bestselling': 'bestSellingTab',
-            'discounts': 'discountsTab'
+            'discounts': 'discountsTab',
+            'waste': 'wasteTrackingTab'   // <-- BAGONG IDAGDAG
         };
 
         var targetId = tabIdMap[tabName];
@@ -2956,8 +3244,14 @@ function produceProduct(productSizeId, sizeName, currentStock) {
                 renderCategoryPieChart(lastReportsData.categoryDistribution);
             }, 150);
         }
-    }
 
+        // Update waste display kung waste tab ang pinili
+        if (tabName === 'waste' && lastReportsData) {
+            setTimeout(function() {
+                updateWasteSummary(lastReportsData.wasteLogs);
+            }, 100);
+        }
+    }
                     function loadReportsData() {
         showReportsLoading();
 
@@ -3036,68 +3330,64 @@ function produceProduct(productSizeId, sizeName, currentStock) {
                 container.innerHTML = html;
             }
 
-                    function updateWasteSummary(wasteLogs) {
-            var totalQty = 0, totalCost = 0;
-            if (wasteLogs) {
-                for (var i = 0; i < wasteLogs.length; i++) {
-                    totalQty += wasteLogs[i].quantity || 0;
-                    totalCost += wasteLogs[i].totalCost || 0;
-                }
+                       function updateWasteSummary(wasteLogs) {
+        var totalQty = 0, totalCost = 0;
+        if (wasteLogs) {
+            for (var i = 0; i < wasteLogs.length; i++) {
+                totalQty += wasteLogs[i].quantity || 0;
+                totalCost += wasteLogs[i].totalCost || 0;
             }
+        }
 
-            // Update total quantity
-            var totalQtyEl = document.getElementById('totalWasteQty');
-            if (totalQtyEl) totalQtyEl.innerText = totalQty.toFixed(2);
+        // Update total quantity sa Waste Tracking tab
+        var totalQtyEl = document.getElementById('totalWasteQty');
+        if (totalQtyEl) totalQtyEl.innerText = totalQty.toFixed(2);
 
-            // 🔥 Hanapin ang Total Waste Cost element
-            var totalCostEl = document.getElementById('totalWasteCostDisplay');
+        // ✅ UPDATE ANG totalWasteCostDisplay2 (sa Waste Tracking tab)
+        var totalCostEl2 = document.getElementById('totalWasteCostDisplay2');
+        if (totalCostEl2) {
+            totalCostEl2.innerHTML = '₱' + totalCost.toFixed(2);
+        }
 
-            // Kung walang ID, hanapin sa card na may text na "Total Waste Cost"
-            if (!totalCostEl) {
-                // Hanapin ang card na may text na "Total Waste Cost"
-                var cards = document.querySelectorAll('.card');
-                for (var i = 0; i < cards.length; i++) {
-                    if (cards[i].innerText.includes('Total Waste Cost')) {
-                        // Hanapin ang h2 element sa loob ng card
-                        var h2Elements = cards[i].querySelectorAll('h2');
-                        if (h2Elements.length > 0) {
-                            totalCostEl = h2Elements[0];
-                            console.log('Found Total Waste Cost element via card search');
-                            break;
-                        }
+        // ✅ UPDATE ANG totalWasteCostDisplay (sa taas na card)
+        var totalCostEl = document.getElementById('totalWasteCostDisplay');
+        if (totalCostEl) {
+            totalCostEl.innerHTML = '₱' + totalCost.toFixed(2);
+        } else {
+            // Kung walang ID, hanapin sa card
+            var cards = document.querySelectorAll('.card');
+            for (var i = 0; i < cards.length; i++) {
+                if (cards[i].innerText.includes('Total Waste Cost')) {
+                    var h2Elements = cards[i].querySelectorAll('h2');
+                    if (h2Elements.length > 0) {
+                        h2Elements[0].innerHTML = '₱' + totalCost.toFixed(2);
+                        break;
                     }
                 }
             }
-
-            // Update kung nahanap
-            if (totalCostEl) {
-                totalCostEl.innerHTML = '₱' + totalCost.toFixed(2);
-            } else {
-                console.error('Cannot find Total Waste Cost display element!');
-            }
-
-            // Update table (existing code)
-            var body = document.getElementById('wasteSummaryBody');
-            if (!body) return;
-
-            if (!wasteLogs || wasteLogs.length === 0) {
-                body.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No waste records</td></tr>';
-                return;
-            }
-
-            var html = '';
-            for (var i = 0; i < Math.min(wasteLogs.length, 5); i++) {
-                var w = wasteLogs[i];
-                html += '<tr>' +
-                    '<td><strong>' + escapeHtml(w.materialName) + '</strong></td>' +
-                    '<td>' + (w.quantity || 0).toFixed(2) + ' ' + escapeHtml(w.unit || '') + '</td>' +
-                    '<td><span class="badge bg-secondary">' + escapeHtml(w.reason || 'Other') + '</span></td>' +
-                    '<td class="text-danger">₱' + (w.totalCost || 0).toFixed(2) + '</td>' +
-                '</tr>';
-            }
-            body.innerHTML = html;
         }
 
+        // Update table
+        var body = document.getElementById('wasteSummaryBody');
+        if (!body) return;
+
+        if (!wasteLogs || wasteLogs.length === 0) {
+            body.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No waste records</td></tr>';
+            return;
+        }
+
+        var html = '';
+        for (var i = 0; i < Math.min(wasteLogs.length, 5); i++) {
+            var w = wasteLogs[i];
+            html += '<tr>' +
+                '<td><strong>' + escapeHtml(w.materialName) + '</strong></td>' +
+                '<td>' + (w.quantity || 0).toFixed(2) + ' ' + escapeHtml(w.unit || '') + '</td>' +
+                '<td><span class="badge bg-secondary">' + escapeHtml(w.reason || 'Other') + '</span></td>' +
+                '<td class="text-danger">₱' + (w.totalCost || 0).toFixed(2) + '</td>' +
+            '</tr>';
+        }
+        body.innerHTML = html;
+    }
             function updateDiscountRecords(records) {
                 var body = document.getElementById('discountRecordsBody');
                 if (!body) return;
@@ -3440,7 +3730,9 @@ function editEmployee(id) {
             alert('Error: ' + err.message);
         });
     }
-
+     
+        
+       
 // ========== OVERRIDE SHOWMODULE FUNCTION (NASA DULO ITO) ==========
 var originalShowModule = window.showModule;
 window.showModule = function(module) {

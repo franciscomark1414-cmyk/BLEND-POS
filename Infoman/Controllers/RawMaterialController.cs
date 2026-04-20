@@ -290,17 +290,10 @@ namespace Infoman.Controllers
         }
         // In RawMaterialController.cs - Update BatchHistory action
         [HttpGet]
-        public IActionResult BatchHistory(int rawMaterialId)
+        public async Task<IActionResult> BatchHistory(int rawMaterialId)
         {
-            try
-            {
-                var history = _fifoService.GetBatchHistory(rawMaterialId);
-                return Ok(history);  // This returns JSON automatically
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { error = ex.Message });
-            }
+            var history = await _fifoService.GetBatchHistoryAsync(rawMaterialId);
+            return Ok(history);
         }
 
         // BAGONG ACTION: Magdagdag ng bagong delivery
@@ -325,6 +318,7 @@ namespace Infoman.Controllers
                 System.Diagnostics.Debug.WriteLine($"Quantity: {request?.Quantity}");
                 System.Diagnostics.Debug.WriteLine($"UnitPrice: {request?.UnitPrice}");
                 System.Diagnostics.Debug.WriteLine($"ExpiryDate: {request?.ExpiryDate}");
+
                 if (request == null)
                 {
                     return Json(new { success = false, message = "Invalid request data" });
@@ -349,23 +343,18 @@ namespace Infoman.Controllers
                 };
 
                 _context.RawMaterialBatches.Add(batch);
-
-                // I-save
                 await _context.SaveChangesAsync();
 
                 // I-update ang main stock
-                var totalRemaining = await _context.RawMaterialBatches
-                    .Where(b => b.RawMaterialId == request.RawMaterialId)
-                    .SumAsync(b => (decimal?)b.QuantityRemaining) ?? 0;
+                await UpdateMainStockColumn(request.RawMaterialId);
 
-                rawMaterial.Stock = totalRemaining;
-                await _context.SaveChangesAsync();
+                // 🔥 BAGO: I-update ang lahat ng product prices na gumagamit ng raw material na ito
+                await UpdateProductPricesForRawMaterial(request.RawMaterialId);
 
                 return Json(new { success = true, message = "Delivery added successfully! Batch ID: " + batch.BatchId });
             }
             catch (Exception ex)
             {
-                // I-return ang buong error details
                 return Json(new
                 {
                     success = false,
@@ -376,6 +365,79 @@ namespace Infoman.Controllers
             }
         }
 
+        // Helper method para mag-update ng main stock column
+        private async Task UpdateMainStockColumn(int rawMaterialId)
+        {
+            var totalRemaining = await _context.RawMaterialBatches
+                .Where(b => b.RawMaterialId == rawMaterialId)
+                .SumAsync(b => (decimal?)b.QuantityRemaining) ?? 0;
+
+            var rawMaterial = await _context.RawMaterials.FindAsync(rawMaterialId);
+            if (rawMaterial != null)
+            {
+                rawMaterial.Stock = totalRemaining;
+            }
+            await _context.SaveChangesAsync();
+        }
+
+        // Helper method para mag-update ng product prices
+        private async Task UpdateProductPricesForRawMaterial(int rawMaterialId)
+        {
+            // Hanapin ang lahat ng recipe items na gumagamit ng raw material na ito
+            var affectedRecipeItems = await _context.RecipeItems
+                .Include(ri => ri.ProductSize)
+                    .ThenInclude(ps => ps.RecipeItems)
+                .Where(ri => ri.RawMaterialId == rawMaterialId)
+                .ToListAsync();
+
+            var affectedProductSizeIds = affectedRecipeItems
+                .Select(ri => ri.ProductSizeId)
+                .Distinct()
+                .ToList();
+
+            foreach (var psId in affectedProductSizeIds)
+            {
+                var productSize = await _context.ProductSizes
+                    .Include(ps => ps.RecipeItems)
+                        .ThenInclude(ri => ri.RawMaterial)
+                    .FirstOrDefaultAsync(ps => ps.ProductSizeId == psId);
+
+                if (productSize != null)
+                {
+                    // Compute total cost gamit ang ACTIVE BATCH PRICE (FEFO)
+                    decimal totalCost = 0;
+                    foreach (var ri in productSize.RecipeItems)
+                    {
+                        decimal activePrice = await GetActiveBatchPrice(ri.RawMaterialId);
+                        totalCost += ri.Quantity * activePrice;
+                    }
+
+                    // Compute new selling price gamit ang existing margin
+                    decimal newPrice = Math.Round(totalCost / (1 - productSize.Margin), 2);
+                    productSize.Price = newPrice;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
+        // Helper para kumuha ng active batch price
+        private async Task<decimal> GetActiveBatchPrice(int rawMaterialId)
+        {
+            var activeBatch = await _context.RawMaterialBatches
+                .Where(b => b.RawMaterialId == rawMaterialId
+                    && b.QuantityRemaining > 0
+                    && (!b.ExpiryDate.HasValue || b.ExpiryDate.Value >= DateTime.Today))
+                .OrderBy(b => b.ExpiryDate.HasValue ? b.ExpiryDate.Value : DateTime.MaxValue)
+                .ThenBy(b => b.ReceivedDate)
+                .FirstOrDefaultAsync();
+
+            if (activeBatch != null)
+                return activeBatch.UnitPrice;
+
+            var material = await _context.RawMaterials.FindAsync(rawMaterialId);
+            return material?.Price ?? 0;
+        }
         [HttpGet]
         public async Task<IActionResult> GetProductsUsingRawMaterial(int id)
         {
@@ -442,6 +504,28 @@ namespace Infoman.Controllers
                 .ToListAsync();
 
             return Json(batches);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetAllWithLatestPrice()
+        {
+            var materials = await _context.RawMaterials
+                .Where(r => !r.IsDeleted)
+                .Select(r => new
+                {
+                    id = r.RawMaterialId,
+                    name = r.Name,
+                    unit = r.Unit,
+                    defaultPrice = r.Price,
+                    latestBatchPrice = _context.RawMaterialBatches
+                        .Where(b => b.RawMaterialId == r.RawMaterialId && b.QuantityRemaining > 0)
+                        .OrderByDescending(b => b.ReceivedDate)
+                        .Select(b => b.UnitPrice)
+                        .FirstOrDefault()
+                })
+                .ToListAsync();
+
+            return Json(materials);
         }
 
     }

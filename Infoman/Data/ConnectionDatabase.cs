@@ -19,6 +19,8 @@ namespace Infoman.Data
         public DbSet<WasteLog> WasteLogs { get; set; }
         public DbSet<ProductionUsage> ProductionUsages { get; set; }
         public DbSet<RawMaterialBatch> RawMaterialBatches { get; set; }
+        public DbSet<EmployeeAttendance> EmployeeAttendances { get; set; }
+        public DbSet<EmployeePerformance> EmployeePerformances { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

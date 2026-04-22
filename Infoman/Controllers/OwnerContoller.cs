@@ -125,10 +125,6 @@ namespace Infoman.Controllers
                 bestSelling = new List<BestSellingProductVM>();
             }
 
-            var dashboardViewModel = new DashboardViewModel
-            {
-                BestSellingProducts = bestSelling
-            };
 
 
             // Raw materials for inventory module
@@ -150,12 +146,33 @@ namespace Infoman.Controllers
             .Sum(b => (decimal?)b.QuantityRemaining) ?? 0
     })
     .ToList();
-            var products = _db.Products
+            var products = await _db.Products
         .Include(p => p.Sizes)
-        .ThenInclude(ps => ps.RecipeItems)
-        .OrderBy(p => p.Name)
-        .ToList();
-            ViewBag.Products = products;
+        .Select(p => new ProductViewModel
+        {
+            ProductId = p.ProductId,
+            Name = p.Name,
+            SKU = p.SKU,
+            Category = p.Category,
+            Description = p.Description,
+            ImagePath = p.ImagePath,
+            Sizes = p.Sizes.Select(s => new ProductSizeViewModel
+            {
+                ProductSizeId = s.ProductSizeId,
+                SizeName = s.SizeName,
+                Price = s.Price,
+                Stock = s.Stock,
+                IsAvailableInPOS = s.IsAvailableInPOS
+            }).ToList()
+        })
+        .ToListAsync();
+
+            var dashboardViewModel = new DashboardViewModel
+            {
+                BestSellingProducts = bestSelling,
+                Products = products  // ← GAMITIN ANG products NA MAY SIZES
+            };
+
 
             // ========== ENSURE ALL ViewBag PROPERTIES HAVE VALUES ==========
             ViewBag.TotalRevenue = ViewBag.TotalRevenue ?? 0;
@@ -197,6 +214,7 @@ namespace Infoman.Controllers
                     p.SKU,
                     p.Category,
                     p.Description,
+                    p.ImagePath,
                     TotalStock = p.Sizes.Sum(s => s.Stock),
                     Sizes = p.Sizes.Select(s => new
                     {
@@ -270,6 +288,7 @@ namespace Infoman.Controllers
                     SKU = model.SKU.Trim().ToUpper(),
                     Category = model.Category?.Trim() ?? "",
                     Description = model.Description?.Trim() ?? "",
+                    ImagePath = model.ImagePath ?? "",
                     Sizes = new List<ProductSize>()
                 };
 

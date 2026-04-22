@@ -26,7 +26,7 @@ namespace Infoman.Models
         public int Stock { get; set; }
 
         // Optional: image path
-        public string ImagePath { get; set; } = string.Empty;
+        public string? ImagePath { get; set; } = string.Empty;
 
         // Navigation property — CONNECTION TO SIZES
         public virtual ICollection<ProductSize> Sizes { get; set; } = new List<ProductSize>();

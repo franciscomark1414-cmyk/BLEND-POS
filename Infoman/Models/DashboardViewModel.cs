@@ -3,7 +3,9 @@
     public class DashboardViewModel
     {
         public List<BestSellingProductVM> BestSellingProducts { get; set; } = new();
+        public List<ProductViewModel> Products { get; set; } = new();
     }
+
 
     public class BestSellingProductVM
     {
@@ -13,3 +15,4 @@
         public int TotalSold { get; set; }
     }
 }
+

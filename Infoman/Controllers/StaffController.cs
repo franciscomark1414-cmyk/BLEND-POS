@@ -20,14 +20,21 @@ namespace Infoman.Controllers
         // POS Main Page
         public async Task<IActionResult> POS()
         {
-            // Kunin ang lahat ng categories mula sa products na naka-display
+            // Get staff info from session
+            var userId = HttpContext.Session.GetInt32("UserId");
+            var username = HttpContext.Session.GetString("Username") ?? "Staff";
+            var userRole = HttpContext.Session.GetString("UserRole") ?? "Staff";
+
+            ViewBag.StaffUsername = username;
+            ViewBag.StaffUserId = userId;
+
+            // Your existing code...
             var categories = await _db.Products
                 .Where(p => p.Sizes.Any(s => s.IsAvailableInPOS))
                 .Select(p => p.Category)
                 .Distinct()
                 .ToListAsync();
 
-            // Kunin ang mga products na naka-display sa POS
             var availableProducts = await _db.ProductSizes
                 .Include(ps => ps.Product)
                 .Include(ps => ps.RecipeItems)
@@ -39,6 +46,9 @@ namespace Infoman.Controllers
                     ProductCategory = ps.Product.Category,
                     ps.SizeName,
                     ps.Price,
+
+                    ImagePath = ps.Product.ImagePath,
+
                     RecipeItems = ps.RecipeItems.Select(r => new
                     {
                         r.RawMaterialId,
@@ -52,7 +62,6 @@ namespace Infoman.Controllers
             ViewBag.Categories = categories;
             return View(availableProducts);
         }
-
         // Check availability (base sa raw materials)
         [HttpGet]
         public async Task<IActionResult> CheckAvailability(int productSizeId, int quantity)
@@ -228,6 +237,126 @@ namespace Infoman.Controllers
                 await transaction.RollbackAsync();
                 return Json(new { success = false, message = ex.Message });
             }
+        }
+
+        // ========== ATTENDANCE METHODS FOR STAFF ==========
+
+        // GET: Staff/GetTodayAttendance
+        [HttpGet]
+        public async Task<IActionResult> GetTodayAttendance()
+        {
+            var userId = GetCurrentUserId();
+            if (userId == 0) return Json(new { isClockedIn = false, hoursToday = 0 });
+
+            var today = DateTime.Today;
+            var attendance = await _db.EmployeeAttendances
+                .FirstOrDefaultAsync(a => a.UserId == userId && a.Date == today);
+
+            if (attendance == null)
+            {
+                return Json(new { isClockedIn = false, hasClockedOut = false, hoursToday = 0 });
+            }
+
+            var hoursWorked = attendance.HoursWorked;
+            if (attendance.CheckInTime.HasValue && !attendance.CheckOutTime.HasValue)
+            {
+                // Currently clocked in, compute running hours
+                var now = DateTime.Now.TimeOfDay;
+                hoursWorked = (decimal)(now - attendance.CheckInTime.Value).TotalHours;
+            }
+
+            return Json(new
+            {
+                isClockedIn = attendance.CheckInTime.HasValue && !attendance.CheckOutTime.HasValue,
+                hasClockedOut = attendance.CheckOutTime.HasValue,
+                hoursToday = Math.Round(hoursWorked, 1),
+                checkInTime = attendance.CheckInTime?.ToString(@"hh\:mm"),
+                checkOutTime = attendance.CheckOutTime?.ToString(@"hh\:mm")
+            });
+        }
+
+        // POST: Staff/TimeIn
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> TimeIn()
+        {
+            var userId = GetCurrentUserId();
+            if (userId == 0) return Json(new { success = false, message = "User not logged in" });
+
+            var today = DateTime.Today;
+            var existing = await _db.EmployeeAttendances
+                .FirstOrDefaultAsync(a => a.UserId == userId && a.Date == today);
+
+            if (existing != null && existing.CheckInTime.HasValue)
+            {
+                return Json(new { success = false, message = "Already clocked in today!" });
+            }
+
+            if (existing == null)
+            {
+                var attendance = new EmployeeAttendance
+                {
+                    UserId = userId,
+                    Date = today,
+                    CheckInTime = DateTime.Now.TimeOfDay,
+                    Status = AttendanceStatus.Present,
+                    HoursWorked = 0
+                };
+                _db.EmployeeAttendances.Add(attendance);
+            }
+            else
+            {
+                existing.CheckInTime = DateTime.Now.TimeOfDay;
+                existing.Status = AttendanceStatus.Present;
+            }
+
+            await _db.SaveChangesAsync();
+
+            return Json(new { success = true, message = $"✅ Time in recorded at {DateTime.Now:hh:mm tt}" });
+        }
+
+        // POST: Staff/TimeOut
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> TimeOut()
+        {
+            var userId = GetCurrentUserId();
+            if (userId == 0) return Json(new { success = false, message = "User not logged in" });
+
+            var today = DateTime.Today;
+            var attendance = await _db.EmployeeAttendances
+                .FirstOrDefaultAsync(a => a.UserId == userId && a.Date == today);
+
+            if (attendance == null || !attendance.CheckInTime.HasValue)
+            {
+                return Json(new { success = false, message = "You haven't clocked in yet!" });
+            }
+
+            if (attendance.CheckOutTime.HasValue)
+            {
+                return Json(new { success = false, message = "Already clocked out!" });
+            }
+
+            attendance.CheckOutTime = DateTime.Now.TimeOfDay;
+            var checkIn = attendance.CheckInTime.Value;
+            var checkOut = attendance.CheckOutTime.Value;
+            attendance.HoursWorked = (decimal)(checkOut - checkIn).TotalHours;
+
+            await _db.SaveChangesAsync();
+
+            return Json(new
+            {
+                success = true,
+                message = $"✅ Time out recorded at {DateTime.Now:hh:mm tt}. Hours worked: {attendance.HoursWorked:F1} hrs",
+                hoursWorked = attendance.HoursWorked
+            });
+        }
+
+        // Helper method to get current user ID from session
+        private int GetCurrentUserId()
+        {
+            var userIdString = HttpContext.Session.GetString("UserId");
+            return int.TryParse(userIdString, out int id) ? id : 0;
         }
 
         public class PlaceOrderRequest

@@ -38,28 +38,29 @@ namespace Infoman.Controllers
                 return View(model);
             }
 
-            // ✅ I-save ang user info sa session (optional pero recommended)
+            // I-save sa session
             HttpContext.Session.SetString("UserId", user.Id.ToString());
             HttpContext.Session.SetString("Username", user.Username);
             HttpContext.Session.SetString("UserRole", user.Role);
 
-            // ✅ I-redirect base sa role
-            if (user.Role.Trim().ToLower() == "owner")
+            // ✅ FIXED: Check for "owner" OR "employee"
+            var roleLower = user.Role.Trim().ToLower();
+
+            if (roleLower == "owner")
             {
                 return RedirectToAction("Dashboard", "Owner");
             }
-            else if (user.Role.Trim().ToLower() == "staff")
+            else if (roleLower == "employee" || roleLower == "staff")
             {
-                return RedirectToAction("POS", "Staff");  // ← Staff mapupunta sa POS
+                // Employee or Staff mapupunta sa POS
+                return RedirectToAction("POS", "Staff");
             }
             else
             {
-                // Kung hindi owner o staff, default sa Login
                 ViewBag.Error = "Invalid User Role";
                 return View(model);
             }
         }
-
         // Optional: Logout function
         public IActionResult Logout()
         {

@@ -820,9 +820,9 @@
 
             <!-- Products List Container -->
             <div id="productsList">
-                @if (ViewBag.Products != null && ((List<Infoman.Models.Product>)ViewBag.Products).Any())
+                @if (Model.Products != null && Model.Products.Any())
                 {
-                    foreach (var product in ViewBag.Products)
+                    foreach (var product in Model.Products)
                     {
                         <div class="product-card card mb-4" data-product-id="@product.ProductId" data-category="@product.Category">
                             <div class="card-header bg-white d-flex justify-content-between align-items-center">
@@ -859,7 +859,7 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            @if (product.Sizes != null && ((IEnumerable<Infoman.Models.ProductSize>)product.Sizes).Any())
+                                            @if (product.Sizes != null && product.Sizes.Any())
                                             {
                                                 foreach (var size in product.Sizes)
                                                 {
@@ -987,6 +987,11 @@
                             <div class="mb-3">
                                 <label class="form-label">Description (Optional)</label>
                                 <textarea name="Description" class="form-control" rows="2" placeholder="Product description..."></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Image URL (Optional)</label>
+                                <input type="text" name="ImagePath" class="form-control" placeholder="https://example.com/image.jpg" />
                             </div>
 
                             <hr />
@@ -1787,114 +1792,48 @@
             </div>
 
             <!-- ==================== ATTENDANCE TAB ==================== -->
-            <div id="employeeAttendanceTab" style="display:none;">
-                <div class="row mb-4 g-3">
-                    <div class="col-md-4">
-                        <div class="card bg-primary text-white border-0 shadow-sm">
-                            <div class="card-body">
-                                <h6 class="card-title fw-semibold">Select Employee</h6>
-                                <select id="attEmployeeSelect" class="form-select mt-2 bg-light border-0 rounded-pill" onchange="loadAttendanceData()">
-                                    <option value="">-- Select Employee --</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="card bg-secondary text-white border-0 shadow-sm text-center">
-                            <div class="card-body">
-                                <h6 class="card-title">Month</h6>
-                                <input type="month" id="attMonth" class="form-control bg-light border-0 rounded-pill" onchange="loadAttendanceData()" value="2026-03">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="card bg-success text-white border-0 shadow-sm text-center">
-                            <div class="card-body">
-                                <h6>Present</h6>
-                                <h3 id="attPresent">0</h3>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="card bg-danger text-white border-0 shadow-sm text-center">
-                            <div class="card-body">
-                                <h6>Absent</h6>
-                                <h3 id="attAbsent">0</h3>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="card bg-warning text-dark border-0 shadow-sm text-center">
-                            <div class="card-body">
-                                <h6>Late</h6>
-                                <h3 id="attLate">0</h3>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="row mb-4 g-3">
-                    <div class="col-md-3">
-                        <div class="card bg-info text-white border-0 shadow-sm text-center">
-                            <div class="card-body">
-                                <h6>On Leave</h6>
-                                <h3 id="attOnLeave">0</h3>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card bg-dark text-white border-0 shadow-sm text-center">
-                            <div class="card-body">
-                                <h6>Half Day</h6>
-                                <h3 id="attHalfDay">0</h3>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card bg-secondary text-white border-0 shadow-sm text-center">
-                            <div class="card-body">
-                                <h6>Total Hours</h6>
-                                <h3 id="attTotalHours">0</h3>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card bg-primary text-white border-0 shadow-sm text-center">
-                            <div class="card-body">
-                                <h6>Working Days</h6>
-                                <h3 id="attWorkingDays">0</h3>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card border-0 shadow-sm rounded-4">
-                    <div class="card-header bg-white fw-semibold border-0 pt-3 pb-2">
-                        <i class="fas fa-calendar-check me-2" style="color:#f59e0b;"></i> Attendance Log
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-bordered table-hover" id="attendanceTable">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Status</th>
-                                        <th>Check In</th>
-                                        <th>Check Out</th>
-                                        <th>Hours</th>
-                                        <th>Notes</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="attendanceTableBody">
-                                    <tr>
-                                        <td colspan="6" class="text-center text-muted">Select an employee to view attendance</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+          <!-- ==================== ATTENDANCE TAB - SIMPLE VERSION ==================== -->
+<div id="employeeAttendanceTab" style="display:none;">
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-title fw-semibold">Select Employee</h6>
+                    <select id="attEmployeeSelect" class="form-select mt-2 bg-light border-0 rounded-pill" onchange="loadSimpleAttendanceData()">
+                        <option value="">-- Select Employee --</option>
+                    </select>
                 </div>
             </div>
         </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-header bg-white fw-semibold border-0 pt-3 pb-2">
+            <i class="fas fa-calendar-check me-2" style="color:#f59e0b;"></i> Attendance Records
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle" id="attendanceTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Employee</th>
+                            <th>Date</th>
+                            <th>Time In</th>
+                            <th>Time Out</th>
+                            <th>Hours Worked</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendanceTableBody">
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">Select an employee to view attendance</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
       
         <!-- Settings Module -->
         <div id="settingsModule" class="module">
@@ -1926,14 +1865,44 @@
         });
     }
 
-            function showModule(module) {
+              function showModule(module) {
+        // Hide all modules
         var modules = ['dashboard', 'inventory', 'products', 'inventoryAlerts', 'reports', 'employees', 'settings'];
-        modules.forEach(m => {
+        modules.forEach(function(m) {
             var el = document.getElementById(m + 'Module');
             if (el) el.classList.remove('active');
         });
-        document.getElementById(module + 'Module').classList.add('active');
 
+        // Show selected module
+        var selectedModule = document.getElementById(module + 'Module');
+        if (selectedModule) selectedModule.classList.add('active');
+
+        // ========== UPDATE SIDEBAR ACTIVE STATE ==========
+        // Remove active class from all sidebar nav items
+        var navItems = document.querySelectorAll('.sidebar .nav-item');
+        navItems.forEach(function(item) {
+            item.classList.remove('active');
+        });
+
+        // Add active class to the clicked nav item
+        // Find which nav item corresponds to this module
+        var activeNavItem = document.querySelector('.sidebar .nav-item[onclick*="showModule(\'' + module + '\')"]');
+        if (activeNavItem) {
+            activeNavItem.classList.add('active');
+        } else {
+            // Fallback: try to find by text or data attribute
+            var allNavItems = document.querySelectorAll('.sidebar .nav-item');
+            for (var i = 0; i < allNavItems.length; i++) {
+                var item = allNavItems[i];
+                var onclickAttr = item.getAttribute('onclick');
+                if (onclickAttr && onclickAttr.includes(module)) {
+                    item.classList.add('active');
+                    break;
+                }
+            }
+        }
+
+        // Load module-specific data
         if (module === 'inventoryAlerts') {
             loadInventoryAlerts();
         }
@@ -1947,7 +1916,7 @@
             setTimeout(function() { loadEmployees(); }, 100);
         }
     }
-        // Add Delivery Form Functions
+    // Add Delivery Form Functions
     function showAddDeliveryForm() {
         document.getElementById('addDeliveryBox').style.display = 'block';
         document.getElementById('addDeliveryForm').reset();
@@ -3584,35 +3553,62 @@ function loadEmployees() {
 }
 
 
-function switchEmployeeTab(tab) {
-    var listTab = document.getElementById('employeeListTab');
-    var perfTab = document.getElementById('employeePerformanceTab');
-    var attendTab = document.getElementById('employeeAttendanceTab');
-    var tabs = document.querySelectorAll('#employeesModule .nav-link');
-    
-    for (var i = 0; i < tabs.length; i++) {
-        tabs[i].classList.remove('active');
-    }
-    
-    if (tab === 'list') {
-        if (tabs[0]) tabs[0].classList.add('active');
-        if (listTab) listTab.style.display = 'block';
-        if (perfTab) perfTab.style.display = 'none';
-        if (attendTab) attendTab.style.display = 'none';
-        loadEmployees();
-    } else if (tab === 'performance') {
-        if (tabs[1]) tabs[1].classList.add('active');
-        if (listTab) listTab.style.display = 'none';
-        if (perfTab) perfTab.style.display = 'block';
-        if (attendTab) attendTab.style.display = 'none';
-    } else if (tab === 'attendance') {
-        if (tabs[2]) tabs[2].classList.add('active');
-        if (listTab) listTab.style.display = 'none';
-        if (perfTab) perfTab.style.display = 'none';
-        if (attendTab) attendTab.style.display = 'block';
-    }
-}
+    function switchEmployeeTab(tab) {
+        var listTab = document.getElementById('employeeListTab');
+        var perfTab = document.getElementById('employeePerformanceTab');
+        var attendTab = document.getElementById('employeeAttendanceTab');
+        var tabs = document.querySelectorAll('#employeesModule .nav-link');
 
+        for (var i = 0; i < tabs.length; i++) {
+            tabs[i].classList.remove('active');
+        }
+
+        if (tab === 'list') {
+            if (tabs[0]) tabs[0].classList.add('active');
+            if (listTab) listTab.style.display = 'block';
+            if (perfTab) perfTab.style.display = 'none';
+            if (attendTab) attendTab.style.display = 'none';
+            loadEmployees();
+        }
+        else if (tab === 'performance') {
+            if (tabs[1]) tabs[1].classList.add('active');
+            if (listTab) listTab.style.display = 'none';
+            if (perfTab) perfTab.style.display = 'block';
+            if (attendTab) attendTab.style.display = 'none';
+
+            // Load employees into performance dropdown
+            fetch('/Employee/GetAllEmployees')
+                .then(response => response.json())
+                .then(employees => {
+                    const perfSelect = document.getElementById('perfEmployeeSelect');
+                    if (perfSelect) {
+                        perfSelect.innerHTML = '<option value="">-- Select Employee --</option>';
+                        employees.forEach(emp => {
+                            perfSelect.innerHTML += `<option value="${emp.id}">${emp.fullName}</option>`;
+                        });
+                    }
+                });
+        }
+        else if (tab === 'attendance') {
+            if (tabs[2]) tabs[2].classList.add('active');
+            if (listTab) listTab.style.display = 'none';
+            if (perfTab) perfTab.style.display = 'none';
+            if (attendTab) attendTab.style.display = 'block';
+
+            // Load employees into attendance dropdown
+            fetch('/Employee/GetAllEmployees')
+                .then(response => response.json())
+                .then(employees => {
+                    const attSelect = document.getElementById('attEmployeeSelect');
+                    if (attSelect) {
+                        attSelect.innerHTML = '<option value="">-- Select Employee --</option>';
+                        employees.forEach(emp => {
+                            attSelect.innerHTML += `<option value="${emp.id}">${emp.fullName}</option>`;
+                        });
+                    }
+                });
+        }
+    }
     function showEmployeeAddModal() {
         console.log("Opening add employee modal");
         document.getElementById('employeeModalTitle').innerText = 'Add Employee';
@@ -3730,6 +3726,61 @@ function editEmployee(id) {
             alert('Error: ' + err.message);
         });
     }
+
+    function loadSimpleAttendanceData() {
+    const employeeSelect = document.getElementById('attEmployeeSelect');
+    const userId = employeeSelect.value;
+    
+    if (!userId) {
+        document.getElementById('attendanceTableBody').innerHTML = `
+            <tr><td colspan="5" class="text-center text-muted">Select an employee to view attendance</td></tr>
+        `;
+        return;
+    }
+    
+    // Get current month attendance (or all recent)
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    
+    fetch(`/Employee/GetAttendance?userId=${userId}&year=${year}&month=${month}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.attendances && data.attendances.length > 0) {
+                let rows = '';
+                data.attendances.forEach(att => {
+                    // Format date
+                    const dateObj = new Date(att.date);
+                    const formattedDate = `${dateObj.getMonth() + 1}/${dateObj.getDate()}/${dateObj.getFullYear()}`;
+                    
+                    // Format check-in time
+                    const checkIn = att.checkInTime ? att.checkInTime.substring(0, 5) : '--:--';
+                    const checkOut = att.checkOutTime ? att.checkOutTime.substring(0, 5) : '--:--';
+                    
+                    rows += `
+                        <tr>
+                            <td>${data.employeeName || 'N/A'}</td>
+                            <td>${formattedDate}</td>
+                            <td>${checkIn}</td>
+                            <td>${checkOut}</td>
+                            <td>${att.hoursWorked || 0}</td>
+                        </tr>
+                    `;
+                });
+                document.getElementById('attendanceTableBody').innerHTML = rows;
+            } else {
+                document.getElementById('attendanceTableBody').innerHTML = `
+                    <tr><td colspan="5" class="text-center text-muted">No attendance records found for this employee</td></tr>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading attendance:', error);
+            document.getElementById('attendanceTableBody').innerHTML = `
+                <tr><td colspan="5" class="text-center text-danger">Error loading attendance data</td></tr>
+            `;
+        });
+}
      
         
        

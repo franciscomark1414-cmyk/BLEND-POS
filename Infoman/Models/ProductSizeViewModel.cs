@@ -15,6 +15,7 @@ namespace Infoman.Models
         [Required(ErrorMessage = "Stock is required")]
         [Range(0, int.MaxValue, ErrorMessage = "Stock must be 0 or greater")]
         public int Stock { get; set; }
+        public bool IsAvailableInPOS { get; set; }
 
         public List<RecipeItemViewModel> RecipeItems { get; set; } = new List<RecipeItemViewModel>();
     }

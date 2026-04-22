@@ -2473,50 +2473,57 @@
 
     function addIngredientRow() { addIngredientRowToTable(null, ingredientCounter++); }
 
-           function addIngredientRowToTable(ingredient, index) {
-        const tbody = document.getElementById('ingredientsBody');
+         function addIngredientRowToTable(ingredient, index) {
+    const tbody = document.getElementById('ingredientsBody');
+    let optionsHtml = '<option value="">Loading ingredients...</option>';
+    tbody.insertAdjacentHTML('beforeend', `
+        <tr data-ingredient-index="${index}">
+            <td><select class="form-control ingredient-select" onchange="calculateIngredientTotal(this)">${optionsHtml}</select></td>
+            <td><input type="number" class="form-control quantity-input" onchange="calculateIngredientTotal(this)" placeholder="Quantity" step="0.01" min="0.01"></td>
+            <td class="unit-display">-</td>
+            <td class="cost-per-unit">₱0.00</td>
+            <td class="total-cost">₱0.00</td>
+            <td><button type="button" class="btn btn-sm btn-danger" onclick="removeIngredientRow(this)">✖</button></td>
+        </tr>
+    `);
+    const row = tbody.lastElementChild;
+    const select = row.querySelector('.ingredient-select');
 
-        // START LOADING INDICATOR
-        let optionsHtml = '<option value="">Loading ingredients...</option>';
-
-        tbody.insertAdjacentHTML('beforeend', `
-            <tr data-ingredient-index="${index}">
-                <td><select class="form-control ingredient-select" onchange="calculateIngredientTotal(this)">${optionsHtml}</select></td>
-                <td><input type="number" class="form-control quantity-input" onchange="calculateIngredientTotal(this)" placeholder="Quantity" step="0.01" min="0.01"></td>
-                <td class="unit-display">-</td>
-                <td class="cost-per-unit">₱0.00</td>
-                <td class="total-cost">₱0.00</td>
-                <td><button type="button" class="btn btn-sm btn-danger" onclick="removeIngredientRow(this)">✖</button></td>
-            </tr>
-        `);
-
-        const row = tbody.lastElementChild;
-        const select = row.querySelector('.ingredient-select');
-
-        // FETCH raw materials WITH their LATEST BATCH PRICE
-        fetch('/RawMaterial/GetAllWithLatestPrice')
-            .then(response => response.json())
-            .then(materials => {
-                let newOptions = '<option value="">Select Ingredient</option>';
-                materials.forEach(m => {
-                    const price = m.latestBatchPrice > 0 ? m.latestBatchPrice : m.defaultPrice;
-                    newOptions += `<option value="${m.id}" data-price="${price}" data-unit="${m.unit}">${m.name} (${m.unit} - ₱${price})</option>`;
-                });
-                select.innerHTML = newOptions;
-
-                // If editing existing ingredient, set the value
-                if (ingredient) {
-                    select.value = ingredient.rawMaterialId;
-                    row.querySelector('.quantity-input').value = ingredient.quantity;
-                    calculateIngredientTotal(select);
-                }
-            })
-            .catch(err => {
-                console.error('Error loading materials:', err);
-                select.innerHTML = '<option value="">Error loading ingredients</option>';
+    fetch('/RawMaterial/GetAllWithLatestPrice')
+        .then(response => response.json())
+        .then(materials => {
+            let newOptions = '<option value="">Select Ingredient</option>';
+            materials.forEach(m => {
+                const price = m.latestBatchPrice > 0 ? m.latestBatchPrice : m.defaultPrice;
+                newOptions += `<option value="${m.id}" data-price="${price}" data-unit="${m.unit}">${m.name} (${m.unit} - ₱${price})</option>`;
             });
-    }
-       function calculateIngredientTotal(element) {
+            select.innerHTML = newOptions;
+
+            if (ingredient) {
+                select.value = ingredient.rawMaterialId;
+                row.querySelector('.quantity-input').value = ingredient.quantity;
+
+                // ✅ OVERRIDE: Gamitin ang FIFO price galing sa backend
+                // Hindi ang latestBatchPrice ng dropdown
+                const selectedOption = select.options[select.selectedIndex];
+                if (selectedOption && ingredient.price > 0) {
+                    selectedOption.setAttribute('data-price', ingredient.price);
+                    
+                    // I-update din ang display ng option text para consistent
+                    selectedOption.text = `${ingredient.name} (${ingredient.unit} - ₱${ingredient.price.toFixed(2)})`;
+                }
+
+                // I-compute gamit ang overridden price
+                calculateIngredientTotal(select);
+            }
+        })
+        .catch(err => {
+            console.error('Error loading materials:', err);
+            select.innerHTML = '<option value="">Error loading ingredients</option>';
+        });
+}
+
+function calculateIngredientTotal(element) {
         const row = element.closest('tr');
         const select = row.querySelector('.ingredient-select');
         const selectedOption = select.options[select.selectedIndex];

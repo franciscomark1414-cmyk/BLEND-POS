@@ -11,6 +11,7 @@ namespace Infoman.Models
         public string SizeName { get; set; } = string.Empty;
 
         public decimal Price { get; set; }
+        public string? SKU { get; set; }
 
         [Required(ErrorMessage = "Stock is required")]
         [Range(0, int.MaxValue, ErrorMessage = "Stock must be 0 or greater")]

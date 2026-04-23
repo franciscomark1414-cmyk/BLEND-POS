@@ -34,6 +34,12 @@ namespace Infoman.Controllers
         {
             return View();
         }
+        private string GenerateRawMaterialSKU(string name)
+        {
+            string prefix = "RM";
+            string code = name.Length >= 3 ? name.Substring(0, 3).ToUpper() : name.ToUpper();
+            return $"{prefix}-{code}";
+        }
 
         // CREATE - POST
         [HttpPost]
@@ -49,6 +55,10 @@ namespace Infoman.Controllers
                 if (material.ExpirationDate == DateTime.MinValue)
                 {
                     material.ExpirationDate = null;
+                }
+                if (string.IsNullOrEmpty(material.SKU))
+                {
+                    material.SKU = GenerateRawMaterialSKU(material.Name);
                 }
 
                 material.IsDeleted = false;

@@ -852,6 +852,7 @@
                                         <thead class="table-light">
                                             <tr>
                                                 <th>Size</th>
+                                                <th>SKU</th>
                                                 <th>Price</th>
                                                 <th>POS Status</th>      <!-- Bago: Displayed/Hidden -->
                                                 <th>Recipe</th>           <!-- Keep: View/Edit buttons -->
@@ -870,6 +871,7 @@
                                                             }
                                                             @emoji @size.SizeName
                                                         </td>
+                                                        <td><code>@size.SKU</code></td>
                                                         <td>₱@size.Price.ToString("N2")</td>
                                                         <td id="pos-status-@size.ProductSizeId">
                                                             @if (size.IsAvailableInPOS)
@@ -966,8 +968,9 @@
                                     <input type="text" name="Name" class="form-control" required />
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label">SKU <span class="text-danger">*</span></label>
-                                    <input type="text" name="SKU" class="form-control" required placeholder="e.g., MS-001" />
+                                    <label class="form-label">SKU Prefix <span class="text-danger">*</span></label>
+                                    <input type="text" name="SKU" class="form-control" required placeholder="e.g., MS" />
+                                    <small class="text-muted">Enter prefix only (e.g., MS, STR, CHOC). System will auto-number: MS001, MS002, etc.</small>
                                 </div>
                             </div>
                             <div class="row mb-3">
@@ -2388,14 +2391,24 @@
         container.insertAdjacentHTML('beforeend', html);
     }
 
-    function filterProducts() {
+      function filterProducts() {
         const searchTerm = document.getElementById('searchProduct').value.toLowerCase();
         const categoryFilter = document.getElementById('filterCategory').value;
         const products = document.querySelectorAll('.product-card');
+
         products.forEach(product => {
             const name = product.querySelector('h4')?.innerText.toLowerCase() || '';
             const category = product.getAttribute('data-category') || '';
-            product.style.display = (name.includes(searchTerm) && (!categoryFilter || category === categoryFilter)) ? '' : 'none';
+            // Kunin ang SKU mula sa table cells
+            const skuCells = product.querySelectorAll('table tbody tr td:nth-child(2) code');
+            let matchesSKU = false;
+            skuCells.forEach(cell => {
+                if (cell.innerText.toLowerCase().includes(searchTerm)) matchesSKU = true;
+            });
+
+            const matches = (name.includes(searchTerm) || matchesSKU) &&
+                            (!categoryFilter || category === categoryFilter);
+            product.style.display = matches ? '' : 'none';
         });
     }
 

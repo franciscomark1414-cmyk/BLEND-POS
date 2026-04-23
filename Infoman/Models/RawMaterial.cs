@@ -28,6 +28,7 @@ namespace Infoman.Models
 
         [Required]
         public decimal Price { get; set; }
+        public string? SKU { get; set; }
 
         [DataType(DataType.Date)]
         [Display(Name = "Expiration Date")]

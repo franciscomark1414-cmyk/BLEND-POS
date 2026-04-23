@@ -272,7 +272,6 @@ namespace Infoman.Controllers
 
             return View(model);  // Fixed: Added model parameter
         }
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddProduct(ProductViewModel model)
@@ -309,11 +308,19 @@ namespace Infoman.Controllers
                     return Json(new { success = false, errors = errors, message = "Please fix validation errors" });
                 }
 
-                // Create new product
+                // ========== 1. GENERATE PRODUCT SKU (AUTO-NUMBER) ==========
+                string userPrefix = model.SKU?.Trim().ToUpper() ?? "PRD";
+
+                // Bilangin ang existing products na may parehong prefix
+                int existingCount = await _db.Products.CountAsync(p => p.SKU.StartsWith(userPrefix));
+                string productNumber = (existingCount + 1).ToString("D3");
+                string generatedProductSKU = $"{userPrefix}{productNumber}";
+
+                // Create new product (gamitin ang generated SKU, hindi ang user input)
                 var product = new Product
                 {
                     Name = model.Name.Trim(),
-                    SKU = model.SKU.Trim().ToUpper(),
+                    SKU = generatedProductSKU,  // ← NAKA-AUTO-GENERATE NA
                     Category = model.Category?.Trim() ?? "",
                     Description = model.Description?.Trim() ?? "",
                     ImagePath = model.ImagePath ?? "",
@@ -334,12 +341,18 @@ namespace Infoman.Controllers
                         _ => 0.3m
                     };
 
+                    // ========== 2. GENERATE SIZE SKU ==========
+                    string sizeSKU = GenerateSizeSKU(generatedProductSKU, sizeVM.SizeName);
+
                     var productSize = new ProductSize
                     {
                         SizeName = sizeVM.SizeName.Trim(),
+                        SKU = sizeSKU ?? "",  // ← IDAGDAG ITO
                         Stock = sizeVM.Stock,
+                        Margin = margin,  // ← IDAGDAG ITO (kung meron sa model mo)
                         RecipeItems = new List<RecipeItem>()
                     };
+                   
 
                     // Calculate total cost from recipe items
                     var totalCost = 0m;
@@ -350,12 +363,12 @@ namespace Infoman.Controllers
                         if (recipeVM.RawMaterialId > 0 && recipeVM.Quantity > 0)
                         {
                             var latestPrice = await _db.RawMaterialBatches
-           .Where(b => b.RawMaterialId == recipeVM.RawMaterialId)
-           .OrderByDescending(b => b.ReceivedDate)
-           .Select(b => b.UnitPrice)
-           .FirstOrDefaultAsync();
+                                .Where(b => b.RawMaterialId == recipeVM.RawMaterialId)
+                                .OrderByDescending(b => b.ReceivedDate)
+                                .Select(b => b.UnitPrice)
+                                .FirstOrDefaultAsync();
 
-                            if (latestPrice > 0)
+                            if (latestPrice >= 0)
                             {
                                 var cost = recipeVM.Quantity * latestPrice;
                                 totalCost += cost;
@@ -376,7 +389,6 @@ namespace Infoman.Controllers
                         return Json(new { success = false, message = $"Please add at least one ingredient for {sizeVM.SizeName}" });
                     }
 
-
                     // If price is provided manually, use it; otherwise calculate from cost
                     if (sizeVM.Price > 0)
                     {
@@ -384,7 +396,6 @@ namespace Infoman.Controllers
                     }
                     else
                     {
-
                         productSize.Price = Math.Round(totalCost / (1 - margin), 2);
                     }
 
@@ -402,12 +413,35 @@ namespace Infoman.Controllers
                 _db.Products.Add(product);
                 await _db.SaveChangesAsync();
 
-                return Json(new { success = true, message = "Product added successfully!", redirect = "/Owner/Dashboard" });
+                return Json(new { success = true, message = $"Product added successfully! SKU: {generatedProductSKU}", redirect = "/Owner/Dashboard" });
             }
             catch (Exception ex)
             {
                 return Json(new { success = false, message = "Error saving product: " + ex.Message });
             }
+        }
+
+        // ========== HELPER METHOD FOR SIZE SKU ==========
+        private string GenerateSizeSKU(string productSKU, string sizeName)
+        {
+            string sizeCode = sizeName.Trim().ToUpper() switch
+            {
+                "SMALL" => "SML",
+                "MEDIUM" => "MED",
+                "LARGE" => "LRG",
+                _ => sizeName.Trim().ToUpper().Length >= 3 ?
+                     sizeName.Trim().ToUpper().Substring(0, 3) :
+                     sizeName.Trim().ToUpper()
+            };
+
+            return $"{productSKU}-{sizeCode}";
+        }
+        private string GenerateProductSKU(string userPrefix)
+        {
+            string prefix = userPrefix.Trim().ToUpper();
+            int count = _db.Products.Count(p => p.SKU.StartsWith(prefix));
+            string number = (count + 1).ToString("D3");
+            return $"{prefix}{number}";
         }
 
         [HttpGet]

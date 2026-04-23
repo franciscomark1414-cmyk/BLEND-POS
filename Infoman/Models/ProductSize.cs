@@ -26,6 +26,7 @@ namespace Infoman.Models
 
         [ForeignKey("ProductId")]
         public virtual Product Product { get; set; }
+        public string SKU { get; set; } = string.Empty;
 
         public virtual ICollection<RecipeItem> RecipeItems { get; set; } = new List<RecipeItem>();
 

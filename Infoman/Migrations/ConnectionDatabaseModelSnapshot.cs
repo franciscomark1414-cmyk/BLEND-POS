@@ -189,7 +189,6 @@ namespace Infoman.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ImagePath")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Name")
@@ -233,6 +232,10 @@ namespace Infoman.Migrations
 
                     b.Property<int>("ProductId")
                         .HasColumnType("int");
+
+                    b.Property<string>("SKU")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("SizeName")
                         .IsRequired()
@@ -308,6 +311,9 @@ namespace Infoman.Migrations
                     b.Property<decimal>("Price")
                         .HasPrecision(10, 2)
                         .HasColumnType("decimal(10,2)");
+
+                    b.Property<string>("SKU")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Stock")
                         .HasPrecision(10, 2)

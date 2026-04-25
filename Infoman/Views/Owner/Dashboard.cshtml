@@ -454,12 +454,13 @@
         <!-- Dashboard Module -->
         <div id="dashboardModule" class="module active">
             <div class="row g-4">
-                <!-- Today's Sales -->
+                <!-- Today's Sales Card -->
                 <div class="col-md-3">
                     <div class="stat-card">
                         <div class="card-body text-center">
                             <h5>Today's Sales</h5>
-                            <p>₱@ViewBag.TotalRevenue.ToString("N2")</p>
+                            <p>₱@ViewBag.TodaysSales.ToString("N2")</p>
+                            <small>@ViewBag.TotalOrdersToday order(s) today</small>
                         </div>
                     </div>
                 </div>
@@ -477,7 +478,8 @@
                     <div class="stat-card">
                         <div class="card-body text-center">
                             <h5>Total Revenue</h5>
-                            <p>₱@ViewBag.TotalRevenue.ToString("N2")</p>
+                            <p>₱@ViewBag.AllTimeRevenue.ToString("N2")</p>
+                            <small>All time sales</small>
                         </div>
                     </div>
                 </div>
@@ -547,11 +549,15 @@
                                 {
                                     foreach (var item in Model.BestSellingProducts)
                                     {
-                                        <div class="product-item border p-3 rounded">
-                                            <div style="font-size:20px;">🥤</div>
-                                            <strong>#@item.Rank @item.Name</strong><br />
-                                            <small>₱@item.Price.ToString("N2")</small><br />
-                                            <small>@item.TotalSold sold</small>
+                                        <div class="product-item border p-3 rounded" style="min-width: 180px;">
+                                            <div style="font-size:24px;">🥤</div>
+                                            <strong>#@item.Rank @item.Name</strong>
+                                            <br />
+                                            <span class="badge bg-info">@item.SizeName</span>  <!-- ← SIZE BADGE -->
+                                            <br />
+                                            <small class="text-muted">₱@item.Price.ToString("N2")</small>
+                                            <br />
+                                            <strong>@item.TotalSold sold</strong>
                                         </div>
                                     }
                                 }
@@ -1435,14 +1441,13 @@
 
                 <!-- 3 Cards Row -->
                 <div class="row g-4 mb-4">
-                    <!-- Total Revenue Card -->
                     <div class="col-md-4">
                         <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                             <div class="card-body text-white">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
                                         <h6 class="text-white-50 mb-1">Total Revenue</h6>
-                                        <h2 class="mb-0 fw-bold">₱@ViewBag.TotalRevenue.ToString("N2")</h2>
+                                        <h2 class="mb-0 fw-bold">₱@ViewBag.AllTimeRevenue.ToString("N2")</h2>
                                         <small class="text-white-50">All time sales</small>
                                     </div>
                                     <div class="bg-white bg-opacity-25 rounded-circle p-3">
@@ -3650,25 +3655,40 @@ function loadEmployees() {
             if (attendTab) attendTab.style.display = 'none';
             loadEmployees();
         }
-        else if (tab === 'performance') {
-            if (tabs[1]) tabs[1].classList.add('active');
-            if (listTab) listTab.style.display = 'none';
-            if (perfTab) perfTab.style.display = 'block';
-            if (attendTab) attendTab.style.display = 'none';
+           else if (tab === 'performance') {
+        if (tabs[1]) tabs[1].classList.add('active');
+        if (listTab) listTab.style.display = 'none';
+        if (perfTab) perfTab.style.display = 'block';
+        if (attendTab) attendTab.style.display = 'none';
 
-            // Load employees into performance dropdown
-            fetch('/Employee/GetAllEmployees')
-                .then(response => response.json())
-                .then(employees => {
-                    const perfSelect = document.getElementById('perfEmployeeSelect');
-                    if (perfSelect) {
-                        perfSelect.innerHTML = '<option value="">-- Select Employee --</option>';
-                        employees.forEach(emp => {
-                            perfSelect.innerHTML += `<option value="${emp.id}">${emp.fullName}</option>`;
-                        });
+        // Load employees into performance dropdown
+        fetch('/Employee/GetAllEmployees')
+            .then(response => response.json())
+            .then(employees => {
+                const perfSelect = document.getElementById('perfEmployeeSelect');
+                if (perfSelect) {
+                    let options = '<option value="">-- Select Employee --</option>';
+
+                    // I-save ang dating selected value kung meron
+                    const oldValue = perfSelect.value;
+
+                    employees.forEach(emp => {
+                        options += `<option value="${emp.id}">${emp.fullName}</option>`;
+                    });
+                    perfSelect.innerHTML = options;
+
+                    // I-restore ang dating selected value
+                    if (oldValue && oldValue !== "") {
+                        perfSelect.value = oldValue;
                     }
-                });
-        }
+                }
+
+                // Auto-load performance kung may naunang napili
+                if (perfSelect && perfSelect.value) {
+                    loadPerformanceData();
+                }
+            });
+    }
         else if (tab === 'attendance') {
             if (tabs[2]) tabs[2].classList.add('active');
             if (listTab) listTab.style.display = 'none';
@@ -3817,7 +3837,8 @@ function editEmployee(id) {
         `;
         return;
     }
-    
+
+        
     // Get current month attendance (or all recent)
     const now = new Date();
     const year = now.getFullYear();
@@ -3861,6 +3882,70 @@ function editEmployee(id) {
             `;
         });
 }
+
+ // ========== LOAD PERFORMANCE DATA FUNCTION ==========
+    function loadPerformanceData() {
+        const employeeSelect = document.getElementById('perfEmployeeSelect');
+        const userId = employeeSelect.value;
+
+        if (!userId) {
+            document.getElementById('perfTotalSales').innerHTML = '₱0.00';
+            document.getElementById('perfTotalOrders').innerHTML = '0';
+            document.getElementById('perfAvgRating').innerHTML = '0.0';
+            document.getElementById('performanceTableBody').innerHTML = `
+                <tr><td colspan="5" class="text-center text-muted">Select an employee to view performance</td></tr>
+            `;
+            return;
+        }
+
+        // Get last 30 days by default
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - 30);
+
+        const startDateStr = startDate.toISOString().split('T')[0];
+        const endDateStr = endDate.toISOString().split('T')[0];
+
+        fetch(`/Employee/GetPerformance?userId=${userId}&startDate=${startDateStr}&endDate=${endDateStr}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update summary cards
+                    document.getElementById('perfTotalSales').innerHTML = `₱${(data.summary.totalSales || 0).toFixed(2)}`;
+                    document.getElementById('perfTotalOrders').innerHTML = data.summary.totalOrders || 0;
+                    document.getElementById('perfAvgRating').innerHTML = (data.summary.averageRating || 0).toFixed(1);
+
+                    // Update table
+                    let rows = '';
+                    if (data.performances && data.performances.length > 0) {
+                        data.performances.forEach(perf => {
+                            const dateObj = new Date(perf.date);
+                            const formattedDate = `${dateObj.getMonth() + 1}/${dateObj.getDate()}/${dateObj.getFullYear()}`;
+                            rows += `
+                                <tr>
+                                    <td>${formattedDate}</td>
+                                    <td>₱${(perf.totalSales || 0).toFixed(2)}</td>
+                                    <td>${perf.ordersProcessed || 0}</td>
+                                    <td>${(perf.rating || 0).toFixed(1)}</td>
+                                    <td>${perf.notes || '-'}</td>
+                                </tr>
+                            `;
+                        });
+                    } else {
+                        rows = `<tr><td colspan="5" class="text-center text-muted">No performance records found for this employee</td></tr>`;
+                    }
+                    document.getElementById('performanceTableBody').innerHTML = rows;
+                } else {
+                    console.error('Error loading performance:', data);
+                    document.getElementById('performanceTableBody').innerHTML = `<tr><td colspan="5" class="text-center text-danger">Error loading data</td></tr>`;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading performance:', error);
+                document.getElementById('performanceTableBody').innerHTML = `<tr><td colspan="5" class="text-center text-danger">Error loading performance data</td></tr>`;
+            });
+    }
+   
      
         
        

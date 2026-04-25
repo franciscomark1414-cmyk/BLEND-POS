@@ -16,51 +16,53 @@ namespace Infoman.Controllers
             _db = db;
             _fifoService = new FIFOService(_db);
         }
+        private bool IsUserLoggedIn()
+        {
+            var userId = HttpContext.Session.GetInt32("UserId");
+            return userId.HasValue && userId.Value > 0;
+        }
 
         // POS Main Page
         public async Task<IActionResult> POS()
         {
-            // Get staff info from session
+            if (!IsUserLoggedIn())
+            {
+                return RedirectToAction("Login", "Account");
+            }
             var userId = HttpContext.Session.GetInt32("UserId");
             var username = HttpContext.Session.GetString("Username") ?? "Staff";
-            var userRole = HttpContext.Session.GetString("UserRole") ?? "Staff";
 
             ViewBag.StaffUsername = username;
             ViewBag.StaffUserId = userId;
 
-            // Your existing code...
+            // Get unique categories
             var categories = await _db.Products
                 .Where(p => p.Sizes.Any(s => s.IsAvailableInPOS))
                 .Select(p => p.Category)
                 .Distinct()
                 .ToListAsync();
 
-            var availableProducts = await _db.ProductSizes
-                .Include(ps => ps.Product)
-                .Include(ps => ps.RecipeItems)
-                .Where(ps => ps.IsAvailableInPOS == true)
-                .Select(ps => new
+            // Get products with their sizes (grouped by product)
+            var products = await _db.Products
+                .Include(p => p.Sizes)
+                .Where(p => p.Sizes.Any(s => s.IsAvailableInPOS))
+                .Select(p => new
                 {
-                    ps.ProductSizeId,
-                    ProductName = ps.Product.Name,
-                    ProductCategory = ps.Product.Category,
-                    ps.SizeName,
-                    ps.Price,
-
-                    ImagePath = ps.Product.ImagePath,
-
-                    RecipeItems = ps.RecipeItems.Select(r => new
+                    p.ProductId,
+                    p.Name,
+                    p.Category,
+                    p.ImagePath,
+                    Sizes = p.Sizes.Where(s => s.IsAvailableInPOS).Select(s => new
                     {
-                        r.RawMaterialId,
-                        r.Quantity,
-                        RawMaterialName = r.RawMaterial.Name,
-                        RawMaterialUnit = r.RawMaterial.Unit
+                        s.ProductSizeId,
+                        s.SizeName,
+                        s.Price
                     }).ToList()
                 })
                 .ToListAsync();
 
             ViewBag.Categories = categories;
-            return View(availableProducts);
+            return View(products);
         }
         // Check availability (base sa raw materials)
         [HttpGet]
@@ -76,11 +78,15 @@ namespace Infoman.Controllers
 
             var insufficientIngredients = new List<string>();
             var maxPossibleOrders = int.MaxValue;
+            var today = DateTime.Today;
 
             foreach (var recipeItem in productSize.RecipeItems)
             {
+                // ✅ FIX: Exclude expired batches
                 decimal availableQty = await _db.RawMaterialBatches
-                    .Where(b => b.RawMaterialId == recipeItem.RawMaterialId)
+                    .Where(b => b.RawMaterialId == recipeItem.RawMaterialId
+                        && b.QuantityRemaining > 0
+                        && (!b.ExpiryDate.HasValue || b.ExpiryDate.Value >= today)) // ← KEY FIX
                     .SumAsync(b => b.QuantityRemaining);
 
                 int possibleOrders = (int)(availableQty / recipeItem.Quantity);
@@ -98,7 +104,7 @@ namespace Infoman.Controllers
                 return Json(new
                 {
                     available = false,
-                    maxPossibleOrders = maxPossibleOrders,
+                    maxPossibleOrders = maxPossibleOrders == int.MaxValue ? 0 : maxPossibleOrders,
                     message = string.Join("\n", insufficientIngredients)
                 });
             }
@@ -106,18 +112,16 @@ namespace Infoman.Controllers
             return Json(new
             {
                 available = true,
-                maxPossibleOrders = maxPossibleOrders,
+                maxPossibleOrders = maxPossibleOrders == int.MaxValue ? 0 : maxPossibleOrders,
                 message = $"Available! Can make up to {maxPossibleOrders} orders."
             });
         }
-
         // StaffController.cs - PlaceOrder method
 
         [HttpPost]
         public async Task<IActionResult> PlaceOrder([FromBody] PlaceOrderRequest request)
         {
-            using var transaction = await _db.Database.BeginTransactionAsync();
-
+            System.Diagnostics.Debug.WriteLine("=== PLACE ORDER METHOD HIT ===");
             try
             {
                 var productSize = await _db.ProductSizes
@@ -132,14 +136,14 @@ namespace Infoman.Controllers
                 if (request.Quantity <= 0)
                     return Json(new { success = false, message = "Invalid quantity" });
 
-                // Check raw materials availability (excluding expired)
+                // Check raw materials availability
                 foreach (var recipeItem in productSize.RecipeItems)
                 {
                     decimal neededQty = recipeItem.Quantity * request.Quantity;
                     decimal availableQty = await _db.RawMaterialBatches
                         .Where(b => b.RawMaterialId == recipeItem.RawMaterialId
                             && b.QuantityRemaining > 0
-                            && (!b.ExpiryDate.HasValue || b.ExpiryDate.Value >= DateTime.Today)) // Skip expired
+                            && (!b.ExpiryDate.HasValue || b.ExpiryDate.Value >= DateTime.Today))
                         .SumAsync(b => b.QuantityRemaining);
 
                     if (availableQty < neededQty)
@@ -152,16 +156,13 @@ namespace Infoman.Controllers
                     }
                 }
 
-                // Deduct raw materials at kunin ang actual cost ng bawat ingredient
+                // Deduct raw materials at kunin ang actual cost
                 string orderNumber = request.OrderNumber ?? $"ORD-{DateTime.Now:yyyyMMddHHmmss}";
                 decimal totalActualCost = 0;
-                var costBreakdown = new List<object>();
 
                 foreach (var recipeItem in productSize.RecipeItems)
                 {
                     decimal neededQty = recipeItem.Quantity * request.Quantity;
-
-                    // ✅ FIXED: May AWAIT at tamang method name (ASYNC)
                     var (success, cost, usedBatches) = await _fifoService.DeductStockWithCostAsync(
                         recipeItem.RawMaterialId,
                         neededQty,
@@ -175,16 +176,6 @@ namespace Infoman.Controllers
                     }
 
                     totalActualCost += cost;
-
-                    // I-save ang cost breakdown (opsyonal)
-                    costBreakdown.Add(new
-                    {
-                        Ingredient = recipeItem.RawMaterial.Name,
-                        Quantity = neededQty,
-                        Unit = recipeItem.RawMaterial.Unit,
-                        ActualCost = cost,
-                        BatchesUsed = usedBatches.Select(b => new { b.BatchId, b.UnitPrice, b.QuantityUsed })
-                    });
                 }
 
                 // Record sale
@@ -192,29 +183,44 @@ namespace Infoman.Controllers
                 {
                     OrderNumber = orderNumber,
                     Date = DateTime.Now,
-                    TotalAmount = request.Quantity * productSize.Price,  // Revenue
+                    TotalAmount = request.Quantity * productSize.Price,
                     Status = "Completed"
                 };
 
                 _db.Orders.Add(order);
                 await _db.SaveChangesAsync();
 
-                // I-record ang OrderItem na may ACTUAL COST
                 var orderItem = new OrderItem
                 {
                     OrderId = order.OrderId,
                     ProductId = productSize.ProductId,
                     ProductSizeId = productSize.ProductSizeId,
                     Quantity = request.Quantity,
-                    Price = productSize.Price,           // Selling price (fixed)
-                    ActualCost = totalActualCost         // ← ACTUAL COST FROM BATCHES
+                    Price = productSize.Price,
+                    ActualCost = totalActualCost
                 };
 
                 _db.OrderItems.Add(orderItem);
                 await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
 
-                // Compute profit
+
+                // ========== ✅ BAGONG CODE: RECORD PERFORMANCE ==========
+                // After ng order creation, bago tawagin ang RecordEmployeePerformance
+                var userId = HttpContext.Session.GetInt32("UserId");
+                System.Diagnostics.Debug.WriteLine($"=== PLACE ORDER ===");
+                System.Diagnostics.Debug.WriteLine($"Session UserId: {userId}");
+
+                if (userId.HasValue && userId > 0)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Calling RecordEmployeePerformance for UserId: {userId.Value}");
+                    await RecordEmployeePerformance(userId.Value, request.Quantity * productSize.Price);
+                    System.Diagnostics.Debug.WriteLine("RecordEmployeePerformance completed");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("UserId is NULL or ZERO! Cannot record performance.");
+                }
+
                 decimal revenue = request.Quantity * productSize.Price;
                 decimal profit = revenue - totalActualCost;
 
@@ -234,11 +240,9 @@ namespace Infoman.Controllers
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
                 return Json(new { success = false, message = ex.Message });
             }
         }
-
         // ========== ATTENDANCE METHODS FOR STAFF ==========
 
         // GET: Staff/GetTodayAttendance
@@ -352,13 +356,122 @@ namespace Infoman.Controllers
             });
         }
 
-        // Helper method to get current user ID from session
+        // GET: Staff/GetProductWithSizes - para sa size modal
+        [HttpGet]
+        public async Task<IActionResult> GetProductWithSizes(int productId)
+        {
+            var product = await _db.Products
+                .Include(p => p.Sizes)
+                    .ThenInclude(s => s.RecipeItems)
+                        .ThenInclude(ri => ri.RawMaterial)
+                .FirstOrDefaultAsync(p => p.ProductId == productId);
+
+            if (product == null)
+                return Json(new { success = false, message = "Product not found" });
+
+            var sizes = new List<object>();
+            var today = DateTime.Today;
+
+            foreach (var size in product.Sizes.Where(s => s.IsAvailableInPOS))
+            {
+                int maxOrders = int.MaxValue;
+
+                if (size.RecipeItems != null && size.RecipeItems.Any())
+                {
+                    foreach (var recipe in size.RecipeItems)
+                    {
+                        // ✅ FIX: Exclude expired batches
+                        decimal availableQty = await _db.RawMaterialBatches
+                            .Where(b => b.RawMaterialId == recipe.RawMaterialId
+                                && b.QuantityRemaining > 0
+                                && (!b.ExpiryDate.HasValue || b.ExpiryDate.Value >= today)) // ← KEY FIX
+                            .SumAsync(b => b.QuantityRemaining);
+
+                        int possibleOrders = (int)(availableQty / recipe.Quantity);
+                        if (possibleOrders < maxOrders)
+                            maxOrders = possibleOrders;
+                    }
+                }
+
+                int availableStock = (maxOrders == int.MaxValue || maxOrders < 0) ? 0 : maxOrders;
+
+                sizes.Add(new
+                {
+                    size.ProductSizeId,
+                    size.SizeName,
+                    size.Price,
+                    Stock = availableStock
+                });
+            }
+
+            return Json(new
+            {
+                success = true,
+                productName = product.Name,
+                sizes = sizes
+            });
+        }
+        
         private int GetCurrentUserId()
         {
-            var userIdString = HttpContext.Session.GetString("UserId");
-            return int.TryParse(userIdString, out int id) ? id : 0;
+            return HttpContext.Session.GetInt32("UserId") ?? 0;
         }
 
+        private async Task RecordEmployeePerformance(int userId, decimal orderAmount)
+        {
+            System.Diagnostics.Debug.WriteLine("=== RECORD PERFORMANCE CALLED ===");
+            System.Diagnostics.Debug.WriteLine($"UserId: {userId}, OrderAmount: {orderAmount}");
+            var today = DateTime.Today;
+            var now = DateTime.Now;
+
+            // Hanapin kung may existing performance record na ngayong araw
+            var existingPerformance = await _db.EmployeePerformances
+                .FirstOrDefaultAsync(p => p.UserId == userId && p.Date.Date == today);
+
+            if (existingPerformance != null)
+            {
+                // I-update ang existing record
+                existingPerformance.TotalSales += orderAmount;
+                existingPerformance.OrdersProcessed += 1;
+                existingPerformance.UpdatedAt = now;
+            }
+            else
+            {
+                // Gumawa ng bagong record
+                var performance = new EmployeePerformance
+                {
+                    UserId = userId,
+                    Date = today,
+                    TotalSales = orderAmount,
+                    OrdersProcessed = 1,
+                    Rating = 0,
+                    Notes = "Auto-recorded from POS",
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+
+                _db.EmployeePerformances.Add(performance);
+            }
+
+            // I-update din ang User table summary
+            var user = await _db.Users.FindAsync(userId);
+            if (user != null)
+            {
+                var allPerformances = await _db.EmployeePerformances
+                    .Where(p => p.UserId == userId)
+                    .ToListAsync();
+
+                user.TotalOrdersProcessed = allPerformances.Sum(p => p.OrdersProcessed);
+                user.AverageRating = allPerformances.Any()
+                    ? allPerformances.Where(p => p.Rating > 0).Average(p => p.Rating)
+                    : 0;
+                user.UpdatedAt = now;  // ← IDAGDAG MO ITO
+            }
+
+            await _db.SaveChangesAsync();
+            System.Diagnostics.Debug.WriteLine("SaveChanges completed");
+        }
+        
         public class PlaceOrderRequest
         {
             public int ProductSizeId { get; set; }

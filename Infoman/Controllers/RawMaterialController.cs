@@ -213,20 +213,49 @@ namespace Infoman.Controllers
 
                 if (recipeItems.Any())
                 {
-                    // Kunin ang mga unique na product na apektado
-                    var affectedProducts = recipeItems
-                        .Select(ri => new
+                    var today = DateTime.Today;
+                    var affectedProducts = new List<object>();
+
+                    foreach (var ri in recipeItems)
+                    {
+                        // ✅ COMPUTE ACTUAL AVAILABLE STOCK FROM RAW MATERIALS
+                        int maxOrders = int.MaxValue;
+
+                        if (ri.ProductSize.RecipeItems != null && ri.ProductSize.RecipeItems.Any())
+                        {
+                            foreach (var recipe in ri.ProductSize.RecipeItems)
+                            {
+                                var availableQty = await _context.RawMaterialBatches
+                                    .Where(b => b.RawMaterialId == recipe.RawMaterialId
+                                        && b.QuantityRemaining > 0
+                                        && (!b.ExpiryDate.HasValue || b.ExpiryDate.Value >= today))
+                                    .SumAsync(b => b.QuantityRemaining);
+
+                                int possibleOrders = (int)(availableQty / recipe.Quantity);
+                                if (possibleOrders < maxOrders)
+                                    maxOrders = possibleOrders;
+                            }
+                        }
+
+                        int availableStock = (maxOrders == int.MaxValue || maxOrders < 0) ? 0 : maxOrders;
+
+                        affectedProducts.Add(new
                         {
                             ProductName = ri.ProductSize.Product.Name,
                             SizeName = ri.ProductSize.SizeName,
-                            Stock = ri.ProductSize.Stock,
+                            Stock = availableStock,  // ← COMPUTED STOCK (galing sa raw materials)
                             ProductSizeId = ri.ProductSize.ProductSizeId
-                        })
-                        .Distinct()
+                        });
+                    }
+
+                    // Remove duplicates (same product + size combination)
+                    affectedProducts = affectedProducts
+                        .GroupBy(p => new { ((dynamic)p).ProductName, ((dynamic)p).SizeName })
+                        .Select(g => g.First())
                         .ToList();
 
                     // I-format ang message
-                    var productList = string.Join("\n", affectedProducts.Select(p => $"  • {p.ProductName} - {p.SizeName} (Stock: {p.Stock} pcs)"));
+                    var productList = string.Join("\n", affectedProducts.Select(p => $"  • {((dynamic)p).ProductName} - {((dynamic)p).SizeName} (Can make: {((dynamic)p).Stock} orders)"));
 
                     return Json(new
                     {
@@ -249,7 +278,6 @@ namespace Infoman.Controllers
                 return Json(new { success = false, message = "An error occurred while deleting: " + ex.Message });
             }
         }
-
         // RESTORE - POST
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -451,24 +479,40 @@ namespace Infoman.Controllers
         [HttpGet]
         public async Task<IActionResult> GetProductsUsingRawMaterial(int id)
         {
-            var products = await _context.RecipeItems
+            var recipeItems = await _context.RecipeItems
                 .Include(ri => ri.ProductSize)
                     .ThenInclude(ps => ps.Product)
                 .Where(ri => ri.RawMaterialId == id)
-                .Select(ri => new
-                {
-                    productId = ri.ProductSize.Product.ProductId,
-                    productName = ri.ProductSize.Product.Name,
-                    sizeName = ri.ProductSize.SizeName,
-                    stock = ri.ProductSize.Stock,
-                    recipeQuantity = ri.Quantity,
-                    price = ri.ProductSize.Price
-                })
-                .Distinct()
                 .ToListAsync();
 
-            return Json(products);
+            var products = new List<object>();
+
+            foreach (var ri in recipeItems)
+            {
+                var productSize = ri.ProductSize;
+
+                products.Add(new
+                {
+                    productId = productSize.Product.ProductId,
+                    productName = productSize.Product.Name,
+                    sizeName = productSize.SizeName,
+                    recipeQuantity = ri.Quantity,
+                    price = productSize.Price
+                });
+            }
+
+            // Remove duplicates
+            var uniqueProducts = products
+                .GroupBy(p => new {
+                    productId = ((dynamic)p).productId,
+                    sizeName = ((dynamic)p).sizeName
+                })
+                .Select(g => g.First())
+                .ToList();
+
+            return Json(uniqueProducts);
         }
+
         [HttpGet]
         public async Task<IActionResult> GetMaterialDetails(int id)
         {

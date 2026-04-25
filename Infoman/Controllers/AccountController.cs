@@ -39,7 +39,7 @@ namespace Infoman.Controllers
             }
 
             // I-save sa session
-            HttpContext.Session.SetString("UserId", user.Id.ToString());
+            HttpContext.Session.SetInt32("UserId", user.Id);
             HttpContext.Session.SetString("Username", user.Username);
             HttpContext.Session.SetString("UserRole", user.Role);
 

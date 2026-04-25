@@ -22,9 +22,6 @@ namespace Infoman.Models
         // Original price? Optional — kung may base price ka
         public decimal Price { get; set; }
 
-        // Total stock across all sizes
-        public int Stock { get; set; }
-
         // Optional: image path
         public string? ImagePath { get; set; } = string.Empty;
 

@@ -3,6 +3,56 @@
     Layout = null;
 }
 
+@functions {
+    private decimal GetMinPrice(object sizes)
+    {
+        if (sizes == null) return 0;
+
+        // I-convert sa IEnumerable para magamit ang LINQ
+        var sizesList = sizes as IEnumerable<dynamic>;
+        if (sizesList == null || !sizesList.Any()) return 0;
+
+        decimal min = decimal.MaxValue;
+        foreach (var size in sizesList)
+        {
+            decimal price = Convert.ToDecimal(size.Price);
+            if (price < min) min = price;
+        }
+        return min;
+    }
+
+    private decimal GetMaxPrice(object sizes)
+    {
+        if (sizes == null) return 0;
+
+        var sizesList = sizes as IEnumerable<dynamic>;
+        if (sizesList == null || !sizesList.Any()) return 0;
+
+        decimal max = 0;
+        foreach (var size in sizesList)
+        {
+            decimal price = Convert.ToDecimal(size.Price);
+            if (price > max) max = price;
+        }
+        return max;
+    }
+
+    private int GetTotalStock(object sizes)
+    {
+        if (sizes == null) return 0;
+
+        var sizesList = sizes as IEnumerable<dynamic>;
+        if (sizesList == null || !sizesList.Any()) return 0;
+
+        int total = 0;
+        foreach (var size in sizesList)
+        {
+            total += Convert.ToInt32(size.Stock);
+        }
+        return total;
+    }
+}
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -457,23 +507,21 @@
                 <div class="products-grid" id="productsGrid">
                     @if (((System.Collections.IEnumerable)Model).Cast<dynamic>().Any())
                     {
-                        foreach (var product in Model)
+                        @foreach (var product in Model)
                         {
-                            <div class="product-card" data-category="@product.ProductCategory" data-size-id="@product.ProductSizeId" onclick="selectProduct(@product.ProductSizeId, '@product.ProductName', '@product.SizeName', @product.Price)">
-                                <span class="stock-badge" id="status-@product.ProductSizeId">Loading...</span>
-                                @if (!string.IsNullOrEmpty(product.ImagePath))
-                                {
-                                    <img src="@product.ImagePath" class="product-img"
-                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
-                                    <div class="product-emoji" style="display:none;">🥤</div>
-                                }
-                                else
-                                {
-                                    <div class="product-emoji">🥤</div>
-                                }
-                                <div class="product-name">@product.ProductName</div>
-                                <div class="product-size">@product.SizeName</div>
-                                <div class="product-price">₱@product.Price.ToString("N2")</div>
+                            <div class="product-card" data-product-id="@product.ProductId" data-category="@product.Category" onclick="showSizeModal(@product.ProductId, '@product.Name')">
+                                <div class="product-emoji">🥤</div>
+                                <div class="product-name">@product.Name</div>
+                                <div class="product-price-range">
+                                    @{
+                                        var minPrice = GetMinPrice(product.Sizes);
+                                        var maxPrice = GetMaxPrice(product.Sizes);
+                                    }
+                                    <span>₱@minPrice.ToString("N2") - ₱@maxPrice.ToString("N2")</span>
+                                </div>
+                                <div class="product-stock-total">
+                                    <span class="text-muted">Check availability in size modal</span>
+                                </div>
                             </div>
                         }
                     }
@@ -513,6 +561,59 @@
             </div>
         </div>
     </div>
+
+    <!-- Payment Method Modal -->
+    <div id="paymentModal" class="modal-qty" style="display: none;">
+        <div class="modal-qty-content" style="width: 350px;">
+            <h4>💳 Select Payment Method</h4>
+            <div style="margin: 20px 0;">
+                <button class="btn btn-success w-100 mb-2" onclick="processPayment('Cash')" style="padding: 12px;">
+                    💵 Cash
+                </button>
+                <button class="btn btn-primary w-100 mb-2" onclick="processPayment('GCash')" style="padding: 12px;">
+                    📱 GCash
+                </button>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closePaymentModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discount Modal -->
+    <div id="discountModal" class="modal-qty" style="display: none;">
+        <div class="modal-qty-content" style="width: 350px;">
+            <h4>💰 Select Discount Type</h4>
+            <div style="margin: 20px 0;">
+                <button class="btn btn-outline-secondary w-100 mb-2" onclick="applyDiscount('None', 0)" style="padding: 12px;">
+                    📝 None (0% discount)
+                </button>
+                <button class="btn btn-outline-primary w-100 mb-2" onclick="applyDiscount('Senior Citizen', 0.20)" style="padding: 12px;">
+                    👴 Senior Citizen (20% discount)
+                </button>
+                <button class="btn btn-outline-primary w-100 mb-2" onclick="applyDiscount('PWD', 0.20)" style="padding: 12px;">
+                    ♿ PWD (20% discount)
+                </button>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeDiscountModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Size Selection Modal -->
+    <div id="sizeModal" class="modal-qty" style="display: none;">
+        <div class="modal-qty-content" style="width: 400px;">
+            <h4 id="sizeModalProductName">Select Size</h4>
+            <div id="sizeOptionsList" style="margin: 20px 0;">
+                <!-- Dynamic sizes will appear here -->
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeSizeModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
 
     <!-- Quantity Modal -->
     <div id="quantityModal" class="modal-qty" style="display: none;">
@@ -555,232 +656,82 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
-        // Cart array
+                // Cart array
         let cart = [];
 
         // Variables for modal
-        let selectedProduct = {
-            productSizeId: null,
-            productName: null,
-            sizeName: null,
-            price: null
-        };
         let modalQuantity = 1;
         let currentMaxOrders = 0;
+        let currentDiscountType = 'None';
+        let currentDiscountPercent = 0;
+        let currentCartTotal = 0;
+        let currentDiscountedTotal = 0;
+        let tempSelectedSize = null;
 
-        // Get anti-forgery token
-                function getToken() {
-            const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
-            if (tokenInput) {
-                return tokenInput.value;
-            }
-            console.error('Anti-forgery token not found');
-            return '';
-        }
-
-        // Update date/time
-        function updateDateTime() {
-            const now = new Date();
-            const timeEl = document.getElementById('currentTime');
-            const dateEl = document.getElementById('currentDate');
-            if (timeEl) timeEl.innerHTML = now.toLocaleTimeString();
-            if (dateEl) {
-                dateEl.innerHTML = now.toLocaleDateString('en-US', {
-                    weekday: 'short',
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric'
-                });
-            }
-        }
-
-        setInterval(updateDateTime, 1000);
-        updateDateTime();
-
-        // ========== ATTENDANCE FUNCTIONS ==========
-        function checkAttendanceStatus() {
-            fetch('/Staff/GetTodayAttendance')
-                .then(res => res.json())
-                .then(data => {
-                    const timeInBtn = document.getElementById('timeInBtn');
-                    const timeOutBtn = document.getElementById('timeOutBtn');
-                    const statusBadge = document.getElementById('attendanceStatusBadge');
-                    const hoursDisplay = document.getElementById('todayHoursDisplay');
-
-                    if (!timeInBtn || !timeOutBtn) return;
-
-                    if (data.isClockedIn) {
-                        timeInBtn.style.display = 'none';
-                        timeOutBtn.style.display = 'inline-block';
-                        statusBadge.className = 'badge bg-success ms-2';
-                        statusBadge.innerText = '🟢 Clocked In';
-                        if (hoursDisplay) hoursDisplay.innerText = data.hoursToday;
-                    } else if (data.hasClockedOut) {
-                        timeInBtn.style.display = 'none';
-                        timeOutBtn.style.display = 'none';
-                        statusBadge.className = 'badge bg-secondary ms-2';
-                        statusBadge.innerText = '🔴 Completed';
-                        if (hoursDisplay) hoursDisplay.innerText = data.hoursToday;
-                    } else {
-                        timeInBtn.style.display = 'inline-block';
-                        timeOutBtn.style.display = 'none';
-                        statusBadge.className = 'badge bg-secondary ms-2';
-                        statusBadge.innerText = '⭕ Not Clocked In';
-                        if (hoursDisplay) hoursDisplay.innerText = '0.0';
-                        showAttendanceReminder();
-                    }
-                })
-                .catch(err => console.error('Error checking attendance:', err));
-        }
-
-                let reminderShown = false;
-
-        function showAttendanceReminder() {
-            if (reminderShown) return; // para hindi paulit ulit
-
-            reminderShown = true;
-
-            const modal = new bootstrap.Modal(document.getElementById('attendanceReminderModal'));
-            modal.show();
-
-                    setTimeout(() => {
-            reminderShown = false;
-            checkAttendanceStatus();
-        }, 300000); // 5 minutes
-        }
-
-                function timeInFromReminder() {
-            const modalEl = document.getElementById('attendanceReminderModal');
-            const modal = bootstrap.Modal.getInstance(modalEl);
-            modal.hide();
-
-            timeIn(); // reuse mo existing function mo
-        }
-
-
-        function timeIn() {
-            const token = getToken();
-
-            fetch('/Staff/TimeIn', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': token
-                }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    alert(data.message);
-                    checkAttendanceStatus();
-                } else {
-                    alert('❌ ' + data.message);
-                }
-            })
-            .catch(err => alert('Error: ' + err.message));
-        }
-
-        function timeOut() {
-            if (!confirm('End your shift? This will record your total hours.')) return;
-
-            const token = getToken();
-
-            fetch('/Staff/TimeOut', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': token
-                }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    alert(data.message);
-                    checkAttendanceStatus();
-                } else {
-                    alert('❌ ' + data.message);
-                }
-            })
-            .catch(err => alert('Error: ' + err.message));
-        }
-
-        // ========== PRODUCT FUNCTIONS ==========
-        async function loadAllAvailability() {
-            const productCards = document.querySelectorAll('.product-card');
-            for (const card of productCards) {
-                const sizeId = card.getAttribute('data-size-id');
-                await updateAvailabilityStatus(sizeId);
-            }
-        }
-
-        async function updateAvailabilityStatus(productSizeId) {
-            const statusSpan = document.getElementById(`status-${productSizeId}`);
-            const card = document.querySelector(`.product-card[data-size-id="${productSizeId}"]`);
-
-            if (!statusSpan) return;
-
-            try {
-                const response = await fetch(`/Staff/CheckAvailability?productSizeId=${productSizeId}&quantity=1`);
-                const data = await response.json();
-
-                if (data.available) {
-                    statusSpan.innerHTML = `✅ ${data.maxPossibleOrders}`;
-                    statusSpan.style.background = '#d4edda';
-                    statusSpan.style.color = '#155724';
-                    if (card) card.classList.remove('out-of-stock');
-                } else {
-                    statusSpan.innerHTML = `❌ Out`;
-                    statusSpan.style.background = '#f8d7da';
-                    statusSpan.style.color = '#721c24';
-                    if (card) card.classList.add('out-of-stock');
-                }
-            } catch (error) {
-                statusSpan.innerHTML = `⚠️ Error`;
-                statusSpan.style.background = '#fff3cd';
-                statusSpan.style.color = '#856404';
-            }
-        }
-
-        function filterByCategory(category) {
-            const clickedItem = event.target;
-            document.querySelectorAll('.category-item').forEach(item => {
-                item.classList.remove('active');
-            });
-            clickedItem.classList.add('active');
-
-            const products = document.querySelectorAll('.product-card');
-            products.forEach(product => {
-                if (category === 'all') {
-                    product.style.display = '';
-                } else {
-                    const productCategory = product.getAttribute('data-category');
-                    product.style.display = productCategory === category ? '' : 'none';
-                }
-            });
-        }
-
-        async function selectProduct(productSizeId, productName, sizeName, price) {
-            const response = await fetch(`/Staff/CheckAvailability?productSizeId=${productSizeId}&quantity=1`);
+        // Show Size Modal
+              // Show Size Modal
+        async function showSizeModal(productId, productName) {
+            const response = await fetch(`/Staff/GetProductWithSizes?productId=${productId}`);
             const data = await response.json();
 
-            if (!data.available) {
-                alert(`❌ ${productName} - ${sizeName} is currently OUT OF STOCK!\n\n${data.message}`);
+            console.log('API Response:', data);
+
+            if (!data.success) {
+                alert('Error loading product sizes');
                 return;
             }
 
-            currentMaxOrders = data.maxPossibleOrders;
+            document.getElementById('sizeModalProductName').innerText = data.productName;
 
-            selectedProduct = {
+            let sizesHtml = '';
+            for (const size of data.sizes) {
+                // ✅ LAHAT ng 'stock' dapat small 's'
+                const stockValue = size.stock;
+                const stockStatus = stockValue > 0 ? `✅ Stock: ${stockValue}` : '❌ Out of Stock';
+                const disabledClass = stockValue <= 0 ? 'opacity-50' : '';
+
+                sizesHtml += `
+                    <div class="size-option ${disabledClass}" style="border: 1px solid #ddd; border-radius: 12px; padding: 15px; margin-bottom: 10px; cursor: ${stockValue > 0 ? 'pointer' : 'not-allowed'};"
+                         onclick="${stockValue > 0 ? `selectSize(${size.productSizeId}, '${size.sizeName}', ${size.price}, ${stockValue})` : ''}">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong style="font-size: 16px;">${size.sizeName}</strong>
+                                <div style="font-size: 12px; color: #666;">${stockStatus}</div>
+                            </div>
+                            <div style="font-size: 20px; font-weight: bold; color: #ff6b35;">₱${size.price.toFixed(2)}</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            document.getElementById('sizeOptionsList').innerHTML = sizesHtml;
+            document.getElementById('sizeModal').style.display = 'flex';
+        }
+
+        function closeSizeModal() {
+            document.getElementById('sizeModal').style.display = 'none';
+        }
+
+        function selectSize(productSizeId, sizeName, price, stock) {
+            tempSelectedSize = {
                 productSizeId: productSizeId,
-                productName: productName,
                 sizeName: sizeName,
-                price: price
+                price: price,
+                stock: stock
             };
-
             modalQuantity = 1;
-            document.getElementById('modalProductName').innerHTML = `${productName} - ${sizeName}`;
+            document.getElementById('modalProductName').innerHTML = `${sizeName} - ₱${price.toFixed(2)}`;
             document.getElementById('modalQty').innerHTML = '1';
             document.getElementById('quantityModal').style.display = 'flex';
+            closeSizeModal();
+            checkMaxAvailability();
+        }
+
+        async function checkMaxAvailability() {
+            if (!tempSelectedSize) return;
+            const response = await fetch(`/Staff/CheckAvailability?productSizeId=${tempSelectedSize.productSizeId}&quantity=1`);
+            const data = await response.json();
+            currentMaxOrders = data.maxPossibleOrders || 0;
         }
 
         function decrementModalQty() {
@@ -794,44 +745,45 @@
             if (modalQuantity < currentMaxOrders) {
                 modalQuantity++;
                 document.getElementById('modalQty').innerHTML = modalQuantity;
-            } else {
+            } else if (currentMaxOrders > 0) {
                 alert(`Maximum available is ${currentMaxOrders} order(s).`);
             }
         }
 
         function closeQuantityModal() {
             document.getElementById('quantityModal').style.display = 'none';
-            selectedProduct = null;
+            tempSelectedSize = null;
         }
 
         async function confirmAddToCart() {
-            if (!selectedProduct) return;
+            if (!tempSelectedSize) return;
 
-            const response = await fetch(`/Staff/CheckAvailability?productSizeId=${selectedProduct.productSizeId}&quantity=${modalQuantity}`);
+            const response = await fetch(`/Staff/CheckAvailability?productSizeId=${tempSelectedSize.productSizeId}&quantity=${modalQuantity}`);
             const data = await response.json();
 
             if (!data.available) {
                 alert(`❌ Cannot add to cart:\n${data.message}`);
                 closeQuantityModal();
+                tempSelectedSize = null;
                 return;
             }
 
-            const existingIndex = cart.findIndex(item => item.productSizeId === selectedProduct.productSizeId);
+            const existingIndex = cart.findIndex(item => item.productSizeId === tempSelectedSize.productSizeId);
             if (existingIndex !== -1) {
                 cart[existingIndex].quantity += modalQuantity;
             } else {
                 cart.push({
-                    productSizeId: selectedProduct.productSizeId,
-                    productName: selectedProduct.productName,
-                    sizeName: selectedProduct.sizeName,
-                    price: selectedProduct.price,
+                    productSizeId: tempSelectedSize.productSizeId,
+                    productName: document.getElementById('sizeModalProductName').innerText,
+                    sizeName: tempSelectedSize.sizeName,
+                    price: tempSelectedSize.price,
                     quantity: modalQuantity
                 });
             }
 
             updateCartDisplay();
             closeQuantityModal();
-            await updateAvailabilityStatus(selectedProduct.productSizeId);
+            tempSelectedSize = null;
         }
 
         function updateCartDisplay() {
@@ -891,40 +843,111 @@
 
             cart[index].quantity = newQty;
             updateCartDisplay();
-            await updateAvailabilityStatus(item.productSizeId);
         }
 
         function removeFromCart(index) {
-            const item = cart[index];
             cart.splice(index, 1);
             updateCartDisplay();
-            if (item) {
-                updateAvailabilityStatus(item.productSizeId);
-            }
         }
 
         function clearCart() {
             if (cart.length === 0) return;
             if (confirm('Clear all items from cart?')) {
-                const sizeIds = [...new Set(cart.map(item => item.productSizeId))];
                 cart = [];
                 updateCartDisplay();
-                sizeIds.forEach(id => updateAvailabilityStatus(id));
             }
         }
 
-        async function checkout() {
+        // Checkout with discount
+               async function checkout() {
             if (cart.length === 0) {
                 alert('Cart is empty!');
                 return;
             }
 
-            const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-            const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+            currentCartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-            if (!confirm(`Confirm order for ${totalItems} item(s) - Total: ₱${total.toFixed(2)}?`)) {
-                return;
+            // Ipakita ang discount options sa gilid, hindi modal
+            showDiscountOptionsInline();
+        }
+                function showDiscountOptionsInline() {
+            // I-hide ang payment modal kung visible
+            const paymentModal = document.getElementById('paymentModal');
+            if (paymentModal) paymentModal.style.display = 'none';
+
+            // Ipakita ang discount options sa cart area
+            const cartFooter = document.querySelector('.cart-footer');
+            const existingDiscountDiv = document.getElementById('inlineDiscountOptions');
+
+            if (existingDiscountDiv) {
+                existingDiscountDiv.remove();
             }
+
+            const discountHtml = `
+                <div id="inlineDiscountOptions" style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 8px;">
+                    <small class="text-muted">Select Discount:</small>
+                    <div style="display: flex; gap: 5px; margin-top: 5px;">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="applyDiscountAndPay('None', 0)">None</button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="applyDiscountAndPay('Senior Citizen', 0.20)">Senior (20%)</button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="applyDiscountAndPay('PWD', 0.20)">PWD (20%)</button>
+                    </div>
+                </div>
+            `;
+
+            cartFooter.insertAdjacentHTML('beforeend', discountHtml);
+        }
+
+        function applyDiscountAndPay(type, percent) {
+            // Remove discount options
+            const discountDiv = document.getElementById('inlineDiscountOptions');
+            if (discountDiv) discountDiv.remove();
+
+            currentDiscountType = type;
+            currentDiscountPercent = percent;
+            currentDiscountedTotal = currentCartTotal * (1 - percent);
+
+            // Diretso na sa payment method selection
+            showPaymentMethodInline();
+        }
+
+        function showPaymentMethodInline() {
+            const cartFooter = document.querySelector('.cart-footer');
+            const existingPaymentDiv = document.getElementById('inlinePaymentOptions');
+
+            if (existingPaymentDiv) {
+                existingPaymentDiv.remove();
+            }
+
+            const discountText = currentDiscountPercent > 0 ?
+                `<small class="text-muted">Discount (${currentDiscountType}): ${currentDiscountPercent * 100}% off</small><br>` : '';
+
+            const paymentHtml = `
+                <div id="inlinePaymentOptions" style="margin-top: 10px; padding: 10px; background: #e9ecef; border-radius: 8px;">
+                    <small class="text-muted">Payment Method:</small>
+                    ${discountText}
+                    <div style="display: flex; gap: 10px; margin-top: 5px;">
+                        <button class="btn btn-sm btn-success" onclick="processPaymentInline('Cash')">💵 Cash</button>
+                        <button class="btn btn-sm btn-primary" onclick="processPaymentInline('GCash')">📱 GCash</button>
+                        <button class="btn btn-sm btn-secondary" onclick="cancelPayment()">Cancel</button>
+                    </div>
+                </div>
+            `;
+
+            cartFooter.insertAdjacentHTML('beforeend', paymentHtml);
+        }
+
+        function cancelPayment() {
+            const paymentDiv = document.getElementById('inlinePaymentOptions');
+            if (paymentDiv) paymentDiv.remove();
+
+            const discountDiv = document.getElementById('inlineDiscountOptions');
+            if (discountDiv) discountDiv.remove();
+        }
+
+        async function processPaymentInline(method) {
+            // Remove payment options
+            const paymentDiv = document.getElementById('inlinePaymentOptions');
+            if (paymentDiv) paymentDiv.remove();
 
             const checkoutBtn = document.getElementById('checkoutBtn');
             const originalText = checkoutBtn.innerHTML;
@@ -957,11 +980,17 @@
                     }
                 }
 
-                alert(`✅ Order completed successfully!\n\nTotal: ₱${total.toFixed(2)}\n\nRaw materials have been deducted from inventory.`);
+                const discountSavings = currentCartTotal - currentDiscountedTotal;
+                let message = `✅ Order completed!\n\nPayment: ${method}\nSubtotal: ₱${currentCartTotal.toFixed(2)}`;
+                if (discountSavings > 0) {
+                    message += `\nDiscount (${currentDiscountType}): -₱${discountSavings.toFixed(2)}\nTotal: ₱${currentDiscountedTotal.toFixed(2)}`;
+                }
+                alert(message);
 
                 cart = [];
+                currentDiscountType = 'None';
+                currentDiscountPercent = 0;
                 updateCartDisplay();
-                loadAllAvailability();
 
             } catch (error) {
                 alert('❌ Error processing order: ' + error.message);
@@ -971,10 +1000,185 @@
             }
         }
 
-        // ========== INITIALIZE ON PAGE LOAD ==========
+        function showDiscountModal() {
+            document.getElementById('discountModal').style.display = 'flex';
+        }
+
+        function closeDiscountModal() {
+            document.getElementById('discountModal').style.display = 'none';
+        }
+
+        function applyDiscount(type, percent) {
+            currentDiscountType = type;
+            currentDiscountPercent = percent;
+            currentDiscountedTotal = currentCartTotal * (1 - percent);
+
+            closeDiscountModal();
+
+            const discountMessage = percent > 0 ? `\nDiscount (${type}): ${percent * 100}% off\nTotal after discount: ₱${currentDiscountedTotal.toFixed(2)}` : '';
+
+            if (confirm(`Order Summary:\nTotal items: ${cart.reduce((sum, i) => sum + i.quantity, 0)}\nSubtotal: ₱${currentCartTotal.toFixed(2)}${discountMessage}\n\nProceed to payment?`)) {
+                showPaymentModal();
+            }
+        }
+
+        function showPaymentModal() {
+            document.getElementById('paymentModal').style.display = 'flex';
+        }
+
+        function closePaymentModal() {
+            document.getElementById('paymentModal').style.display = 'none';
+        }
+
+        async function processPayment(method) {
+            closePaymentModal();
+
+            const checkoutBtn = document.getElementById('checkoutBtn');
+            const originalText = checkoutBtn.innerHTML;
+            checkoutBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+            checkoutBtn.disabled = true;
+
+            const token = getToken();
+
+            try {
+                for (const item of cart) {
+                    const response = await fetch('/Staff/PlaceOrder', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': token
+                        },
+                        body: JSON.stringify({
+                            productSizeId: item.productSizeId,
+                            quantity: item.quantity,
+                            orderNumber: `POS-${Date.now()}`
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (!data.success) {
+                        alert(`❌ Error with ${item.productName}: ${data.message}`);
+                        checkoutBtn.innerHTML = originalText;
+                        checkoutBtn.disabled = false;
+                        return;
+                    }
+                }
+
+                alert(`✅ Order completed successfully!\n\nPayment Method: ${method}\nDiscount: ${currentDiscountPercent * 100}% (${currentDiscountType})\nSubtotal: ₱${currentCartTotal.toFixed(2)}\nTotal: ₱${currentDiscountedTotal.toFixed(2)}`);
+
+                cart = [];
+                currentDiscountType = 'None';
+                currentDiscountPercent = 0;
+                updateCartDisplay();
+
+            } catch (error) {
+                alert('❌ Error processing order: ' + error.message);
+            } finally {
+                checkoutBtn.innerHTML = originalText;
+                checkoutBtn.disabled = false;
+            }
+        }
+
+        function getToken() {
+            const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+            return tokenInput ? tokenInput.value : '';
+        }
+
+        function updateDateTime() {
+            const now = new Date();
+            const timeEl = document.getElementById('currentTime');
+            const dateEl = document.getElementById('currentDate');
+            if (timeEl) timeEl.innerHTML = now.toLocaleTimeString();
+            if (dateEl) {
+                dateEl.innerHTML = now.toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+            }
+        }
+        setInterval(updateDateTime, 1000);
+        updateDateTime();
+
+        // Attendance Functions
+        function checkAttendanceStatus() {
+            fetch('/Staff/GetTodayAttendance')
+                .then(res => res.json())
+                .then(data => {
+                    const timeInBtn = document.getElementById('timeInBtn');
+                    const timeOutBtn = document.getElementById('timeOutBtn');
+                    const statusBadge = document.getElementById('attendanceStatusBadge');
+                    const hoursDisplay = document.getElementById('todayHoursDisplay');
+                    if (data.isClockedIn) {
+                        timeInBtn.style.display = 'none';
+                        timeOutBtn.style.display = 'inline-block';
+                        statusBadge.className = 'badge bg-success ms-2';
+                        statusBadge.innerText = '🟢 Clocked In';
+                        if (hoursDisplay) hoursDisplay.innerText = data.hoursToday;
+                    } else if (data.hasClockedOut) {
+                        timeInBtn.style.display = 'none';
+                        timeOutBtn.style.display = 'none';
+                        statusBadge.className = 'badge bg-secondary ms-2';
+                        statusBadge.innerText = '🔴 Completed';
+                        if (hoursDisplay) hoursDisplay.innerText = data.hoursToday;
+                    } else {
+                        timeInBtn.style.display = 'inline-block';
+                        timeOutBtn.style.display = 'none';
+                        statusBadge.className = 'badge bg-secondary ms-2';
+                        statusBadge.innerText = '⭕ Not Clocked In';
+                        if (hoursDisplay) hoursDisplay.innerText = '0.0';
+                        showAttendanceReminder();
+                    }
+                });
+        }
+
+        let reminderShown = false;
+        function showAttendanceReminder() {
+            if (reminderShown) return;
+            reminderShown = true;
+            const modal = new bootstrap.Modal(document.getElementById('attendanceReminderModal'));
+            modal.show();
+            setTimeout(() => { reminderShown = false; checkAttendanceStatus(); }, 300000);
+        }
+
+        function timeInFromReminder() {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('attendanceReminderModal'));
+            modal.hide();
+            timeIn();
+        }
+
+        function timeIn() {
+            fetch('/Staff/TimeIn', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() }
+            })
+            .then(res => res.json())
+            .then(data => { if (data.success) { alert(data.message); checkAttendanceStatus(); } else { alert('❌ ' + data.message); } });
+        }
+
+        function timeOut() {
+            if (!confirm('End your shift?')) return;
+            fetch('/Staff/TimeOut', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() }
+            })
+            .then(res => res.json())
+            .then(data => { if (data.success) { alert(data.message); checkAttendanceStatus(); } else { alert('❌ ' + data.message); } });
+        }
+
+        function filterByCategory(category) {
+            document.querySelectorAll('.category-item').forEach(item => item.classList.remove('active'));
+            event.target.classList.add('active');
+            document.querySelectorAll('.product-card').forEach(product => {
+                const productCategory = product.getAttribute('data-category');
+                product.style.display = (category === 'all' || productCategory === category) ? '' : 'none';
+            });
+        }
+
+        // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             checkAttendanceStatus();
-            loadAllAvailability();
         });
     </script>
 </body>

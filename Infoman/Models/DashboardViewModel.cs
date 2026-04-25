@@ -11,6 +11,7 @@
     {
         public int Rank { get; set; }
         public string Name { get; set; }
+        public string SizeName { get; set; }
         public decimal Price { get; set; }
         public int TotalSold { get; set; }
     }

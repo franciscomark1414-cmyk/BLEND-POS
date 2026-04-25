@@ -11,6 +11,7 @@ namespace Infoman.Models
         public string Password { get; set; } = null!;
 
         public string Role { get; set; } = null!;
+        public DateTime? UpdatedAt { get; set; }
 
         // ========== NEW EMPLOYEE FIELDS ==========
         [Required]

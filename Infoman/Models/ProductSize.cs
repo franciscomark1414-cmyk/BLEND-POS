@@ -15,9 +15,6 @@ namespace Infoman.Models
 
         [Required]
         public decimal Price { get; set; } // Selling price per size (after profit margin)
-
-        [Required]
-        public int Stock { get; set; } // Stock per size
         public decimal Margin { get; set; } = 0.3m;
         public bool IsAvailableInPOS { get; set; } = false;
 

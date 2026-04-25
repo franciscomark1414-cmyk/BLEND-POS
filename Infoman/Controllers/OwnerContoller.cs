@@ -49,11 +49,19 @@ namespace Infoman.Controllers
 
             DateTime today = DateTime.Today;
 
-            // ========== TODAY'S SALES & REVENUE ==========
+            // ========== TODAY'S ORDERS ==========
             var todaysOrders = _db.Orders.Where(o => o.Date.Date == today && o.Status != "Cancelled").ToList();
-            ViewBag.TodaysSales = todaysOrders.Count();
+            ViewBag.TodaysSales = todaysOrders.Sum(o => o.TotalAmount);  // TODAY'S REVENUE
             ViewBag.TotalOrdersToday = todaysOrders.Count();
-            ViewBag.TotalRevenue = todaysOrders.Sum(o => o.TotalAmount);
+
+            // ========== ALL-TIME TOTAL REVENUE (FIXED!) ==========
+            var allTimeRevenue = _db.Orders
+                .Where(o => o.Status != "Cancelled")
+                .Sum(o => (decimal?)o.TotalAmount) ?? 0;
+            ViewBag.AllTimeRevenue = allTimeRevenue;  // ← BAGO: ito ang ALL TIME
+
+            // Para sa 30% profit estimate
+            ViewBag.EstimatedProfit = allTimeRevenue * 0.3m;
 
             // ========== CRITICAL STOCK ALERT ==========
             // Critical stock = Stock <= MinQty
@@ -127,25 +135,29 @@ namespace Infoman.Controllers
                     .Where(oi => oi.Order.Status != "Cancelled")
                     .ToList(); // Execute query first
 
-                // Group in memory (client-side)
                 bestSelling = orderItems
-                    .GroupBy(oi => oi.Product?.Name ?? "Unknown")
-                    .Select(g => new BestSellingProductVM
-                    {
-                        Name = g.Key,
-                        TotalSold = g.Sum(oi => oi.Quantity),
-                        Price = g.FirstOrDefault()?.Price ?? 0
-                    })
-                    .OrderByDescending(p => p.TotalSold)
-                    .Take(5)
-                    .Select((p, index) => new BestSellingProductVM
-                    {
-                        Rank = index + 1,
-                        Name = p.Name,
-                        TotalSold = p.TotalSold,
-                        Price = p.Price
-                    })
-                    .ToList();
+    .GroupBy(oi => new {
+        ProductName = oi.Product?.Name ?? "Unknown",
+        SizeName = oi.ProductSize?.SizeName ?? "Regular"  // ← ISAMA ANG SIZE
+    })
+    .Select(g => new BestSellingProductVM
+    {
+        Name = g.Key.ProductName,
+        SizeName = g.Key.SizeName,
+        TotalSold = g.Sum(oi => oi.Quantity),
+        Price = g.FirstOrDefault()?.Price ?? 0
+    })
+    .OrderByDescending(p => p.TotalSold)
+    .Take(5)
+    .Select((p, index) => new BestSellingProductVM
+    {
+        Rank = index + 1,
+        Name = p.Name,
+        SizeName = p.SizeName,
+        TotalSold = p.TotalSold,
+        Price = p.Price
+    })
+    .ToList();
             }
             catch (Exception ex)
             {
@@ -189,7 +201,6 @@ namespace Infoman.Controllers
                 ProductSizeId = s.ProductSizeId,
                 SizeName = s.SizeName,
                 Price = s.Price,
-                Stock = s.Stock,
                 IsAvailableInPOS = s.IsAvailableInPOS
             }).ToList()
         })
@@ -227,7 +238,7 @@ namespace Infoman.Controllers
         }
         // Sa OwnerController.cs, idagdag ito:
 
-        
+
 
         // O kung gusto mo ng JSON version para sa AJAX:
         [HttpGet]
@@ -243,12 +254,12 @@ namespace Infoman.Controllers
                     p.Category,
                     p.Description,
                     p.ImagePath,
-                    TotalStock = p.Sizes.Sum(s => s.Stock),
+                    // TotalStock = p.Sizes.Sum(s => s.Stock),  // ← TANGGALIN! Wala nang Stock column
                     Sizes = p.Sizes.Select(s => new
                     {
                         s.SizeName,
                         s.Price,
-                        s.Stock
+                        // s.Stock  // ← TANGGALIN DIN!
                     })
                 })
                 .ToListAsync();
@@ -348,7 +359,6 @@ namespace Infoman.Controllers
                     {
                         SizeName = sizeVM.SizeName.Trim(),
                         SKU = sizeSKU ?? "",  // ← IDAGDAG ITO
-                        Stock = sizeVM.Stock,
                         Margin = margin,  // ← IDAGDAG ITO (kung meron sa model mo)
                         RecipeItems = new List<RecipeItem>()
                     };
@@ -408,8 +418,7 @@ namespace Infoman.Controllers
                     return Json(new { success = false, message = "Please add at least one valid size" });
                 }
 
-                product.Stock = product.Sizes.Sum(s => s.Stock);
-
+               
                 _db.Products.Add(product);
                 await _db.SaveChangesAsync();
 
@@ -481,6 +490,25 @@ namespace Infoman.Controllers
             // Compute profit/loss
             decimal profit = productSize.Price - totalCost;
 
+            // Compute actual available stock from raw materials
+            var today = DateTime.Today;
+            int availableStock = int.MaxValue;
+
+            foreach (var recipeItem in productSize.RecipeItems)
+            {
+                decimal availableQty = await _db.RawMaterialBatches
+                    .Where(b => b.RawMaterialId == recipeItem.RawMaterialId
+                        && b.QuantityRemaining > 0
+                        && (!b.ExpiryDate.HasValue || b.ExpiryDate.Value >= today))
+                    .SumAsync(b => b.QuantityRemaining);
+
+                int possibleOrders = (int)(availableQty / recipeItem.Quantity);
+                if (possibleOrders < availableStock)
+                    availableStock = possibleOrders;
+            }
+
+            int finalStock = (availableStock == int.MaxValue || availableStock < 0) ? 0 : availableStock;
+
             var recipe = new
             {
                 productName = productSize.Product.Name,
@@ -490,9 +518,11 @@ namespace Infoman.Controllers
                 sellingPrice = productSize.Price,
                 totalCost = totalCost,
                 margin = productSize.Margin,
-                stock = productSize.Stock,
+                // stock = productSize.Stock,  // ← TANGGALIN
+                // hasStock = productSize.Stock > 0,  // ← TANGGALIN
+                stock = finalStock,  // ← ITO ANG BAGO - galing sa raw materials
+                hasStock = finalStock > 0,  // ← ITO ANG BAGO
                 profit = profit,
-                hasStock = productSize.Stock > 0,
                 ingredients = ingredientsWithPrices
             };
 
@@ -570,16 +600,6 @@ namespace Infoman.Controllers
             if (productSize == null)
                 return Json(new { canEdit = false, message = "Product not found" });
 
-            if (productSize.Stock > 0)
-            {
-                return Json(new
-                {
-                    canEdit = false,
-                    message = $"⚠️ Cannot edit recipe!\n\nThis product has {productSize.Stock} pcs in stock.\n\nPlease sell or waste remaining stock before editing the recipe.",
-                    stock = productSize.Stock
-                });
-            }
-
             return Json(new { canEdit = true });
         }
 
@@ -602,16 +622,6 @@ namespace Infoman.Controllers
                     return Json(new { success = false, message = "Product size not found" });
 
                 // ✅ CHECK KUNG MAY STOCK BAGO I-EDIT
-                if (productSize.Stock > 0)
-                {
-                    return Json(new
-                    {
-                        success = false,
-                        message = $"Cannot save recipe changes. This product has {productSize.Stock} pcs in stock. Please sell or waste remaining stock first.",
-                        hasStock = true,
-                        stock = productSize.Stock
-                    });
-                }
 
                 // I-save ang margin
                 productSize.Margin = model.Margin;
@@ -902,15 +912,13 @@ namespace Infoman.Controllers
                     }
                 }
 
-                // Add sa product stock
-                productSize.Stock += request.Quantity;
                 await _db.SaveChangesAsync();
 
                 return Json(new
                 {
                     success = true,
                     message = $"Successfully produced {request.Quantity} pcs of {productSize.Product.Name} - {productSize.SizeName}",
-                    newStock = productSize.Stock,
+
                     referenceNo = referenceNo
                 });
             }
@@ -1113,12 +1121,62 @@ namespace Infoman.Controllers
             });
 
         }
-        public ActionResult Reports()
+        public async Task<ActionResult> Reports()
         {
-            // Calculate total waste cost from database
-            var wasteLogs = _db.WasteLogs.ToList(); // or whatever your data source is
+            // ========== TOTAL REVENUE ==========
+            var totalRevenue = await _db.Orders
+                .Where(o => o.Status != "Cancelled")
+                .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
+            ViewBag.TotalRevenue = totalRevenue;
+
+            // ========== ESTIMATED PROFIT (30% margin) ==========
+            ViewBag.EstimatedProfit = totalRevenue * 0.3m;
+
+            // ========== TOTAL WASTE COST ==========
+            var wasteLogs = await _db.WasteLogs.ToListAsync();
             var totalWasteCost = wasteLogs.Sum(w => w.TotalCost);
-            ViewBag.TotalWasteCost = totalWasteCost; // ₱1000.10
+            ViewBag.TotalWasteCost = totalWasteCost;
+
+            // ========== SALES PERFORMANCE CHART DATA ==========
+            var today = DateTime.Today;
+            var last7Days = Enumerable.Range(0, 7)
+                .Select(i => today.AddDays(-6 + i))
+                .ToList();
+
+            var salesLabels = last7Days.Select(d => d.ToString("MMM dd")).ToList();
+            var salesRevenue = new List<decimal>();
+            var salesOrders = new List<int>();
+
+            foreach (var day in last7Days)
+            {
+                var dailyRevenue = await _db.Orders
+                    .Where(o => o.Date.Date == day && o.Status != "Cancelled")
+                    .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
+                salesRevenue.Add(dailyRevenue);
+
+                var dailyOrders = await _db.Orders
+                    .CountAsync(o => o.Date.Date == day && o.Status != "Cancelled");
+                salesOrders.Add(dailyOrders);
+            }
+
+            ViewBag.SalesLabels = salesLabels;
+            ViewBag.SalesRevenue = salesRevenue;
+            ViewBag.SalesOrders = salesOrders;
+
+            // ========== CATEGORY DISTRIBUTION ==========
+            var categoryDistribution = await _db.OrderItems
+                .Include(oi => oi.Order)
+                .Include(oi => oi.Product)
+                .Where(oi => oi.Order.Status != "Cancelled")
+                .GroupBy(oi => oi.Product.Category ?? "Uncategorized")
+                .Select(g => new
+                {
+                    Category = g.Key,
+                    Revenue = g.Sum(oi => oi.Price * oi.Quantity)
+                })
+                .ToListAsync();
+
+            ViewBag.CategoryDistribution = categoryDistribution;
 
             return View();
         }

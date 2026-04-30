@@ -16,6 +16,10 @@ namespace Infoman.Controllers
             _db = db;
             _fifoService = new FIFOService(_db);
         }
+        private async Task EnsureExpiredBatchesProcessed()
+        {
+            await _fifoService.ProcessExpiredBatches();
+        }
         private bool IsUserLoggedIn()
         {
             var userId = HttpContext.Session.GetInt32("UserId");
@@ -25,6 +29,8 @@ namespace Infoman.Controllers
         // POS Main Page
         public async Task<IActionResult> POS()
         {
+            await EnsureExpiredBatchesProcessed();
+
             if (!IsUserLoggedIn())
             {
                 return RedirectToAction("Login", "Account");
@@ -68,6 +74,8 @@ namespace Infoman.Controllers
         [HttpGet]
         public async Task<IActionResult> CheckAvailability(int productSizeId, int quantity)
         {
+            await EnsureExpiredBatchesProcessed();
+
             var productSize = await _db.ProductSizes
                 .Include(ps => ps.RecipeItems)
                     .ThenInclude(ri => ri.RawMaterial)
@@ -136,6 +144,11 @@ namespace Infoman.Controllers
                 if (request.Quantity <= 0)
                     return Json(new { success = false, message = "Invalid quantity" });
 
+                // Compute original total at discounted total
+                decimal originalTotal = request.Quantity * productSize.Price;
+                decimal discountedTotal = originalTotal * (1 - request.DiscountPercent);
+                decimal discountAmount = originalTotal - discountedTotal;
+
                 // Check raw materials availability
                 foreach (var recipeItem in productSize.RecipeItems)
                 {
@@ -156,7 +169,7 @@ namespace Infoman.Controllers
                     }
                 }
 
-                // Deduct raw materials at kunin ang actual cost
+                // Deduct raw materials
                 string orderNumber = request.OrderNumber ?? $"ORD-{DateTime.Now:yyyyMMddHHmmss}";
                 decimal totalActualCost = 0;
 
@@ -178,13 +191,18 @@ namespace Infoman.Controllers
                     totalActualCost += cost;
                 }
 
-                // Record sale
+                // ✅ Record sale WITH DISCOUNT AND PAYMENT INFO
                 var order = new Order
                 {
                     OrderNumber = orderNumber,
                     Date = DateTime.Now,
-                    TotalAmount = request.Quantity * productSize.Price,
-                    Status = "Completed"
+                    TotalAmount = discountedTotal,  // ← Discounted total
+                    Status = "Completed",
+                    PaymentMethod = request.PaymentMethod ?? "Cash",  // ← IDAGDAG
+                    DiscountType = string.IsNullOrEmpty(request.DiscountType) ? "None" : request.DiscountType,  // ← IDAGDAG
+                    DiscountPercent = request.DiscountPercent,  // ← IDAGDAG
+                    DiscountAmount = discountAmount,  // ← IDAGDAG
+                    ReceiptNumber = $"RC-{DateTime.Now:yyyyMMdd}-{new Random().Next(1000, 9999)}"  // ← IDAGDAG (optional)
                 };
 
                 _db.Orders.Add(order);
@@ -196,32 +214,21 @@ namespace Infoman.Controllers
                     ProductId = productSize.ProductId,
                     ProductSizeId = productSize.ProductSizeId,
                     Quantity = request.Quantity,
-                    Price = productSize.Price,
+                    Price = productSize.Price,  // Original price per unit
                     ActualCost = totalActualCost
                 };
 
                 _db.OrderItems.Add(orderItem);
                 await _db.SaveChangesAsync();
 
-
-                // ========== ✅ BAGONG CODE: RECORD PERFORMANCE ==========
-                // After ng order creation, bago tawagin ang RecordEmployeePerformance
+                // Record performance
                 var userId = HttpContext.Session.GetInt32("UserId");
-                System.Diagnostics.Debug.WriteLine($"=== PLACE ORDER ===");
-                System.Diagnostics.Debug.WriteLine($"Session UserId: {userId}");
-
                 if (userId.HasValue && userId > 0)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Calling RecordEmployeePerformance for UserId: {userId.Value}");
-                    await RecordEmployeePerformance(userId.Value, request.Quantity * productSize.Price);
-                    System.Diagnostics.Debug.WriteLine("RecordEmployeePerformance completed");
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine("UserId is NULL or ZERO! Cannot record performance.");
+                    await RecordEmployeePerformance(userId.Value, discountedTotal);
                 }
 
-                decimal revenue = request.Quantity * productSize.Price;
+                decimal revenue = discountedTotal;
                 decimal profit = revenue - totalActualCost;
 
                 return Json(new
@@ -229,7 +236,10 @@ namespace Infoman.Controllers
                     success = true,
                     message = $"✅ Order #{orderNumber} completed!\n" +
                              $"{request.Quantity} x {productSize.Product.Name} - {productSize.SizeName}\n" +
-                             $"Revenue: ₱{revenue:N2}\n" +
+                             $"Subtotal: ₱{originalTotal:N2}\n" +
+                             (request.DiscountPercent > 0 ? $"Discount ({request.DiscountType} {request.DiscountPercent * 100}%): -₱{discountAmount:N2}\n" : "") +
+                             $"Total: ₱{revenue:N2}\n" +
+                             $"Payment: {request.PaymentMethod}\n" +
                              $"Actual Cost: ₱{totalActualCost:N2}\n" +
                              $"Profit: ₱{profit:N2}",
                     orderNumber = orderNumber,
@@ -360,6 +370,8 @@ namespace Infoman.Controllers
         [HttpGet]
         public async Task<IActionResult> GetProductWithSizes(int productId)
         {
+            await EnsureExpiredBatchesProcessed();
+
             var product = await _db.Products
                 .Include(p => p.Sizes)
                     .ThenInclude(s => s.RecipeItems)
@@ -419,64 +431,74 @@ namespace Infoman.Controllers
 
         private async Task RecordEmployeePerformance(int userId, decimal orderAmount)
         {
-            System.Diagnostics.Debug.WriteLine("=== RECORD PERFORMANCE CALLED ===");
-            System.Diagnostics.Debug.WriteLine($"UserId: {userId}, OrderAmount: {orderAmount}");
-            var today = DateTime.Today;
-            var now = DateTime.Now;
-
-            // Hanapin kung may existing performance record na ngayong araw
-            var existingPerformance = await _db.EmployeePerformances
-                .FirstOrDefaultAsync(p => p.UserId == userId && p.Date.Date == today);
-
-            if (existingPerformance != null)
+            try
             {
-                // I-update ang existing record
-                existingPerformance.TotalSales += orderAmount;
-                existingPerformance.OrdersProcessed += 1;
-                existingPerformance.UpdatedAt = now;
-            }
-            else
-            {
-                // Gumawa ng bagong record
-                var performance = new EmployeePerformance
+                System.Diagnostics.Debug.WriteLine("=== RECORD PERFORMANCE CALLED ===");
+                System.Diagnostics.Debug.WriteLine($"UserId: {userId}, OrderAmount: {orderAmount}");
+                var today = DateTime.Today;
+                var now = DateTime.Now;
+
+                var existingPerformance = await _db.EmployeePerformances
+                    .FirstOrDefaultAsync(p => p.UserId == userId && p.Date.Date == today);
+
+                if (existingPerformance != null)
                 {
-                    UserId = userId,
-                    Date = today,
-                    TotalSales = orderAmount,
-                    OrdersProcessed = 1,
-                    Rating = 0,
-                    Notes = "Auto-recorded from POS",
-                    CreatedAt = now,
-                    UpdatedAt = now
-                };
+                    existingPerformance.TotalSales += orderAmount;
+                    existingPerformance.OrdersProcessed += 1;
+                    existingPerformance.UpdatedAt = now;
+                }
+                else
+                {
+                    var performance = new EmployeePerformance
+                    {
+                        UserId = userId,
+                        Date = today,
+                        TotalSales = orderAmount,
+                        OrdersProcessed = 1,
+                        Rating = 0,
+                        Notes = "Auto-recorded from POS",
+                        CreatedAt = now,
+                        UpdatedAt = now
+                    };
+                    _db.EmployeePerformances.Add(performance);
+                }
 
-                _db.EmployeePerformances.Add(performance);
+                var user = await _db.Users.FindAsync(userId);
+                if (user != null)
+                {
+                    var allPerformances = await _db.EmployeePerformances
+                        .Where(p => p.UserId == userId)
+                        .ToListAsync();
+
+                    user.TotalOrdersProcessed = allPerformances.Sum(p => p.OrdersProcessed);
+
+                    // ✅ SAFE AVERAGE COMPUTATION
+                    var ratedPerformances = allPerformances.Where(p => p.Rating > 0).ToList();
+                    user.AverageRating = ratedPerformances.Any()
+                        ? ratedPerformances.Average(p => p.Rating)
+                        : 0;
+
+                    user.UpdatedAt = now;
+                }
+
+                await _db.SaveChangesAsync();
+                System.Diagnostics.Debug.WriteLine("SaveChanges completed");
             }
-
-            // I-update din ang User table summary
-            var user = await _db.Users.FindAsync(userId);
-            if (user != null)
+            catch (Exception ex)
             {
-                var allPerformances = await _db.EmployeePerformances
-                    .Where(p => p.UserId == userId)
-                    .ToListAsync();
-
-                user.TotalOrdersProcessed = allPerformances.Sum(p => p.OrdersProcessed);
-                user.AverageRating = allPerformances.Any()
-                    ? allPerformances.Where(p => p.Rating > 0).Average(p => p.Rating)
-                    : 0;
-                user.UpdatedAt = now;  // ← IDAGDAG MO ITO
+                // I-log lang ang error, huwag i-throw para hindi ma-undo ang order
+                System.Diagnostics.Debug.WriteLine($"ERROR in RecordEmployeePerformance: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
             }
-
-            await _db.SaveChangesAsync();
-            System.Diagnostics.Debug.WriteLine("SaveChanges completed");
         }
-        
         public class PlaceOrderRequest
         {
             public int ProductSizeId { get; set; }
             public int Quantity { get; set; }
             public string? OrderNumber { get; set; }
+            public string? PaymentMethod { get; set; }     
+            public string? DiscountType { get; set; }       
+            public decimal DiscountPercent { get; set; }
         }
     }
 }

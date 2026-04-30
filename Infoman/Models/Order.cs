@@ -14,6 +14,14 @@ namespace Infoman.Models
         public decimal TotalAmount { get; set; }
         [Required]  
         public string Status { get; set; } = string.Empty;
+
+        // ✅ IDAGDAG ANG MGA RECEIPT FIELDS
+        public string? ReceiptNumber { get; set; }
+        public string? PaymentMethod { get; set; }
+        public string? DiscountType { get; set; }
+        public decimal DiscountPercent { get; set; }
+        public decimal DiscountAmount { get; set; }
+
         public virtual ICollection<OrderItem> Items { get; set; }
     }
 }

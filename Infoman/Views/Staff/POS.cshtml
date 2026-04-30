@@ -444,6 +444,73 @@
             border-radius: 10px;
             margin-bottom: 10px;
         }
+
+        /* Receipt Modal Styles */
+        #receiptModal .modal-qty-content {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease forwards;
+        }
+
+        @@keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .receipt-header {
+            text-align: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px dashed #ccc;
+        }
+
+        .receipt-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            margin-bottom: 8px;
+            padding: 5px 0;
+            border-bottom: 1px dotted #eee;
+        }
+
+        .receipt-subtotal, .receipt-discount, .receipt-total {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            padding-top: 8px;
+        }
+
+        .receipt-total {
+            font-weight: bold;
+            font-size: 16px;
+            border-top: 2px solid #333;
+            margin-top: 10px;
+            padding-top: 10px;
+        }
+
+        .receipt-discount {
+            color: #dc3545;
+            font-size: 12px;
+        }
+
+        .confirmation-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid #c3e6cb;
+        }
+
     </style>
 </head>
 <body>
@@ -510,7 +577,16 @@
                         @foreach (var product in Model)
                         {
                             <div class="product-card" data-product-id="@product.ProductId" data-category="@product.Category" onclick="showSizeModal(@product.ProductId, '@product.Name')">
-                                <div class="product-emoji">🥤</div>
+                                @if (!string.IsNullOrEmpty(product.ImagePath))
+                                {
+                                    <img src="@product.ImagePath" class="product-img" alt="@product.Name"
+                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <div class="product-emoji" style="display: none;">🥤</div>
+                                }
+                                else
+                                {
+                                    <div class="product-emoji">🥤</div>
+                                }
                                 <div class="product-name">@product.Name</div>
                                 <div class="product-price-range">
                                     @{
@@ -551,13 +627,73 @@
                         <span>Total:</span>
                         <span id="cartTotal">₱0.00</span>
                     </div>
-                    <button class="checkout-btn" id="checkoutBtn" onclick="checkout()">
+
+                    <!-- Discount Panel - walang "No Discount" button -->
+                    <div id="discountPanel" style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 8px;">
+                        <small class="text-muted">💰 Discount (Optional):</small>
+                        <div style="display: flex; gap: 8px; margin-top: 5px; flex-wrap: wrap;">
+                            <button class="btn btn-sm btn-outline-primary discount-btn" data-discount-type="Senior Citizen" data-discount-percent="0.20" onclick="selectDiscount('Senior Citizen', 0.20)">👴 Senior Citizen (20%)</button>
+                            <button class="btn btn-sm btn-outline-primary discount-btn" data-discount-type="PWD" data-discount-percent="0.20" onclick="selectDiscount('PWD', 0.20)">♿ PWD (20%)</button>
+                        </div>
+                        <div id="selectedDiscountDisplay" style="font-size: 12px; margin-top: 5px;"></div>
+                    </div>
+
+                    <!-- Payment Method Panel - Cash at GCash lang -->
+                    <div id="paymentPanel" style="margin-top: 10px; padding: 10px; background: #e9ecef; border-radius: 8px;">
+                        <small class="text-muted">💳 Payment Method:</small>
+                        <div style="display: flex; gap: 8px; margin-top: 5px;">
+                            <button class="btn btn-sm btn-success" onclick="prepareCheckout()">💵 Cash</button>
+                            <button class="btn btn-sm btn-primary" onclick="prepareCheckout()">📱 GCash</button>
+                        </div>
+                    </div>
+
+                    <button class="checkout-btn" id="checkoutBtn" onclick="confirmOrder()" style="margin-top: 15px;">
                         💳 Confirm Order
                     </button>
                     <button class="clear-cart" onclick="clearCart()">
                         🗑️ Clear Cart
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Review Order Modal - Para i-double check ni employee bago mag-order -->
+    <div id="reviewOrderModal" class="modal-qty" style="display: none;">
+        <div class="modal-qty-content" style="width: 450px; max-width: 90%;">
+            <h4 style="text-align: center; margin-bottom: 20px;">📋 Review Your Order</h4>
+
+            <div id="reviewOrderContent" style="margin-bottom: 20px; max-height: 400px; overflow-y: auto;">
+                <!-- Order details will appear here -->
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn-cancel" onclick="closeReviewModal()" style="flex: 1; padding: 10px;">✕ Cancel</button>
+                <button class="btn-confirm" onclick="processFinalOrder()" style="flex: 1; padding: 10px;">✅ Confirm Order</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Receipt Modal -->
+    <div id="receiptModal" class="modal-qty" style="display: none;">
+        <div class="modal-qty-content" style="width: 380px; max-width: 90%;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h3 style="margin: 5px 0;">Neldie's Mango & More</h3>
+                <small style="color: #666;">Official Receipt</small>
+                <hr style="margin: 10px 0;">
+            </div>
+
+            <div id="receiptContent" style="margin-bottom: 20px;">
+                <!-- Dynamic receipt content -->
+            </div>
+
+            <hr style="margin: 10px 0;">
+            <div style="text-align: center;">
+                <small style="color: #999;">Thank you for your purchase!</small>
+                <br>
+                <button onclick="closeReceiptModal()" style="margin-top: 15px; padding: 8px 30px; background: #ff6b35; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                    Close
+                </button>
             </div>
         </div>
     </div>
@@ -667,6 +803,7 @@
         let currentCartTotal = 0;
         let currentDiscountedTotal = 0;
         let tempSelectedSize = null;
+        let pendingPaymentMethod = null;
 
         // Show Size Modal
               // Show Size Modal
@@ -786,7 +923,7 @@
             tempSelectedSize = null;
         }
 
-        function updateCartDisplay() {
+                       function updateCartDisplay() {
             const cartDiv = document.getElementById('cartItems');
             const totalSpan = document.getElementById('cartTotal');
 
@@ -805,7 +942,7 @@
                 html += `
                     <div class="cart-item">
                         <div class="cart-item-info">
-                            <div class="cart-item-name">${item.productName}</div>
+                            <div class="cart-item-name">${escapeHtml(item.productName)}</div>
                             <div class="cart-item-size">${item.sizeName}</div>
                             <div class="cart-item-price">₱${item.price.toFixed(2)}</div>
                         </div>
@@ -822,8 +959,39 @@
                 `;
             });
 
+            currentCartTotal = total;
+            currentDiscountedTotal = total * (1 - currentDiscountPercent);
+
             cartDiv.innerHTML = html;
-            totalSpan.innerHTML = `₱${total.toFixed(2)}`;
+
+            let discountText = '';
+            if (currentDiscountPercent > 0) {
+                discountText = `<small style="font-size: 11px; color: #dc3545;"> (${currentDiscountPercent * 100}% off - ${currentDiscountType})</small>`;
+            }
+            totalSpan.innerHTML = `₱${currentDiscountedTotal.toFixed(2)}${discountText}`;
+        }
+
+                function updateDiscountPanelHighlight() {
+            const discountBtns = document.querySelectorAll('#discountPanel .discount-btn');
+            discountBtns.forEach(btn => {
+                btn.classList.remove('btn-warning');
+                btn.classList.add('btn-outline-primary');
+
+                const btnType = btn.getAttribute('data-discount-type');
+                const btnPercent = parseFloat(btn.getAttribute('data-discount-percent') || 0);
+
+                if (currentDiscountType === btnType && currentDiscountPercent === btnPercent) {
+                    btn.classList.remove('btn-outline-primary');
+                    btn.classList.add('btn-warning');
+                }
+            });
+
+            const displayDiv = document.getElementById('selectedDiscountDisplay');
+            if (currentDiscountPercent > 0) {
+                displayDiv.innerHTML = `<span class="text-success">✓ ${currentDiscountType} (${currentDiscountPercent * 100}% discount applied)</span>`;
+            } else {
+                displayDiv.innerHTML = '';
+            }
         }
 
         async function updateCartItemQty(index, newQty) {
@@ -850,234 +1018,27 @@
             updateCartDisplay();
         }
 
-        function clearCart() {
+                function clearCart() {
             if (cart.length === 0) return;
             if (confirm('Clear all items from cart?')) {
                 cart = [];
+                currentDiscountType = 'None';
+                currentDiscountPercent = 0;
+                pendingPaymentMethod = null;
                 updateCartDisplay();
             }
         }
-
-        // Checkout with discount
-               async function checkout() {
+        
+        function confirmOrder() {
+            // This function is now handled by prepareCheckout() and showReviewModal()
+            // Keep this as a fallback
             if (cart.length === 0) {
                 alert('Cart is empty!');
                 return;
             }
-
-            currentCartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-
-            // Ipakita ang discount options sa gilid, hindi modal
-            showDiscountOptionsInline();
-        }
-                function showDiscountOptionsInline() {
-            // I-hide ang payment modal kung visible
-            const paymentModal = document.getElementById('paymentModal');
-            if (paymentModal) paymentModal.style.display = 'none';
-
-            // Ipakita ang discount options sa cart area
-            const cartFooter = document.querySelector('.cart-footer');
-            const existingDiscountDiv = document.getElementById('inlineDiscountOptions');
-
-            if (existingDiscountDiv) {
-                existingDiscountDiv.remove();
-            }
-
-            const discountHtml = `
-                <div id="inlineDiscountOptions" style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 8px;">
-                    <small class="text-muted">Select Discount:</small>
-                    <div style="display: flex; gap: 5px; margin-top: 5px;">
-                        <button class="btn btn-sm btn-outline-secondary" onclick="applyDiscountAndPay('None', 0)">None</button>
-                        <button class="btn btn-sm btn-outline-primary" onclick="applyDiscountAndPay('Senior Citizen', 0.20)">Senior (20%)</button>
-                        <button class="btn btn-sm btn-outline-primary" onclick="applyDiscountAndPay('PWD', 0.20)">PWD (20%)</button>
-                    </div>
-                </div>
-            `;
-
-            cartFooter.insertAdjacentHTML('beforeend', discountHtml);
+            prepareCheckout();
         }
 
-        function applyDiscountAndPay(type, percent) {
-            // Remove discount options
-            const discountDiv = document.getElementById('inlineDiscountOptions');
-            if (discountDiv) discountDiv.remove();
-
-            currentDiscountType = type;
-            currentDiscountPercent = percent;
-            currentDiscountedTotal = currentCartTotal * (1 - percent);
-
-            // Diretso na sa payment method selection
-            showPaymentMethodInline();
-        }
-
-        function showPaymentMethodInline() {
-            const cartFooter = document.querySelector('.cart-footer');
-            const existingPaymentDiv = document.getElementById('inlinePaymentOptions');
-
-            if (existingPaymentDiv) {
-                existingPaymentDiv.remove();
-            }
-
-            const discountText = currentDiscountPercent > 0 ?
-                `<small class="text-muted">Discount (${currentDiscountType}): ${currentDiscountPercent * 100}% off</small><br>` : '';
-
-            const paymentHtml = `
-                <div id="inlinePaymentOptions" style="margin-top: 10px; padding: 10px; background: #e9ecef; border-radius: 8px;">
-                    <small class="text-muted">Payment Method:</small>
-                    ${discountText}
-                    <div style="display: flex; gap: 10px; margin-top: 5px;">
-                        <button class="btn btn-sm btn-success" onclick="processPaymentInline('Cash')">💵 Cash</button>
-                        <button class="btn btn-sm btn-primary" onclick="processPaymentInline('GCash')">📱 GCash</button>
-                        <button class="btn btn-sm btn-secondary" onclick="cancelPayment()">Cancel</button>
-                    </div>
-                </div>
-            `;
-
-            cartFooter.insertAdjacentHTML('beforeend', paymentHtml);
-        }
-
-        function cancelPayment() {
-            const paymentDiv = document.getElementById('inlinePaymentOptions');
-            if (paymentDiv) paymentDiv.remove();
-
-            const discountDiv = document.getElementById('inlineDiscountOptions');
-            if (discountDiv) discountDiv.remove();
-        }
-
-        async function processPaymentInline(method) {
-            // Remove payment options
-            const paymentDiv = document.getElementById('inlinePaymentOptions');
-            if (paymentDiv) paymentDiv.remove();
-
-            const checkoutBtn = document.getElementById('checkoutBtn');
-            const originalText = checkoutBtn.innerHTML;
-            checkoutBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
-            checkoutBtn.disabled = true;
-
-            const token = getToken();
-
-            try {
-                for (const item of cart) {
-                    const response = await fetch('/Staff/PlaceOrder', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'RequestVerificationToken': token
-                        },
-                        body: JSON.stringify({
-                            productSizeId: item.productSizeId,
-                            quantity: item.quantity,
-                            orderNumber: `POS-${Date.now()}`
-                        })
-                    });
-
-                    const data = await response.json();
-                    if (!data.success) {
-                        alert(`❌ Error with ${item.productName}: ${data.message}`);
-                        checkoutBtn.innerHTML = originalText;
-                        checkoutBtn.disabled = false;
-                        return;
-                    }
-                }
-
-                const discountSavings = currentCartTotal - currentDiscountedTotal;
-                let message = `✅ Order completed!\n\nPayment: ${method}\nSubtotal: ₱${currentCartTotal.toFixed(2)}`;
-                if (discountSavings > 0) {
-                    message += `\nDiscount (${currentDiscountType}): -₱${discountSavings.toFixed(2)}\nTotal: ₱${currentDiscountedTotal.toFixed(2)}`;
-                }
-                alert(message);
-
-                cart = [];
-                currentDiscountType = 'None';
-                currentDiscountPercent = 0;
-                updateCartDisplay();
-
-            } catch (error) {
-                alert('❌ Error processing order: ' + error.message);
-            } finally {
-                checkoutBtn.innerHTML = originalText;
-                checkoutBtn.disabled = false;
-            }
-        }
-
-        function showDiscountModal() {
-            document.getElementById('discountModal').style.display = 'flex';
-        }
-
-        function closeDiscountModal() {
-            document.getElementById('discountModal').style.display = 'none';
-        }
-
-        function applyDiscount(type, percent) {
-            currentDiscountType = type;
-            currentDiscountPercent = percent;
-            currentDiscountedTotal = currentCartTotal * (1 - percent);
-
-            closeDiscountModal();
-
-            const discountMessage = percent > 0 ? `\nDiscount (${type}): ${percent * 100}% off\nTotal after discount: ₱${currentDiscountedTotal.toFixed(2)}` : '';
-
-            if (confirm(`Order Summary:\nTotal items: ${cart.reduce((sum, i) => sum + i.quantity, 0)}\nSubtotal: ₱${currentCartTotal.toFixed(2)}${discountMessage}\n\nProceed to payment?`)) {
-                showPaymentModal();
-            }
-        }
-
-        function showPaymentModal() {
-            document.getElementById('paymentModal').style.display = 'flex';
-        }
-
-        function closePaymentModal() {
-            document.getElementById('paymentModal').style.display = 'none';
-        }
-
-        async function processPayment(method) {
-            closePaymentModal();
-
-            const checkoutBtn = document.getElementById('checkoutBtn');
-            const originalText = checkoutBtn.innerHTML;
-            checkoutBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
-            checkoutBtn.disabled = true;
-
-            const token = getToken();
-
-            try {
-                for (const item of cart) {
-                    const response = await fetch('/Staff/PlaceOrder', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'RequestVerificationToken': token
-                        },
-                        body: JSON.stringify({
-                            productSizeId: item.productSizeId,
-                            quantity: item.quantity,
-                            orderNumber: `POS-${Date.now()}`
-                        })
-                    });
-
-                    const data = await response.json();
-                    if (!data.success) {
-                        alert(`❌ Error with ${item.productName}: ${data.message}`);
-                        checkoutBtn.innerHTML = originalText;
-                        checkoutBtn.disabled = false;
-                        return;
-                    }
-                }
-
-                alert(`✅ Order completed successfully!\n\nPayment Method: ${method}\nDiscount: ${currentDiscountPercent * 100}% (${currentDiscountType})\nSubtotal: ₱${currentCartTotal.toFixed(2)}\nTotal: ₱${currentDiscountedTotal.toFixed(2)}`);
-
-                cart = [];
-                currentDiscountType = 'None';
-                currentDiscountPercent = 0;
-                updateCartDisplay();
-
-            } catch (error) {
-                alert('❌ Error processing order: ' + error.message);
-            } finally {
-                checkoutBtn.innerHTML = originalText;
-                checkoutBtn.disabled = false;
-            }
-        }
 
         function getToken() {
             const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
@@ -1174,6 +1135,371 @@
                 const productCategory = product.getAttribute('data-category');
                 product.style.display = (category === 'all' || productCategory === category) ? '' : 'none';
             });
+        }
+                // ========== NEW FUNCTIONS ==========
+
+               function selectDiscount(type, percent) {
+            // Kung same discount ang pinili, i-remove (toggle off)
+            if (currentDiscountType === type && currentDiscountPercent === percent) {
+                currentDiscountType = 'None';
+                currentDiscountPercent = 0;
+            } else {
+                currentDiscountType = type;
+                currentDiscountPercent = percent;
+            }
+
+            currentDiscountedTotal = currentCartTotal * (1 - currentDiscountPercent);
+            updateCartDisplay();
+            updateDiscountPanelHighlight();
+        }
+
+                function prepareCheckout() {
+            if (cart.length === 0) {
+                alert('Cart is empty!');
+                return;
+            }
+
+            // I-store ang napiling payment method
+            const btn = event.target;
+            if (btn.innerText.includes('Cash')) {
+                pendingPaymentMethod = 'Cash';
+            } else if (btn.innerText.includes('GCash')) {
+                pendingPaymentMethod = 'GCash';
+            }
+
+            // Ipakita ang review modal para i-double check
+            showReviewModal();
+        }
+                           async function processFinalOrder() {
+            const paymentMethod = pendingPaymentMethod;
+            closeReviewModal();
+
+            const checkoutBtn = document.getElementById('checkoutBtn');
+            const originalText = checkoutBtn.innerHTML;
+            checkoutBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+            checkoutBtn.disabled = true;
+
+            const token = getToken();
+            let orderDetails = [];
+            let allSuccessful = true;
+
+            try {
+                for (const item of cart) {
+                    const response = await fetch('/Staff/PlaceOrder', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': token
+                        },
+                        body: JSON.stringify({
+                            productSizeId: item.productSizeId,
+                            quantity: item.quantity,
+                            orderNumber: `POS-${Date.now()}`,
+                            paymentMethod: paymentMethod,           // ← IDAGDAG
+                            discountType: currentDiscountType,      // ← IDAGDAG
+                            discountPercent: currentDiscountPercent // ← IDAGDAG
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (!data.success) {
+                        allSuccessful = false;
+                        alert(`❌ Error with ${item.productName}: ${data.message}`);
+                        break;
+                    }
+                    orderDetails.push({
+                        name: item.productName,
+                        size: item.sizeName,
+                        quantity: item.quantity,
+                        price: item.price,
+                        subtotal: item.price * item.quantity
+                    });
+                }
+
+                if (allSuccessful && orderDetails.length > 0) {
+                    const discountSavings = currentCartTotal - currentDiscountedTotal;
+                    showReceiptModal(orderDetails, paymentMethod, currentDiscountType, currentDiscountPercent, discountSavings, currentDiscountedTotal);
+
+                    cart = [];
+                    currentDiscountType = 'None';
+                    currentDiscountPercent = 0;
+                    pendingPaymentMethod = null;
+                    updateCartDisplay();
+                }
+            } catch (error) {
+                alert('❌ Error processing order: ' + error.message);
+            } finally {
+                checkoutBtn.innerHTML = originalText;
+                checkoutBtn.disabled = false;
+            }
+        }
+        async function processOrder(paymentMethod) {
+            if (cart.length === 0) {
+                alert('Cart is empty!');
+                return;
+            }
+
+            const checkoutBtn = document.getElementById('checkoutBtn');
+            const originalText = checkoutBtn.innerHTML;
+            checkoutBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+            checkoutBtn.disabled = true;
+
+            const token = getToken();
+            let orderDetails = [];
+            let allSuccessful = true;
+
+            try {
+                for (const item of cart) {
+                    const response = await fetch('/Staff/PlaceOrder', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': token
+                        },
+                        body: JSON.stringify({
+                            productSizeId: item.productSizeId,
+                            quantity: item.quantity,
+                            orderNumber: `POS-${Date.now()}`
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (!data.success) {
+                        allSuccessful = false;
+                        showConfirmationPanel(null, null, null, null, 0, 0, `❌ Error: ${data.message}`);
+                        break;
+                    }
+                    orderDetails.push({
+                        name: item.productName,
+                        size: item.sizeName,
+                        quantity: item.quantity,
+                        price: item.price,
+                        subtotal: item.price * item.quantity
+                    });
+                }
+
+                if (allSuccessful && orderDetails.length > 0) {
+                    const discountSavings = currentCartTotal - currentDiscountedTotal;
+
+                    // Show confirmation panel
+                    showConfirmationPanel(orderDetails, paymentMethod, currentDiscountType, currentDiscountPercent, discountSavings, currentDiscountedTotal);
+
+                    // Show receipt popup
+                    showReceiptModal(orderDetails, paymentMethod, currentDiscountType, currentDiscountPercent, discountSavings, currentDiscountedTotal);
+
+                    // Clear cart and reset discount
+                    cart = [];
+                    currentDiscountType = 'None';
+                    currentDiscountPercent = 0;
+                    updateCartDisplay();
+                }
+            } catch (error) {
+                showConfirmationPanel(null, null, null, null, 0, 0, `❌ Error: ${error.message}`);
+            } finally {
+                checkoutBtn.innerHTML = originalText;
+                checkoutBtn.disabled = false;
+            }
+        }
+
+        function showConfirmationPanel(orderDetails, paymentMethod, discountType, discountPercent, discountSavings, total, errorMessage) {
+            const panel = document.getElementById('confirmationPanel');
+            const detailsDiv = document.getElementById('confirmationDetails');
+
+            if (!panel || !detailsDiv) return;
+
+            if (errorMessage) {
+                detailsDiv.innerHTML = `
+                    <div style="color: #721c24;">
+                        <strong>${escapeHtml(errorMessage)}</strong>
+                    </div>
+                `;
+            } else {
+                let itemsHtml = '';
+                orderDetails.forEach(item => {
+                    itemsHtml += `
+                        <div class="confirmation-item">
+                            <div>
+                                <strong>${escapeHtml(item.name)}</strong>
+                                <small>(${item.size})</small>
+                                <div style="font-size: 11px; color: #666;">x${item.quantity}</div>
+                            </div>
+                            <div>₱${item.subtotal.toFixed(2)}</div>
+                        </div>
+                    `;
+                });
+
+                let discountHtml = '';
+                if (discountPercent > 0) {
+                    discountHtml = `
+                        <div style="display: flex; justify-content: space-between; font-size: 13px; color: #dc3545; margin-top: 8px;">
+                            <span>Discount (${discountType} ${discountPercent * 100}%):</span>
+                            <span>-₱${discountSavings.toFixed(2)}</span>
+                        </div>
+                    `;
+                }
+
+                detailsDiv.innerHTML = `
+                    <div style="margin-bottom: 8px;">
+                        <small>💰 Payment: ${paymentMethod}</small>
+                        <small class="float-end">${new Date().toLocaleTimeString()}</small>
+                    </div>
+                    ${itemsHtml}
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #c3e6cb;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <strong>Subtotal:</strong>
+                            <strong>₱${currentCartTotal.toFixed(2)}</strong>
+                        </div>
+                        ${discountHtml}
+                        <div style="display: flex; justify-content: space-between; margin-top: 8px;">
+                            <strong style="font-size: 14px;">TOTAL PAID:</strong>
+                            <strong style="font-size: 14px; color: #155724;">₱${total.toFixed(2)}</strong>
+                        </div>
+                    </div>
+                    <div style="margin-top: 10px; text-align: center;">
+                        <small class="text-muted">📱 Receipt has been generated</small>
+                    </div>
+                `;
+            }
+
+            panel.style.display = 'block';
+
+            // Auto-hide after 8 seconds
+            setTimeout(() => {
+                if (panel && panel.style.display === 'block') {
+                    panel.style.display = 'none';
+                }
+            }, 8000);
+        }
+
+        function hideConfirmationPanel() {
+            const panel = document.getElementById('confirmationPanel');
+            if (panel) panel.style.display = 'none';
+        }
+
+               function showReceiptModal(orderDetails, paymentMethod, discountType, discountPercent, discountSavings, total) {
+            const receiptDiv = document.getElementById('receiptContent');
+            const now = new Date();
+
+            if (!receiptDiv) return;
+
+            let itemsHtml = '';
+            orderDetails.forEach(item => {
+                itemsHtml += `
+                    <div class="receipt-item">
+                        <div>
+                            <strong>${escapeHtml(item.name)}</strong><br>
+                            <small>${item.size} × ${item.quantity}</small>
+                        </div>
+                        <div>₱${item.subtotal.toFixed(2)}</div>
+                    </div>
+                `;
+            });
+
+            let discountHtml = '';
+            if (discountPercent > 0) {
+                discountHtml = `
+                    <div class="receipt-discount">
+                        <span>${discountType} (${discountPercent * 100}% OFF)</span>
+                        <span>-₱${discountSavings.toFixed(2)}</span>
+                    </div>
+                `;
+            }
+
+            receiptDiv.innerHTML = `
+                <div class="receipt-header">
+                    <div><strong>${now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</strong></div>
+                    <div>${now.toLocaleTimeString()}</div>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <strong>Order Summary</strong>
+                </div>
+                ${itemsHtml}
+                <div class="receipt-subtotal">
+                    <span>Subtotal</span>
+                    <span>₱${currentCartTotal.toFixed(2)}</span>
+                </div>
+                ${discountHtml}
+                <div class="receipt-total">
+                    <span>TOTAL</span>
+                    <span>₱${total.toFixed(2)}</span>
+                </div>
+                <div style="margin-top: 15px; text-align: center; padding-top: 10px; border-top: 1px dashed #ccc;">
+                    <div>Payment: <strong>${paymentMethod}</strong></div>
+                    <div style="margin-top: 5px;">✅ Order Completed</div>
+                </div>
+            `;
+
+            document.getElementById('receiptModal').style.display = 'flex';
+        }
+
+                function closeReceiptModal() {
+            document.getElementById('receiptModal').style.display = 'none';
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+
+                function showReviewModal() {
+            const reviewDiv = document.getElementById('reviewOrderContent');
+            const now = new Date();
+
+            let itemsHtml = '';
+            cart.forEach((item, index) => {
+                itemsHtml += `
+                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;">
+                        <div>
+                            <strong>${escapeHtml(item.productName)}</strong><br>
+                            <small>${item.sizeName} × ${item.quantity}</small>
+                        </div>
+                        <div>₱${(item.price * item.quantity).toFixed(2)}</div>
+                    </div>
+                `;
+            });
+
+            let discountHtml = '';
+            let discountSavings = 0;
+            if (currentDiscountPercent > 0) {
+                discountSavings = currentCartTotal - currentDiscountedTotal;
+                discountHtml = `
+                    <div style="display: flex; justify-content: space-between; padding: 8px 0; color: #dc3545;">
+                        <span>Discount (${currentDiscountType} ${currentDiscountPercent * 100}%):</span>
+                        <span>-₱${discountSavings.toFixed(2)}</span>
+                    </div>
+                `;
+            }
+
+            reviewDiv.innerHTML = `
+                <div style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #ddd;">
+                    <small>${now.toLocaleDateString()} ${now.toLocaleTimeString()}</small>
+                    <div><strong>Payment Method:</strong> ${pendingPaymentMethod}</div>
+                </div>
+                ${itemsHtml}
+                <div style="margin-top: 10px; padding-top: 10px; border-top: 2px solid #ddd;">
+                    <div style="display: flex; justify-content: space-between;">
+                        <strong>Subtotal:</strong>
+                        <strong>₱${currentCartTotal.toFixed(2)}</strong>
+                    </div>
+                    ${discountHtml}
+                    <div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 2px solid #333;">
+                        <strong style="font-size: 16px;">TOTAL:</strong>
+                        <strong style="font-size: 16px; color: #28a745;">₱${currentDiscountedTotal.toFixed(2)}</strong>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('reviewOrderModal').style.display = 'flex';
+        }
+
+                        function closeReviewModal() {
+            document.getElementById('reviewOrderModal').style.display = 'none';
+            // pendingPaymentMethod = null;  
         }
 
         // Initialize

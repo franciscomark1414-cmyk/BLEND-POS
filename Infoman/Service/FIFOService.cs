@@ -89,6 +89,9 @@ namespace Infoman.Service
                     .ThenBy(b => b.ReceivedDate) // Secondary: Received date
                     .ToListAsync();
 
+               
+
+
                 if (!batches.Any())
                     return false;
 
@@ -158,6 +161,9 @@ namespace Infoman.Service
                     .OrderBy(b => b.ExpiryDate.HasValue ? b.ExpiryDate.Value : DateTime.MaxValue)
                     .ThenBy(b => b.ReceivedDate)
                     .ToListAsync();
+
+                System.Diagnostics.Debug.WriteLine($"RawMaterialId: {rawMaterialId}, Quantity needed: {quantity}");
+                System.Diagnostics.Debug.WriteLine($"Batches found: {batches?.Count ?? 0}");
 
                 if (!batches.Any())
                     return (false, 0, null);

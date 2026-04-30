@@ -16,7 +16,7 @@ namespace Infoman.Controllers
             _db = db;
             _fifoService = new FIFOService(_db);
         }
-
+        
         private async Task RefreshProductPricesInternal()
         {
             var allProductSizes = await _db.ProductSizes
@@ -145,8 +145,9 @@ namespace Infoman.Controllers
         Name = g.Key.ProductName,
         SizeName = g.Key.SizeName,
         TotalSold = g.Sum(oi => oi.Quantity),
-        Price = g.FirstOrDefault()?.Price ?? 0
+        Price = 0
     })
+    .Where(p => p.TotalSold > 0)
     .OrderByDescending(p => p.TotalSold)
     .Take(5)
     .Select((p, index) => new BestSellingProductVM
@@ -155,7 +156,7 @@ namespace Infoman.Controllers
         Name = p.Name,
         SizeName = p.SizeName,
         TotalSold = p.TotalSold,
-        Price = p.Price
+        Price = 0
     })
     .ToList();
             }
@@ -165,7 +166,20 @@ namespace Infoman.Controllers
                 bestSelling = new List<BestSellingProductVM>();
             }
 
-
+            // ========== RAW MATERIALS MASTER RECORD (para sa Raw Materials module) ==========
+            // Walang Stock at MinQty - master record lang
+            ViewBag.RawMaterialsMaster = await _db.RawMaterials
+                .Where(r => !r.IsDeleted)
+                .Select(r => new
+                {
+                    r.RawMaterialId,
+                    r.Name,
+                    r.Category,
+                    r.Unit,
+                    r.SKU,
+                    Status = r.Stock <= r.MinQty ? "Low Stock" : "In Stock"
+                })
+                .ToListAsync();
 
             // Raw materials for inventory module
             ViewBag.RawMaterials = _db.RawMaterials
@@ -178,12 +192,14 @@ namespace Infoman.Controllers
         MinQty = r.MinQty,
         Price = r.Price,
         Unit = r.Unit,
+        SKU = r.SKU,
         ExpirationDate = r.ExpirationDate,
 
         // 🔥 IMPORTANT: recompute stock from batches
         Stock = _db.RawMaterialBatches
             .Where(b => b.RawMaterialId == r.RawMaterialId)
             .Sum(b => (decimal?)b.QuantityRemaining) ?? 0
+
     })
     .ToList();
             var products = await _db.Products
@@ -454,86 +470,169 @@ namespace Infoman.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetRecipe(int id)
+        public async Task<IActionResult> GetReceipts(string date = null)
         {
-            var productSize = await _db.ProductSizes
-                .Include(ps => ps.RecipeItems)
-                    .ThenInclude(ri => ri.RawMaterial)
-                .Include(ps => ps.Product)
-                .FirstOrDefaultAsync(ps => ps.ProductSizeId == id);
+            DateTime? filterDate = null;
+            if (!string.IsNullOrEmpty(date))
+                filterDate = DateTime.Parse(date);
 
-            if (productSize == null)
-                return Json(new { error = "Recipe not found" });
+            var query = _db.Orders
+                .Include(o => o.Items)  // ← CHANGE: OrderItems -> Items
+                .Where(o => o.Status == "Completed");
 
-            decimal totalCost = 0;
-            var ingredientsWithPrices = new List<object>();
+            if (filterDate.HasValue)
+                query = query.Where(o => o.Date.Date == filterDate.Value.Date);
 
-            foreach (var recipeItem in productSize.RecipeItems)
-            {
-                // 🔥 FIX: Gamitin ang FIFO cost (pinakamatandang batch na may stock)
-                decimal fifoPrice = await GetFIFOUnitPrice(recipeItem.RawMaterialId);
-
-                var total = recipeItem.Quantity * fifoPrice;
-                totalCost += total;
-
-                ingredientsWithPrices.Add(new
+            var receipts = await query
+                .OrderByDescending(o => o.Date)
+                .Select(o => new
                 {
-                    rawMaterialId = recipeItem.RawMaterialId,
-                    quantity = recipeItem.Quantity,
-                    name = recipeItem.RawMaterial.Name,
-                    unit = recipeItem.RawMaterial.Unit,
-                    price = fifoPrice,
-                    total = total
-                });
-            }
+                    orderId = o.OrderId,
+                    receiptNumber = o.ReceiptNumber ?? $"ORD-{o.OrderId}",
+                    date = o.Date.ToString("yyyy-MM-dd HH:mm:ss"),
+                    itemCount = o.Items.Sum(oi => oi.Quantity),  // ← CHANGE
+                    subtotal = o.Items.Sum(oi => oi.Price * oi.Quantity),  // ← CHANGE
+                    discountType = o.DiscountType ?? "None",
+                    discountPercent = o.DiscountPercent,
+                    discountAmount = o.DiscountAmount,
+                    total = o.TotalAmount,
+                    paymentMethod = o.PaymentMethod ?? "Cash"
+                })
+                .ToListAsync();
 
-            // Compute profit/loss
-            decimal profit = productSize.Price - totalCost;
-
-            // Compute actual available stock from raw materials
-            var today = DateTime.Today;
-            int availableStock = int.MaxValue;
-
-            foreach (var recipeItem in productSize.RecipeItems)
-            {
-                decimal availableQty = await _db.RawMaterialBatches
-                    .Where(b => b.RawMaterialId == recipeItem.RawMaterialId
-                        && b.QuantityRemaining > 0
-                        && (!b.ExpiryDate.HasValue || b.ExpiryDate.Value >= today))
-                    .SumAsync(b => b.QuantityRemaining);
-
-                int possibleOrders = (int)(availableQty / recipeItem.Quantity);
-                if (possibleOrders < availableStock)
-                    availableStock = possibleOrders;
-            }
-
-            int finalStock = (availableStock == int.MaxValue || availableStock < 0) ? 0 : availableStock;
-
-            var recipe = new
-            {
-                productName = productSize.Product.Name,
-                productSKU = productSize.Product.SKU,
-                productCategory = productSize.Product.Category,
-                sizeName = productSize.SizeName,
-                sellingPrice = productSize.Price,
-                totalCost = totalCost,
-                margin = productSize.Margin,
-                // stock = productSize.Stock,  // ← TANGGALIN
-                // hasStock = productSize.Stock > 0,  // ← TANGGALIN
-                stock = finalStock,  // ← ITO ANG BAGO - galing sa raw materials
-                hasStock = finalStock > 0,  // ← ITO ANG BAGO
-                profit = profit,
-                ingredients = ingredientsWithPrices
-            };
-
-            return Json(recipe);
+            return Json(new { success = true, receipts = receipts });
         }
+        [HttpGet]
+        public async Task<IActionResult> GetReceiptDetail(int orderId)
+        {
+            var order = await _db.Orders
+                .Include(o => o.Items)  // ← CHANGE: OrderItems -> Items
+                    .ThenInclude(oi => oi.Product)
+                .Include(o => o.Items)  // ← CHANGE
+                    .ThenInclude(oi => oi.ProductSize)
+                .FirstOrDefaultAsync(o => o.OrderId == orderId);
 
+            if (order == null)
+                return Json(new { success = false, message = "Receipt not found" });
+
+            return Json(new
+            {
+                success = true,
+                receipt = new
+                {
+                    receiptNumber = order.ReceiptNumber ?? $"ORD-{order.OrderId}",
+                    date = order.Date,
+                    items = order.Items.Select(oi => new  // ← CHANGE
+                    {
+                        name = oi.Product.Name,
+                        size = oi.ProductSize.SizeName,
+                        quantity = oi.Quantity,
+                        price = oi.Price,
+                        subtotal = oi.Price * oi.Quantity
+                    }),
+                    subtotal = order.Items.Sum(oi => oi.Price * oi.Quantity),  // ← CHANGE
+                    discountType = order.DiscountType ?? "None",
+                    discountPercent = order.DiscountPercent,
+                    discountAmount = order.DiscountAmount,
+                    total = order.TotalAmount,
+                    paymentMethod = order.PaymentMethod ?? "Cash"
+                }
+            });
+        }
         // Helper method para kumuha ng FIFO unit price
         // Palitan ang GetFIFOUnitPrice ng ganito:
         private async Task<decimal> GetFIFOUnitPrice(int rawMaterialId)
         {
             return await _fifoService.GetActiveBatchPrice(rawMaterialId);
+        }
+        [HttpGet]
+        public async Task<IActionResult> GetRecipe(int id)
+        {
+            try
+            {
+                var productSize = await _db.ProductSizes
+                    .Include(ps => ps.RecipeItems)
+                        .ThenInclude(ri => ri.RawMaterial)
+                    .Include(ps => ps.Product)
+                    .FirstOrDefaultAsync(ps => ps.ProductSizeId == id);
+
+                if (productSize == null)
+                    return Json(new { error = "Recipe not found" });
+
+                // ✅ I-check kung may recipe items
+                if (productSize.RecipeItems == null || !productSize.RecipeItems.Any())
+                {
+                    return Json(new { error = "No ingredients found for this product. Please add recipe first." });
+                }
+
+                decimal totalCost = 0;
+                var ingredientsWithPrices = new List<object>();
+
+                foreach (var recipeItem in productSize.RecipeItems)
+                {
+                    if (recipeItem.RawMaterial == null)
+                    {
+                        return Json(new { error = $"Raw material not found for ingredient" });
+                    }
+
+                    decimal fifoPrice = await GetFIFOUnitPrice(recipeItem.RawMaterialId);
+                    decimal total = recipeItem.Quantity * fifoPrice;
+                    totalCost += total;
+
+                    ingredientsWithPrices.Add(new
+                    {
+                        rawMaterialId = recipeItem.RawMaterialId,
+                        quantity = recipeItem.Quantity,
+                        name = recipeItem.RawMaterial.Name,
+                        unit = recipeItem.RawMaterial.Unit,
+                        price = fifoPrice,
+                        total = total
+                    });
+                }
+
+                // Compute profit
+                decimal profit = productSize.Price - totalCost;
+
+                // Compute available stock
+                var today = DateTime.Today;
+                int availableStock = int.MaxValue;
+
+                foreach (var recipeItem in productSize.RecipeItems)
+                {
+                    decimal availableQty = await _db.RawMaterialBatches
+                        .Where(b => b.RawMaterialId == recipeItem.RawMaterialId
+                            && b.QuantityRemaining > 0
+                            && (!b.ExpiryDate.HasValue || b.ExpiryDate.Value >= today))
+                        .SumAsync(b => b.QuantityRemaining);
+
+                    int possibleOrders = (int)(availableQty / recipeItem.Quantity);
+                    if (possibleOrders < availableStock)
+                        availableStock = possibleOrders;
+                }
+
+                int finalStock = (availableStock == int.MaxValue || availableStock < 0) ? 0 : availableStock;
+
+                var recipe = new
+                {
+                    productName = productSize.Product?.Name ?? "Unknown",
+                    productSKU = productSize.Product?.SKU ?? "-",
+                    productCategory = productSize.Product?.Category ?? "-",
+                    sizeName = productSize.SizeName,
+                    sellingPrice = productSize.Price,
+                    totalCost = totalCost,
+                    margin = productSize.Margin,
+                    stock = finalStock,
+                    hasStock = finalStock > 0,
+                    profit = profit,
+                    ingredients = ingredientsWithPrices
+                };
+
+                return Json(recipe);
+            }
+            catch (Exception ex)
+            {
+                return Json(new { error = $"Error loading recipe: {ex.Message}" });
+            }
         }
 
         [HttpGet]
@@ -996,9 +1095,10 @@ namespace Infoman.Controllers
             return Math.Round(suggestedPrice, 2);
         }
         [HttpGet]
-        public async Task<IActionResult> GetReportsData()
+        public async Task<IActionResult> GetReportsData(DateTime? filterDate = null)
         {
             var today = DateTime.Today;
+            var queryDate = filterDate ?? today;
 
             // ========== SALES PERFORMANCE ==========
             var last7Days = Enumerable.Range(0, 7).Select(i => today.AddDays(-6 + i)).ToList();
@@ -1048,7 +1148,7 @@ namespace Infoman.Controllers
                     UnitsSold = g.Sum(oi => oi.Quantity),
                     Revenue = g.Sum(oi => oi.Price * oi.Quantity)
                 })
-                .OrderByDescending(p => p.Revenue)
+                .OrderByDescending(p => p.UnitsSold)// Revenue
                 .Take(5)
                 .ToListAsync();
 
@@ -1104,6 +1204,36 @@ namespace Infoman.Controllers
                     Orders = g.Select(oi => oi.OrderId).Distinct().Count()
                 })
                 .ToListAsync();
+            // ========== RECEIPT HISTORY ==========
+            var receipts = await _db.Orders
+                .Include(o => o.Items)  // ← CHANGE: OrderItems -> Items
+                    .ThenInclude(oi => oi.Product)
+                .Include(o => o.Items)  // ← CHANGE
+                    .ThenInclude(oi => oi.ProductSize)
+                .Where(o => o.Status == "Completed")
+                .OrderByDescending(o => o.Date)
+                .Select(o => new
+                {
+                    orderId = o.OrderId,
+                    receiptNumber = o.ReceiptNumber ?? $"ORD-{o.OrderId}",
+                    date = o.Date.ToString("yyyy-MM-dd HH:mm:ss"),
+                    itemCount = o.Items.Sum(oi => oi.Quantity),  // ← CHANGE
+                    items = o.Items.Select(oi => new  // ← CHANGE
+                    {
+                        name = oi.Product.Name,
+                        size = oi.ProductSize.SizeName,
+                        quantity = oi.Quantity,
+                        price = oi.Price,
+                        subtotal = oi.Price * oi.Quantity
+                    }).ToList(),
+                    subtotal = o.Items.Sum(oi => oi.Price * oi.Quantity),  // ← CHANGE
+                    discountType = o.DiscountType ?? "None",
+                    discountPercent = o.DiscountPercent,
+                    discountAmount = o.DiscountAmount,
+                    total = o.TotalAmount,
+                    paymentMethod = o.PaymentMethod ?? "Cash"
+                })
+                .ToListAsync();
 
             // ========== SET ViewBag VALUES ==========
             ViewBag.TotalRevenue = totalRevenue;
@@ -1117,7 +1247,8 @@ namespace Infoman.Controllers
                 topSellingProducts = topSelling,
                 wasteLogs = wasteLogs,
                 discountRecords = new List<object>(),
-                categoryRevenue = categoryRevenue
+                categoryRevenue = categoryRevenue,
+                receipts = receipts
             });
 
         }
@@ -1221,4 +1352,4 @@ namespace Infoman.Controllers
             }
         }
     }
-}
+} 

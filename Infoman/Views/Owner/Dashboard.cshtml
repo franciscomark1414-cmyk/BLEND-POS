@@ -413,6 +413,62 @@
         background: #fee2e2;
         color: #991b1b;
     }
+
+    .sku-cell {
+        font-family: inherit; /* Parehas sa ibang cells */
+        font-size: inherit;
+        color: inherit;
+        font-weight: normal;
+        background: none;
+        padding: 8px;
+    }
+
+    .receipt-discount {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: #333; /* ← Palitan mula #dc3545 (red) para maging dark gray */
+        margin-top: 5px;
+        padding-top: 5px;
+    }
+
+    /* Receipt Modal - Popup Styles */
+    #receiptModalForReports {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+    }
+
+        #receiptModalForReports .modal-qty-content {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-height: 80vh;
+            overflow-y: auto;
+            width: 380px;
+            max-width: 90%;
+            padding: 25px;
+            animation: slideUp 0.3s ease forwards;
+        }
+
+    @@keyframes slideUp {
+        from {
+            transform: translateY(50px);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
 </style>
 
 <div class="dashboard-container">
@@ -427,11 +483,14 @@
         <div class="nav-item active" onclick="showModule('dashboard')">
             <i class="fas fa-tachometer-alt"></i> Dashboard
         </div>
+        <div class="nav-item" onclick="showModule('rawMaterials')">
+            <i class="fas fa-tachometer-alt"></i> Raw Materials
+        </div>
         <div class="nav-item" onclick="showModule('inventory')">
             <i class="fas fa-boxes"></i> Inventory
         </div>
         <div class="nav-item" onclick="showModule('products')">
-            <i class="fas fa-cube"></i> Products
+            <i class="fas fa-cube"></i> Product Listing
         </div>
         <div class="nav-item" onclick="showModule('inventoryAlerts')">
             <i class="fas fa-bell"></i> Alerts
@@ -555,8 +614,6 @@
                                             <br />
                                             <span class="badge bg-info">@item.SizeName</span>  <!-- ← SIZE BADGE -->
                                             <br />
-                                            <small class="text-muted">₱@item.Price.ToString("N2")</small>
-                                            <br />
                                             <strong>@item.TotalSold sold</strong>
                                         </div>
                                     }
@@ -575,8 +632,7 @@
         <!-- Inventory Module -->
         <div id="inventoryModule" class="module">
             <div class="d-flex justify-content-between align-items-center mb-2">
-                <h3>RAW MATERIAL</h3>
-                <button class="btn btn-success" onclick="toggleAddForm()">ADD RAW MATERIAL</button>
+                <h3>STOCK IN (Add Delivery Batch)</h3>
                 <button class="btn btn-primary" onclick="showAddDeliveryForm()" style="margin-left: 10px;">📦 ADD DELIVERY (BATCH)</button>
             </div>
 
@@ -590,6 +646,7 @@
                     <table class="table table-bordered" id="rawMaterialTable">
                         <thead>
                             <tr>
+                                <th>SKU</th>
                                 <th>Name</th>
                                 <th>Category</th>
                                 <th>Stock</th>
@@ -604,6 +661,7 @@
                                 foreach (var item in ViewBag.RawMaterials)
                                 {
                                     <tr data-id="@item.RawMaterialId">
+                                        <td class="sku-column">@(string.IsNullOrEmpty(item.SKU) ? "—" : item.SKU)</td>
                                         <td>@item.Name</td>
                                         <td data-value="@((int)item.Category)">@item.Category</td>
                                         <td data-stock="@item.Stock" data-unit="@item.Unit">@item.StockWithUnit</td>
@@ -625,64 +683,7 @@
                     </table>
                 </div>
 
-                <!-- RIGHT: Add Raw Material Box (CLEAN VERSION) -->
-                <div id="addRawMaterialBox" style="flex: 1; display:none; border:1px solid #ccc; padding:15px; border-radius:8px; background:#f9f9f9;">
-                    <h5 id="formHeader">
-                        <i class="fas fa-box"></i> Add Raw Material
-                    </h5>
-                    <p class="text-muted small mb-3">
-                        <i class="fas fa-info-circle"></i> This only creates a product record.
-                        To add stock, use <strong>"ADD DELIVERY (BATCH)"</strong> after saving.
-                    </p>
-
-                    <form id="addRawMaterialForm">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="RawMaterialId" id="RawMaterialId">
-
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Name <span class="text-danger">*</span></label>
-                            <input type="text" name="Name" id="Name" class="form-control" required placeholder="e.g., Apple, Mango, Flour">
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Category <span class="text-danger">*</span></label>
-                            <select name="Category" id="Category" class="form-control" required>
-                                @foreach (var cat in Enum.GetValues(typeof(Infoman.Models.RawMaterialCategory)))
-                                {
-                                    var intValue = (int)cat;
-                                    <option value="@intValue">@cat</option>
-                                }
-                            </select>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Unit <span class="text-danger">*</span></label>
-                            <input type="text" name="Unit" id="Unit" class="form-control" required placeholder="e.g., kg, pcs, liters">
-                            <small class="text-muted">Measurement unit for this raw material</small>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Minimum Quantity <span class="text-danger">*</span></label>
-                            <input type="number" name="MinQty" id="MinQty" class="form-control" required value="0" step="0.1">
-                            <small class="text-muted">Alert when stock falls below this level</small>
-                        </div>
-
-                        <hr>
-                        <div class="alert alert-info py-2 small">
-                            <i class="fas fa-truck"></i> <strong>Note:</strong> After saving this raw material,
-                            go to <strong>"ADD DELIVERY (BATCH)"</strong> to add stock with price and expiry date.
-                        </div>
-
-                        <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-success" id="saveButton">
-                                <i class="fas fa-save"></i> Save Material
-                            </button>
-                            <button type="button" class="btn btn-secondary" onclick="toggleAddForm()">
-                                <i class="fas fa-times"></i> Cancel
-                            </button>
-                        </div>
-                    </form>
-                </div>
+               
             </div>
         </div>
         <!-- Add Delivery Box (for FIFO batches) -->
@@ -795,10 +796,120 @@
             </div>
         </div>
 
+        <!-- ========== RAW MATERIALS MODULE (BAGO) ========== -->
+        <!-- ========== RAW MATERIALS MODULE (BAGO) ========== -->
+        <div id="rawMaterialsModule" class="module">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3>📦 Raw Materials</h3>
+                <button class="btn btn-success" onclick="toggleRawMaterialForm()">
+                    <i class="fas fa-plus"></i> ADD RAW MATERIAL
+                </button>
+            </div>
+
+            <div class="d-flex gap-3">
+                <!-- LEFT: Raw Materials Table -->
+                <div style="flex: 2;">
+                    <div class="mb-3">
+                        <input type="text" id="searchRawMaterial2" class="form-control" placeholder="Search raw materials..." onkeyup="filterRawMaterialsTable()">
+                    </div>
+                    <table class="table table-bordered" id="rawMaterialTable2">
+                        <thead>
+                            <tr>
+                                <th>SKU</th>
+                                <th>Name</th>
+                                <th>Category</th>
+                                <th>Unit</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rawMaterialsTableBody">
+                            @if (ViewBag.RawMaterialsMaster != null)
+                            {
+                                foreach (var item in ViewBag.RawMaterials)
+                                {
+                                    <tr data-id="@item.RawMaterialId">
+                                        <td>@(string.IsNullOrEmpty(item.SKU) ? "—" : item.SKU)</td>
+                                        <td>@item.Name</td>
+                                        <td>@item.Category</td>
+                                        <td>@item.Unit</td>
+                                        <td>@item.Status</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-primary" onclick="editRawMaterial(@item.RawMaterialId)">Edit</button>
+                                            <button class="btn btn-sm btn-danger" onclick="deleteRawMaterial(@item.RawMaterialId)">Delete</button>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- RIGHT: Add Raw Material Box (katabi ng table, sa GILID) -->
+                <div id="addRawMaterialBox" style="flex: 1; display:none; border:1px solid #ccc; padding:15px; border-radius:8px; background:#f9f9f9; height: fit-content;">
+                    <h5 id="formHeader">
+                        <i class="fas fa-box"></i> Add Raw Material
+                    </h5>
+                    <p class="text-muted small mb-3">
+                        <i class="fas fa-info-circle"></i> This only creates a product record.
+                        To add stock, use <strong>"ADD DELIVERY (BATCH)"</strong> after saving.
+                    </p>
+
+                    <form id="addRawMaterialForm">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="RawMaterialId" id="RawMaterialId">
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Name <span class="text-danger">*</span></label>
+                            <input type="text" name="Name" id="Name" class="form-control" required placeholder="e.g., Apple, Mango, Flour">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Category <span class="text-danger">*</span></label>
+                            <select name="Category" id="Category" class="form-control" required>
+                                @foreach (var cat in Enum.GetValues(typeof(Infoman.Models.RawMaterialCategory)))
+                                {
+                                    var intValue = (int)cat;
+                                    <option value="@intValue">@cat</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Unit <span class="text-danger">*</span></label>
+                            <input type="text" name="Unit" id="Unit" class="form-control" required placeholder="e.g., kg, pcs, liters">
+                            <small class="text-muted">Measurement unit for this raw material</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Minimum Quantity <span class="text-danger">*</span></label>
+                            <input type="number" name="MinQty" id="MinQty" class="form-control" required value="0" step="0.1">
+                            <small class="text-muted">Alert when stock falls below this level</small>
+                        </div>
+
+                        <hr>
+                        <div class="alert alert-info py-2 small">
+                            <i class="fas fa-truck"></i> <strong>Note:</strong> After saving this raw material,
+                            go to <strong>"ADD DELIVERY (BATCH)"</strong> to add stock with price and expiry date.
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success" id="saveButton">
+                                <i class="fas fa-save"></i> Save Material
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="toggleRawMaterialForm()">
+                                <i class="fas fa-times"></i> Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
         <!-- Products Module -->
         <div id="productsModule" class="module">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2 class="mb-0">🧋 PRODUCTS MENU</h2>
+                <h2 class="mb-0">🧋 PRODUCTS LISTING</h2>
                 <button class="btn btn-primary" onclick="showAddProductModal()">
                     <i class="fas fa-plus"></i> Add Product
                 </button>
@@ -1517,6 +1628,11 @@
                             <i class="fas fa-trash-alt me-1"></i> Waste Tracking
                         </button>
                     </li>
+                    <li class="nav-item">
+                        <button class="nav-link" onclick="switchReportTab('receipts', event)">
+                            <i class="fas fa-receipt me-1"></i> Receipt History
+                        </button>
+                    </li>
                 </ul>
 
                 <!-- Tab Content Container -->
@@ -1693,6 +1809,73 @@
                             </div>
                         </div>
                     </div>
+                   
+                    <!-- ========== RECEIPT HISTORY TAB ========== -->
+                    <div id="receiptsTab" class="tab-pane fade">
+                        <div class="row">
+                            <div class="col-12 mb-4">
+                                <div class="card shadow-sm">
+                                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-0"><i class="fas fa-receipt text-primary me-2"></i> Receipt History</h5>
+                                        <div class="d-flex gap-2">
+                                            <input type="date" id="receiptFilterDate" class="form-control form-control-sm w-auto" onchange="loadReceiptHistory()">
+                                            <button class="btn btn-sm btn-outline-secondary" onclick="printReceiptHistory()">
+                                                <i class="fas fa-print"></i> Print
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-primary" onclick="exportReceiptHistory()">
+                                                <i class="fas fa-download"></i> Export
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="table-responsive">
+                                            <table class="table table-bordered table-hover">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th>Receipt #</th>
+                                                        <th>Date & Time</th>
+                                                        <th>Items</th>
+                                                        <th>Subtotal</th>
+                                                        <th>Discount</th>
+                                                        <th>Total</th>
+                                                        <th>Payment</th>
+                                                        <th>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="receiptHistoryBody">
+                                                    <tr><td colspan="8" class="text-center">Loading...</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== RECEIPT MODAL (POPUP) ========== -->
+        <div id="receiptModalForReports" class="modal-qty" style="display: none;">
+            <div class="modal-qty-content" style="width: 380px; max-width: 90%;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h3 style="margin: 5px 0;">Neldie's Mango & More</h3>
+                    <small style="color: #666;">Official Receipt</small>
+                    <hr style="margin: 10px 0;">
+                </div>
+
+                <div id="receiptContentForReports" style="margin-bottom: 20px;">
+                    <!-- Dynamic receipt content -->
+                </div>
+
+                <hr style="margin: 10px 0;">
+                <div style="text-align: center;">
+                    <small style="color: #999;">Thank you for your purchase!</small>
+                    <br>
+                    <button onclick="closeReceiptModalForReports()" style="margin-top: 15px; padding: 8px 30px; background: #ff6b35; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                        Close
+                    </button>
                 </div>
             </div>
         </div>
@@ -1935,7 +2118,7 @@
 
               function showModule(module) {
         // Hide all modules
-        var modules = ['dashboard', 'inventory', 'products', 'inventoryAlerts', 'reports', 'employees', 'settings'];
+        var modules = ['dashboard','rawMaterials', 'inventory', 'products', 'inventoryAlerts', 'reports', 'employees', 'settings'];
         modules.forEach(function(m) {
             var el = document.getElementById(m + 'Module');
             if (el) el.classList.remove('active');
@@ -2109,15 +2292,16 @@
         }
     }
 
-        function editMaterial(id) {
+           function editMaterial(id) {
         var row = document.querySelector('tr[data-id="' + id + '"]');
         if (!row) { alert('Material not found'); return; }
 
-        // Adjusted indices because we removed Price and Expiry Date columns
-        var name = row.children[0].innerText;           // Column 0: Name
-        var categoryInt = row.children[1].getAttribute('data-value') || getCategoryValue(row.children[1].innerText);
-        var stockWithUnit = row.children[2].innerText;   // Column 2: Stock
-        var minQtyWithUnit = row.children[3].innerText;  // Column 3: Min Qty
+        // ✅ I-update ang column indices dahil may SKU column na
+        var sku = row.children[0].innerText;           // Column 0: SKU (hindi gagamitin sa edit)
+        var name = row.children[1].innerText;          // Column 1: Name
+        var categoryInt = row.children[2].getAttribute('data-value'); // Column 2: Category
+        var stockWithUnit = row.children[3].innerText;  // Column 3: Stock
+        var minQtyWithUnit = row.children[4].innerText; // Column 4: Min Qty
         var unit = extractUnit(stockWithUnit);
         var minQty = parseFloat(minQtyWithUnit.split(' ')[0]);
 
@@ -2127,12 +2311,12 @@
         document.getElementById('Unit').value = unit;
         document.getElementById('MinQty').value = isNaN(minQty) ? 0 : minQty;
 
-        // ✅ Wala nang Price at ExpiryDate na ise-set
+        // Optional: Ipakita ang SKU sa form (readonly)
+        // document.getElementById('SKU').value = sku.replace(/[^A-Z0-9-]/g, '');
 
         document.getElementById('formHeader').innerHTML = '<i class="fas fa-edit"></i> Edit Raw Material';
         document.getElementById('addRawMaterialBox').style.display = 'block';
     }
-
         function deleteMaterial(id, clickEvent) {
         const deleteButton = clickEvent ? clickEvent.target : event.target;
         const originalText = deleteButton.innerText;
@@ -3284,12 +3468,16 @@ function produceProduct(productSizeId, sizeName, currentStock) {
             'sales': 'salesReportTab',
             'bestselling': 'bestSellingTab',
             'discounts': 'discountsTab',
-            'waste': 'wasteTrackingTab'   // <-- BAGONG IDAGDAG
+            'waste': 'wasteTrackingTab' ,  // <-- BAGONG IDAGDAG
+                'receipts': 'receiptsTab'
         };
 
         var targetId = tabIdMap[tabName];
         var targetEl = document.getElementById(targetId);
         if (targetEl) targetEl.classList.add('show', 'active');
+            if (tabName === 'receipts') {
+            loadReceiptHistory();
+        }
 
         // Re-render charts only (no fetch)
         if (tabName === 'sales' && lastReportsData) {
@@ -3347,9 +3535,178 @@ function produceProduct(productSizeId, sizeName, currentStock) {
                     showReportsError();
                 }
             });
+            }
+
+                // Load Receipt History
+    function loadReceiptHistory() {
+        const filterDate = document.getElementById('receiptFilterDate')?.value || '';
+
+        fetch(`/Owner/GetReceipts?date=${filterDate}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayReceiptHistory(data.receipts);
+                } else {
+                    document.getElementById('receiptHistoryBody').innerHTML =
+                        '<tr><td colspan="8" class="text-center text-danger">Failed to load receipts</td></tr>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('receiptHistoryBody').innerHTML =
+                    '<tr><td colspan="8" class="text-center text-danger">Error loading receipts</td></tr>';
+            });
     }
 
-            function showReportsLoading() {
+    function displayReceiptHistory(receipts) {
+        const tbody = document.getElementById('receiptHistoryBody');
+
+             // ✅ I-check kung ang receipts ay valid
+        if (!receipts || receipts.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center text-muted">
+                        📋 No receipts found yet.<br>
+                        <small>Make a sale in POS to generate receipts.</small>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        if (!receipts || receipts.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No receipts found</td></tr>';
+            return;
+        }
+
+        let html = '';
+        receipts.forEach(receipt => {
+            html += `
+                <tr>
+                    <td><code>${receipt.receiptNumber}</code></td>
+                    <td>${receipt.date}</td>
+                    <td>${receipt.itemCount} item(s)</td>
+                    <td>₱${receipt.subtotal.toFixed(2)}</td>
+                        <td>
+        ${receipt.discountPercent > 0 ?
+            `<span style="color: #333;">${receipt.discountType} (${receipt.discountPercent * 100}%)<br>-₱${receipt.discountAmount.toFixed(2)}</span>` :
+            '<span class="text-muted">None</span>'}
+    </td>
+                    <td class="fw-bold text-primary">₱${receipt.total.toFixed(2)}</td>
+                    <td><span class="badge bg-success">${receipt.paymentMethod}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="viewReceiptDetail(${receipt.orderId})">
+                            <i class="fas fa-eye"></i> View
+                        </button>
+                        <button class="btn btn-sm btn-secondary" onclick="printReceipt(${receipt.orderId})">
+                            <i class="fas fa-print"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    }
+
+    // View Receipt Detail Modal
+        function viewReceiptDetail(orderId) {
+        console.log("Viewing receipt for orderId:", orderId);
+
+        fetch(`/Owner/GetReceiptDetail?orderId=${orderId}`)
+            .then(response => response.json())
+            .then(data => {
+                console.log("Receipt data received:", data);
+                if (data.success) {
+                    showReceiptModalFromData(data.receipt);
+                } else {
+                    alert('Error loading receipt details: ' + (data.message || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error loading receipt details: ' + error.message);
+            });
+    }
+              function showReceiptModalFromData(receipt) {
+        console.log("Showing receipt modal", receipt);
+
+        const receiptDiv = document.getElementById('receiptContentForReports');
+        if (!receiptDiv) {
+            console.error("receiptContentForReports element not found!");
+            return;
+        }
+
+        const now = new Date(receipt.date);
+
+        let itemsHtml = '';
+        if (receipt.items && receipt.items.length > 0) {
+            receipt.items.forEach(item => {
+                itemsHtml += `
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px dotted #eee;">
+                        <div>
+                            <strong>${escapeHtml(item.name)}</strong><br>
+                            <small>${item.size} × ${item.quantity}</small>
+                        </div>
+                        <div>₱${item.subtotal.toFixed(2)}</div>
+                    </div>
+                `;
+            });
+        } else {
+            itemsHtml = '<div class="text-muted">No items found</div>';
+        }
+
+        let discountHtml = '';
+        if (receipt.discountPercent > 0) {
+            discountHtml = `
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: #333; margin-top: 5px;">
+                    <span>${receipt.discountType} (${receipt.discountPercent * 100}% OFF)</span>
+                    <span>-₱${receipt.discountAmount.toFixed(2)}</span>
+                </div>
+            `;
+        }
+
+           receiptDiv.innerHTML = `
+        <div style="text-align: center; margin-bottom: 20px;">
+            <h3 style="margin: 5px 0;">Neldie's Mango & More</h3>
+            <small style="color: #666;">Official Receipt</small>
+            <hr style="margin: 10px 0;">
+        </div>
+        <div style="text-align: center; margin-bottom: 15px;">
+            <div><strong>${now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</strong></div>
+            <div>${now.toLocaleTimeString()}</div>
+            <div><small>Receipt #: ${escapeHtml(receipt.receiptNumber)}</small></div>
+        </div>
+        <div style="margin-bottom: 10px;">
+            <strong>Order Summary</strong>
+        </div>
+        ${itemsHtml}
+        <div style="display: flex; justify-content: space-between; margin-top: 8px;">
+            <span>Subtotal</span>
+            <span>₱${receipt.subtotal.toFixed(2)}</span>
+        </div>
+        ${discountHtml}
+        <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; border-top: 2px solid #333; margin-top: 10px; padding-top: 10px;">
+            <span>TOTAL</span>
+            <span>₱${receipt.total.toFixed(2)}</span>
+        </div>
+        <div style="margin-top: 15px; text-align: center; padding-top: 10px; border-top: 1px dashed #ccc;">
+            <div>Payment: <strong>${escapeHtml(receipt.paymentMethod)}</strong></div>
+            <div style="margin-top: 5px;">✅ Order Completed</div>
+        </div>
+    `;
+    
+
+        // ✅ I-set ang display sa 'flex' para lumitaw ang modal
+        const receiptModal = document.getElementById('receiptModalForReports');
+        if (receiptModal) {
+            receiptModal.style.display = 'flex';
+            console.log("Modal display set to flex");
+        } else {
+            console.error("receiptModalForReports element not found!");
+        }
+    }
+
+     function showReportsLoading() {
                 var topSelling = document.getElementById('topSellingList');
                 if (topSelling) topSelling.innerHTML = '<div class="list-group-item text-center"><div class="spinner-border spinner-border-sm me-2"></div>Loading...</div>';
                 var wasteBody = document.getElementById('wasteSummaryBody');
@@ -3945,7 +4302,39 @@ function editEmployee(id) {
                 document.getElementById('performanceTableBody').innerHTML = `<tr><td colspan="5" class="text-center text-danger">Error loading performance data</td></tr>`;
             });
     }
-   
+
+    function toggleRawMaterialForm() {
+    var box = document.getElementById('addRawMaterialBox');
+    if (box) {
+        if (box.style.display === 'none' || box.style.display === '') {
+            box.style.display = 'block';
+            document.getElementById('formHeader').innerHTML = '<i class="fas fa-box"></i> Add Raw Material';
+            document.getElementById('addRawMaterialForm').reset();
+            document.getElementById('RawMaterialId').value = '';
+        } else {
+            box.style.display = 'none';
+        }
+    } else {
+        console.error('addRawMaterialBox not found');
+    }
+}
+
+function editRawMaterial(id) {
+    // Gamitin ang existing editMaterial function
+    editMaterial(id);
+}
+
+function deleteRawMaterial(id) {
+    deleteMaterial(id, event);
+}
+
+function filterRawMaterialsTable() {
+    var input = document.getElementById("searchRawMaterial2").value.toLowerCase();
+    var rows = document.getElementById("rawMaterialTable2").getElementsByTagName("tbody")[0].getElementsByTagName("tr");
+    for (var i = 0; i < rows.length; i++) {
+        rows[i].style.display = rows[i].innerText.toLowerCase().includes(input) ? "" : "none";
+    }
+}
      
         
        
@@ -3961,6 +4350,13 @@ window.showModule = function(module) {
         setTimeout(function() { loadEmployees(); }, 100);
     }
 };
+        function closeReceiptModalForReports() {
+            const modal = document.getElementById('receiptModalForReports');
+            if (modal) {
+                modal.style.display = 'none';
+                console.log("Modal closed");
+            }
+        }
 
 // ========== HELPER FUNCTION ==========
 function escapeHtml(str) {

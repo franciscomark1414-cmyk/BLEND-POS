@@ -21,7 +21,10 @@ namespace Infoman.Data
         public DbSet<RawMaterialBatch> RawMaterialBatches { get; set; }
         public DbSet<EmployeeAttendance> EmployeeAttendances { get; set; }
         public DbSet<EmployeePerformance> EmployeePerformances { get; set; }
-
+        public DbSet<Supplier> Suppliers { get; set; }
+        public DbSet<Receiving> Receivings { get; set; }
+        public DbSet<ReceivingItem> ReceivingItems { get; set; }
+        public DbSet<RejectedForReturn> RejectedForReturns { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

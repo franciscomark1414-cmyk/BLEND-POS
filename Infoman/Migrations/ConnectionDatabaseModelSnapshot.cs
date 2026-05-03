@@ -373,6 +373,104 @@ namespace Infoman.Migrations
                     b.ToTable("RawMaterialBatches", (string)null);
                 });
 
+            modelBuilder.Entity("Infoman.Models.Receiving", b =>
+                {
+                    b.Property<int>("ReceivingId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ReceivingId"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("DRImagePath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("DRNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("DateReceived")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("InvoiceNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Remarks")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("SupplierId")
+                        .HasColumnType("int");
+
+                    b.HasKey("ReceivingId");
+
+                    b.HasIndex("SupplierId");
+
+                    b.ToTable("Receivings");
+                });
+
+            modelBuilder.Entity("Infoman.Models.ReceivingItem", b =>
+                {
+                    b.Property<int>("ReceivingItemId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ReceivingItemId"));
+
+                    b.Property<decimal>("AcceptedQty")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ExpiryDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("OrderedQty")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("RawMaterialId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("ReceivedQty")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("ReceivingId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("RejectedQty")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("ReceivingItemId");
+
+                    b.HasIndex("RawMaterialId");
+
+                    b.HasIndex("ReceivingId");
+
+                    b.ToTable("ReceivingItems");
+                });
+
             modelBuilder.Entity("Infoman.Models.RecipeItem", b =>
                 {
                     b.Property<int>("RecipeItemId")
@@ -398,6 +496,92 @@ namespace Infoman.Migrations
                     b.HasIndex("RawMaterialId");
 
                     b.ToTable("RecipeItems");
+                });
+
+            modelBuilder.Entity("Infoman.Models.RejectedForReturn", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("RawMaterialId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("ReceivingId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RawMaterialId");
+
+                    b.HasIndex("ReceivingId");
+
+                    b.ToTable("RejectedForReturn");
+                });
+
+            modelBuilder.Entity("Infoman.Models.Supplier", b =>
+                {
+                    b.Property<int>("SupplierId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SupplierId"));
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ContactPerson")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("SupplierId");
+
+                    b.ToTable("Suppliers");
                 });
 
             modelBuilder.Entity("Infoman.Models.User", b =>
@@ -568,6 +752,36 @@ namespace Infoman.Migrations
                     b.Navigation("RawMaterial");
                 });
 
+            modelBuilder.Entity("Infoman.Models.Receiving", b =>
+                {
+                    b.HasOne("Infoman.Models.Supplier", "Supplier")
+                        .WithMany("Receivings")
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("Infoman.Models.ReceivingItem", b =>
+                {
+                    b.HasOne("Infoman.Models.RawMaterial", "RawMaterial")
+                        .WithMany()
+                        .HasForeignKey("RawMaterialId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Infoman.Models.Receiving", "Receiving")
+                        .WithMany("ReceivingItems")
+                        .HasForeignKey("ReceivingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RawMaterial");
+
+                    b.Navigation("Receiving");
+                });
+
             modelBuilder.Entity("Infoman.Models.RecipeItem", b =>
                 {
                     b.HasOne("Infoman.Models.ProductSize", "ProductSize")
@@ -585,6 +799,25 @@ namespace Infoman.Migrations
                     b.Navigation("ProductSize");
 
                     b.Navigation("RawMaterial");
+                });
+
+            modelBuilder.Entity("Infoman.Models.RejectedForReturn", b =>
+                {
+                    b.HasOne("Infoman.Models.RawMaterial", "RawMaterial")
+                        .WithMany()
+                        .HasForeignKey("RawMaterialId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Infoman.Models.Receiving", "Receiving")
+                        .WithMany()
+                        .HasForeignKey("ReceivingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RawMaterial");
+
+                    b.Navigation("Receiving");
                 });
 
             modelBuilder.Entity("Infoman.Models.WasteLog", b =>
@@ -621,6 +854,16 @@ namespace Infoman.Migrations
             modelBuilder.Entity("Infoman.Models.RawMaterialBatch", b =>
                 {
                     b.Navigation("ProductionUsages");
+                });
+
+            modelBuilder.Entity("Infoman.Models.Receiving", b =>
+                {
+                    b.Navigation("ReceivingItems");
+                });
+
+            modelBuilder.Entity("Infoman.Models.Supplier", b =>
+                {
+                    b.Navigation("Receivings");
                 });
 
             modelBuilder.Entity("Infoman.Models.User", b =>

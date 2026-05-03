@@ -5,7 +5,7 @@
 }
 
 <style>
-    <style >
+    <style>
     body {
         background: linear-gradient(to bottom, #f5f1e6, #e8dcc7);
         font-family: 'Segoe UI', sans-serif;
@@ -205,6 +205,12 @@
         width: 100%;
         margin-bottom: 0;
     }
+
+        .table th {
+            background-color: #334155;
+            color: #f59e0b;
+            font-weight: 600;
+        }
 
     .card {
         border-radius: 10px;
@@ -492,6 +498,18 @@
         <div class="nav-item" onclick="showModule('products')">
             <i class="fas fa-cube"></i> Product Listing
         </div>
+        <div class="nav-item" onclick="showModule('suppliers')">
+            <i class="fas fa-truck"></i> Suppliers
+        </div>
+        <div class="nav-item" onclick="showModule('receiving')">
+            <i class="fas fa-clipboard-list"></i> Receive Delivery
+        </div>
+        <div class="nav-item" onclick="showModule('receivingHistory')">
+            <i class="fas fa-history"></i> Delivery History
+        </div>
+        <div class="nav-item" onclick="showModule('returns')"> 
+            <i class="fas fa-undo-alt"></i> Returns
+        </div> 
         <div class="nav-item" onclick="showModule('inventoryAlerts')">
             <i class="fas fa-bell"></i> Alerts
         </div>
@@ -877,8 +895,23 @@
 
                         <div class="mb-3">
                             <label class="form-label fw-bold">Unit <span class="text-danger">*</span></label>
-                            <input type="text" name="Unit" id="Unit" class="form-control" required placeholder="e.g., kg, pcs, liters">
-                            <small class="text-muted">Measurement unit for this raw material</small>
+                            <select name="Unit" id="Unit" class="form-control" required>
+                                <option value="">-- Select Unit --</option>
+                                <option value="kg">📦 kilogram (kg)</option>
+                                <option value="g">⚖️ gram (g)</option>
+                                <option value="L">💧 liter (L)</option>
+                                <option value="mL">🧪 milliliter (mL)</option>
+                                <option value="pcs">🔢 pieces (pcs)</option>
+                                <option value="box">📦 box</option>
+                                <option value="pack">📦 pack</option>
+                                <option value="bottle">🍾 bottle</option>
+                                <option value="can">🥫 can</option>
+                                <option value="bag">🛍️ bag</option>
+                                <option value="sack">🛢️ sack</option>
+                                <option value="tray">📋 tray</option>
+                                <option value="dozen">1️⃣2 dozen</option>
+                            </select>
+                            <small class="text-muted">Select measurement unit for this raw material</small>
                         </div>
 
                         <div class="mb-3">
@@ -988,7 +1021,7 @@
                                                             }
                                                             @emoji @size.SizeName
                                                         </td>
-                                                        <td><code>@size.SKU</code></td>
+                                                        <td><code>@(string.IsNullOrEmpty(size.SKU) ? "—" : size.SKU)</code></td>  <!-- ✅ ITO ANG PALITAN -->
                                                         <td>₱@size.Price.ToString("N2")</td>
                                                         <td id="pos-status-@size.ProductSizeId">
                                                             @if (size.IsAvailableInPOS)
@@ -1001,18 +1034,6 @@
                                                             }
                                                         </td>
                                                         <td>
-                                                            @if (size.IsAvailableInPOS)
-                                                            {
-                                                                <button class="btn btn-sm btn-warning me-1" onclick="hideFromPOS(@size.ProductSizeId, '@product.Name', '@size.SizeName')">
-                                                                    🙈 Hide from POS
-                                                                </button>
-                                                            }
-                                                            else
-                                                            {
-                                                                <button class="btn btn-sm btn-success me-1" onclick="displayInPOS(@size.ProductSizeId, '@product.Name', '@size.SizeName')">
-                                                                    🖥️ Display in POS
-                                                                </button>
-                                                            }
                                                             <button class="btn btn-sm btn-info me-1" onclick="viewRecipe(@size.ProductSizeId)">
                                                                 👁️ View Recipe
                                                             </button>
@@ -1020,12 +1041,22 @@
                                                                 ✏️ Edit Recipe
                                                             </button>
                                                         </td>
+                                                        <td>
+                                                            @if (size.IsAvailableInPOS)
+                                                            {
+                                                                <button class="btn btn-sm btn-warning" onclick="hideFromPOS(@size.ProductSizeId, '@product.Name', '@size.SizeName')">
+                                                                    🙈 Hide from POS
+                                                                </button>
+                                                            }
+                                                            else
+                                                            {
+                                                                <button class="btn btn-sm btn-success" onclick="displayInPOS(@size.ProductSizeId, '@product.Name', '@size.SizeName')">
+                                                                    🖥️ Display in POS
+                                                                </button>
+                                                            }
+                                                        </td>
                                                     </tr>
                                                 }
-                                            }
-                                            else
-                                            {
-                                                <tr><td colspan="4" class="text-center text-muted">No sizes added yet</td></tr>
                                             }
                                         </tbody>
                                     </table>
@@ -1539,14 +1570,6 @@
                     <div>
                         <h2 class="mb-1">📊 Reports & Analytics</h2>
                         <p class="text-muted">Comprehensive business insights and performance metrics</p>
-                    </div>
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-outline-secondary btn-sm" onclick="printReport()">
-                            <i class="fas fa-print"></i> Print
-                        </button>
-                        <button class="btn btn-outline-primary btn-sm" onclick="exportReport()">
-                            <i class="fas fa-download"></i> Export
-                        </button>
                     </div>
                 </div>
 
@@ -2091,6 +2114,302 @@
             <h3>Settings Module</h3>
             <p>Coming soon...</p>
         </div>
+
+        <!-- Suppliers Module -->
+        <div id="suppliersModule" class="module">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3><i class="fas fa-truck text-primary me-2"></i> Suppliers</h3>
+                <button class="btn btn-primary" onclick="showSupplierModal(0)">
+                    <i class="fas fa-plus"></i> Add Supplier
+                </button>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover" id="suppliersTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Supplier Name</th>
+                                    <th>Contact Person</th>
+                                    <th>Phone</th>
+                                    <th>Email</th>
+                                    <th>Actions</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="suppliersTableBody">
+                                <tr><td colspan="7" class="text-center">Loading...</td>
+                                <tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Receive Delivery Module -->
+        <div id="receivingModule" class="module">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3><i class="fas fa-clipboard-list text-success me-2"></i> Receive Delivery</h3>
+                <button class="btn btn-outline-secondary" onclick="document.getElementById('receivingForm').reset();">
+                    <i class="fas fa-undo"></i> Reset
+                </button>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form id="receivingForm">
+                        @Html.AntiForgeryToken()
+
+                        <!-- Delivery Info -->
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Supplier <span class="text-danger">*</span></label>
+                                <select id="supplierId" class="form-control" required>
+                                    <option value="">-- Select Supplier --</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">DR Number <span class="text-danger">*</span></label>
+                                <input type="text" id="drNumber" class="form-control" required placeholder="e.g., DR-2025-001">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Invoice Number</label>
+                                <input type="text" id="invoiceNumber" class="form-control" placeholder="Optional">
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Date Received</label>
+                                <input type="date" id="dateReceived" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-dd")">
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label fw-bold">Remarks</label>
+                                <input type="text" id="remarks" class="form-control" placeholder="Optional notes">
+                            </div>
+                        </div>
+
+                        <hr />
+
+                        <!-- Items Table -->
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0">📦 Items Received</h5>
+                            <button type="button" class="btn btn-sm btn-success" onclick="addReceivingRow()">
+                                <i class="fas fa-plus"></i> Add Item
+                            </button>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-bordered" id="receivingItemsTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width:20%">Raw Material</th>
+                                        <th style="width:8%">Received</th>
+                                        <th style="width:8%">Accepted</th>
+                                        <th style="width:8%">Rejected</th>
+                                        <th style="width:12%">Rejection Reason</th>
+                                        <th style="width:8%">Unit Price</th>
+                                        <th style="width:10%">Expiry Date</th>
+                                        <th style="width:5%">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="receivingItemsBody">
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="alert alert-info mt-3">
+                            <i class="fas fa-info-circle"></i> <strong>Formula:</strong> Accepted + Rejected = Received
+                        </div>
+
+                        <div class="mt-3">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save"></i> Save Delivery
+                            </button>
+                            <button type="button" class="btn btn-secondary btn-lg" onclick="showModule('dashboard')">
+                                <i class="fas fa-times"></i> Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delivery History Module -->
+        <div id="receivingHistoryModule" class="module">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3><i class="fas fa-history text-info me-2"></i> Delivery History</h3>
+                <button class="btn btn-outline-primary" onclick="loadDeliveryHistory()">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover" id="historyTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>DR #</th>
+                                    <th>Date</th>
+                                    <th>Supplier</th>
+                                    <th>Items</th>
+                                    <th>Accepted</th>
+                                    <th>Rejected</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTableBody">
+                                <tr><td colspan="7" class="text-center">Click Refresh to load...</td>
+                                <tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Returns Module -->
+          <div id="returnsModule" class="module">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3><i class="fas fa-undo-alt text-warning me-2"></i> Returns to Supplier</h3>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-secondary" onclick="printReturns()">
+                        <i class="fas fa-print"></i> Print
+                    </button>
+                    <button class="btn btn-outline-primary" onclick="loadReturns()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+            </div> 
+
+           
+            <div class="row g-3 mb-4"> 
+                <div class="col-md-3">
+                    <div class="card border-left-warning shadow h-100">
+                        <div class="card-body">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Pending Returns</div>
+                            <div class="h5 mb-0 font-weight-bold" id="pendingReturnsCount">0</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-left-success shadow h-100">
+                        <div class="card-body">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Returned</div>
+                            <div class="h5 mb-0 font-weight-bold" id="returnedCount">0</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-left-danger shadow h-100">
+                        <div class="card-body">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Cancelled</div>
+                            <div class="h5 mb-0 font-weight-bold" id="cancelledCount">0</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-left-info shadow h-100">
+                        <div class="card-body">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Total Return Value</div>
+                            <div class="h5 mb-0 font-weight-bold" id="totalReturnValue">₱0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+          
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i> Return Records</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover" id="returnsTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th style="width:5%">ID</th>
+                                    <th style="width:12%">DR #</th>
+                                    <th style="width:15%">Supplier</th>
+                                    <th style="width:15%">Material</th>
+                                    <th style="width:8%">Quantity</th>
+                                    <th style="width:15%">Reason</th>
+                                    <th style="width:8%">Unit Price</th>
+                                    <th style="width:8%">Total</th>
+                                    <th style="width:10%">Status</th>
+                                    <th style="width:10%">Date</th>
+                                    <th style="width:10%">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="returnsTableBody">
+                                <tr>
+                                    <td colspan="11" class="text-center text-muted">
+                                        <div class="py-5">
+                                            <i class="fas fa-undo-alt fa-3x mb-3"></i>
+                                            <p>No return records found</p>
+                                            <small>When you mark rejected items as "Return to Supplier", they will appear here.</small>
+                                        </div>
+                                        </td>
+                                      </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div> 
+
+        <!-- Supplier Modal -->
+        <div class="modal fade" id="supplierModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title" id="supplierModalTitle">Add Supplier</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="supplierForm">
+                            <input type="hidden" id="editSupplierId" value="0">
+                            <div class="mb-3">
+                                <label class="form-label">Supplier Name <span class="text-danger">*</span></label>
+                                <input type="text" id="supplierName" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Contact Person</label>
+                                <input type="text" id="contactPerson" class="form-control">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Phone</label>
+                                <input type="text" id="supplierPhone" class="form-control">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" id="supplierEmail" class="form-control">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Address</label>
+                                <textarea id="supplierAddress" class="form-control" rows="2"></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Status</label>
+                                <select id="supplierStatus" class="form-control">
+                                    <option value="Active">Active</option>
+                                    <option value="Inactive">Inactive</option>
+                                </select>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" onclick="saveSupplier()">Save Supplier</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>
 
@@ -2116,9 +2435,9 @@
         });
     }
 
-              function showModule(module) {
+                      function showModule(module) {
         // Hide all modules
-        var modules = ['dashboard','rawMaterials', 'inventory', 'products', 'inventoryAlerts', 'reports', 'employees', 'settings'];
+        var modules = ['dashboard', 'rawMaterials', 'inventory', 'products', 'inventoryAlerts', 'reports', 'employees', 'settings', 'suppliers', 'receiving', 'receivingHistory', 'returns'];
         modules.forEach(function(m) {
             var el = document.getElementById(m + 'Module');
             if (el) el.classList.remove('active');
@@ -2128,20 +2447,16 @@
         var selectedModule = document.getElementById(module + 'Module');
         if (selectedModule) selectedModule.classList.add('active');
 
-        // ========== UPDATE SIDEBAR ACTIVE STATE ==========
-        // Remove active class from all sidebar nav items
+        // Update sidebar active state
         var navItems = document.querySelectorAll('.sidebar .nav-item');
         navItems.forEach(function(item) {
             item.classList.remove('active');
         });
 
-        // Add active class to the clicked nav item
-        // Find which nav item corresponds to this module
         var activeNavItem = document.querySelector('.sidebar .nav-item[onclick*="showModule(\'' + module + '\')"]');
         if (activeNavItem) {
             activeNavItem.classList.add('active');
         } else {
-            // Fallback: try to find by text or data attribute
             var allNavItems = document.querySelectorAll('.sidebar .nav-item');
             for (var i = 0; i < allNavItems.length; i++) {
                 var item = allNavItems[i];
@@ -2157,16 +2472,32 @@
         if (module === 'inventoryAlerts') {
             loadInventoryAlerts();
         }
-
         if (module === 'reports') {
             reportsDataLoaded = false;
             setTimeout(function() { loadReportsData(); }, 150);
         }
-
         if (module === 'employees') {
             setTimeout(function() { loadEmployees(); }, 100);
         }
-    }
+        if (module === 'suppliers') {
+            loadSuppliers();
+        }
+        if (module === 'receiving') {
+            console.log('Loading receiving data...');
+            loadReceivingFormData();
+            setTimeout(function() {
+                if (document.getElementById('receivingItemsBody').children.length === 0) {
+                    addReceivingRow();
+                }
+            }, 200);
+        }
+        if (module === 'receivingHistory') {
+            loadDeliveryHistory();
+        }
+        if (module === 'returns') {
+            loadReturns();
+        }
+    } 
     // Add Delivery Form Functions
     function showAddDeliveryForm() {
         document.getElementById('addDeliveryBox').style.display = 'block';
@@ -2291,33 +2622,60 @@
             rows[i].style.display = rows[i].innerText.toLowerCase().includes(input) ? "" : "none";
         }
     }
-
-           function editMaterial(id) {
+        function extractUnit(stockWithUnit) {
+        if (!stockWithUnit) return '';
+        // Halimbawa: "10 kg" -> "kg", "5 pcs" -> "pcs"
+        var parts = stockWithUnit.trim().split(' ');
+        return parts.length > 1 ? parts[1] : '';
+    }
+              function editMaterial(id) {
         var row = document.querySelector('tr[data-id="' + id + '"]');
-        if (!row) { alert('Material not found'); return; }
+        if (!row) {
+            alert('Material not found');
+            return;
+        }
 
-        // ✅ I-update ang column indices dahil may SKU column na
-        var sku = row.children[0].innerText;           // Column 0: SKU (hindi gagamitin sa edit)
-        var name = row.children[1].innerText;          // Column 1: Name
-        var categoryInt = row.children[2].getAttribute('data-value'); // Column 2: Category
-        var stockWithUnit = row.children[3].innerText;  // Column 3: Stock
-        var minQtyWithUnit = row.children[4].innerText; // Column 4: Min Qty
+        // Get values from the row
+        var sku = row.children[0]?.innerText || '';           // Column 0: SKU
+        var name = row.children[1]?.innerText || '';          // Column 1: Name
+        var categoryInt = row.children[2]?.getAttribute('data-value'); // Column 2: Category
+        var stockWithUnit = row.children[3]?.innerText || '';  // Column 3: Stock
+        var minQtyWithUnit = row.children[4]?.innerText || ''; // Column 4: Min Qty
+
+        // Extract unit from stock (e.g., "10 kg" -> "kg")
         var unit = extractUnit(stockWithUnit);
         var minQty = parseFloat(minQtyWithUnit.split(' ')[0]);
 
+        // Set form values
         document.getElementById('RawMaterialId').value = id;
         document.getElementById('Name').value = name;
         document.getElementById('Category').value = categoryInt;
-        document.getElementById('Unit').value = unit;
-        document.getElementById('MinQty').value = isNaN(minQty) ? 0 : minQty;
 
-        // Optional: Ipakita ang SKU sa form (readonly)
-        // document.getElementById('SKU').value = sku.replace(/[^A-Z0-9-]/g, '');
+        // ✅ IMPORTANT: Set the dropdown value for Unit
+        var unitDropdown = document.getElementById('Unit');
+        if (unitDropdown && unit) {
+            // Check if the unit exists in dropdown options
+            var optionExists = false;
+            for (var i = 0; i < unitDropdown.options.length; i++) {
+                if (unitDropdown.options[i].value === unit) {
+                    optionExists = true;
+                    break;
+                }
+            }
+            if (optionExists) {
+                unitDropdown.value = unit;
+            } else {
+                // If unit not in dropdown, add it temporarily or set to first option
+                console.warn('Unit "' + unit + '" not found in dropdown');
+                unitDropdown.value = ''; // or set to default
+            }
+        }
+
+        document.getElementById('MinQty').value = isNaN(minQty) ? 0 : minQty;
 
         document.getElementById('formHeader').innerHTML = '<i class="fas fa-edit"></i> Edit Raw Material';
         document.getElementById('addRawMaterialBox').style.display = 'block';
-    }
-        function deleteMaterial(id, clickEvent) {
+    }      function deleteMaterial(id, clickEvent) {
         const deleteButton = clickEvent ? clickEvent.target : event.target;
         const originalText = deleteButton.innerText;
 
@@ -4335,21 +4693,451 @@ function filterRawMaterialsTable() {
         rows[i].style.display = rows[i].innerText.toLowerCase().includes(input) ? "" : "none";
     }
 }
-     
+
+// ========== SUPPLIER FUNCTIONS ==========
+function loadSuppliers() {
+    fetch('/Owner/GetSuppliers')
+        .then(r => r.json())
+        .then(data => {
+            const tbody = document.getElementById('suppliersTableBody');
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center">No suppliers yet. Click Add Supplier.</td></tr>';
+                return;
+            }
+            
+            let html = '';
+            data.forEach(s => {
+                html += `<tr>
+                    <td>${s.supplierId}</td>
+                    <td><strong>${escapeHtml(s.name)}</strong></td>
+                    <td>${escapeHtml(s.contactPerson || '-')}</td>
+                    <td>${escapeHtml(s.phone || '-')}</td>
+                    <td>${escapeHtml(s.email || '-')}</td>
+                    <td><span class="badge ${s.status === 'Active' ? 'bg-success' : 'bg-secondary'}">${s.status}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-warning" onclick="editSupplier(${s.supplierId})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteSupplier(${s.supplierId})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        });
+}
+
+function showSupplierModal(id) {
+    if (id === 0) {
+        document.getElementById('supplierModalTitle').innerText = 'Add Supplier';
+        document.getElementById('supplierForm').reset();
+        document.getElementById('editSupplierId').value = 0;
+    }
+    new bootstrap.Modal(document.getElementById('supplierModal')).show();
+}
+
+function editSupplier(id) {
+    fetch('/Owner/GetSuppliers')
+        .then(r => r.json())
+        .then(data => {
+            const supplier = data.find(s => s.supplierId === id);
+            if (supplier) {
+                document.getElementById('supplierModalTitle').innerText = 'Edit Supplier';
+                document.getElementById('editSupplierId').value = supplier.supplierId;
+                document.getElementById('supplierName').value = supplier.name;
+                document.getElementById('contactPerson').value = supplier.contactPerson || '';
+                document.getElementById('supplierPhone').value = supplier.phone || '';
+                document.getElementById('supplierEmail').value = supplier.email || '';
+                document.getElementById('supplierAddress').value = supplier.address || '';
+                document.getElementById('supplierStatus').value = supplier.status;
+                new bootstrap.Modal(document.getElementById('supplierModal')).show();
+            }
+        });
+}
+
+function saveSupplier() {
+    const id = parseInt(document.getElementById('editSupplierId').value);
+    const data = {
+        supplierId: id,
+        name: document.getElementById('supplierName').value,
+        contactPerson: document.getElementById('contactPerson').value,
+        phone: document.getElementById('supplierPhone').value,
+        email: document.getElementById('supplierEmail').value,
+        address: document.getElementById('supplierAddress').value,
+        status: document.getElementById('supplierStatus').value
+    };
+    
+    const url = id === 0 ? '/Owner/CreateSupplier' : '/Owner/UpdateSupplier';
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+        },
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(result => {
+        if (result.success) {
+            bootstrap.Modal.getInstance(document.getElementById('supplierModal')).hide();
+            loadSuppliers();
+        } else {
+            alert('Error: ' + result.message);
+        }
+    });
+}
+
+function deleteSupplier(id) {
+    if (confirm('Delete this supplier?')) {
+        fetch(`/Owner/DeleteSupplier?id=${id}`, {
+            method: 'POST',
+            headers: { 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value }
+        })
+        .then(r => r.json())
+        .then(result => {
+            if (result.success) {
+                loadSuppliers();
+            } else {
+                alert(result.message);
+            }
+        });
+    }
+}
+
+// ========== RECEIVING FUNCTIONS ==========
+let receivingRowCount = 0;
+let rawMaterialsList = [];
+
+    function loadReceivingFormData() {
+        fetch('/Owner/GetReceivingFormData')
+            .then(r => r.json())
+            .then(data => {
+                const supplierSelect = document.getElementById('supplierId');
+                supplierSelect.innerHTML = '<option value="">-- Select Supplier --</option>';
+                data.suppliers.forEach(s => {
+                    supplierSelect.innerHTML += `<option value="${s.supplierId}">${escapeHtml(s.name)}</option>`;
+                });
+
+                rawMaterialsList = data.rawMaterials;
+                document.getElementById('drNumber').value = generateDRNumber();
+                // ✅ IDAGDAG ITO - AUTO-GENERATE INVOICE NUMBER
+                document.getElementById('invoiceNumber').value = generateInvoiceNumber();
+            });
+    }
+    function generateDRNumber() {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const random = Math.floor(Math.random() * 1000).toString().padStart(4, '0');
+        return `DR-${year}${month}-${random}`;
+    }
+        function generateInvoiceNumber() {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const random = Math.floor(Math.random() * 10000).toString().padStart(5, '0');
+        return `INV-${year}${month}-${random}`;
+    }
+
+        function addReceivingRow() {
+    const tbody = document.getElementById('receivingItemsBody');
+    const rowId = receivingRowCount++;
+
+    let materialOptions = '<option value="">Select Material</option>';
+    rawMaterialsList.forEach(m => {
+        materialOptions += `<option value="${m.rawMaterialId}" data-unit="${m.unit}">${escapeHtml(m.name)} (${m.unit})</option>`;
+    });
+
+    const row = `
+        <tr id="receiving-row-${rowId}">
+            <td style="width:18%">
+                <select class="form-control material-select" data-row="${rowId}" onchange="updateUnitDisplay(${rowId})">
+                    ${materialOptions}
+                </select>
+            </td>
+            <td style="width:8%">
+                <input type="number" class="form-control received-qty" data-row="${rowId}" step="0.01" min="0" value="0" onchange="validateRow(${rowId})">
+            </td>
+            <td style="width:8%">
+                <input type="number" class="form-control accepted-qty" data-row="${rowId}" step="0.01" min="0" value="0" onchange="validateRow(${rowId})">
+            </td>
+            <td style="width:8%">
+                <input type="number" class="form-control rejected-qty" data-row="${rowId}" step="0.01" min="0" value="0" onchange="validateRow(${rowId}); toggleDisposition(${rowId})">
+            </td>
+            <td style="width:25%">
+                <select class="form-control disposition-select" data-row="${rowId}" style="display:none;" onchange="toggleReasonContainer(${rowId})">
+                    <option value="">-- Select Disposition --</option>
+                    <option value="Return">🔄 Return to Supplier</option>
+                    <option value="Waste">🗑️ Dispose as Waste</option>
+                </select>
+                <div class="reason-container" data-row="${rowId}" style="display:none; margin-top:5px;">
+                    <select class="form-control rejection-reason" data-row="${rowId}" onchange="toggleOtherReason(${rowId})">
+                        <option value="">-- Select Reason --</option>
+                        <option value="Damaged Packaging">📦 Damaged Packaging</option>
+                        <option value="Overripe/Expired">🍂 Overripe/Expired</option>
+                        <option value="Wrong Item">❌ Wrong Item</option>
+                        <option value="Quality Issue">⚠️ Quality Issue</option>
+                        <option value="Short Dated">📅 Short Dated</option>
+                        <option value="Other">📝 Other (specify)</option>
+                    </select>
+                    <input type="text" class="form-control other-reason mt-1" data-row="${rowId}" placeholder="Please specify reason..." style="display:none;">
+                </div>
+            </td>
+            <td style="width:10%">
+                <input type="number" class="form-control unit-price" data-row="${rowId}" step="0.01" min="0" placeholder="0.00">
+            </td>
+            <td style="width:12%">
+                <input type="date" class="form-control expiry-date" data-row="${rowId}">
+            </td>
+            <td style="width:5%">
+                <button type="button" class="btn btn-sm btn-danger" onclick="removeReceivingRow(${rowId})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `;
+
+    tbody.insertAdjacentHTML('beforeend', row);
+}
+
+// Helper function to update unit display when material changes
+function updateUnitDisplay(rowId) {
+    const select = document.querySelector(`.material-select[data-row="${rowId}"]`);
+    const selectedOption = select.options[select.selectedIndex];
+    const unit = selectedOption.getAttribute('data-unit') || '';
+    // Optional: Ipakita ang unit sa tabi ng quantity field
+    const unitDisplay = document.querySelector(`.unit-display-${rowId}`);
+    if (unitDisplay) {
+        unitDisplay.innerText = unit;
+    }
+}
+// ✅ IDAGDAG ANG FUNCTION NA ITO para sa Other Reason toggle
+    function toggleOtherReason(rowId) {
+        const select = document.querySelector(`.rejection-reason[data-row="${rowId}"]`);
+        const otherInput = document.querySelector(`.other-reason[data-row="${rowId}"]`);
+
+        if (select.value === 'Other') {
+            otherInput.style.display = 'block';
+            otherInput.required = true;
+            otherInput.placeholder = "Please specify reason...";
+        } else {
+            otherInput.style.display = 'none';
+            otherInput.required = false;
+            otherInput.value = ''; // I-clear ang value kapag hindi "Other"
+        }
+    }
+
+    // ✅ I-UPDATE ANG validateRow FUNCTION (optional - para mag-highlight)
+    function validateRow(rowId) {
+        const received = parseFloat(document.querySelector(`.received-qty[data-row="${rowId}"]`).value) || 0;
+        const accepted = parseFloat(document.querySelector(`.accepted-qty[data-row="${rowId}"]`).value) || 0;
+        const rejected = parseFloat(document.querySelector(`.rejected-qty[data-row="${rowId}"]`).value) || 0;
+
+        const row = document.getElementById(`receiving-row-${rowId}`);
+
+        if (Math.abs((accepted + rejected) - received) > 0.01) {
+            row.style.backgroundColor = '#ffe6e6';
+            row.style.borderLeft = '3px solid red';
+        } else {
+            row.style.backgroundColor = '';
+            row.style.borderLeft = '';
+        }
+    }
+function removeReceivingRow(rowId) {
+    document.getElementById(`receiving-row-${rowId}`).remove();
+}
+
+    function updateUnitPrice(rowId) {
+        // Wala nang auto-fill ng price - user maglalagay manually
+        console.log('User will enter unit price manually');
+    }
+
+function validateRow(rowId) {
+    const received = parseFloat(document.querySelector(`.received-qty[data-row="${rowId}"]`).value) || 0;
+    const accepted = parseFloat(document.querySelector(`.accepted-qty[data-row="${rowId}"]`).value) || 0;
+    const rejected = parseFloat(document.querySelector(`.rejected-qty[data-row="${rowId}"]`).value) || 0;
+    
+    const row = document.getElementById(`receiving-row-${rowId}`);
+    
+    if (Math.abs((accepted + rejected) - received) > 0.01) {
+        row.style.backgroundColor = '#ffe6e6';
+        row.style.borderLeft = '3px solid red';
+    } else {
+        row.style.backgroundColor = '';
+        row.style.borderLeft = '';
+    }
+}
+
+   // Submit receiving form
+document.getElementById('receivingForm')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const items = [];
+    const rows = document.querySelectorAll('#receivingItemsBody tr');
+
+    for (let row of rows) {
+        const rowId = row.id.split('-').pop();
+        const materialSelect = document.querySelector(`.material-select[data-row="${rowId}"]`);
+
+        if (!materialSelect || !materialSelect.value) continue;
+
+        const receivedQty = parseFloat(document.querySelector(`.received-qty[data-row="${rowId}"]`).value) || 0;
+        const acceptedQty = parseFloat(document.querySelector(`.accepted-qty[data-row="${rowId}"]`).value) || 0;
+        const rejectedQty = parseFloat(document.querySelector(`.rejected-qty[data-row="${rowId}"]`).value) || 0;
         
-       
-// ========== OVERRIDE SHOWMODULE FUNCTION (NASA DULO ITO) ==========
-var originalShowModule = window.showModule;
-window.showModule = function(module) {
-    originalShowModule(module);
-    if (module === 'reports') {
-        reportsDataLoaded = false;
-        setTimeout(function() { loadReportsData(); }, 100);
+        let disposition = '';
+        let rejectionReason = '';
+        
+        if (rejectedQty > 0) {
+            // Kunin ang disposition
+            const dispositionSelect = document.querySelector(`.disposition-select[data-row="${rowId}"]`);
+            disposition = dispositionSelect ? dispositionSelect.value : '';
+            
+            // Kunin ang rejection reason
+            const reasonSelect = document.querySelector(`.rejection-reason[data-row="${rowId}"]`);
+            rejectionReason = reasonSelect ? reasonSelect.value : '';
+            
+            if (rejectionReason === 'Other') {
+                const otherReason = document.querySelector(`.other-reason[data-row="${rowId}"]`);
+                rejectionReason = otherReason ? otherReason.value : 'Other (no details)';
+            }
+            
+            // Validate: If rejected > 0, dapat may disposition
+            if (!disposition) {
+                alert(`Please select disposition (Return or Waste) for ${materialSelect.options[materialSelect.selectedIndex].text}`);
+                return;
+            }
+            
+            // If rejected but no reason, set default
+            if (!rejectionReason || rejectionReason === '') {
+                rejectionReason = 'No reason provided';
+            }
+        }
+
+        items.push({
+            rawMaterialId: parseInt(materialSelect.value),
+            rawMaterialName: materialSelect.options[materialSelect.selectedIndex].text.split('(')[0].trim(),
+            receivedQty: receivedQty,
+            acceptedQty: acceptedQty,
+            rejectedQty: rejectedQty,
+            disposition: disposition,
+            rejectionReason: rejectionReason,
+            unitPrice: parseFloat(document.querySelector(`.unit-price[data-row="${rowId}"]`).value) || 0,
+            expiryDate: document.querySelector(`.expiry-date[data-row="${rowId}"]`).value || null
+        });
     }
-    if (module === 'employees') {
-        setTimeout(function() { loadEmployees(); }, 100);
+
+    if (items.length === 0) {
+        alert('Please add at least one item');
+        return;
     }
-};
+
+    const data = {
+        supplierId: parseInt(document.getElementById('supplierId').value),
+        drNumber: document.getElementById('drNumber').value,
+        invoiceNumber: document.getElementById('invoiceNumber').value,
+        dateReceived: document.getElementById('dateReceived').value,
+        remarks: document.getElementById('remarks').value,
+        items: items
+    };
+
+    if (!data.supplierId || !data.drNumber) {
+        alert('Please select supplier and enter DR Number');
+        return;
+    }
+
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    submitBtn.disabled = true;
+
+    fetch('/Owner/ReceiveDelivery', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+        },
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(result => {
+        if (result.success) {
+            alert('✅ ' + result.message);
+            document.getElementById('receivingForm').reset();
+            document.getElementById('receivingItemsBody').innerHTML = '';
+            receivingRowCount = 0;
+            addReceivingRow();
+            // Set new DR number
+            document.getElementById('drNumber').value = generateDRNumber();
+            // Set new Invoice number
+            document.getElementById('invoiceNumber').value = generateInvoiceNumber();
+            showModule('receivingHistory');
+            loadDeliveryHistory();
+        } else {
+            alert('❌ Error: ' + result.message);
+        }
+    })
+    .finally(() => {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    });
+});
+
+function loadDeliveryHistory() {
+    fetch('/Owner/GetReceivingHistory')
+        .then(r => r.json())
+        .then(data => {
+            const tbody = document.getElementById('historyTableBody');
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center">No delivery records yet</td></tr>';
+                return;
+            }
+            
+            let html = '';
+            data.forEach(r => {
+                html += `<tr>
+                    <td><strong>${escapeHtml(r.drNumber)}</strong></td>
+                    <td>${new Date(r.dateReceived).toLocaleDateString()}</td>
+                    <td>${escapeHtml(r.supplierName)}</td>
+                    <td>${r.totalItems}</td>
+                    <td class="text-success">${r.totalAccepted.toFixed(2)}</td>
+                    <td class="text-danger">${r.totalRejected.toFixed(2)}</td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="viewDeliveryDetails(${r.receivingId})">
+                            <i class="fas fa-eye"></i> View
+                        </button>
+                    </td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        });
+}
+
+function viewDeliveryDetails(receivingId) {
+    fetch('/Owner/GetReceivingHistory')
+        .then(r => r.json())
+        .then(data => {
+            const receiving = data.find(r => r.receivingId === receivingId);
+            if (receiving && receiving.items) {
+                let msg = `📋 DR#: ${receiving.drNumber}\n`;
+                msg += `Supplier: ${receiving.supplierName}\n`;
+                msg += `Date: ${new Date(receiving.dateReceived).toLocaleDateString()}\n`;
+                msg += `\n--- ITEMS ---\n`;
+                receiving.items.forEach(item => {
+                    msg += `\n${item.name}:\n`;
+                    msg += `  Received: ${item.receivedQty}\n`;
+                    msg += `  Accepted: ${item.acceptedQty}\n`;
+                    msg += `  Rejected: ${item.rejectedQty}\n`;
+                    if (item.rejectionReason) msg += `  Reason: ${item.rejectionReason}\n`;
+                    if (item.expiryDate) msg += `  Expiry: ${new Date(item.expiryDate).toLocaleDateString()}\n`;
+                });
+                alert(msg);
+            }
+        });
+}
+
         function closeReceiptModalForReports() {
             const modal = document.getElementById('receiptModalForReports');
             if (modal) {
@@ -4358,6 +5146,220 @@ window.showModule = function(module) {
             }
         }
 
+            // Toggle disposition options
+       // Toggle Disposition dropdown (lumalabas lang kapag may rejected qty)
+    function toggleDisposition(rowId) {
+        const rejectedQty = parseFloat(document.querySelector(`.rejected-qty[data-row="${rowId}"]`).value) || 0;
+        const dispositionSelect = document.querySelector(`.disposition-select[data-row="${rowId}"]`);
+        const reasonContainer = document.querySelector(`.reason-container[data-row="${rowId}"]`);
+
+        if (rejectedQty > 0) {
+            dispositionSelect.style.display = 'block';
+            dispositionSelect.required = true;
+        } else {
+            dispositionSelect.style.display = 'none';
+            dispositionSelect.required = false;
+            dispositionSelect.value = '';
+            reasonContainer.style.display = 'none';
+        }
+    }
+
+    // Toggle Reason Container (lumalabas kapag may napiling disposition)
+    function toggleReasonContainer(rowId) {
+        const dispositionSelect = document.querySelector(`.disposition-select[data-row="${rowId}"]`);
+        const reasonContainer = document.querySelector(`.reason-container[data-row="${rowId}"]`);
+
+        if (dispositionSelect.value && dispositionSelect.value !== '') {
+            reasonContainer.style.display = 'block';
+        } else {
+            reasonContainer.style.display = 'none';
+        }
+    }
+
+    // Toggle Other Reason text field
+    function toggleOtherReason(rowId) {
+        const reasonSelect = document.querySelector(`.rejection-reason[data-row="${rowId}"]`);
+        const otherInput = document.querySelector(`.other-reason[data-row="${rowId}"]`);
+
+        if (reasonSelect.value === 'Other') {
+            otherInput.style.display = 'block';
+            otherInput.required = true;
+        } else {
+            otherInput.style.display = 'none';
+            otherInput.required = false;
+        }
+    }
+
+    // Get disposition and reason (gamitin sa submit)
+    function getDispositionAndReason(rowId) {
+        const dispositionCell = document.querySelector(`.disposition-cell[data-row="${rowId}"]`);
+        const disposition = dispositionCell.querySelector('.disposition-select').value;
+        const reasonSelect = dispositionCell.querySelector('.rejection-reason');
+        let reason = reasonSelect.value;
+
+        if (reason === 'Other') {
+            reason = dispositionCell.querySelector('.other-reason').value;
+            if (!reason) reason = 'Other (no details)';
+        }
+
+        return { disposition, reason };
+    }
+
+
+        function loadReturns() {
+            console.log('Loading returns...');
+
+            fetch('/Owner/GetReturns')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Returns data:', data);
+
+                    const tbody = document.getElementById('returnsTableBody');
+
+                    if (!data || data.length === 0) {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="11" class="text-center text-muted">
+                                    <div class="py-5">
+                                        <i class="fas fa-undo-alt fa-3x mb-3"></i>
+                                        <p>No return records found</p>
+                                        <small>When you mark rejected items as "Return to Supplier", they will appear here.</small>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                        updateReturnSummary([]);
+                        return;
+                    }
+
+                    // Update summary cards
+                    updateReturnSummary(data);
+
+                    // Build table rows
+                    let html = '';
+                    data.forEach(r => {
+                        let statusBadge = '';
+                        if (r.status === 'Pending Return') {
+                            statusBadge = '<span class="badge bg-warning text-dark">⏳ Pending Return</span>';
+                        } else if (r.status === 'Returned') {
+                            statusBadge = '<span class="badge bg-success">✅ Returned</span>';
+                        } else if (r.status === 'Cancelled') {
+                            statusBadge = '<span class="badge bg-danger">❌ Cancelled</span>';
+                        } else {
+                            statusBadge = '<span class="badge bg-secondary">' + escapeHtml(r.status) + '</span>';
+                        }
+
+                        const date = new Date(r.createdAt);
+                        const formattedDate = `${date.getMonth()+1}/${date.getDate()}/${date.getFullYear()}`;
+
+                        html += `
+                            <tr>
+                                <td class="text-center">${r.id}</td>
+                                <td><strong>${escapeHtml(r.drNumber)}</strong></td>
+                                <td>${escapeHtml(r.supplierName)}</td>
+                                <td>${escapeHtml(r.materialName)}</td>
+                                <td class="text-end">${r.quantity.toFixed(2)} kg</td>
+                                <td><small>${escapeHtml(r.reason || '-')}</small></td>
+                                <td class="text-end">₱${r.unitPrice.toFixed(2)}</td>
+                                <td class="text-end text-danger fw-bold">₱${r.total.toFixed(2)}</td>
+                                <td>${statusBadge}</td>
+                                <td>${formattedDate}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-success" onclick="updateReturnStatus(${r.id}, 'Returned')" title="Mark as Returned">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                        <button class="btn btn-danger" onclick="updateReturnStatus(${r.id}, 'Cancelled')" title="Cancel Return">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                        <button class="btn btn-secondary" onclick="deleteReturn(${r.id})" title="Delete Record">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    tbody.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Error loading returns:', error);
+                    document.getElementById('returnsTableBody').innerHTML = `
+                        <tr>
+                            <td colspan="11" class="text-center text-danger">
+                                Error loading returns: ${error.message}
+                            </td>
+                        </tr>
+                    `;
+                });
+        }
+              function updateReturnSummary(returns) {
+            let pending = 0, returned = 0, cancelled = 0, totalValue = 0;
+
+            returns.forEach(r => {
+                if (r.status === 'Pending Return') pending++;
+                else if (r.status === 'Returned') returned++;
+                else if (r.status === 'Cancelled') cancelled++;
+                totalValue += r.total || 0;
+            });
+
+            document.getElementById('pendingReturnsCount').innerText = pending;
+            document.getElementById('returnedCount').innerText = returned;
+            document.getElementById('cancelledCount').innerText = cancelled;
+            document.getElementById('totalReturnValue').innerHTML = `₱${totalValue.toFixed(2)}`;
+        }
+             function updateReturnStatus(id, status) {
+            const statusText = status === 'Returned' ? 'returned to supplier' : 'cancelled';
+            if (!confirm(`Mark this return as ${statusText}?`)) return;
+
+            fetch('/Owner/UpdateReturnStatus', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+                },
+                body: JSON.stringify({ id: id, status: status })
+            })
+            .then(r => r.json())
+            .then(result => {
+                if (result.success) {
+                    alert('✅ ' + result.message);
+                    loadReturns(); // Refresh the list
+                } else {
+                    alert('❌ Error: ' + result.message);
+                }
+            })
+            .catch(error => {
+                alert('❌ Error: ' + error.message);
+            });
+        }
+              function deleteReturn(id) {
+            if (!confirm('Delete this return record? This action cannot be undone.')) return;
+
+            fetch('/Owner/DeleteReturn', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+                },
+                body: JSON.stringify({ id: id })
+            })
+            .then(r => r.json())
+            .then(result => {
+                if (result.success) {
+                    alert('✅ ' + result.message);
+                    loadReturns(); // Refresh the list
+                } else {
+                    alert('❌ Error: ' + result.message);
+                }
+            })
+            .catch(error => {
+                alert('❌ Error: ' + error.message);
+            });
+        }
+
+
+       
 // ========== HELPER FUNCTION ==========
 function escapeHtml(str) {
     if (!str) return '';

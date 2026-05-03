@@ -217,7 +217,8 @@ namespace Infoman.Controllers
                 ProductSizeId = s.ProductSizeId,
                 SizeName = s.SizeName,
                 Price = s.Price,
-                IsAvailableInPOS = s.IsAvailableInPOS
+                IsAvailableInPOS = s.IsAvailableInPOS,
+                SKU = s.SKU
             }).ToList()
         })
         .ToListAsync();
@@ -1351,5 +1352,382 @@ namespace Infoman.Controllers
                 return Json(new { success = false, message = ex.Message });
             }
         }
+
+        // ========== SUPPLIER ACTIONS ==========
+
+        [HttpGet]
+        public async Task<IActionResult> GetSuppliers()
+        {
+            var suppliers = await _db.Suppliers.ToListAsync();
+            return Json(suppliers);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateSupplier([FromBody] Supplier supplier)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(supplier.Name))
+                    return Json(new { success = false, message = "Supplier name is required" });
+
+                supplier.CreatedAt = DateTime.Now;
+                _db.Suppliers.Add(supplier);
+                await _db.SaveChangesAsync();
+
+                return Json(new { success = true, message = "Supplier added successfully", supplier });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateSupplier([FromBody] Supplier supplier)
+        {
+            try
+            {
+                var existing = await _db.Suppliers.FindAsync(supplier.SupplierId);
+                if (existing == null)
+                    return Json(new { success = false, message = "Supplier not found" });
+
+                existing.Name = supplier.Name;
+                existing.ContactPerson = supplier.ContactPerson;
+                existing.Phone = supplier.Phone;
+                existing.Email = supplier.Email;
+                existing.Address = supplier.Address;
+                existing.Status = supplier.Status;
+                existing.UpdatedAt = DateTime.Now;
+
+                await _db.SaveChangesAsync();
+
+                return Json(new { success = true, message = "Supplier updated successfully" });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteSupplier(int id)
+        {
+            try
+            {
+                var supplier = await _db.Suppliers.FindAsync(id);
+                if (supplier == null)
+                    return Json(new { success = false, message = "Supplier not found" });
+
+                // Check if may deliveries
+                var hasDeliveries = await _db.Receivings.AnyAsync(r => r.SupplierId == id);
+                if (hasDeliveries)
+                {
+                    // Soft delete - set to inactive
+                    supplier.Status = "Inactive";
+                    await _db.SaveChangesAsync();
+                    return Json(new { success = true, message = "Supplier set to inactive (has existing deliveries)" });
+                }
+
+                _db.Suppliers.Remove(supplier);
+                await _db.SaveChangesAsync();
+
+                return Json(new { success = true, message = "Supplier deleted successfully" });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        // ========== RECEIVING ACTIONS ==========
+
+        [HttpGet]
+        public async Task<IActionResult> GetReceivingFormData()
+        {
+            var suppliers = await _db.Suppliers.Where(s => s.Status == "Active").Select(s => new { s.SupplierId, s.Name }).ToListAsync();
+            var rawMaterials = await _db.RawMaterials.Where(r => !r.IsDeleted).Select(r => new { r.RawMaterialId, r.Name, r.Unit }).ToListAsync();
+
+            return Json(new { suppliers, rawMaterials });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ReceiveDelivery([FromBody] ReceivingViewModel model)
+        {
+            try
+            {
+                // Validate each item
+                foreach (var item in model.Items)
+                {
+                    if (item.AcceptedQty + item.RejectedQty != item.ReceivedQty)
+                    {
+                        return Json(new { success = false, message = $"For {item.RawMaterialName}: Accepted + Rejected must equal Received" });
+                    }
+                    if (item.AcceptedQty < 0 || item.RejectedQty < 0)
+                    {
+                        return Json(new { success = false, message = $"Quantities cannot be negative" });
+                    }
+
+                    // ✅ NEW VALIDATION: If rejected > 0, dapat may disposition
+                    if (item.RejectedQty > 0 && string.IsNullOrEmpty(item.Disposition))
+                    {
+                        return Json(new { success = false, message = $"For {item.RawMaterialName}: Please select disposition (Return or Waste) for rejected items" });
+                    }
+                }
+
+                // Create receiving header
+                var receiving = new Receiving
+                {
+                    SupplierId = model.SupplierId,
+                    DRNumber = model.DRNumber,
+                    InvoiceNumber = model.InvoiceNumber,
+                    DateReceived = model.DateReceived,
+                    Remarks = model.Remarks,
+                    CreatedBy = "Owner",
+                    CreatedAt = DateTime.Now
+                };
+
+                _db.Receivings.Add(receiving);
+                await _db.SaveChangesAsync();
+
+                // Process each item
+                foreach (var item in model.Items)
+                {
+                    var receivingItem = new ReceivingItem
+                    {
+                        ReceivingId = receiving.ReceivingId,
+                        RawMaterialId = item.RawMaterialId,
+                        OrderedQty = item.OrderedQty,
+                        ReceivedQty = item.ReceivedQty,
+                        AcceptedQty = item.AcceptedQty,
+                        RejectedQty = item.RejectedQty,
+                        RejectionReason = item.RejectedQty > 0 ? item.RejectionReason : null,
+                        UnitPrice = item.UnitPrice,
+                        ExpiryDate = item.ExpiryDate
+                    };
+                    _db.ReceivingItems.Add(receivingItem);
+                    await _db.SaveChangesAsync();
+
+                    // ✅ CREATE STOCK BATCH for accepted quantity
+                    if (item.AcceptedQty > 0)
+                    {
+                        var batch = new RawMaterialBatch
+                        {
+                            RawMaterialId = item.RawMaterialId,
+                            QuantityReceived = item.AcceptedQty,
+                            QuantityRemaining = item.AcceptedQty,
+                            ReceivedDate = DateTime.Now,
+                            ExpiryDate = item.ExpiryDate,
+                            UnitPrice = item.UnitPrice
+                        };
+                        _db.RawMaterialBatches.Add(batch);
+                    }
+
+                    // ✅ LOG REJECTED ITEMS based on Disposition
+                    if (item.RejectedQty > 0)
+                    {
+                        if (item.Disposition == "Waste")
+                        {
+                            var wasteLog = new WasteLog
+                            {
+                                RawMaterialId = item.RawMaterialId,
+                                Quantity = item.RejectedQty,
+                                Reason = WasteLog.WasteReason.QualityIssue,
+                                Date = DateTime.Today,
+                                RecordedBy = "Receiving",
+                                Notes = $"Rejected from DR#{model.DRNumber}: {item.RejectionReason}"
+                            };
+                            _db.WasteLogs.Add(wasteLog);
+                        }
+                        else if (item.Disposition == "Return")
+                        {
+                            // Store for later return processing
+                            var rejectedForReturn = new RejectedForReturn
+                            {
+                                ReceivingId = receiving.ReceivingId,
+                                RawMaterialId = item.RawMaterialId,
+                                Quantity = item.RejectedQty,
+                                Reason = item.RejectionReason,
+                                UnitPrice = item.UnitPrice,
+                                Status = "Pending Return"
+                            };
+                            _db.RejectedForReturns.Add(rejectedForReturn);
+                        }
+                    }
+                }
+
+                await _db.SaveChangesAsync();
+
+                // Update main stock for affected materials
+                var affectedMaterials = model.Items.Where(i => i.AcceptedQty > 0).Select(i => i.RawMaterialId).Distinct();
+                foreach (var materialId in affectedMaterials)
+                {
+                    await UpdateStockFromBatches(materialId);
+                }
+
+                return Json(new { success = true, message = $"Delivery {model.DRNumber} received successfully!", receivingId = receiving.ReceivingId });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }// Helper method to update main stock
+        private async Task UpdateStockFromBatches(int rawMaterialId)
+        {
+            var totalStock = await _db.RawMaterialBatches
+                .Where(b => b.RawMaterialId == rawMaterialId)
+                .SumAsync(b => (decimal?)b.QuantityRemaining) ?? 0;
+
+            var material = await _db.RawMaterials.FindAsync(rawMaterialId);
+            if (material != null)
+            {
+                material.Stock = totalStock;
+                // ✅ ITO ANG KULANG! I-save ang changes sa database
+                await _db.SaveChangesAsync();
+            }
+        }
+        [HttpGet]
+        public async Task<IActionResult> GetReceivingHistory()
+        {
+            var receivings = await _db.Receivings
+                .Include(r => r.Supplier)
+                .Include(r => r.ReceivingItems)
+                .ThenInclude(ri => ri.RawMaterial)
+                .OrderByDescending(r => r.CreatedAt)
+                .Select(r => new
+                {
+                    r.ReceivingId,
+                    r.DRNumber,
+                    r.DateReceived,
+                    SupplierName = r.Supplier.Name,
+                    TotalItems = r.ReceivingItems.Count,
+                    TotalAccepted = r.ReceivingItems.Sum(ri => ri.AcceptedQty),
+                    TotalRejected = r.ReceivingItems.Sum(ri => ri.RejectedQty),
+                    Items = r.ReceivingItems.Select(ri => new
+                    {
+                        ri.RawMaterial.Name,
+                        ri.ReceivedQty,
+                        ri.AcceptedQty,
+                        ri.RejectedQty,
+                        ri.RejectionReason,
+                        ri.ExpiryDate
+                    })
+                })
+                .ToListAsync();
+
+            return Json(receivings);
+        }
+
+        // ========== RETURNS ACTIONS ==========
+
+        [HttpGet]
+        public async Task<IActionResult> GetReturns()
+        {
+            var returns = await _db.RejectedForReturns
+                .Include(r => r.Receiving)
+                    .ThenInclude(rec => rec.Supplier)
+                .Include(r => r.RawMaterial)
+                .OrderByDescending(r => r.CreatedAt)
+                .Select(r => new
+                {
+                    r.Id,
+                    r.ReceivingId,
+                    DRNumber = r.Receiving.DRNumber,
+                    SupplierName = r.Receiving.Supplier.Name,
+                    MaterialName = r.RawMaterial.Name,
+                    r.Quantity,
+                    r.Reason,
+                    r.UnitPrice,
+                    Total = r.Quantity * r.UnitPrice,
+                    r.Status,
+                    r.CreatedAt
+                })
+                .ToListAsync();
+
+            return Json(returns);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateReturnStatus([FromBody] UpdateReturnStatusRequest request)
+        {
+            try
+            {
+                var returnItem = await _db.RejectedForReturns.FindAsync(request.Id);
+                if (returnItem == null)
+                    return Json(new { success = false, message = "Return record not found" });
+
+                returnItem.Status = request.Status;
+                await _db.SaveChangesAsync();
+
+                return Json(new { success = true, message = $"Return marked as {request.Status}" });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteReturn([FromBody] DeleteReturnRequest request)
+        {
+            try
+            {
+                var returnItem = await _db.RejectedForReturns.FindAsync(request.Id);
+                if (returnItem == null)
+                    return Json(new { success = false, message = "Return record not found" });
+
+                _db.RejectedForReturns.Remove(returnItem);
+                await _db.SaveChangesAsync();
+
+                return Json(new { success = true, message = "Return record deleted" });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        // Request Models for Returns
+        public class UpdateReturnStatusRequest
+        {
+            public int Id { get; set; }
+            public string Status { get; set; }
+        }
+
+        public class DeleteReturnRequest
+        {
+            public int Id { get; set; }
+        }
+
+        // ========== RECEIVING VIEW MODELS ==========
+        public class ReceivingViewModel
+        {
+            public int SupplierId { get; set; }
+            public string DRNumber { get; set; }
+            public string InvoiceNumber { get; set; }
+            public DateTime DateReceived { get; set; } = DateTime.Now;
+            public string Remarks { get; set; }
+            public List<ReceivingItemViewModel> Items { get; set; } = new List<ReceivingItemViewModel>();
+        }
+
+        public class ReceivingItemViewModel
+        {
+            public int RawMaterialId { get; set; }
+            public string RawMaterialName { get; set; }
+            public decimal? OrderedQty { get; set; }
+            public decimal ReceivedQty { get; set; }
+            public decimal AcceptedQty { get; set; }
+            public decimal RejectedQty { get; set; }
+            public string Disposition { get; set; }
+            public string RejectionReason { get; set; }
+            public decimal UnitPrice { get; set; }
+            public DateTime? ExpiryDate { get; set; }
+        }
+    
     }
 } 

@@ -39,6 +39,11 @@ namespace Infoman.Models
         [Required]
         [Display(Name = "Unit")]
         public string Unit { get; set; }
+        [Required]
+        public string BaseUnit { get; set; } = "g";  // grams, milliliters, pieces
+
+        [Required]
+        public decimal ConversionFactor { get; set; } = 1;  // 1 kg = 1000 g → factor = 1000
 
         // Computed property for total value
         public decimal TotalValue => Stock * Price;

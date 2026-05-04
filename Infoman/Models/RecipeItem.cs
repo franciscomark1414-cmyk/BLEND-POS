@@ -22,5 +22,7 @@ namespace Infoman.Models
 
         [Required]
         public decimal Quantity { get; set; } // e.g., 150g, 200ml
+        [Required]
+        public string UnitUsed { get; set; } = "g";
     }
 }

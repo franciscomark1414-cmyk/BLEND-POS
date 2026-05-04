@@ -140,6 +140,26 @@ namespace Infoman.Service
                 throw;
             }
         }
+        // ========== BAGONG METHOD (may unitUsed) ==========
+        public bool DeductStock(int rawMaterialId, decimal quantityNeededForRecipe, string unitUsed, int productId, string referenceNo)
+        {
+            var rawMaterial = _context.RawMaterials.Find(rawMaterialId);
+            if (rawMaterial == null) return false;
+
+            // ✅ CONVERT recipe quantity to base unit
+            decimal neededInBaseUnit = quantityNeededForRecipe;
+
+            if (unitUsed != rawMaterial.BaseUnit)
+            {
+                if (unitUsed == "kg" && rawMaterial.BaseUnit == "g")
+                    neededInBaseUnit = quantityNeededForRecipe * 1000;
+                else if (unitUsed == "L" && rawMaterial.BaseUnit == "mL")
+                    neededInBaseUnit = quantityNeededForRecipe * 1000;
+            }
+
+            // ✅ Tawagin ang EXISTING async method gamit ang converted quantity
+            return DeductStockAsync(rawMaterialId, neededInBaseUnit, productId, referenceNo).GetAwaiter().GetResult();
+        }
 
         // ========== 4. DEDUCT STOCK WITH COST TRACKING ==========
         public async Task<(bool success, decimal totalCost, List<BatchUsageDetail> usedBatches)> DeductStockWithCostAsync(

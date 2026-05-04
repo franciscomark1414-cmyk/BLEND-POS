@@ -16,11 +16,12 @@ namespace Infoman.Controllers
             _db = db;
             _fifoService = new FIFOService(_db);
         }
-        
+
         private async Task RefreshProductPricesInternal()
         {
             var allProductSizes = await _db.ProductSizes
                 .Include(ps => ps.RecipeItems)
+                    .ThenInclude(ri => ri.RawMaterial)  // ← KAILANGAN ITO
                 .ToListAsync();
 
             foreach (var productSize in allProductSizes)
@@ -29,19 +30,25 @@ namespace Infoman.Controllers
                 foreach (var ri in productSize.RecipeItems)
                 {
                     decimal activePrice = await GetFIFOUnitPrice(ri.RawMaterialId);
-                    totalCost += ri.Quantity * activePrice;
+
+                    // ✅ Same logic — laging divide by 1000 kung BaseUnit ay g o mL
+                    decimal quantityForCost = ri.Quantity;
+                    if (ri.RawMaterial?.BaseUnit == "g" || ri.RawMaterial?.BaseUnit == "mL")
+                    {
+                        quantityForCost = ri.Quantity / 1000;
+                    }
+
+                    totalCost += quantityForCost * activePrice;
                 }
 
                 if (productSize.Margin > 0 && productSize.Margin < 1)
                 {
-                    decimal newPrice = Math.Round(totalCost / (1 - productSize.Margin), 2);
-                    productSize.Price = newPrice;
+                    productSize.Price = Math.Round(totalCost / (1 - productSize.Margin), 2);
                 }
             }
 
             await _db.SaveChangesAsync();
         }
-
         public async Task<ActionResult> Dashboard()
         {// Get current date
 
@@ -287,18 +294,35 @@ namespace Infoman.Controllers
         [HttpGet]
         public IActionResult Add()
         {
+            // Kunin ang raw materials kasama ang latest batch price
+            var rawMaterials = _db.RawMaterials
+                .Where(r => !r.IsDeleted)
+                .Select(r => new RawMaterial
+                {
+                    RawMaterialId = r.RawMaterialId,
+                    Name = r.Name,
+                    Unit = r.Unit,
+                    // Kunin ang latest batch price
+                    Price = _db.RawMaterialBatches
+                        .Where(b => b.RawMaterialId == r.RawMaterialId && b.QuantityRemaining > 0)
+                        .OrderByDescending(b => b.ReceivedDate)
+                        .Select(b => b.UnitPrice)
+                        .FirstOrDefault()
+                })
+                .ToList();
+
             var model = new ProductViewModel
             {
-                RawMaterials = _db.RawMaterials.Where(r => !r.IsDeleted).ToList(),
+                RawMaterials = rawMaterials,  // ✅ I-SET ANG RawMaterials
                 Sizes = new List<ProductSizeViewModel>
         {
             new ProductSizeViewModel { SizeName = "Small", RecipeItems = new List<RecipeItemViewModel>() },
             new ProductSizeViewModel { SizeName = "Medium", RecipeItems = new List<RecipeItemViewModel>() },
-            new ProductSizeViewModel { SizeName = "Large", RecipeItems = new List<RecipeItemViewModel>() }  // Fixed: SizeName not Sizename
+            new ProductSizeViewModel { SizeName = "Large", RecipeItems = new List<RecipeItemViewModel>() }
         }
             };
 
-            return View(model);  // Fixed: Added model parameter
+            return View(model);
         }
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -306,16 +330,13 @@ namespace Infoman.Controllers
         {
             try
             {
-                // Remove RawMaterialName from validation
                 ModelState.Remove("Sizes[*].RecipeItems[*].RawMaterialName");
 
-                // Validate that at least one size exists
                 if (model.Sizes == null || !model.Sizes.Any())
                 {
                     return Json(new { success = false, message = "Please add at least one size" });
                 }
 
-                // Validate each size has at least one recipe item
                 foreach (var size in model.Sizes)
                 {
                     if (size.RecipeItems == null || !size.RecipeItems.Any() || size.RecipeItems.All(r => r.RawMaterialId == 0))
@@ -332,23 +353,18 @@ namespace Infoman.Controllers
                             x => x.Key,
                             x => x.Value.Errors.Select(e => e.ErrorMessage).ToList()
                         );
-
                     return Json(new { success = false, errors = errors, message = "Please fix validation errors" });
                 }
 
-                // ========== 1. GENERATE PRODUCT SKU (AUTO-NUMBER) ==========
                 string userPrefix = model.SKU?.Trim().ToUpper() ?? "PRD";
-
-                // Bilangin ang existing products na may parehong prefix
                 int existingCount = await _db.Products.CountAsync(p => p.SKU.StartsWith(userPrefix));
                 string productNumber = (existingCount + 1).ToString("D3");
                 string generatedProductSKU = $"{userPrefix}{productNumber}";
 
-                // Create new product (gamitin ang generated SKU, hindi ang user input)
                 var product = new Product
                 {
                     Name = model.Name.Trim(),
-                    SKU = generatedProductSKU,  // ← NAKA-AUTO-GENERATE NA
+                    SKU = generatedProductSKU,
                     Category = model.Category?.Trim() ?? "",
                     Description = model.Description?.Trim() ?? "",
                     ImagePath = model.ImagePath ?? "",
@@ -357,7 +373,6 @@ namespace Infoman.Controllers
 
                 foreach (var sizeVM in model.Sizes)
                 {
-                    // Skip if size name is empty
                     if (string.IsNullOrWhiteSpace(sizeVM.SizeName))
                         continue;
 
@@ -369,26 +384,28 @@ namespace Infoman.Controllers
                         _ => 0.3m
                     };
 
-                    // ========== 2. GENERATE SIZE SKU ==========
                     string sizeSKU = GenerateSizeSKU(generatedProductSKU, sizeVM.SizeName);
 
                     var productSize = new ProductSize
                     {
                         SizeName = sizeVM.SizeName.Trim(),
-                        SKU = sizeSKU ?? "",  // ← IDAGDAG ITO
-                        Margin = margin,  // ← IDAGDAG ITO (kung meron sa model mo)
+                        SKU = sizeSKU ?? "",
+                        Margin = margin,
                         RecipeItems = new List<RecipeItem>()
                     };
-                   
 
-                    // Calculate total cost from recipe items
                     var totalCost = 0m;
                     var validRecipeCount = 0;
 
                     foreach (var recipeVM in sizeVM.RecipeItems)
                     {
+
+                        System.Diagnostics.Debug.WriteLine($"RawMaterialId: {recipeVM.RawMaterialId}, Quantity: {recipeVM.Quantity}, UnitUsed: {recipeVM.UnitUsed}");
                         if (recipeVM.RawMaterialId > 0 && recipeVM.Quantity > 0)
                         {
+                            var rawMat = await _db.RawMaterials.FindAsync(recipeVM.RawMaterialId);
+                            if (rawMat == null) continue;
+
                             var latestPrice = await _db.RawMaterialBatches
                                 .Where(b => b.RawMaterialId == recipeVM.RawMaterialId)
                                 .OrderByDescending(b => b.ReceivedDate)
@@ -397,26 +414,49 @@ namespace Infoman.Controllers
 
                             if (latestPrice >= 0)
                             {
-                                var cost = recipeVM.Quantity * latestPrice;
+                                // ✅ I-CONVERT ANG QUANTITY SA BASE UNIT (grams, mL)
+                                decimal quantityInBaseUnit = recipeVM.Quantity;
+
+                                if (recipeVM.UnitUsed == "kg" && rawMat.BaseUnit == "g")
+                                {
+                                    quantityInBaseUnit = recipeVM.Quantity * 1000;  // 0.5 kg → 500 grams
+                                }
+                                else if (recipeVM.UnitUsed == "L" && rawMat.BaseUnit == "mL")
+                                {
+                                    quantityInBaseUnit = recipeVM.Quantity * 1000;  // 0.5 L → 500 mL
+                                }
+                                // kung g, mL, pcs — walang conversion
+
+                                // ✅ I-CONVERT ANG QUANTITY PARA SA COST COMPUTATION (para maging kg)
+                                decimal quantityForCost = recipeVM.Quantity;
+                                if (recipeVM.UnitUsed == "kg")
+                                {
+                                    quantityForCost = recipeVM.Quantity;  // 0.5 kg → 0.5 kg
+                                }
+                                else if (recipeVM.UnitUsed == "g")
+                                {
+                                    quantityForCost = recipeVM.Quantity / 1000;  // 500g → 0.5 kg
+                                }
+
+                                var cost = quantityForCost * latestPrice;
                                 totalCost += cost;
                                 validRecipeCount++;
 
                                 productSize.RecipeItems.Add(new RecipeItem
                                 {
                                     RawMaterialId = recipeVM.RawMaterialId,
-                                    Quantity = recipeVM.Quantity
+                                    Quantity = quantityInBaseUnit,  // ✅ STORE IN BASE UNIT (grams)
+                                    UnitUsed = recipeVM.UnitUsed
                                 });
                             }
                         }
                     }
 
-                    // Check if recipe has at least one ingredient
                     if (validRecipeCount == 0)
                     {
                         return Json(new { success = false, message = $"Please add at least one ingredient for {sizeVM.SizeName}" });
                     }
 
-                    // If price is provided manually, use it; otherwise calculate from cost
                     if (sizeVM.Price > 0)
                     {
                         productSize.Price = sizeVM.Price;
@@ -429,13 +469,11 @@ namespace Infoman.Controllers
                     product.Sizes.Add(productSize);
                 }
 
-                // Check if any sizes were added
                 if (!product.Sizes.Any())
                 {
                     return Json(new { success = false, message = "Please add at least one valid size" });
                 }
 
-               
                 _db.Products.Add(product);
                 await _db.SaveChangesAsync();
 
@@ -446,7 +484,6 @@ namespace Infoman.Controllers
                 return Json(new { success = false, message = "Error saving product: " + ex.Message });
             }
         }
-
         // ========== HELPER METHOD FOR SIZE SKU ==========
         private string GenerateSizeSKU(string productSKU, string sizeName)
         {
@@ -560,7 +597,6 @@ namespace Infoman.Controllers
                 if (productSize == null)
                     return Json(new { error = "Recipe not found" });
 
-                // ✅ I-check kung may recipe items
                 if (productSize.RecipeItems == null || !productSize.RecipeItems.Any())
                 {
                     return Json(new { error = "No ingredients found for this product. Please add recipe first." });
@@ -577,24 +613,44 @@ namespace Infoman.Controllers
                     }
 
                     decimal fifoPrice = await GetFIFOUnitPrice(recipeItem.RawMaterialId);
-                    decimal total = recipeItem.Quantity * fifoPrice;
+
+                    // 1. DISPLAY
+                    decimal displayQuantity = recipeItem.Quantity;
+                    string displayUnit = recipeItem.UnitUsed;
+
+                    if (recipeItem.RawMaterial.BaseUnit == "g" || recipeItem.RawMaterial.BaseUnit == "mL")
+                    {
+                        if (recipeItem.UnitUsed == "kg" || recipeItem.UnitUsed == "L")
+                        {
+                            displayQuantity = recipeItem.Quantity / 1000;  // 1000g → 1 kg
+                        }
+                        // g or mL — as-is na
+                    }
+
+                    // 2. COST COMPUTATION - laging divide by 1000 kung BaseUnit ay g o mL
+                    decimal quantityForCost = recipeItem.Quantity;
+                    if (recipeItem.RawMaterial.BaseUnit == "g" || recipeItem.RawMaterial.BaseUnit == "mL")
+                    {
+                        quantityForCost = recipeItem.Quantity / 1000;
+                    }
+
+                    decimal total = quantityForCost * fifoPrice;
                     totalCost += total;
 
                     ingredientsWithPrices.Add(new
                     {
                         rawMaterialId = recipeItem.RawMaterialId,
-                        quantity = recipeItem.Quantity,
+                        quantity = displayQuantity,
                         name = recipeItem.RawMaterial.Name,
-                        unit = recipeItem.RawMaterial.Unit,
+                        unit = displayUnit,
+                        unitUsed = recipeItem.UnitUsed,
                         price = fifoPrice,
                         total = total
                     });
                 }
 
-                // Compute profit
                 decimal profit = productSize.Price - totalCost;
 
-                // Compute available stock
                 var today = DateTime.Today;
                 int availableStock = int.MaxValue;
 
@@ -653,25 +709,44 @@ namespace Infoman.Controllers
 
             foreach (var recipeItem in productSize.RecipeItems)
             {
-                // ✅ GAMITIN ANG FIFO PRICE (katulad ng GetRecipe)
                 decimal fifoPrice = await GetFIFOUnitPrice(recipeItem.RawMaterialId);
 
-                // Fallback kung walang active batch
                 if (fifoPrice == 0 && recipeItem.RawMaterial != null)
                 {
                     fifoPrice = recipeItem.RawMaterial.Price;
                 }
 
-                var total = recipeItem.Quantity * fifoPrice;
+                // 1. DISPLAY
+                decimal displayQuantity = recipeItem.Quantity;
+                string displayUnit = recipeItem.UnitUsed;
+
+                if (recipeItem.RawMaterial.BaseUnit == "g" || recipeItem.RawMaterial.BaseUnit == "mL")
+                {
+                    if (recipeItem.UnitUsed == "kg" || recipeItem.UnitUsed == "L")
+                    {
+                        displayQuantity = recipeItem.Quantity / 1000;  // 1000g → 1 kg
+                    }
+                    // g or mL — as-is na
+                }
+
+                // 2. COST COMPUTATION - laging divide by 1000 kung BaseUnit ay g o mL
+                decimal quantityForCost = recipeItem.Quantity;
+                if (recipeItem.RawMaterial.BaseUnit == "g" || recipeItem.RawMaterial.BaseUnit == "mL")
+                {
+                    quantityForCost = recipeItem.Quantity / 1000;
+                }
+
+                decimal total = quantityForCost * fifoPrice;
                 totalCost += total;
 
                 ingredientsWithPrices.Add(new
                 {
                     rawMaterialId = recipeItem.RawMaterialId,
-                    quantity = recipeItem.Quantity,
+                    quantity = displayQuantity,
                     name = recipeItem.RawMaterial?.Name ?? "Unknown",
-                    unit = recipeItem.RawMaterial?.Unit ?? "",
-                    price = fifoPrice,   // ✅ FIFO price na
+                    unit = displayUnit,
+                    unitUsed = recipeItem.UnitUsed,
+                    price = fifoPrice,
                     total = total
                 });
             }
@@ -690,7 +765,6 @@ namespace Infoman.Controllers
 
             return Json(result);
         }
-        
         [HttpGet]
         public IActionResult CanEditRecipe(int id)
         {
@@ -709,70 +783,96 @@ namespace Infoman.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SaveRecipe([FromBody] RecipeSaveModel model)
         {
-            try
+            var productSize = await _db.ProductSizes
+                .Include(ps => ps.RecipeItems)
+                .FirstOrDefaultAsync(ps => ps.ProductSizeId == model.ProductSizeId);
+
+            if (productSize == null)
+                return Json(new { success = false, message = "Product size not found" });
+
+            productSize.Margin = model.Margin;
+
+            // DELETE OLD
+            if (productSize.RecipeItems != null && productSize.RecipeItems.Any())
             {
-                // I-load ang product size kasama ang recipe items at raw materials
-                var productSize = await _db.ProductSizes
-                    .Include(ps => ps.RecipeItems)
-                        .ThenInclude(ri => ri.RawMaterial)
-                    .Include(ps => ps.Product)
-                    .FirstOrDefaultAsync(ps => ps.ProductSizeId == model.ProductSizeId);
+                _db.RecipeItems.RemoveRange(productSize.RecipeItems);
+                await _db.SaveChangesAsync();
+            }
 
-                if (productSize == null)
-                    return Json(new { success = false, message = "Product size not found" });
+            productSize.RecipeItems = new List<RecipeItem>();
 
-                // ✅ CHECK KUNG MAY STOCK BAGO I-EDIT
-
-                // I-save ang margin
-                productSize.Margin = model.Margin;
-
-                // I-delete ang existing recipe items
-                if (productSize.RecipeItems != null && productSize.RecipeItems.Any())
+            // ADD NEW with UnitUsed (STORE IN BASE UNIT - GRAMS)
+            foreach (var ingredient in model.Ingredients)
+            {
+                var rawMat = await _db.RawMaterials.FindAsync(ingredient.RawMaterialId);
+                if (rawMat != null)
                 {
-                    _db.RecipeItems.RemoveRange(productSize.RecipeItems);
-                    await _db.SaveChangesAsync();
-                }
+                    decimal quantityInBaseUnit = ingredient.Quantity;
 
-                // I-clear ang collection
-                productSize.RecipeItems = new List<RecipeItem>();
+                    // I-convert sa BASE UNIT (grams, mL, pcs) para i-store sa database
+                    if (ingredient.UnitUsed == "kg" && rawMat.BaseUnit == "g")
+                    {
+                        quantityInBaseUnit = ingredient.Quantity * 1000;  // 0.5 kg → 500 grams
+                    }
+                    else if (ingredient.UnitUsed == "L" && rawMat.BaseUnit == "mL")
+                    {
+                        quantityInBaseUnit = ingredient.Quantity * 1000;  // 0.5 L → 500 mL
+                    }
+                    // Kung g, mL, pcs — walang conversion
 
-                // I-add ang bagong recipe items
-                foreach (var ingredient in model.Ingredients)
-                {
                     productSize.RecipeItems.Add(new RecipeItem
                     {
                         RawMaterialId = ingredient.RawMaterialId,
-                        Quantity = ingredient.Quantity,
+                        Quantity = quantityInBaseUnit,  // ✅ STORE IN BASE UNIT
+                        UnitUsed = ingredient.UnitUsed,
                         ProductSizeId = productSize.ProductSizeId
                     });
                 }
+            }
 
-                await _db.SaveChangesAsync();
+            await _db.SaveChangesAsync();
 
-                // ========== BAGONG CODE: Compute total cost gamit ang LATEST BATCH PRICES ==========
-                decimal totalCost = 0;
-                foreach (var ingredient in model.Ingredients)
+            // RECOMPUTE PRICE (gamit ang tamang conversion)
+            decimal totalCost = 0;
+            foreach (var ingredient in model.Ingredients)
+            {
+                var rawMat = await _db.RawMaterials.FindAsync(ingredient.RawMaterialId);
+                decimal unitPrice = await GetFIFOUnitPrice(ingredient.RawMaterialId);  // ₱ per KG or per L
+
+                decimal quantityForCost = ingredient.Quantity;
+
+                // I-convert sa tamang unit para sa costing
+                if (ingredient.UnitUsed == "kg")
                 {
-                    // 🔥 FIX: Gamitin ang FIFO cost (pinakamatandang batch na may stock)
-                    decimal fifoPrice = await GetFIFOUnitPrice(ingredient.RawMaterialId);
-                    totalCost += ingredient.Quantity * fifoPrice;
+                    quantityForCost = ingredient.Quantity;  // 0.5 kg → 0.5 kg ✅
+                }
+                else if (ingredient.UnitUsed == "g")
+                {
+                    quantityForCost = ingredient.Quantity / 1000;  // 500g → 0.5 kg ✅
+                }
+                else if (ingredient.UnitUsed == "L")
+                {
+                    quantityForCost = ingredient.Quantity;  // 0.5 L → 0.5 L ✅
+                }
+                else if (ingredient.UnitUsed == "mL")
+                {
+                    quantityForCost = ingredient.Quantity / 1000;  // 500mL → 0.5 L ✅
+                }
+                else // pcs
+                {
+                    quantityForCost = ingredient.Quantity;
                 }
 
-                // Compute new selling price using the saved margin
-                decimal newSellingPrice = Math.Round(totalCost / (1 - productSize.Margin), 2);
-
-                productSize.Price = newSellingPrice;
-
-                await _db.SaveChangesAsync();
-
-                return Json(new { success = true, newPrice = newSellingPrice, message = "Recipe saved successfully!" });
+                totalCost += quantityForCost * unitPrice;
             }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, message = ex.Message });
-            }
+
+            decimal newSellingPrice = Math.Round(totalCost / (1 - productSize.Margin), 2);
+            productSize.Price = newSellingPrice;
+
+            await _db.SaveChangesAsync();
+
+            return Json(new { success = true, newPrice = newSellingPrice });
         }
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ArchiveProduct(int id)

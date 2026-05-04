@@ -301,8 +301,15 @@ namespace Infoman.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RawMaterialId"));
 
+                    b.Property<string>("BaseUnit")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("Category")
                         .HasColumnType("int");
+
+                    b.Property<decimal>("ConversionFactor")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime?>("ExpirationDate")
                         .HasColumnType("datetime2");
@@ -488,6 +495,10 @@ namespace Infoman.Migrations
 
                     b.Property<int>("RawMaterialId")
                         .HasColumnType("int");
+
+                    b.Property<string>("UnitUsed")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("RecipeItemId");
 

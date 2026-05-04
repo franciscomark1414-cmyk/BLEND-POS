@@ -90,20 +90,28 @@ namespace Infoman.Controllers
 
             foreach (var recipeItem in productSize.RecipeItems)
             {
-                // ✅ FIX: Exclude expired batches
+                // Get available quantity from batches (this is in kg or L)
                 decimal availableQty = await _db.RawMaterialBatches
                     .Where(b => b.RawMaterialId == recipeItem.RawMaterialId
                         && b.QuantityRemaining > 0
-                        && (!b.ExpiryDate.HasValue || b.ExpiryDate.Value >= today)) // ← KEY FIX
+                        && (!b.ExpiryDate.HasValue || b.ExpiryDate.Value >= today))
                     .SumAsync(b => b.QuantityRemaining);
 
-                int possibleOrders = (int)(availableQty / recipeItem.Quantity);
+                // ✅ FIX: Convert recipeItem.Quantity to kg/L to match availableQty
+                decimal quantityPerOrder = recipeItem.Quantity;
+                if (recipeItem.RawMaterial.BaseUnit == "g" || recipeItem.RawMaterial.BaseUnit == "mL")
+                {
+                    quantityPerOrder = recipeItem.Quantity / 1000;  // grams/mL → kg/L
+                }
+
+                int possibleOrders = (int)(availableQty / quantityPerOrder);
                 if (possibleOrders < maxPossibleOrders)
                     maxPossibleOrders = possibleOrders;
 
-                if (availableQty < recipeItem.Quantity * quantity)
+                // ✅ FIX: Use converted quantity for comparison
+                if (availableQty < quantityPerOrder * quantity)
                 {
-                    insufficientIngredients.Add($"{recipeItem.RawMaterial.Name}: need {recipeItem.Quantity * quantity} {recipeItem.RawMaterial.Unit}, only {availableQty} available");
+                    insufficientIngredients.Add($"{recipeItem.RawMaterial.Name}: need {recipeItem.Quantity * quantity} {recipeItem.RawMaterial.Unit}, only {availableQty * 1000} {recipeItem.RawMaterial.Unit} available");
                 }
             }
 
@@ -144,7 +152,7 @@ namespace Infoman.Controllers
                 if (request.Quantity <= 0)
                     return Json(new { success = false, message = "Invalid quantity" });
 
-                // Compute original total at discounted total
+                // Compute original total and discounted total
                 decimal originalTotal = request.Quantity * productSize.Price;
                 decimal discountedTotal = originalTotal * (1 - request.DiscountPercent);
                 decimal discountAmount = originalTotal - discountedTotal;
@@ -153,18 +161,27 @@ namespace Infoman.Controllers
                 foreach (var recipeItem in productSize.RecipeItems)
                 {
                     decimal neededQty = recipeItem.Quantity * request.Quantity;
+
+                    // Get available quantity from batches (this is in kg or L)
                     decimal availableQty = await _db.RawMaterialBatches
                         .Where(b => b.RawMaterialId == recipeItem.RawMaterialId
                             && b.QuantityRemaining > 0
                             && (!b.ExpiryDate.HasValue || b.ExpiryDate.Value >= DateTime.Today))
                         .SumAsync(b => b.QuantityRemaining);
 
-                    if (availableQty < neededQty)
+                    // ✅ FIX: Convert neededQty to kg/L if base unit is grams/mL
+                    decimal neededQtyInKg = neededQty;
+                    if (recipeItem.RawMaterial.BaseUnit == "g" || recipeItem.RawMaterial.BaseUnit == "mL")
+                    {
+                        neededQtyInKg = neededQty / 1000;  // grams/mL → kg/L
+                    }
+
+                    if (availableQty < neededQtyInKg)
                     {
                         return Json(new
                         {
                             success = false,
-                            message = $"Insufficient {recipeItem.RawMaterial.Name}. Need {neededQty} {recipeItem.RawMaterial.Unit}, only {availableQty} available."
+                            message = $"Insufficient {recipeItem.RawMaterial.Name}. Need {neededQty} {recipeItem.RawMaterial.Unit}, only {availableQty * 1000} {recipeItem.RawMaterial.Unit} available."
                         });
                     }
                 }
@@ -191,18 +208,18 @@ namespace Infoman.Controllers
                     totalActualCost += cost;
                 }
 
-                // ✅ Record sale WITH DISCOUNT AND PAYMENT INFO
+                // Record sale WITH DISCOUNT AND PAYMENT INFO
                 var order = new Order
                 {
                     OrderNumber = orderNumber,
                     Date = DateTime.Now,
-                    TotalAmount = discountedTotal,  // ← Discounted total
+                    TotalAmount = discountedTotal,
                     Status = "Completed",
-                    PaymentMethod = request.PaymentMethod ?? "Cash",  // ← IDAGDAG
-                    DiscountType = string.IsNullOrEmpty(request.DiscountType) ? "None" : request.DiscountType,  // ← IDAGDAG
-                    DiscountPercent = request.DiscountPercent,  // ← IDAGDAG
-                    DiscountAmount = discountAmount,  // ← IDAGDAG
-                    ReceiptNumber = $"RC-{DateTime.Now:yyyyMMdd}-{new Random().Next(1000, 9999)}"  // ← IDAGDAG (optional)
+                    PaymentMethod = request.PaymentMethod ?? "Cash",
+                    DiscountType = string.IsNullOrEmpty(request.DiscountType) ? "None" : request.DiscountType,
+                    DiscountPercent = request.DiscountPercent,
+                    DiscountAmount = discountAmount,
+                    ReceiptNumber = $"RC-{DateTime.Now:yyyyMMdd}-{new Random().Next(1000, 9999)}"
                 };
 
                 _db.Orders.Add(order);
@@ -214,7 +231,7 @@ namespace Infoman.Controllers
                     ProductId = productSize.ProductId,
                     ProductSizeId = productSize.ProductSizeId,
                     Quantity = request.Quantity,
-                    Price = productSize.Price,  // Original price per unit
+                    Price = productSize.Price,
                     ActualCost = totalActualCost
                 };
 
@@ -392,14 +409,21 @@ namespace Infoman.Controllers
                 {
                     foreach (var recipe in size.RecipeItems)
                     {
-                        // ✅ FIX: Exclude expired batches
+                        // Get available quantity from batches (this is in kg or L)
                         decimal availableQty = await _db.RawMaterialBatches
                             .Where(b => b.RawMaterialId == recipe.RawMaterialId
                                 && b.QuantityRemaining > 0
-                                && (!b.ExpiryDate.HasValue || b.ExpiryDate.Value >= today)) // ← KEY FIX
+                                && (!b.ExpiryDate.HasValue || b.ExpiryDate.Value >= today))
                             .SumAsync(b => b.QuantityRemaining);
 
-                        int possibleOrders = (int)(availableQty / recipe.Quantity);
+                        // ✅ FIX: Convert recipe.Quantity to kg/L to match availableQty
+                        decimal quantityPerOrder = recipe.Quantity;
+                        if (recipe.RawMaterial.BaseUnit == "g" || recipe.RawMaterial.BaseUnit == "mL")
+                        {
+                            quantityPerOrder = recipe.Quantity / 1000;  // grams/mL → kg/L
+                        }
+
+                        int possibleOrders = (int)(availableQty / quantityPerOrder);
                         if (possibleOrders < maxOrders)
                             maxOrders = possibleOrders;
                     }
@@ -423,7 +447,7 @@ namespace Infoman.Controllers
                 sizes = sizes
             });
         }
-        
+
         private int GetCurrentUserId()
         {
             return HttpContext.Session.GetInt32("UserId") ?? 0;

@@ -14,6 +14,9 @@ namespace Infoman.Models
         [Range(0.01, double.MaxValue, ErrorMessage = "Quantity must be greater than 0")]
         public decimal Quantity { get; set; }
 
+        public string UnitUsed { get; set; } = "g";
+        
+
         public decimal Price { get; set; }
     }
 }

@@ -902,14 +902,6 @@
                                 <option value="L">💧 liter (L)</option>
                                 <option value="mL">🧪 milliliter (mL)</option>
                                 <option value="pcs">🔢 pieces (pcs)</option>
-                                <option value="box">📦 box</option>
-                                <option value="pack">📦 pack</option>
-                                <option value="bottle">🍾 bottle</option>
-                                <option value="can">🥫 can</option>
-                                <option value="bag">🛍️ bag</option>
-                                <option value="sack">🛢️ sack</option>
-                                <option value="tray">📋 tray</option>
-                                <option value="dozen">1️⃣2 dozen</option>
                             </select>
                             <small class="text-muted">Select measurement unit for this raw material</small>
                         </div>
@@ -2901,43 +2893,99 @@
         new bootstrap.Modal(document.getElementById('addProductModal')).show();
     }
 
-    function addSizeRow(predefinedName = null) {
+       function addSizeRow(predefinedName = null) {
         const container = document.getElementById('sizesContainer');
         const sizeId = sizeCounter++;
         const sizeName = predefinedName || '';
-        const sizeHtml = `<div class="size-row border p-3 mb-3 rounded" data-size-id="${sizeId}">
-            <button type="button" class="btn btn-sm btn-danger float-end" onclick="removeSizeRow(${sizeId})">✕</button>
-            <div class="row">
-                <div class="col-md-3"><label class="form-label">Size Name</label><input type="text" name="Sizes[${sizeId}].SizeName" class="form-control" value="${sizeName}" required></div>
-                <div class="col-md-2"><label class="form-label">Price</label><input type="number" name="Sizes[${sizeId}].Price" class="form-control" step="0.01" value="0"></div>
-                <div class="col-md-5"><label class="form-label">Recipe</label>
-                    <div class="recipe-items" id="recipe-items-${sizeId}">
-                        <div class="row mb-2">
-                            <div class="col-md-8"><select name="Sizes[${sizeId}].RecipeItems[0].RawMaterialId" class="form-control" required><option value="">Select Ingredient</option>@if(ViewBag.RawMaterials != null){ foreach(var item in ViewBag.RawMaterials){
-                            <option value="@item.RawMaterialId">@item.Name (@item.Unit - ₱@item.Price)</option>
-                                                        }}
-</select></div>
-                            <div class="col-md-4"><input type="number" name="Sizes[${sizeId}].RecipeItems[0].Quantity" class="form-control" placeholder="Quantity" step="0.01" min="0.01" value="1" required></div>
-                        </div>
+        const sizeHtml = `
+            <div class="size-row border p-3 mb-3 rounded" data-size-id="${sizeId}" style="background: #fef9e6;">
+                <button type="button" class="btn btn-sm btn-danger float-end" onclick="removeSizeRow(${sizeId})">✕</button>
+                <div class="row">
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label fw-bold">Size Name</label>
+                        <input type="text" name="Sizes[${sizeId}].SizeName" class="form-control" value="${sizeName}" required placeholder="e.g., Small, Medium, Large">
                     </div>
-                    <button type="button" class="btn btn-sm btn-link" onclick="addRecipeItem(${sizeId})">+ Add Ingredient</button>
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label fw-bold">Selling Price (₱)</label>
+                        <input type="number" name="Sizes[${sizeId}].Price" class="form-control" step="0.01" value="0" placeholder="0.00">
+                        <small class="text-muted">Leave 0 to auto-calculate</small>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label fw-bold">Recipe / Ingredients</label>
+                        <div class="recipe-items" id="recipe-items-${sizeId}">
+                            <div class="row mb-2 g-2">
+                                <div class="col-md-5">
+                                    <select name="Sizes[${sizeId}].RecipeItems[0].RawMaterialId" class="form-control" required>
+                                        <option value="">-- Select Ingredient --</option>
+                                        @if (ViewBag.RawMaterials != null)
+                                        {
+                                                foreach (var item in ViewBag.RawMaterials)
+                                                {
+                                                                    <option value="@item.RawMaterialId">
+                            @item.Name (@item.Unit - ₱@item.Price.ToString("N2"))
+                        </option>
+                                                }
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <input type="number" name="Sizes[${sizeId}].RecipeItems[0].Quantity" class="form-control" placeholder="Qty" step="0.01" min="0.01" value="1" required>
+                                </div>
+                                <div class="col-md-4">
+                                           <select name="Sizes[${sizeId}].RecipeItems[0].UnitUsed" class="form-control" required>
+        <option value="kg">📦 kilogram (kg)</option>
+        <option value="g">⚖️ gram (g)</option>
+        <option value="L">💧 liter (L)</option>
+        <option value="mL">🧪 milliliter (mL)</option>
+        <option value="pcs">🔢 pieces (pcs)</option>
+    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-link text-success mt-1" onclick="addRecipeItem(${sizeId})">
+                            <i class="fas fa-plus"></i> Add Ingredient
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>`;
+        `;
         container.insertAdjacentHTML('beforeend', sizeHtml);
     }
 
     function removeSizeRow(sizeId) { document.querySelector(`.size-row[data-size-id="${sizeId}"]`).remove(); }
-    function addRecipeItem(sizeId) {
+      function addRecipeItem(sizeId) {
         const container = document.getElementById(`recipe-items-${sizeId}`);
         const itemCount = container.children.length;
-        const html = `<div class="row mb-2"><div class="col-md-8"><select name="Sizes[${sizeId}].RecipeItems[${itemCount}].RawMaterialId" class="form-control" required><option value="">Select Ingredient</option>@if(ViewBag.RawMaterials != null){ foreach(var item in ViewBag.RawMaterials){
-        <option value="@item.RawMaterialId">@item.Name (@item.Unit)</option>
-                }}
-</select></div><div class="col-md-4"><input type="number" name="Sizes[${sizeId}].RecipeItems[${itemCount}].Quantity" class="form-control" placeholder="Quantity" required></div></div>`;
+        const html = `
+            <div class="row mb-2 g-2">
+                <div class="col-md-5">
+                    <select name="Sizes[${sizeId}].RecipeItems[${itemCount}].RawMaterialId" class="form-control" required>
+                        <option value="">-- Select Ingredient --</option>
+                        @if (ViewBag.RawMaterials != null)
+                        {
+                                foreach (var item in ViewBag.RawMaterials)
+                                {
+                                        <option value="@item.RawMaterialId">@item.Name (@item.Unit - ₱@item.Price)</option>
+                                }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <input type="number" name="Sizes[${sizeId}].RecipeItems[${itemCount}].Quantity" class="form-control" placeholder="Qty" step="0.01" min="0.01" required>
+                </div>
+                <div class="col-md-4">
+                    <select name="Sizes[${sizeId}].RecipeItems[${itemCount}].UnitUsed" class="form-control" required>
+                        <option value="kg">📦 kilogram (kg)</option>
+                        <option value="g">⚖️ gram (g)</option>
+                        <option value="L">💧 liter (L)</option>
+                        <option value="mL">🧪 milliliter (mL)</option>
+                        <option value="pcs">🔢 pieces (pcs)</option>
+                    </select>
+                </div>
+            </div>
+        `;
         container.insertAdjacentHTML('beforeend', html);
     }
-
       function filterProducts() {
         const searchTerm = document.getElementById('searchProduct').value.toLowerCase();
         const categoryFilter = document.getElementById('filterCategory').value;
@@ -3094,74 +3142,82 @@
     function addIngredientRow() { addIngredientRowToTable(null, ingredientCounter++); }
 
          function addIngredientRowToTable(ingredient, index) {
-    const tbody = document.getElementById('ingredientsBody');
-    let optionsHtml = '<option value="">Loading ingredients...</option>';
-    tbody.insertAdjacentHTML('beforeend', `
-        <tr data-ingredient-index="${index}">
-            <td><select class="form-control ingredient-select" onchange="calculateIngredientTotal(this)">${optionsHtml}</select></td>
-            <td><input type="number" class="form-control quantity-input" onchange="calculateIngredientTotal(this)" placeholder="Quantity" step="0.01" min="0.01"></td>
-            <td class="unit-display">-</td>
-            <td class="cost-per-unit">₱0.00</td>
-            <td class="total-cost">₱0.00</td>
-            <td><button type="button" class="btn btn-sm btn-danger" onclick="removeIngredientRow(this)">✖</button></td>
-        </tr>
-    `);
-    const row = tbody.lastElementChild;
-    const select = row.querySelector('.ingredient-select');
+        const tbody = document.getElementById('ingredientsBody');
+        tbody.insertAdjacentHTML('beforeend', `
+            <tr data-ingredient-index="${index}">
+                <td><select class="form-control ingredient-select" onchange="calculateIngredientTotal(this)"></select></td>
+                <td><input type="number" class="form-control quantity-input" onchange="calculateIngredientTotal(this)" placeholder="Quantity" step="0.01" min="0.01"></td>
+                <td class="unit-display">-</td>
+                <td class="cost-per-unit">₱0.00</td>
+                <td class="total-cost">₱0.00</td>
+                <td><button type="button" class="btn btn-sm btn-danger" onclick="removeIngredientRow(this)">✖</button></td>
+            </table>
+        `);
+        const row = tbody.lastElementChild;
+        const select = row.querySelector('.ingredient-select');
 
-    fetch('/RawMaterial/GetAllWithLatestPrice')
-        .then(response => response.json())
-        .then(materials => {
-            let newOptions = '<option value="">Select Ingredient</option>';
-            materials.forEach(m => {
-                const price = m.latestBatchPrice > 0 ? m.latestBatchPrice : m.defaultPrice;
-                newOptions += `<option value="${m.id}" data-price="${price}" data-unit="${m.unit}">${m.name} (${m.unit} - ₱${price})</option>`;
-            });
-            select.innerHTML = newOptions;
+        fetch('/RawMaterial/GetAllWithLatestPrice')
+            .then(response => response.json())
+            .then(materials => {
+                let newOptions = '<option value="">Select Ingredient</option>';
+                materials.forEach(m => {
+                    const price = m.latestBatchPrice > 0 ? m.latestBatchPrice : m.defaultPrice;
+                    // ✅ IMPORTANT: Ang value ay rawMaterialId, hindi unit
+                    newOptions += `<option value="${m.id}" data-price="${price}" data-unit="${m.unit}">${m.name} (${m.unit} - ₱${price})</option>`;
+                });
+                select.innerHTML = newOptions;
 
-            if (ingredient) {
-                select.value = ingredient.rawMaterialId;
-                row.querySelector('.quantity-input').value = ingredient.quantity;
+                   if (ingredient) {
+        select.value = ingredient.rawMaterialId;
+        row.querySelector('.quantity-input').value = ingredient.quantity;
 
-                // ✅ OVERRIDE: Gamitin ang FIFO price galing sa backend
-                // Hindi ang latestBatchPrice ng dropdown
-                const selectedOption = select.options[select.selectedIndex];
-                if (selectedOption && ingredient.price > 0) {
-                    selectedOption.setAttribute('data-price', ingredient.price);
-                    
-                    // I-update din ang display ng option text para consistent
-                    selectedOption.text = `${ingredient.name} (${ingredient.unit} - ₱${ingredient.price.toFixed(2)})`;
-                }
-
-                // I-compute gamit ang overridden price
-                calculateIngredientTotal(select);
+        // ✅ Hanapin by value (rawMaterialId) tapos override ang data-unit
+        for (let i = 0; i < select.options.length; i++) {
+            if (select.options[i].value == ingredient.rawMaterialId) {
+                select.options[i].setAttribute('data-unit', ingredient.unitUsed);  // "g" or "mL"
+                select.selectedIndex = i;
+                break;
             }
-        })
-        .catch(err => {
-            console.error('Error loading materials:', err);
-            select.innerHTML = '<option value="">Error loading ingredients</option>';
-        });
-}
+        }
 
-function calculateIngredientTotal(element) {
+        if (ingredient.price > 0) {
+            const selectedOption = select.options[select.selectedIndex];
+            if (selectedOption) {
+                selectedOption.setAttribute('data-price', ingredient.price);
+            }
+        }
+
+        calculateIngredientTotal(select);
+    }
+            })
+            .catch(err => {
+                console.error('Error loading materials:', err);
+                select.innerHTML = '<option value="">Error loading ingredients</option>';
+            });
+    }
+        function calculateIngredientTotal(element) {
         const row = element.closest('tr');
         const select = row.querySelector('.ingredient-select');
         const selectedOption = select.options[select.selectedIndex];
-
-        // Kunin ang price mula sa data-price attribute
         let price = parseFloat(selectedOption.getAttribute('data-price') || 0);
         const unit = selectedOption.getAttribute('data-unit') || '';
         const quantity = parseFloat(row.querySelector('.quantity-input').value || 0);
 
-        // Kung price ay 0, subukan kumuha mula sa server
+        // ✅ Convert quantity based on unit
+        let quantityForCost = quantity;
+        if (unit === 'g' || unit === 'kg') {
+            quantityForCost = quantity / 1000;
+        } else if (unit === 'mL' || unit === 'L') {
+            quantityForCost = quantity / 1000;
+        }
+
         if (price === 0 && select.value) {
-            // Optional: Fetch price from server
             fetch(`/RawMaterial/GetPrice/${select.value}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.price > 0) {
                         price = data.price;
-                        const total = price * quantity;
+                        const total = price * quantityForCost;
                         row.querySelector('.unit-display').innerText = unit;
                         row.querySelector('.cost-per-unit').innerText = `₱${price.toFixed(2)}`;
                         row.querySelector('.total-cost').innerText = `₱${total.toFixed(2)}`;
@@ -3171,7 +3227,7 @@ function calculateIngredientTotal(element) {
             return;
         }
 
-        const total = price * quantity;
+        const total = price * quantityForCost;
         row.querySelector('.unit-display').innerText = unit;
         row.querySelector('.cost-per-unit').innerText = `₱${price.toFixed(2)}`;
         row.querySelector('.total-cost').innerText = `₱${total.toFixed(2)}`;
@@ -3216,7 +3272,9 @@ function calculateIngredientTotal(element) {
         document.querySelectorAll('#ingredientsBody tr').forEach(row => {
             const select = row.querySelector('.ingredient-select');
             const quantity = row.querySelector('.quantity-input').value;
-            if (select.value && quantity) ingredients.push({ rawMaterialId: parseInt(select.value), quantity: parseFloat(quantity) });
+            const selectedOption = select.options[select.selectedIndex];
+            const unit = selectedOption.getAttribute('data-unit') || 'g';  // ✅ GET THE UNIT
+                if (select.value && quantity) ingredients.push({ rawMaterialId: parseInt(select.value), quantity: parseFloat(quantity), unitUsed: unit  });
         });
         const margin = parseFloat(document.getElementById('marginSelect').value);
         fetch('/Owner/SaveRecipe', {

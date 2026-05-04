@@ -13,5 +13,6 @@ namespace Infoman.Models
     {
         public int RawMaterialId { get; set; }
         public decimal Quantity { get; set; }
+        public string UnitUsed { get; set; } = "g";
     }
 }

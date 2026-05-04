@@ -46,20 +46,18 @@ namespace Infoman.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(RawMaterial material)
         {
-            // Remove validation errors for ExpirationDate if it's empty
             ModelState.Remove("ExpirationDate");
 
             if (ModelState.IsValid)
             {
-                // Handle empty expiration date
+                // ✅ AUTO-SET base_unit at conversion_factor base sa napiling unit
+                SetConversionFields(material);
+
                 if (material.ExpirationDate == DateTime.MinValue)
-                {
                     material.ExpirationDate = null;
-                }
+
                 if (string.IsNullOrEmpty(material.SKU))
-                {
                     material.SKU = GenerateRawMaterialSKU(material.Name);
-                }
 
                 material.IsDeleted = false;
                 _context.Add(material);
@@ -70,6 +68,37 @@ namespace Infoman.Controllers
             return Json(new { success = false, errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage) });
         }
 
+        // ✅ HELPER METHOD PARA SA CONVERSION
+        private void SetConversionFields(RawMaterial material)
+        {
+            switch (material.Unit)
+            {
+                case "kg":
+                    material.BaseUnit = "g";
+                    material.ConversionFactor = 1000;
+                    break;
+                case "g":
+                    material.BaseUnit = "g";
+                    material.ConversionFactor = 1;
+                    break;
+                case "L":
+                    material.BaseUnit = "mL";
+                    material.ConversionFactor = 1000;
+                    break;
+                case "mL":
+                    material.BaseUnit = "mL";
+                    material.ConversionFactor = 1;
+                    break;
+                case "pcs":
+                    material.BaseUnit = "pcs";
+                    material.ConversionFactor = 1;
+                    break;
+                default:
+                    material.BaseUnit = material.Unit;
+                    material.ConversionFactor = 1;
+                    break;
+            }
+        }
         // EDIT - GET
         public async Task<IActionResult> Edit(int? id)
         {
@@ -88,47 +117,28 @@ namespace Infoman.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, RawMaterial model)
         {
-            try
-            {
-                var rawMaterial = await _context.RawMaterials.FindAsync(id);
-                if (rawMaterial == null)
-                    return Json(new { success = false, message = "Raw material not found" });
+            var rawMaterial = await _context.RawMaterials.FindAsync(id);
+            if (rawMaterial == null)
+                return Json(new { success = false, message = "Raw material not found" });
 
-                // Check kung nagbago ang presyo
-                bool priceChanged = rawMaterial.Price != model.Price;
+            rawMaterial.Name = model.Name;
+            rawMaterial.Category = model.Category;
+            rawMaterial.MinQty = model.MinQty;
+            rawMaterial.Unit = model.Unit;
+            rawMaterial.Price = model.Price;
+            rawMaterial.ExpirationDate = model.ExpirationDate;
 
-                // I-update ang raw material (EXCEPT STOCK)
-                rawMaterial.Name = model.Name;
-                rawMaterial.Category = model.Category;
-                // HUWAG GAMITIN ANG model.Stock - ITO ANG PROBLEMA!
-                // rawMaterial.Stock = model.Stock;  // ← COMMENT OUT
-                rawMaterial.MinQty = model.MinQty;
-                rawMaterial.Unit = model.Unit;
-                rawMaterial.Price = model.Price;
-                rawMaterial.ExpirationDate = model.ExpirationDate;
+            // ✅ UPDATE CONVERSION FIELDS
+            SetConversionFields(rawMaterial);
 
-                // ✅ FORCE RECOMPUTE ng stock mula sa batches
-                var totalFromBatches = await _context.RawMaterialBatches
-                    .Where(b => b.RawMaterialId == id)
-                    .SumAsync(b => (decimal?)b.QuantityRemaining) ?? 0;
+            var totalFromBatches = await _context.RawMaterialBatches
+                .Where(b => b.RawMaterialId == id)
+                .SumAsync(b => (decimal?)b.QuantityRemaining) ?? 0;
 
-                rawMaterial.Stock = totalFromBatches;
+            rawMaterial.Stock = totalFromBatches;
+            await _context.SaveChangesAsync();
 
-                // I-save muna ito
-                await _context.SaveChangesAsync();
-
-                // 🔥 KUNG NAGBAGO ANG PRESYO, I-UPDATE ANG LAHAT NG PRODUCT PRICES
-                if (priceChanged)
-                {
-                    await UpdateAllProductPricesAffectedByRawMaterial(id);
-                }
-
-                return Json(new { success = true, message = "Raw material updated successfully", newStock = totalFromBatches });
-            }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, message = ex.Message });
-            }
+            return Json(new { success = true });
         }
 
         // Helper method para mag-update ng product prices
@@ -348,61 +358,31 @@ namespace Infoman.Controllers
         [HttpPost]
         public async Task<JsonResult> AddDelivery([FromBody] AddDeliveryRequest request)
         {
-            try
+            var rawMaterial = await _context.RawMaterials.FindAsync(request.RawMaterialId);
+            if (rawMaterial == null)
+                return Json(new { success = false, message = "Raw material not found" });
+
+            // ✅ CONVERT SA BASE UNIT BAGO I-STORE SA BATCH
+            decimal quantityInBaseUnit = request.Quantity * rawMaterial.ConversionFactor;
+
+            var batch = new RawMaterialBatch
             {
-                // Add debug logging
-                System.Diagnostics.Debug.WriteLine($"=== ADD DELIVERY CALLED ===");
-                System.Diagnostics.Debug.WriteLine($"RawMaterialId: {request?.RawMaterialId}");
-                System.Diagnostics.Debug.WriteLine($"Quantity: {request?.Quantity}");
-                System.Diagnostics.Debug.WriteLine($"UnitPrice: {request?.UnitPrice}");
-                System.Diagnostics.Debug.WriteLine($"ExpiryDate: {request?.ExpiryDate}");
+                RawMaterialId = request.RawMaterialId,
+                QuantityReceived = quantityInBaseUnit,      // naka-base unit na
+                QuantityRemaining = quantityInBaseUnit,     // naka-base unit na
+                ReceivedDate = DateTime.Now,
+                ExpiryDate = request.ExpiryDate,
+                UnitPrice = request.UnitPrice
+            };
 
-                if (request == null)
-                {
-                    return Json(new { success = false, message = "Invalid request data" });
-                }
+            _context.RawMaterialBatches.Add(batch);
+            await _context.SaveChangesAsync();
 
-                // I-check kung existing ang raw material
-                var rawMaterial = await _context.RawMaterials.FindAsync(request.RawMaterialId);
-                if (rawMaterial == null)
-                {
-                    return Json(new { success = false, message = $"Raw material with ID {request.RawMaterialId} not found" });
-                }
+            await UpdateMainStockColumn(request.RawMaterialId);
+            await UpdateProductPricesForRawMaterial(request.RawMaterialId);
 
-                // I-create ang batch
-                var batch = new RawMaterialBatch
-                {
-                    RawMaterialId = request.RawMaterialId,
-                    QuantityReceived = request.Quantity,
-                    QuantityRemaining = request.Quantity,
-                    ReceivedDate = DateTime.Now,
-                    ExpiryDate = request.ExpiryDate,
-                    UnitPrice = request.UnitPrice
-                };
-
-                _context.RawMaterialBatches.Add(batch);
-                await _context.SaveChangesAsync();
-
-                // I-update ang main stock
-                await UpdateMainStockColumn(request.RawMaterialId);
-
-                // 🔥 BAGO: I-update ang lahat ng product prices na gumagamit ng raw material na ito
-                await UpdateProductPricesForRawMaterial(request.RawMaterialId);
-
-                return Json(new { success = true, message = "Delivery added successfully! Batch ID: " + batch.BatchId });
-            }
-            catch (Exception ex)
-            {
-                return Json(new
-                {
-                    success = false,
-                    message = ex.Message,
-                    innerException = ex.InnerException?.Message,
-                    stackTrace = ex.StackTrace
-                });
-            }
+            return Json(new { success = true, message = "Delivery added successfully!" });
         }
-
         // Helper method para mag-update ng main stock column
         private async Task UpdateMainStockColumn(int rawMaterialId)
         {

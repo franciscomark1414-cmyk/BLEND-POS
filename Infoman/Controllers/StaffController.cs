@@ -157,23 +157,22 @@ namespace Infoman.Controllers
                 decimal discountedTotal = originalTotal * (1 - request.DiscountPercent);
                 decimal discountAmount = originalTotal - discountedTotal;
 
-                // Check raw materials availability
+                // ✅ FIXED: Check raw materials availability with unit conversion
                 foreach (var recipeItem in productSize.RecipeItems)
                 {
                     decimal neededQty = recipeItem.Quantity * request.Quantity;
 
-                    // Get available quantity from batches (this is in kg or L)
                     decimal availableQty = await _db.RawMaterialBatches
                         .Where(b => b.RawMaterialId == recipeItem.RawMaterialId
                             && b.QuantityRemaining > 0
                             && (!b.ExpiryDate.HasValue || b.ExpiryDate.Value >= DateTime.Today))
                         .SumAsync(b => b.QuantityRemaining);
 
-                    // ✅ FIX: Convert neededQty to kg/L if base unit is grams/mL
+                    // ✅ CONVERT to kg/L if base unit is grams/mL
                     decimal neededQtyInKg = neededQty;
                     if (recipeItem.RawMaterial.BaseUnit == "g" || recipeItem.RawMaterial.BaseUnit == "mL")
                     {
-                        neededQtyInKg = neededQty / 1000;  // grams/mL → kg/L
+                        neededQtyInKg = neededQty / 1000;
                     }
 
                     if (availableQty < neededQtyInKg)
@@ -181,21 +180,29 @@ namespace Infoman.Controllers
                         return Json(new
                         {
                             success = false,
-                            message = $"Insufficient {recipeItem.RawMaterial.Name}. Need {neededQty} {recipeItem.RawMaterial.Unit}, only {availableQty * 1000} {recipeItem.RawMaterial.Unit} available."
+                            message = $"Insufficient {recipeItem.RawMaterial.Name}. Need {neededQty} {recipeItem.RawMaterial.Unit}, only {availableQty} {recipeItem.RawMaterial.BaseUnit} available."
                         });
                     }
                 }
 
-                // Deduct raw materials
+                // ✅ FIXED: Deduct raw materials with unit conversion
                 string orderNumber = request.OrderNumber ?? $"ORD-{DateTime.Now:yyyyMMddHHmmss}";
                 decimal totalActualCost = 0;
 
                 foreach (var recipeItem in productSize.RecipeItems)
                 {
                     decimal neededQty = recipeItem.Quantity * request.Quantity;
+
+                    // ✅ CONVERT to kg/L if base unit is grams/mL
+                    decimal neededQtyInKg = neededQty;
+                    if (recipeItem.RawMaterial.BaseUnit == "g" || recipeItem.RawMaterial.BaseUnit == "mL")
+                    {
+                        neededQtyInKg = neededQty / 1000;
+                    }
+
                     var (success, cost, usedBatches) = await _fifoService.DeductStockWithCostAsync(
                         recipeItem.RawMaterialId,
-                        neededQty,
+                        neededQtyInKg,  // ✅ Use converted quantity
                         productSize.ProductId,
                         orderNumber
                     );
@@ -270,6 +277,7 @@ namespace Infoman.Controllers
                 return Json(new { success = false, message = ex.Message });
             }
         }
+        
         // ========== ATTENDANCE METHODS FOR STAFF ==========
 
         // GET: Staff/GetTodayAttendance

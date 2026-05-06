@@ -1253,6 +1253,25 @@ namespace Infoman.Controllers
                 .Take(5)
                 .ToListAsync();
 
+            // ========== DISCOUNT RECORDS ==========
+            var discountRecords = await _db.Orders
+                .Include(o => o.Items)
+                    .ThenInclude(oi => oi.Product)
+                .Where(o => o.Status == "Completed" && o.DiscountPercent > 0)
+                .OrderByDescending(o => o.Date)
+                .Select(o => new
+                {
+                    Date = o.Date,
+                    OrderNumber = o.OrderNumber,
+                    ProductName = o.Items.FirstOrDefault().Product.Name, // Kunin ang unang product
+                    OriginalTotal = o.TotalAmount + o.DiscountAmount,
+                    DiscountPercent = o.DiscountPercent * 100, // Gawing percentage (e.g., 20)
+                    DiscountType = o.DiscountType ?? "None",
+                    DiscountedTotal = o.TotalAmount,
+                    Savings = o.DiscountAmount
+                })
+                .ToListAsync();
+
             // ========== WASTE LOGS (FIXED - compute TotalCost in memory) ==========
             var wasteLogsRaw = await _db.WasteLogs
                 .Include(w => w.RawMaterial)
@@ -1347,7 +1366,7 @@ namespace Infoman.Controllers
                 categoryDistribution = categoryDistribution,
                 topSellingProducts = topSelling,
                 wasteLogs = wasteLogs,
-                discountRecords = new List<object>(),
+                discountRecords = discountRecords,
                 categoryRevenue = categoryRevenue,
                 receipts = receipts
             });

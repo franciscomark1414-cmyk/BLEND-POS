@@ -1749,6 +1749,7 @@
                                                         <th>Order #</th>
                                                         <th>Product</th>
                                                         <th>Original Price</th>
+                                                        <th>Discount Type</th>
                                                         <th>Discount %</th>
                                                         <th>Discounted Price</th>
                                                         <th>Savings</th>
@@ -4215,27 +4216,44 @@ function produceProduct(productSizeId, sizeName, currentStock) {
         }
         body.innerHTML = html;
     }
-            function updateDiscountRecords(records) {
-                var body = document.getElementById('discountRecordsBody');
-                if (!body) return;
-                if (!records || records.length === 0) {
-                    body.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No discount records found</td></tr>';
-                    return;
-                }
-                var html = '';
-                for (var i = 0; i < records.length; i++) {
-                    var r = records[i];
-                    html += '<tr><td>' + new Date(r.date).toLocaleDateString() + '</td>' +
-                        '<td>' + escapeHtml(r.orderNumber || 'N/A') + '</td>' +
-                        '<td>' + escapeHtml(r.productName) + '</td>' +
-                        '<td>₱' + (r.originalPrice || 0).toFixed(2) + '</td>' +
-                        '<td><span class="badge bg-info">' + (r.discountPercent || 0) + '%</span></td>' +
-                        '<td>₱' + (r.discountedPrice || 0).toFixed(2) + '</td>' +
-                        '<td class="text-success">₱' + (r.savings || 0).toFixed(2) + '</td></tr>';
-                }
-                body.innerHTML = html;
+                  function updateDiscountRecords(records) {
+        var body = document.getElementById('discountRecordsBody');
+        if (!body) return;
+
+        if (!records || records.length === 0) {
+            body.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No discount records found</td></tr>';
+            return;
+        }
+
+        var html = '';
+        for (var i = 0; i < records.length; i++) {
+            var r = records[i];
+            var date = new Date(r.date);
+            var formattedDate = `${date.getMonth()+1}/${date.getDate()}/${date.getFullYear()}`;
+
+            // Piliin ang badge color batay sa discount type
+            var discountTypeBadge = '';
+            if (r.discountType === 'Senior Citizen') {
+                discountTypeBadge = '<span class="badge bg-primary">👴 Senior Citizen</span>';
+            } else if (r.discountType === 'PWD') {
+                discountTypeBadge = '<span class="badge bg-info">♿ PWD</span>';
+            } else {
+                discountTypeBadge = '<span class="badge bg-secondary">None</span>';
             }
 
+            html += `<tr>
+                <td>${formattedDate}</td>
+                <td>${escapeHtml(r.orderNumber || 'N/A')}</td>
+                <td>${escapeHtml(r.productName || 'Product')}</td>
+                <td>₱${(r.originalTotal || 0).toFixed(2)}</td>
+                <td>${discountTypeBadge}</td>
+                <td>${(r.discountPercent || 0)}%</td>
+                <td>₱${(r.discountedTotal || 0).toFixed(2)}</td>
+                <td class="text-success">₱${(r.savings || 0).toFixed(2)}</td>
+            </tr>`;
+        }
+        body.innerHTML = html;
+    }
             function updateCategoryRevenue(categories) {
                 var body = document.getElementById('categoryRevenueBody');
                 if (!body) return;

@@ -152,23 +152,20 @@ namespace Infoman.Controllers
                 if (request.Quantity <= 0)
                     return Json(new { success = false, message = "Invalid quantity" });
 
-                // Compute original total and discounted total
                 decimal originalTotal = request.Quantity * productSize.Price;
                 decimal discountedTotal = originalTotal * (1 - request.DiscountPercent);
                 decimal discountAmount = originalTotal - discountedTotal;
 
-                // ✅ FIXED: Check raw materials availability with unit conversion
+                // ✅ CHECK availability lang (huwag munang mag-deduct)
                 foreach (var recipeItem in productSize.RecipeItems)
                 {
                     decimal neededQty = recipeItem.Quantity * request.Quantity;
-
                     decimal availableQty = await _db.RawMaterialBatches
                         .Where(b => b.RawMaterialId == recipeItem.RawMaterialId
                             && b.QuantityRemaining > 0
                             && (!b.ExpiryDate.HasValue || b.ExpiryDate.Value >= DateTime.Today))
                         .SumAsync(b => b.QuantityRemaining);
 
-                    // ✅ CONVERT to kg/L if base unit is grams/mL
                     decimal neededQtyInKg = neededQty;
                     if (recipeItem.RawMaterial.BaseUnit == "g" || recipeItem.RawMaterial.BaseUnit == "mL")
                     {
@@ -185,43 +182,15 @@ namespace Infoman.Controllers
                     }
                 }
 
-                // ✅ FIXED: Deduct raw materials with unit conversion
                 string orderNumber = request.OrderNumber ?? $"ORD-{DateTime.Now:yyyyMMddHHmmss}";
-                decimal totalActualCost = 0;
 
-                foreach (var recipeItem in productSize.RecipeItems)
-                {
-                    decimal neededQty = recipeItem.Quantity * request.Quantity;
-
-                    // ✅ CONVERT to kg/L if base unit is grams/mL
-                    decimal neededQtyInKg = neededQty;
-                    if (recipeItem.RawMaterial.BaseUnit == "g" || recipeItem.RawMaterial.BaseUnit == "mL")
-                    {
-                        neededQtyInKg = neededQty / 1000;
-                    }
-
-                    var (success, cost, usedBatches) = await _fifoService.DeductStockWithCostAsync(
-                        recipeItem.RawMaterialId,
-                        neededQtyInKg,  // ✅ Use converted quantity
-                        productSize.ProductId,
-                        orderNumber
-                    );
-
-                    if (!success)
-                    {
-                        return Json(new { success = false, message = $"Failed to deduct {recipeItem.RawMaterial.Name}" });
-                    }
-
-                    totalActualCost += cost;
-                }
-
-                // Record sale WITH DISCOUNT AND PAYMENT INFO
+                // ✅ CREATE ORDER with status = "PENDING_PAYMENT" (hindi pa nadededuct)
                 var order = new Order
                 {
                     OrderNumber = orderNumber,
                     Date = DateTime.Now,
                     TotalAmount = discountedTotal,
-                    Status = "Completed",
+                    Status = "PENDING_PAYMENT",  // ← IMPORTANTE: Hindi pa nadededuct
                     PaymentMethod = request.PaymentMethod ?? "Cash",
                     DiscountType = string.IsNullOrEmpty(request.DiscountType) ? "None" : request.DiscountType,
                     DiscountPercent = request.DiscountPercent,
@@ -239,7 +208,7 @@ namespace Infoman.Controllers
                     ProductSizeId = productSize.ProductSizeId,
                     Quantity = request.Quantity,
                     Price = productSize.Price,
-                    ActualCost = totalActualCost
+                    ActualCost = 0  // ← Wala pa, hindi pa nadededuct
                 };
 
                 _db.OrderItems.Add(orderItem);
@@ -252,32 +221,33 @@ namespace Infoman.Controllers
                     await RecordEmployeePerformance(userId.Value, discountedTotal);
                 }
 
-                decimal revenue = discountedTotal;
-                decimal profit = revenue - totalActualCost;
-
                 return Json(new
                 {
                     success = true,
-                    message = $"✅ Order #{orderNumber} completed!\n" +
-                             $"{request.Quantity} x {productSize.Product.Name} - {productSize.SizeName}\n" +
-                             $"Subtotal: ₱{originalTotal:N2}\n" +
-                             (request.DiscountPercent > 0 ? $"Discount ({request.DiscountType} {request.DiscountPercent * 100}%): -₱{discountAmount:N2}\n" : "") +
-                             $"Total: ₱{revenue:N2}\n" +
-                             $"Payment: {request.PaymentMethod}\n" +
-                             $"Actual Cost: ₱{totalActualCost:N2}\n" +
-                             $"Profit: ₱{profit:N2}",
+                    message = $"✅ Order #{orderNumber} created! Payment received. Click 'Start Blending' to deduct ingredients.",
+                    orderId = order.OrderId,
                     orderNumber = orderNumber,
-                    revenue = revenue,
-                    actualCost = totalActualCost,
-                    profit = profit
+                    totalAmount = discountedTotal,
+                    requiresBlending = true
                 });
             }
             catch (Exception ex)
             {
-                return Json(new { success = false, message = ex.Message });
+                // Get the full error message
+                var errorMessage = ex.Message;
+                if (ex.InnerException != null)
+                {
+                    errorMessage += " | INNER: " + ex.InnerException.Message;
+                    if (ex.InnerException.InnerException != null)
+                    {
+                        errorMessage += " | INNER2: " + ex.InnerException.InnerException.Message;
+                    }
+                }
+                System.Diagnostics.Debug.WriteLine("=== PLACE ORDER ERROR ===");
+                System.Diagnostics.Debug.WriteLine(errorMessage);
+                return Json(new { success = false, message = errorMessage });
             }
         }
-        
         // ========== ATTENDANCE METHODS FOR STAFF ==========
 
         // GET: Staff/GetTodayAttendance
@@ -522,6 +492,211 @@ namespace Infoman.Controllers
                 System.Diagnostics.Debug.WriteLine($"ERROR in RecordEmployeePerformance: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
             }
+        }
+
+        // ========== ORDER STATUS MANAGEMENT ==========
+
+        /// <summary>
+        /// Update order status to PREPARING (starting to blend)
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> StartPreparing(int orderId)
+        {
+            var order = await _db.Orders.FindAsync(orderId);
+            if (order == null)
+                return Json(new { success = false, message = "Order not found" });
+
+            if (order.Status != "PENDING")
+                return Json(new { success = false, message = $"Cannot start preparing order with status '{order.Status}'" });
+
+            order.Status = "PREPARING";
+            await _db.SaveChangesAsync();
+
+            return Json(new { success = true, message = $"Order #{order.OrderNumber} is now being prepared." });
+        }
+
+        /// <summary>
+        /// Update order status to COMPLETED (ready to serve)
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> CompleteOrder(int orderId)
+        {
+            var order = await _db.Orders.FindAsync(orderId);
+            if (order == null)
+                return Json(new { success = false, message = "Order not found" });
+
+            if (order.Status != "PREPARING")
+                return Json(new { success = false, message = $"Cannot complete order with status '{order.Status}'" });
+
+            order.Status = "COMPLETED";
+            await _db.SaveChangesAsync();
+
+            return Json(new { success = true, message = $"Order #{order.OrderNumber} is now ready to serve." });
+        }
+
+        /// <summary>
+        /// Update order status to CLOSED (paid and finalized)
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> CloseOrder(int orderId)
+        {
+            var order = await _db.Orders.FindAsync(orderId);
+            if (order == null)
+                return Json(new { success = false, message = "Order not found" });
+
+            if (order.Status != "COMPLETED")
+                return Json(new { success = false, message = $"Cannot close order with status '{order.Status}'" });
+
+            order.Status = "CLOSED";
+            await _db.SaveChangesAsync();
+
+            return Json(new { success = true, message = $"Order #{order.OrderNumber} is now closed." });
+        }
+
+        /// <summary>
+        /// Get all active orders for kitchen display
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> GetActiveOrders()
+        {
+            var orders = await _db.Orders
+                .Include(o => o.Items)
+                    .ThenInclude(oi => oi.Product)
+                .Include(o => o.Items)
+                    .ThenInclude(oi => oi.ProductSize)
+                .Where(o => o.Status == "PENDING_PAYMENT")  // ✅ ITO LANG! HUWAG isama ang COMPLETED, VOIDED, REFUNDED
+                .Where(o => o.Items.Any(i => !i.IsVoided))  // ✅ MAY AT LEAST ISANG ACTIVE ITEM
+                .OrderBy(o => o.Date)
+                .Select(o => new
+                {
+                    o.OrderId,
+                    o.OrderNumber,
+                    o.Status,
+                    o.TotalAmount,
+                    o.Date,
+                    Items = o.Items.Where(i => !i.IsVoided && !i.IsRefunded).Select(oi => new
+                    {
+                        oi.OrderItemId,
+                        ProductName = oi.Product.Name,
+                        SizeName = oi.ProductSize.SizeName,
+                        oi.Quantity,
+                        oi.Price
+                    })
+                })
+                .ToListAsync();
+
+            return Json(orders);
+        }
+        /// <summary>
+        /// Get single order details
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> GetOrder(int orderId)
+        {
+            var order = await _db.Orders
+                .Include(o => o.Items)
+                    .ThenInclude(oi => oi.Product)
+                .Include(o => o.Items)
+                    .ThenInclude(oi => oi.ProductSize)
+                .FirstOrDefaultAsync(o => o.OrderId == orderId);
+
+            if (order == null)
+                return Json(new { success = false, message = "Order not found" });
+
+            return Json(new
+            {
+                success = true,
+                order = new
+                {
+                    order.OrderId,
+                    order.OrderNumber,
+                    order.Status,
+                    order.TotalAmount,
+                    order.Date,
+                    order.PaymentMethod,
+                    order.DiscountType,
+                    order.DiscountPercent,
+                    order.DiscountAmount,
+                    Items = order.Items.Where(i => !i.IsVoided).Select(oi => new
+                    {
+                        oi.OrderItemId,
+                        ProductName = oi.Product.Name,
+                        SizeName = oi.ProductSize.SizeName,
+                        oi.Quantity,
+                        oi.Price,
+                        Subtotal = oi.Price * oi.Quantity
+                    })
+                }
+            });
+        }
+
+        // ========== BLENDING / PREPARATION ==========
+
+        [HttpPost]
+        public async Task<IActionResult> StartBlending([FromBody] StartBlendingRequest request)
+        {
+            var order = await _db.Orders
+                .Include(o => o.Items)
+                    .ThenInclude(oi => oi.ProductSize)
+                        .ThenInclude(ps => ps.RecipeItems)
+                            .ThenInclude(ri => ri.RawMaterial)
+                .FirstOrDefaultAsync(o => o.OrderId == request.OrderId);
+
+            if (order == null)
+                return Json(new { success = false, message = "Order not found" });
+
+            if (order.Status != "PENDING_PAYMENT")
+                return Json(new { success = false, message = $"Cannot start blending. Order status is '{order.Status}'" });
+
+            decimal totalActualCost = 0;
+
+            // ✅ DITO LANG MAGDA-DEDUCT NG INGREDIENTS (kapag nag-start na mag-blend)
+            foreach (var orderItem in order.Items)
+            {
+                var productSize = orderItem.ProductSize;
+
+                foreach (var recipe in productSize.RecipeItems)
+                {
+                    decimal neededQty = recipe.Quantity * orderItem.Quantity;
+
+                    decimal neededQtyInKg = neededQty;
+                    if (recipe.RawMaterial.BaseUnit == "g" || recipe.RawMaterial.BaseUnit == "mL")
+                    {
+                        neededQtyInKg = neededQty / 1000;
+                    }
+
+                    var (success, cost, usedBatches) = await _fifoService.DeductStockWithCostAsync(
+                        recipe.RawMaterialId,
+                        neededQtyInKg,
+                        productSize.ProductId,
+                        order.OrderNumber
+                    );
+
+                    if (!success)
+                    {
+                        return Json(new { success = false, message = $"Failed to deduct {recipe.RawMaterial.Name}" });
+                    }
+
+                    totalActualCost += cost;
+                }
+
+                orderItem.ActualCost = totalActualCost;
+            }
+
+            order.Status = "COMPLETED";  // ← Tapos na, nadeduct na
+            await _db.SaveChangesAsync();
+
+            return Json(new
+            {
+                success = true,
+                message = $"✅ Order #{order.OrderNumber} completed! Ingredients deducted.",
+                actualCost = totalActualCost
+            });
+        }
+
+        public class StartBlendingRequest
+        {
+            public int OrderId { get; set; }
         }
         public class PlaceOrderRequest
         {

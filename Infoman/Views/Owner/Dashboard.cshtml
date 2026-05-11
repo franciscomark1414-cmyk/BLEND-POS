@@ -2265,95 +2265,109 @@
             </div>
         </div>
 
-        <!-- Returns Module -->
-          <div id="returnsModule" class="module">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h3><i class="fas fa-undo-alt text-warning me-2"></i> Returns to Supplier</h3>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-outline-secondary" onclick="printReturns()">
-                        <i class="fas fa-print"></i> Print
-                    </button>
-                    <button class="btn btn-outline-primary" onclick="loadReturns()">
-                        <i class="fas fa-sync-alt"></i> Refresh
-                    </button>
-                </div>
-            </div> 
+    <!-- Returns Module - UPDATED WITH PENDING APPROVALS -->
+<div id="returnsModule" class="module">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3><i class="fas fa-undo-alt text-warning me-2"></i> Returns & Void Management</h3>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary" onclick="printReturns()">
+                <i class="fas fa-print"></i> Print
+            </button>
+            <button class="btn btn-outline-primary" onclick="loadReturns(); loadPendingApprovals();">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+    </div>
 
-           
-            <div class="row g-3 mb-4"> 
-                <div class="col-md-3">
-                    <div class="card border-left-warning shadow h-100">
-                        <div class="card-body">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Pending Returns</div>
-                            <div class="h5 mb-0 font-weight-bold" id="pendingReturnsCount">0</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card border-left-success shadow h-100">
-                        <div class="card-body">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Returned</div>
-                            <div class="h5 mb-0 font-weight-bold" id="returnedCount">0</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card border-left-danger shadow h-100">
-                        <div class="card-body">
-                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Cancelled</div>
-                            <div class="h5 mb-0 font-weight-bold" id="cancelledCount">0</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card border-left-info shadow h-100">
-                        <div class="card-body">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Total Return Value</div>
-                            <div class="h5 mb-0 font-weight-bold" id="totalReturnValue">₱0</div>
-                        </div>
-                    </div>
-                </div>
+    <!-- ========== PENDING APPROVALS SECTION (BAGO) ========== -->
+    <div class="card mb-4 border-warning">
+        <div class="card-header bg-warning">
+            <h5 class="mb-0">
+                <i class="fas fa-clock"></i> Pending Approvals (Void/Refund Requests)
+                <span id="pendingRequestCount" class="badge bg-danger">0</span>
+            </h5>
+        </div>
+        <div class="card-body">
+            <div id="pendingRequestsList">
+                <div class="text-center text-muted">Loading pending requests...</div>
             </div>
+        </div>
+    </div>
 
-          
-            <div class="card shadow-sm">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0"><i class="fas fa-list me-2"></i> Return Records</h5>
-                </div>
+    <!-- ========== EXISTING RETURNS SECTION ========== -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-left-warning shadow h-100">
                 <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-hover" id="returnsTable">
-                            <thead class="table-dark">
-                                <tr>
-                                    <th style="width:5%">ID</th>
-                                    <th style="width:12%">DR #</th>
-                                    <th style="width:15%">Supplier</th>
-                                    <th style="width:15%">Material</th>
-                                    <th style="width:8%">Quantity</th>
-                                    <th style="width:15%">Reason</th>
-                                    <th style="width:8%">Unit Price</th>
-                                    <th style="width:8%">Total</th>
-                                    <th style="width:10%">Status</th>
-                                    <th style="width:10%">Date</th>
-                                    <th style="width:10%">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="returnsTableBody">
-                                <tr>
-                                    <td colspan="11" class="text-center text-muted">
-                                        <div class="py-5">
-                                            <i class="fas fa-undo-alt fa-3x mb-3"></i>
-                                            <p>No return records found</p>
-                                            <small>When you mark rejected items as "Return to Supplier", they will appear here.</small>
-                                        </div>
-                                        </td>
-                                      </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Pending Returns</div>
+                    <div class="h5 mb-0 font-weight-bold" id="pendingReturnsCount">0</div>
                 </div>
             </div>
-        </div> 
+        </div>
+        <div class="col-md-3">
+            <div class="card border-left-success shadow h-100">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Returned</div>
+                    <div class="h5 mb-0 font-weight-bold" id="returnedCount">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-left-danger shadow h-100">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Cancelled</div>
+                    <div class="h5 mb-0 font-weight-bold" id="cancelledCount">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-left-info shadow h-100">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Total Return Value</div>
+                    <div class="h5 mb-0 font-weight-bold" id="totalReturnValue">₱0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <h5 class="mb-0"><i class="fas fa-list me-2"></i> Return Records (Supplier Returns)</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" id="returnsTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width:5%">ID</th>
+                            <th style="width:12%">DR #</th>
+                            <th style="width:15%">Supplier</th>
+                            <th style="width:15%">Material</th>
+                            <th style="width:8%">Quantity</th>
+                            <th style="width:15%">Reason</th>
+                            <th style="width:8%">Unit Price</th>
+                            <th style="width:8%">Total</th>
+                            <th style="width:10%">Status</th>
+                            <th style="width:10%">Date</th>
+                            <th style="width:10%">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="returnsTableBody">
+                        <tr>
+                            <td colspan="11" class="text-center text-muted">
+                                <div class="py-5">
+                                    <i class="fas fa-undo-alt fa-3x mb-3"></i>
+                                    <p>No return records found</p>
+                                    <small>When you mark rejected items as "Return to Supplier", they will appear here.</small>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
 
         <!-- Supplier Modal -->
         <div class="modal fade" id="supplierModal" tabindex="-1">
@@ -2428,6 +2442,115 @@
         });
     }
 
+      // ========== PENDING REQUESTS FUNCTIONS ==========
+
+async function loadPendingRequests() {
+    try {
+        const response = await fetch('/Owner/GetPendingRequests');
+        const requests = await response.json();
+        
+        const container = document.getElementById('pendingRequestsList');
+        const countSpan = document.getElementById('pendingRequestCount');
+        
+        if (!container) return;
+        
+        if (!requests || requests.length === 0) {
+            container.innerHTML = '<div class="text-center text-muted">No pending requests</div>';
+            if (countSpan) countSpan.innerText = '0';
+            return;
+        }
+        
+        if (countSpan) countSpan.innerText = requests.length;
+        
+        let html = '<div class="table-responsive"><table class="table table-bordered"><thead class="table-light">什';
+        html += '<th>Date</th><th>Order #</th><th>Type</th><th>Reason</th><th>Requested By</th><th>Amount</th><th>Actions</th>';
+        html += '</thead><tbody>';
+        
+        requests.forEach(req => {
+            const typeBadge = req.requestType === 'VOID' ? 
+                '<span class="badge bg-danger">VOID</span>' : 
+                '<span class="badge bg-warning">REFUND</span>';
+            
+            html += `<tr>
+                <td>${new Date(req.requestedAt).toLocaleString()}</td>
+                <td><strong>${escapeHtml(req.orderNumber)}</strong></td>
+                <td>${typeBadge}</td>
+                <td>${escapeHtml(req.reason)}</td>
+                <td>${escapeHtml(req.requesterName)}</td>
+                <td>₱${(req.orderTotal || 0).toFixed(2)}</td>
+                <td>
+                    <button class="btn btn-sm btn-success me-1" onclick="approveRequest(${req.id})">
+                        <i class="fas fa-check"></i> Approve
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="rejectRequest(${req.id})">
+                        <i class="fas fa-times"></i> Reject
+                    </button>
+                </td>
+            </tr>`;
+        });
+        
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error loading requests:', error);
+        const container = document.getElementById('pendingRequestsList');
+        if (container) container.innerHTML = '<div class="alert alert-danger">Error loading requests</div>';
+    }
+}
+
+async function approveRequest(requestId) {
+    if (!confirm('Approve this request? This action cannot be undone.')) return;
+    
+    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    
+    try {
+        const response = await fetch('/Owner/ApproveRequest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
+            body: JSON.stringify({ requestId: requestId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('✅ ' + data.message);
+            loadPendingRequests();
+            location.reload();
+        } else {
+            alert('❌ Error: ' + data.message);
+        }
+    } catch (error) {
+        alert('❌ Error: ' + error.message);
+    }
+}
+
+async function rejectRequest(requestId) {
+    if (!confirm('Reject this request?')) return;
+    
+    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    
+    try {
+        const response = await fetch('/Owner/RejectRequest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
+            body: JSON.stringify({ requestId: requestId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('✅ Request rejected');
+            loadPendingRequests();
+        } else {
+            alert('❌ Error: ' + data.message);
+        }
+    } catch (error) {
+        alert('❌ Error: ' + error.message);
+    }
+}
+
+
                       function showModule(module) {
         // Hide all modules
         var modules = ['dashboard', 'rawMaterials', 'inventory', 'products', 'inventoryAlerts', 'reports', 'employees', 'settings', 'suppliers', 'receiving', 'receivingHistory', 'returns'];
@@ -2489,6 +2612,7 @@
         }
         if (module === 'returns') {
             loadReturns();
+            loadPendingRequests();
         }
     } 
     // Add Delivery Form Functions
@@ -2527,6 +2651,8 @@
         const quantity = document.getElementById('deliveryQuantity').value;
         const unitPrice = document.getElementById('deliveryUnitPrice').value;
         const expiryDate = document.getElementById('deliveryExpiryDate').value;
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+    const unit = selectedOption ? selectedOption.getAttribute('data-unit') : null;
 
         // Debug: I-print ang values
         console.log('Raw Material ID:', rawMaterialId);
@@ -2560,6 +2686,7 @@
             const requestBody = {
                 rawMaterialId: parseInt(rawMaterialId),
                 quantity: parseFloat(quantity),
+                unit: unit, 
                 unitPrice: parseFloat(unitPrice),
                 expiryDate: expiryDate || null
             };
@@ -3309,8 +3436,15 @@
         function loadLowStockTab(items) {
         const container = document.getElementById('lowStockContent');
         if (!items || items.length === 0) {
-            container.innerHTML = '<div class="empty-state">...</div>';
-        } else {
+        container.innerHTML = `
+            <div class="empty-state" style="text-align: center; padding: 40px 20px;">
+                <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+                <h4 class="text-success">✨ All Good!</h4>
+                <p class="text-muted">No low stock items found.</p>
+                <small>All raw materials have sufficient stock levels.</small>
+            </div>
+        `;
+    } else {
             container.innerHTML = `
                 <div class="table-responsive">
                     <table class="table table-bordered">
@@ -3561,157 +3695,104 @@ function produceProduct(productSizeId, sizeName, currentStock) {
     });
 }
 
-        // Batch History Functions
-             // Replace your existing viewBatchHistory function with this:
-        // Replace the entire viewBatchHistory function with this:
-    async function viewBatchHistory(materialId, materialName) {
-        const container = document.getElementById('batchHistoryContainer');
-        const materialNameSpan = document.getElementById('batchMaterialName');
-        const tbody = document.getElementById('batchHistoryBody');
+      async function viewBatchHistory(materialId, materialName) {
+    const container = document.getElementById('batchHistoryContainer');
+    const materialNameSpan = document.getElementById('batchMaterialName');
+    const tbody = document.getElementById('batchHistoryBody');
 
-        if (!container) {
-            console.error('Container not found');
+    if (!container) {
+        console.error('Container not found');
+        return;
+    }
+
+    materialNameSpan.innerText = materialName;
+    container.style.display = 'block';
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center"><div class="spinner-border text-primary spinner-border-sm"></div> Loading...<\/div><\/td><\/tr>`;
+
+    try {
+        const response = await fetch(`/RawMaterial/BatchHistory?rawMaterialId=${materialId}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const data = await response.json();
+        
+        // ✅ KUNIN ANG BATCHES ARRAY AT UNIT MULA SA RESPONSE OBJECT
+        const batches = data.batches;
+        const unit = data.unit || 'kg';
+        
+        // ✅ I-DISPLAY ANG UNIT SA HEADER (optional)
+        const unitHint = document.getElementById('quantityUnitHint');
+        if (unitHint) unitHint.innerText = `Quantity in ${unit}`;
+
+        if (!batches || batches.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No batches found<\/td><\/tr>`;
             return;
         }
 
-        // Show container and set loading state
-        materialNameSpan.innerText = materialName;
-        container.style.display = 'block';
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="7" class="text-center">
-                    <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
-                    Loading batches for ${materialName}...
-                </td>
-            </tr>
-        `;
+        tbody.innerHTML = '';
+        let totalRemaining = 0;
 
-        try {
-            const response = await fetch(`/RawMaterial/BatchHistory?rawMaterialId=${materialId}`);
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        batches.forEach((batch, index) => {
+            const quantityReceived = batch.quantityReceived;
+            const quantityRemaining = batch.quantityRemaining;
+            
+            // Determine status
+            let status = '';
+            let statusClass = '';
+            if (quantityRemaining <= 0) {
+                status = '<span class="badge bg-secondary">❌ Depleted</span>';
+                statusClass = 'table-secondary';
+            } else if (index === 0 && quantityRemaining > 0) {
+                status = '<span class="badge bg-success">✅ ACTIVE (Next to Use - FIFO)</span>';
+                statusClass = 'table-success fw-bold';
+            } else if (quantityRemaining > 0) {
+                status = '<span class="badge bg-info">📦 In Stock</span>';
+                statusClass = 'table-info';
             }
-
-            const batches = await response.json();
-
-            // Debug log to see what we got
-            console.log('Batches received:', batches);
-
-            // Check if we have data
-            if (!batches || batches.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="text-center text-muted">
-                            <div class="alert alert-info">
-                                <strong>ℹ️ No batches found for ${escapeHtml(materialName)}</strong><br/>
-                                Click the <strong>"📦 ADD DELIVERY (BATCH)"</strong> button above to add your first delivery.
-                                <br/><br/>
-                                <button class="btn btn-sm btn-primary" onclick="showAddDeliveryForm(); closeBatchHistory();">
-                                    ➕ Add First Delivery
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-
-            // Clear the table body
-            tbody.innerHTML = '';
-            let totalRemaining = 0;
-
-            // Loop through each batch and display
-            batches.forEach((batch, index) => {
-                // Extract data (these are camelCase from JSON)
-                const batchId = batch.batchId;
-                const receivedDate = batch.receivedDate;
-                const quantityReceived = batch.quantityReceived;
-                const quantityRemaining = batch.quantityRemaining;
-                const expiryDate = batch.expiryDate;
-                const unitPrice = batch.unitPrice;
-                const usage = batch.usage || [];
-
-                // Format dates
-                const formattedReceivedDate = receivedDate ? new Date(receivedDate).toLocaleString() : 'N/A';
-                const formattedExpiryDate = expiryDate ? new Date(expiryDate).toLocaleDateString() : 'No Expiry';
-
-                // Determine status for FIFO
-                let status = '';
-                let statusClass = '';
-
-                if (quantityRemaining <= 0) {
-                    status = '<span class="badge bg-secondary">❌ Depleted</span>';
-                    statusClass = 'table-secondary';
-                } else if (index === 0 && quantityRemaining > 0) {
-                    status = '<span class="badge bg-success">✅ ACTIVE (Next to Use - FIFO)</span>';
-                    statusClass = 'table-success fw-bold';
-                } else if (quantityRemaining > 0) {
-                    status = '<span class="badge bg-info">📦 In Stock</span>';
-                    statusClass = 'table-info';
-                }
-
-                totalRemaining += quantityRemaining;
-
-                // Usage button
-                let usageButton = '';
-                if (usage.length > 0) {
-                    const usageJson = JSON.stringify(usage).replace(/"/g, '&quot;');
-                    usageButton = `<button class="btn btn-sm btn-outline-info" onclick="showUsageDetails(${usageJson})">
-                        📋 View Usage (${usage.length})
-                    </button>`;
-                } else {
-                    usageButton = '<span class="text-muted">No usage yet</span>';
-                }
-
-                // Add row to table
-                tbody.innerHTML += `
-                    <tr class="${statusClass}">
-                        <td>
-                            <strong>Batch #${batchId}</strong><br/>
-                            <small class="text-muted">Received: ${formattedReceivedDate}</small>
-                        </td>
-                        <td>${quantityReceived.toFixed(2)} kg</td>
-                        <td class="${quantityRemaining === 0 ? 'text-danger' : 'text-success'} fw-bold">
-                            ${quantityRemaining.toFixed(2)} kg
-                            ${quantityRemaining > 0 && quantityRemaining < quantityReceived ? '<br/><small class="text-muted">(Partially used)</small>' : ''}
-                        </td>
-                        <td>${formattedExpiryDate}</td>
-                        <td>₱${unitPrice.toFixed(2)}</td>
-                        <td>${status}</td>
-                        <td>${usageButton}</td>
-                    </tr>
-                `;
-            });
-
-            // Add total row
+            
+            totalRemaining += quantityRemaining;
+            
+            const formattedReceivedDate = batch.receivedDate ? new Date(batch.receivedDate).toLocaleString() : 'N/A';
+            const formattedExpiryDate = batch.expiryDate ? new Date(batch.expiryDate).toLocaleDateString() : 'No Expiry';
+            
             tbody.innerHTML += `
-                <tr class="table-dark fw-bold">
-                    <td colspan="2" class="text-end">TOTAL REMAINING STOCK:</td>
-                    <td colspan="5">${totalRemaining.toFixed(2)} kg</td>
-                </tr>
-            `;
-
-            // Scroll to the container
-            container.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-        } catch (error) {
-            console.error('Error loading batch history:', error);
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="7" class="text-center text-danger">
-                        <strong>Error loading batch history:</strong><br/>
-                        ${error.message}<br/>
-                        <button class="btn btn-sm btn-warning mt-2" onclick="viewBatchHistory(${materialId}, '${escapeHtml(materialName)}')">
-                            🔄 Click to Retry
-                        </button>
+                <tr class="${statusClass}">
+                    <td>
+                        <strong>Batch #${batch.batchId}</strong><br/>
+                        <small class="text-muted">Received: ${formattedReceivedDate}</small>
+                    </td>
+                    <td>${quantityReceived.toFixed(2)} ${unit}</td>
+                    <td class="${quantityRemaining === 0 ? 'text-danger' : 'text-success'} fw-bold">
+                        ${quantityRemaining.toFixed(2)} ${unit}
+                        ${quantityRemaining > 0 && quantityRemaining < quantityReceived ? '<br/><small class="text-muted">(Partially used)</small>' : ''}
+                    </td>
+                    <td>${formattedExpiryDate}</td>
+                    <td>₱${batch.unitPrice.toFixed(2)}</td>
+                    <td>${status}</td>
+                    <td>
+                        ${batch.usage?.length > 0 ? 
+                            `<button class="btn btn-sm btn-outline-info" onclick='showUsageDetails(${JSON.stringify(batch.usage)})'>
+                                📋 View Usage (${batch.usage.length})
+                            </button>` : 
+                            '<span class="text-muted">No usage yet</span>'}
                     </td>
                 </tr>
             `;
-        }
+        });
+
+        tbody.innerHTML += `
+            <tr class="table-dark fw-bold">
+                <td colspan="2" class="text-end">TOTAL REMAINING STOCK:<\/td>
+                <td colspan="5">${totalRemaining.toFixed(2)} ${unit}<\/td>
+            <\/tr>
+        `;
+
+    } catch (error) {
+        console.error('Error:', error);
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error loading batches: ${error.message}<\/td><\/tr>`;
     }
-        // Display product in POS (WALANG DEDUCT - menu lang)
-    async function displayInPOS(productSizeId, productName, sizeName) {
+}
+
+async function displayInPOS(productSizeId, productName, sizeName) {
         const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
         const btn = event.target;
         const originalText = btn.innerHTML;
@@ -5283,108 +5364,90 @@ function viewDeliveryDetails(receivingId) {
 
 
         function loadReturns() {
-            console.log('Loading returns...');
+    fetch('/Owner/GetReturns')
+        .then(response => response.json())
+        .then(data => {
+            const tbody = document.getElementById('returnsTableBody');
 
-            fetch('/Owner/GetReturns')
-                .then(response => response.json())
-                .then(data => {
-                    console.log('Returns data:', data);
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">No records found</td></tr>';
+                updateReturnSummary([]);
+                return;
+            }
 
-                    const tbody = document.getElementById('returnsTableBody');
+            updateReturnSummary(data);
 
-                    if (!data || data.length === 0) {
-                        tbody.innerHTML = `
-                            <tr>
-                                <td colspan="11" class="text-center text-muted">
-                                    <div class="py-5">
-                                        <i class="fas fa-undo-alt fa-3x mb-3"></i>
-                                        <p>No return records found</p>
-                                        <small>When you mark rejected items as "Return to Supplier", they will appear here.</small>
-                                    </div>
-                                </td>
-                            </tr>
-                        `;
-                        updateReturnSummary([]);
-                        return;
-                    }
+            let html = '';
+            data.forEach(r => {
+                let typeBadge = '';
+                if (r.type === 'VOID') {
+                    typeBadge = '<span class="badge bg-danger">VOID</span>';
+                } else if (r.type === 'REFUND') {
+                    typeBadge = '<span class="badge bg-warning">REFUND</span>';
+                } else {
+                    typeBadge = '<span class="badge bg-info">SUPPLIER RETURN</span>';
+                }
 
-                    // Update summary cards
-                    updateReturnSummary(data);
+                let statusBadge = '';
+                if (r.status === 'APPROVED' || r.status === 'Returned') {
+                    statusBadge = '<span class="badge bg-success">✅ APPROVED</span>';
+                } else if (r.status === 'Pending Return') {
+                    statusBadge = '<span class="badge bg-warning">⏳ PENDING</span>';
+                } else {
+                    statusBadge = '<span class="badge bg-secondary">' + (r.status || 'N/A') + '</span>';
+                }
 
-                    // Build table rows
-                    let html = '';
-                    data.forEach(r => {
-                        let statusBadge = '';
-                        if (r.status === 'Pending Return') {
-                            statusBadge = '<span class="badge bg-warning text-dark">⏳ Pending Return</span>';
-                        } else if (r.status === 'Returned') {
-                            statusBadge = '<span class="badge bg-success">✅ Returned</span>';
-                        } else if (r.status === 'Cancelled') {
-                            statusBadge = '<span class="badge bg-danger">❌ Cancelled</span>';
-                        } else {
-                            statusBadge = '<span class="badge bg-secondary">' + escapeHtml(r.status) + '</span>';
-                        }
+                const date = new Date(r.createdAt);
+                const formattedDate = `${date.getMonth()+1}/${date.getDate()}/${date.getFullYear()}`;
 
-                        const date = new Date(r.createdAt);
-                        const formattedDate = `${date.getMonth()+1}/${date.getDate()}/${date.getFullYear()}`;
-
-                        html += `
-                            <tr>
-                                <td class="text-center">${r.id}</td>
-                                <td><strong>${escapeHtml(r.drNumber)}</strong></td>
-                                <td>${escapeHtml(r.supplierName)}</td>
-                                <td>${escapeHtml(r.materialName)}</td>
-                                <td class="text-end">${r.quantity.toFixed(2)} kg</td>
-                                <td><small>${escapeHtml(r.reason || '-')}</small></td>
-                                <td class="text-end">₱${r.unitPrice.toFixed(2)}</td>
-                                <td class="text-end text-danger fw-bold">₱${r.total.toFixed(2)}</td>
-                                <td>${statusBadge}</td>
-                                <td>${formattedDate}</td>
-                                <td>
-                                    <div class="btn-group btn-group-sm">
-                                        <button class="btn btn-success" onclick="updateReturnStatus(${r.id}, 'Returned')" title="Mark as Returned">
-                                            <i class="fas fa-check"></i>
-                                        </button>
-                                        <button class="btn btn-danger" onclick="updateReturnStatus(${r.id}, 'Cancelled')" title="Cancel Return">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                        <button class="btn btn-secondary" onclick="deleteReturn(${r.id})" title="Delete Record">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        `;
-                    });
-                    tbody.innerHTML = html;
-                })
-                .catch(error => {
-                    console.error('Error loading returns:', error);
-                    document.getElementById('returnsTableBody').innerHTML = `
-                        <tr>
-                            <td colspan="11" class="text-center text-danger">
-                                Error loading returns: ${error.message}
-                            </td>
-                        </tr>
-                    `;
-                });
-        }
-              function updateReturnSummary(returns) {
-            let pending = 0, returned = 0, cancelled = 0, totalValue = 0;
-
-            returns.forEach(r => {
-                if (r.status === 'Pending Return') pending++;
-                else if (r.status === 'Returned') returned++;
-                else if (r.status === 'Cancelled') cancelled++;
-                totalValue += r.total || 0;
+                html += `
+                    <tr>
+                        <td class="text-center">${r.id}</td>
+                        <td><strong>${escapeHtml(r.drNumber)}</strong><br>${typeBadge}</td>
+                        <td>${escapeHtml(r.supplierName)}</td>
+                        <td>${escapeHtml(r.materialName)}</td>
+                        <td class="text-end">${(r.quantity || 0).toFixed(2)}</td>
+                        <td><small>${escapeHtml(r.reason || '-')}</small></td>
+                        <td class="text-end">₱${(r.unitPrice || 0).toFixed(2)}</td>
+                        <td class="text-end text-danger fw-bold">₱${(r.total || 0).toFixed(2)}</td>
+                        <td>${statusBadge}</td>
+                        <td>${formattedDate}</td>
+                        <td>
+                            <button class="btn btn-sm btn-info" onclick="viewReturnDetails(${r.id}, '${r.type}')">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                        </td>
+                    </tr>
+                `;
             });
+            tbody.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading returns:', error);
+        });
+}
+function updateReturnSummary(returns) {
+    let pending = 0, returned = 0, cancelled = 0, totalValue = 0;
+    let approvedCount = 0;
 
-            document.getElementById('pendingReturnsCount').innerText = pending;
-            document.getElementById('returnedCount').innerText = returned;
-            document.getElementById('cancelledCount').innerText = cancelled;
-            document.getElementById('totalReturnValue').innerHTML = `₱${totalValue.toFixed(2)}`;
+    returns.forEach(r => {
+        if (r.type === 'SUPPLIER_RETURN') {
+            if (r.status === 'Pending Return') pending++;
+            else if (r.status === 'Returned') returned++;
+            else if (r.status === 'Cancelled') cancelled++;
+        } else {
+            // VOID or REFUND - count as approved
+            approvedCount++;
         }
-             function updateReturnStatus(id, status) {
+        totalValue += r.total || 0;
+    });
+
+    document.getElementById('pendingReturnsCount').innerText = pending;
+    document.getElementById('returnedCount').innerText = returned + approvedCount;
+    document.getElementById('cancelledCount').innerText = cancelled;
+    document.getElementById('totalReturnValue').innerHTML = `₱${totalValue.toFixed(2)}`;
+}
+function updateReturnStatus(id, status) {
             const statusText = status === 'Returned' ? 'returned to supplier' : 'cancelled';
             if (!confirm(`Mark this return as ${statusText}?`)) return;
 
@@ -5433,7 +5496,6 @@ function viewDeliveryDetails(receivingId) {
                 alert('❌ Error: ' + error.message);
             });
         }
-
 
        
 // ========== HELPER FUNCTION ==========

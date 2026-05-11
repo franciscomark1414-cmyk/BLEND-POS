@@ -12,8 +12,8 @@ namespace Infoman.Models
         public DateTime Date { get; set; }
         [Required]
         public decimal TotalAmount { get; set; }
-        [Required]  
-        public string Status { get; set; } = string.Empty;
+        [Required]
+        public string Status { get; set; } = "PENDING_PAYMENT";
 
         // ✅ IDAGDAG ANG MGA RECEIPT FIELDS
         public string? ReceiptNumber { get; set; }
@@ -23,5 +23,9 @@ namespace Infoman.Models
         public decimal DiscountAmount { get; set; }
 
         public virtual ICollection<OrderItem> Items { get; set; }
+
+        public string? VoidReason { get; set; }
+        public int? VoidedBy { get; set; }
+        public DateTime? VoidedAt { get; set; }
     }
 }

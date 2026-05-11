@@ -340,8 +340,27 @@ namespace Infoman.Controllers
         [HttpGet]
         public async Task<IActionResult> BatchHistory(int rawMaterialId)
         {
-            var history = await _fifoService.GetBatchHistoryAsync(rawMaterialId);
-            return Ok(history);
+            var rawMaterial = await _context.RawMaterials.FindAsync(rawMaterialId);
+            if (rawMaterial == null)
+                return Json(new { error = "Material not found" });
+
+            var batches = await _context.RawMaterialBatches
+                .Where(b => b.RawMaterialId == rawMaterialId)
+                .OrderBy(b => b.ReceivedDate)
+                .Select(b => new
+                {
+                    b.BatchId,
+                    b.ReceivedDate,
+                    QuantityReceived = b.QuantityReceived,  // Naka-base unit (g or mL)
+                    QuantityRemaining = b.QuantityRemaining,
+                    b.ExpiryDate,
+                    b.UnitPrice,
+                    Usage = b.ProductionUsages.Select(u => new { u.QuantityUsed, u.DateUsed, u.ReferenceNo })
+                })
+                .ToListAsync();
+
+            // ✅ PARA SA DISPLAY, GAMITIN ANG rawMaterial.Unit
+            return Json(new { batches, unit = rawMaterial.Unit });
         }
 
         // BAGONG ACTION: Magdagdag ng bagong delivery
@@ -350,6 +369,7 @@ namespace Infoman.Controllers
         {
             public int RawMaterialId { get; set; }
             public decimal Quantity { get; set; }
+            public string Unit { get; set; }
             public decimal UnitPrice { get; set; }
             public DateTime? ExpiryDate { get; set; }
         }
@@ -362,14 +382,25 @@ namespace Infoman.Controllers
             if (rawMaterial == null)
                 return Json(new { success = false, message = "Raw material not found" });
 
-            // ✅ CONVERT SA BASE UNIT BAGO I-STORE SA BATCH
-            decimal quantityInBaseUnit = request.Quantity * rawMaterial.ConversionFactor;
+            // ✅ I-store AS-IS sa base unit (walang division)
+            decimal quantityInBaseUnit = request.Quantity;
+
+            // CONVERSION LANG KUNG MAGKAIBA ANG UNIT
+            if (rawMaterial.BaseUnit == "g" && request.Unit == "kg")
+            {
+                quantityInBaseUnit = request.Quantity * 1000;  // kg → g
+            }
+            else if (rawMaterial.BaseUnit == "mL" && request.Unit == "L")
+            {
+                quantityInBaseUnit = request.Quantity * 1000;  // L → mL
+            }
+            // Kung pareho ang unit, walang conversion (mL→mL, g→g, pcs→pcs)
 
             var batch = new RawMaterialBatch
             {
                 RawMaterialId = request.RawMaterialId,
-                QuantityReceived = quantityInBaseUnit,      // naka-base unit na
-                QuantityRemaining = quantityInBaseUnit,     // naka-base unit na
+                QuantityReceived = quantityInBaseUnit,
+                QuantityRemaining = quantityInBaseUnit,
                 ReceivedDate = DateTime.Now,
                 ExpiryDate = request.ExpiryDate,
                 UnitPrice = request.UnitPrice
@@ -382,8 +413,7 @@ namespace Infoman.Controllers
             await UpdateProductPricesForRawMaterial(request.RawMaterialId);
 
             return Json(new { success = true, message = "Delivery added successfully!" });
-        }
-        // Helper method para mag-update ng main stock column
+        } // Helper method para mag-update ng main stock column
         private async Task UpdateMainStockColumn(int rawMaterialId)
         {
             var totalRemaining = await _context.RawMaterialBatches

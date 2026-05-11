@@ -1745,7 +1745,50 @@ namespace Infoman.Controllers
         [HttpGet]
         public async Task<IActionResult> GetReturns()
         {
-            var returns = await _db.RejectedForReturns
+            // 1. GET APPROVED VOID REQUESTS from PendingRequests
+            var approvedVoids = await _db.PendingRequests
+                .Include(r => r.Order)
+                .Include(r => r.Requester)
+                .Where(r => r.RequestType == "VOID" && r.Status == "APPROVED")
+                .Select(r => new
+                {
+                    Id = r.Id,
+                    DRNumber = r.Order.OrderNumber,
+                    SupplierName = "N/A - Customer Void",
+                    MaterialName = "Order Void",
+                    Quantity = 1,
+                    Reason = r.Reason,
+                    UnitPrice = r.Order.TotalAmount,
+                    Total = r.Order.TotalAmount,
+                    Status = "APPROVED",
+                    CreatedAt = r.ApprovedAt ?? r.RequestedAt,
+                    Type = "VOID"
+                })
+                .ToListAsync();
+
+            // 2. GET APPROVED REFUND REQUESTS from PendingRequests
+            var approvedRefunds = await _db.PendingRequests
+                .Include(r => r.Order)
+                .Include(r => r.Requester)
+                .Where(r => r.RequestType == "REFUND" && r.Status == "APPROVED")
+                .Select(r => new
+                {
+                    Id = r.Id,
+                    DRNumber = r.Order.OrderNumber,
+                    SupplierName = "N/A - Customer Refund",
+                    MaterialName = "Order Refund",
+                    Quantity = 1,
+                    Reason = r.Reason,
+                    UnitPrice = r.Order.TotalAmount,
+                    Total = r.Order.TotalAmount,
+                    Status = "APPROVED",
+                    CreatedAt = r.ApprovedAt ?? r.RequestedAt,
+                    Type = "REFUND"
+                })
+                .ToListAsync();
+
+            // 3. GET SUPPLIER RETURNS from RejectedForReturns
+            var supplierReturns = await _db.RejectedForReturns
                 .Include(r => r.Receiving)
                     .ThenInclude(rec => rec.Supplier)
                 .Include(r => r.RawMaterial)
@@ -1753,7 +1796,6 @@ namespace Infoman.Controllers
                 .Select(r => new
                 {
                     r.Id,
-                    r.ReceivingId,
                     DRNumber = r.Receiving.DRNumber,
                     SupplierName = r.Receiving.Supplier.Name,
                     MaterialName = r.RawMaterial.Name,
@@ -1762,11 +1804,23 @@ namespace Infoman.Controllers
                     r.UnitPrice,
                     Total = r.Quantity * r.UnitPrice,
                     r.Status,
-                    r.CreatedAt
+                    CreatedAt = r.CreatedAt,
+                    Type = "SUPPLIER_RETURN"
                 })
                 .ToListAsync();
 
-            return Json(returns);
+            // 4. COMBINE ALL
+            var allReturns = new List<object>();
+            allReturns.AddRange(approvedVoids);
+            allReturns.AddRange(approvedRefunds);
+            allReturns.AddRange(supplierReturns);
+
+            // Order by date descending
+            var sortedReturns = allReturns
+                .OrderByDescending(r => ((dynamic)r).CreatedAt)
+                .ToList();
+
+            return Json(sortedReturns);
         }
 
         [HttpPost]
@@ -1809,6 +1863,185 @@ namespace Infoman.Controllers
             {
                 return Json(new { success = false, message = ex.Message });
             }
+        }
+
+        // Idagdag sa OwnerController.cs
+
+        [HttpGet]
+        public async Task<IActionResult> GetPendingRequests()
+        {
+            var pendingRequests = await _db.PendingRequests
+                .Include(r => r.Order)
+                .Include(r => r.Requester)
+                .Where(r => r.Status == "PENDING")
+                .OrderByDescending(r => r.RequestedAt)
+                .Select(r => new
+                {
+                    r.Id,
+                    r.OrderId,
+                    OrderNumber = r.Order.OrderNumber,
+                    OrderTotal = r.Order.TotalAmount,
+                    r.RequestType,
+                    r.Reason,
+                    RequesterName = r.Requester.Username,
+                    r.RequestedAt,
+                    ItemCount = r.Order.Items.Count(i => !i.IsRefunded && !i.IsVoided)
+                })
+                .ToListAsync();
+
+            return Json(pendingRequests);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ApproveRequest([FromBody] ApproveRequestRequest request)
+        {
+            var userId = GetCurrentUserId();
+            var user = await _db.Users.FindAsync(userId);
+
+            if (user?.Role != "Owner")
+                return Json(new { success = false, message = "Only Owner can approve" });
+
+            var pendingRequest = await _db.PendingRequests
+                .Include(r => r.Order)
+                .ThenInclude(o => o.Items)
+                .FirstOrDefaultAsync(r => r.Id == request.RequestId);
+
+            if (pendingRequest == null)
+                return Json(new { success = false, message = "Request not found" });
+
+            if (pendingRequest.Status != "PENDING")
+                return Json(new { success = false, message = "Request already processed" });
+
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                if (pendingRequest.RequestType == "VOID")
+                {
+                    // Process void
+                    var order = pendingRequest.Order;
+                    var itemIds = string.IsNullOrEmpty(pendingRequest.ItemIds)
+                        ? new List<int>()
+                        : pendingRequest.ItemIds.Split(',').Select(int.Parse).ToList();
+
+                    foreach (var item in order.Items.Where(i => !i.IsVoided))
+                    {
+                        if (itemIds.Count == 0 || itemIds.Contains(item.OrderItemId))
+                        {
+                            item.IsVoided = true;
+                            item.VoidReason = pendingRequest.Reason;
+
+                            var voidLog = new VoidLog
+                            {
+                                TransactionId = order.OrderId,
+                                ItemId = item.OrderItemId,
+                                VoidType = itemIds.Count == 0 ? "transaction" : "item",
+                                Reason = pendingRequest.Reason,
+                                PreparedFlag = true,
+                                PreparedStatus = "PREPARED",
+                                UserId = pendingRequest.RequestedBy,
+                                ApprovedBy = userId,
+                                Timestamp = DateTime.Now
+                            };
+                            _db.VoidLogs.Add(voidLog);
+                        }
+                    }
+
+                    order.Status = "VOIDED";
+                    order.VoidReason = pendingRequest.Reason;
+                    order.VoidedBy = userId;
+                    order.VoidedAt = DateTime.Now;
+                    order.TotalAmount = 0;
+                }
+                else if (pendingRequest.RequestType == "REFUND")
+                {
+                    // Process refund
+                    var order = pendingRequest.Order;
+                    var itemIds = pendingRequest.ItemIds.Split(',').Select(int.Parse).ToList();
+                    decimal refundAmount = 0;
+
+                    foreach (var itemId in itemIds)
+                    {
+                        var item = order.Items.FirstOrDefault(i => i.OrderItemId == itemId && !i.IsRefunded);
+                        if (item != null)
+                        {
+                            refundAmount += item.Price * item.Quantity;
+                            item.IsRefunded = true;
+                            item.RefundReason = pendingRequest.Reason;
+                        }
+                    }
+
+                    if (refundAmount > 0)
+                    {
+                        var refund = new Refund
+                        {
+                            TransactionId = order.OrderId,
+                            Amount = refundAmount,
+                            Reason = pendingRequest.Reason,
+                            ProcessedBy = pendingRequest.RequestedBy,
+                            ApprovedBy = userId,
+                            Timestamp = DateTime.Now,
+                            RefundReference = $"RFD-{DateTime.Now:yyyyMMddHHmmss}"
+                        };
+                        _db.Refunds.Add(refund);
+                        order.TotalAmount -= refundAmount;
+                    }
+
+                    if (order.Items.All(i => i.IsRefunded || i.IsVoided))
+                    {
+                        order.Status = "REFUNDED";
+                    }
+                }
+
+                pendingRequest.Status = "APPROVED";
+                pendingRequest.ApprovedBy = userId;
+                pendingRequest.ApprovedAt = DateTime.Now;
+
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Json(new { success = true, message = $"Request approved successfully" });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> RejectRequest([FromBody] RejectRequestRequest request)
+        {
+            var userId = GetCurrentUserId();
+            var user = await _db.Users.FindAsync(userId);
+
+            if (user?.Role != "Owner")
+                return Json(new { success = false, message = "Only Owner can reject" });
+
+            var pendingRequest = await _db.PendingRequests.FindAsync(request.RequestId);
+            if (pendingRequest == null)
+                return Json(new { success = false, message = "Request not found" });
+
+            pendingRequest.Status = "REJECTED";
+            pendingRequest.ApprovedBy = userId;
+            pendingRequest.ApprovedAt = DateTime.Now;
+
+            await _db.SaveChangesAsync();
+
+            return Json(new { success = true, message = "Request rejected" });
+        }
+
+        private int GetCurrentUserId()
+        {
+            return HttpContext.Session.GetInt32("UserId") ?? 0;
+        }
+        public class ApproveRequestRequest
+        {
+            public int RequestId { get; set; }
+        }
+
+        public class RejectRequestRequest
+        {
+            public int RequestId { get; set; }
         }
 
         // Request Models for Returns

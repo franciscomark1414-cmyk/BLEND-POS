@@ -455,6 +455,55 @@
             animation: slideUp 0.3s ease forwards;
         }
 
+            /* Order Queue Styles */
+            .order-queue {
+                background: #f8f9fa;
+                border-top: 1px solid #dee2e6;
+            }
+
+            .queue-item {
+                background: white;
+                border-radius: 8px;
+                padding: 8px;
+                margin-bottom: 8px;
+                border-left: 3px solid #ffc107;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+                transition: all 0.2s;
+            }
+
+                .queue-item:hover {
+                    transform: translateX(2px);
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                }
+
+                .queue-item.completed {
+                    border-left-color: #28a745;
+                    opacity: 0.7;
+                    background: #e8f5e9;
+                }
+
+            .queue-order-number {
+                font-size: 12px;
+                font-weight: bold;
+            }
+
+            .queue-items {
+                font-size: 11px;
+                color: #666;
+                margin: 4px 0;
+            }
+
+            .queue-total {
+                font-size: 11px;
+                font-weight: bold;
+                color: #28a745;
+            }
+
+            .queue-btn {
+                padding: 2px 8px;
+                font-size: 11px;
+            }
+
         @@keyframes slideUp {
             from {
                 transform: translateY(50px);
@@ -559,6 +608,21 @@
                             </div>
                         }
                     }
+                </div>
+                <!-- ========== ORDER QUEUE (ILALIM NG CATEGORIES) ========== -->
+                <div class="order-queue" style="border-top: 1px solid #e0e0e0; margin-top: 10px; padding: 10px;">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong style="font-size: 13px;">
+                            <i class="fas fa-blender"></i> Orders Queue
+                            <span id="queueCount" class="badge bg-warning">0</span>
+                        </strong>
+                        <button class="btn btn-sm btn-outline-warning p-0 px-1" onclick="refreshQueue()" style="font-size: 10px;">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div id="orderQueueList" style="max-height: 300px; overflow-y: auto;">
+                        <div class="text-center text-muted small">No pending orders</div>
+                    </div>
                 </div>
             </div>
 
@@ -789,6 +853,83 @@
             </div>
         </div>
     </div>
+
+    <!-- ========== VOID / REFUND MODAL ========== -->
+    <div id="voidRefundModal" class="modal-qty" style="display: none;">
+        <div class="modal-qty-content" style="width: 650px; max-width: 95%;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h4 style="margin: 0;">📋 Void / Refund Transaction</h4>
+                <button onclick="closeVoidRefundModal()" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #ddd;">
+                <button id="voidTabBtn" class="void-tab-btn active" onclick="switchVoidTab('void')" style="padding: 10px 20px; border: none; background: none; cursor: pointer; font-weight: bold;">❌ VOID</button>
+                <button id="refundTabBtn" class="void-tab-btn" onclick="switchVoidTab('refund')" style="padding: 10px 20px; border: none; background: none; cursor: pointer; font-weight: bold;">💰 REFUND</button>
+            </div>
+
+            <div id="voidTabContent">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Select Order:</label>
+                    <select id="voidOrderSelect" class="form-control" onchange="loadVoidOrderItems()">
+                        <option value="">-- Select Order --</option>
+                    </select>
+                </div>
+                <div id="voidOrderItems" style="max-height: 300px; overflow-y: auto; margin-bottom: 15px;"></div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Reason for Void:</label>
+                    <select id="voidReason" class="form-control">
+                        <option value="">-- Select Reason --</option>
+                        <option value="Customer changed mind">Customer changed mind</option>
+                        <option value="Wrong order entered">Wrong order entered</option>
+                        <option value="Duplicate order">Duplicate order</option>
+                        <option value="Price adjustment">Price adjustment</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <input type="text" id="voidOtherReason" class="form-control mt-2" placeholder="Please specify" style="display: none;">
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-danger" onclick="processVoidItem()">❌ Void Selected Item</button>
+                    <button class="btn btn-warning" onclick="processVoidTransaction()">🗑️ Void Entire Transaction</button>
+                </div>
+            </div>
+
+            <div id="refundTabContent" style="display: none;">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Select Completed Order:</label>
+                    <select id="refundOrderSelect" class="form-control" onchange="loadRefundOrderItems()">
+                        <option value="">-- Select Order --</option>
+                    </select>
+                </div>
+                <div id="refundOrderItems" style="max-height: 300px; overflow-y: auto; margin-bottom: 15px;"></div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Reason for Refund:</label>
+                    <select id="refundReason" class="form-control">
+                        <option value="">-- Select Reason --</option>
+                        <option value="Wrong item served">Wrong item served</option>
+                        <option value="Quality issue">Quality issue</option>
+                        <option value="Customer complaint">Customer complaint</option>
+                        <option value="Missing item">Missing item</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <input type="text" id="refundOtherReason" class="form-control mt-2" placeholder="Please specify" style="display: none;">
+                </div>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> Refund requires Owner approval.
+                </div>
+                <button class="btn btn-primary" onclick="processRefund()">💰 Process Refund</button>
+            </div>
+
+            <div id="ownerApprovalModal" style="display: none; margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 8px;">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="fas fa-lock text-warning me-2"></i>
+                    <strong class="text-warning">OWNER APPROVAL REQUIRED</strong>
+                </div>
+                <p id="approvalMessage" class="small mb-2">Please ask the store owner to login and approve this action.</p>
+                <button onclick="closeOwnerApprovalModal()" class="btn btn-sm btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
@@ -804,10 +945,129 @@
         let currentDiscountedTotal = 0;
         let tempSelectedSize = null;
         let pendingPaymentMethod = null;
+        let currentVoidOrderId = null;
+        let currentRefundOrderId = null;
+        let pendingOwnerAction = null;
+        let pendingOwnerData = null;
+    let queueRefreshInterval = null;
 
         // Show Size Modal
               // Show Size Modal
-        async function showSizeModal(productId, productName) {
+
+    // ========== ORDER QUEUE FUNCTIONS ==========
+
+        async function loadOrderQueue() {
+        try {
+        const response = await fetch('/Staff/GetActiveOrders');
+        const orders = await response.json();
+        
+        const container = document.getElementById('orderQueueList');
+        const countSpan = document.getElementById('queueCount');
+        
+        if (!container) return;
+        
+        // ✅ FILTER: Ipakita lang ang mga PENDING_PAYMENT (hindi pa nabe-blend)
+        const pendingOrders = orders.filter(o => o.status === 'PENDING_PAYMENT');
+        
+        if (countSpan) countSpan.innerText = pendingOrders.length;
+        
+        if (pendingOrders.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted small">No pending orders to blend</div>';
+        return;
+        }
+        
+        let html = '';
+        
+        pendingOrders.forEach(order => {
+        let itemsHtml = '';
+        order.items.forEach(item => {
+        itemsHtml += `<div>• ${item.quantity}x ${item.productName} (${item.sizeName})</div>`;
+        });
+            
+        html += `
+        <div class="queue-item" data-order-id="${order.orderId}" style="background: #fff8e7; border-left-color: #ffc107;">
+        <div class="d-flex justify-content-between align-items-center">
+        <span class="queue-order-number">#${order.orderNumber}</span>
+        <span class="badge bg-warning" style="font-size: 9px;">PENDING</span>
+        </div>
+        <div class="queue-items">
+        ${itemsHtml}
+        </div>
+        <div class="d-flex justify-content-between align-items-center mt-1">
+        <span class="queue-total">₱${order.totalAmount.toFixed(2)}</span>
+        <button class="btn btn-warning btn-sm queue-btn" onclick="startBlendingFromQueue(${order.orderId})">
+        <i class="fas fa-blender"></i> Start Blending
+        </button>
+        </div>
+        </div>
+        `;
+        });
+        
+        container.innerHTML = html;
+        
+        } catch (error) {
+        console.error('Error loading queue:', error);
+        const container = document.getElementById('orderQueueList');
+        if (container) container.innerHTML = '<div class="text-center text-danger small">Error loading orders</div>';
+        }
+        }
+
+    async function startBlendingFromQueue(orderId) {
+    if (!confirm(`Start blending order #${orderId}?\n\nIngredients will be deducted from inventory.`)) {
+    return;
+    }
+    
+    const btn = event.target.closest('button');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    btn.disabled = true;
+    
+    try {
+    const response = await fetch('/Staff/StartBlending', {
+    method: 'POST',
+    headers: {
+    'Content-Type': 'application/json',
+    'RequestVerificationToken': getToken()
+    },
+    body: JSON.stringify({ orderId: orderId })
+    });
+        
+    const data = await response.json();
+        
+    if (data.success) {
+    alert('✅ ' + data.message);
+    await loadOrderQueue(); // Refresh the queue
+    // Also refresh the counter in cart footer if exists
+    const countSpan = document.getElementById('pendingOrderCount');
+    if (countSpan) {
+    const queueResponse = await fetch('/Staff/GetActiveOrders');
+    const orders = await queueResponse.json();
+    const pendingCount = orders.filter(o => o.status === 'PENDING_PAYMENT').length;
+    countSpan.innerText = pendingCount;
+    }
+    } else {
+    alert('❌ Error: ' + data.message);
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+    }
+    } catch (error) {
+    alert('❌ Error: ' + error.message);
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+    }
+    }
+
+    function refreshQueue() {
+    loadOrderQueue();
+    }
+
+    // Start auto-refresh queue every 5 seconds
+    if (document.getElementById('orderQueueList')) {
+    loadOrderQueue();
+    setInterval(loadOrderQueue, 5000);
+    }
+
+              async function showSizeModal(productId, productName) {
             const response = await fetch(`/Staff/GetProductWithSizes?productId=${productId}`);
             const data = await response.json();
 
@@ -822,7 +1082,6 @@
 
             let sizesHtml = '';
             for (const size of data.sizes) {
-                // ✅ LAHAT ng 'stock' dapat small 's'
                 const stockValue = size.stock;
                 const stockStatus = stockValue > 0 ? `✅ Stock: ${stockValue}` : '❌ Out of Stock';
                 const disabledClass = stockValue <= 0 ? 'opacity-50' : '';
@@ -930,7 +1189,12 @@
             if (cart.length === 0) {
                 cartDiv.innerHTML = '<div class="empty-cart"><div style="font-size: 48px; margin-bottom: 10px;">🛍️</div><p>No items in cart</p></div>';
                 totalSpan.innerHTML = '₱0.00';
-                return;
+        currentDiscountType = 'None';
+        currentDiscountPercent = 0;
+        currentDiscountedTotal = 0;
+        document.getElementById('selectedDiscountDisplay').innerHTML = '';
+        updateDiscountPanelHighlight();
+        return;
             }
 
             let html = '';
@@ -1170,70 +1434,137 @@
             // Ipakita ang review modal para i-double check
             showReviewModal();
         }
-                           async function processFinalOrder() {
-            const paymentMethod = pendingPaymentMethod;
-            closeReviewModal();
+                         async function processFinalOrder() {
+    const paymentMethod = pendingPaymentMethod;
+    closeReviewModal();
 
-            const checkoutBtn = document.getElementById('checkoutBtn');
-            const originalText = checkoutBtn.innerHTML;
-            checkoutBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
-            checkoutBtn.disabled = true;
+    const checkoutBtn = document.getElementById('checkoutBtn');
+    const originalText = checkoutBtn.innerHTML;
+    checkoutBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+    checkoutBtn.disabled = true;
 
-            const token = getToken();
-            let orderDetails = [];
-            let allSuccessful = true;
+    const token = getToken();
+    let orderDetails = [];
+    let lastOrderId = null;
+    let allSuccessful = true;
+
+    try {
+        for (const item of cart) {
+            const response = await fetch('/Staff/PlaceOrder', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token
+                },
+                body: JSON.stringify({
+                    productSizeId: item.productSizeId,
+                    quantity: item.quantity,
+                    orderNumber: `POS-${Date.now()}`,
+                    paymentMethod: paymentMethod,
+                    discountType: currentDiscountType,
+                    discountPercent: currentDiscountPercent
+                })
+            });
+
+            const data = await response.json();
+            if (!data.success) {
+                allSuccessful = false;
+                alert(`❌ Error with ${item.productName}: ${data.message}`);
+                break;
+            }
+            lastOrderId = data.orderId;  // ← Kunin ang orderId
+            orderDetails.push({
+                name: item.productName,
+                size: item.sizeName,
+                quantity: item.quantity,
+                price: item.price,
+                subtotal: item.price * item.quantity
+            });
+        }
+
+        if (allSuccessful && orderDetails.length > 0) {
+            const discountSavings = currentCartTotal - currentDiscountedTotal;
+            
+            // ✅ Pass the orderId to receipt modal
+            showReceiptModal(
+                orderDetails, 
+                paymentMethod, 
+                currentDiscountType, 
+                currentDiscountPercent, 
+                discountSavings, 
+                currentDiscountedTotal,
+                lastOrderId,      // ← ORDER ID
+                'PENDING_PAYMENT'
+            );
+
+            cart = [];
+            currentDiscountType = 'None';
+            currentDiscountPercent = 0;
+            pendingPaymentMethod = null;
+            updateCartDisplay();
+        }
+    } catch (error) {
+        alert('❌ Error processing order: ' + error.message);
+    } finally {
+        checkoutBtn.innerHTML = originalText;
+        checkoutBtn.disabled = false;
+    }
+}
+
+        async function startBlending(orderId) {
+            if (!confirm('⚠️ START BLENDING?\n\nOnce you click OK:\n• Ingredients will be DEDUCTED from inventory\n• This action cannot be undone without Owner approval\n\nContinue?')) {
+                return;
+            }
+
+            const btn = document.getElementById('startBlendingBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+            btn.disabled = true;
 
             try {
-                for (const item of cart) {
-                    const response = await fetch('/Staff/PlaceOrder', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'RequestVerificationToken': token
-                        },
-                        body: JSON.stringify({
-                            productSizeId: item.productSizeId,
-                            quantity: item.quantity,
-                            orderNumber: `POS-${Date.now()}`,
-                            paymentMethod: paymentMethod,           // ← IDAGDAG
-                            discountType: currentDiscountType,      // ← IDAGDAG
-                            discountPercent: currentDiscountPercent // ← IDAGDAG
-                        })
-                    });
+                const response = await fetch('/Staff/StartBlending', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': getToken()
+                    },
+                    body: JSON.stringify({ orderId: orderId })
+                });
 
-                    const data = await response.json();
-                    if (!data.success) {
-                        allSuccessful = false;
-                        alert(`❌ Error with ${item.productName}: ${data.message}`);
-                        break;
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('✅ ' + data.message);
+                    btn.innerHTML = '✅ Blending Started!';
+                    btn.classList.remove('btn-warning');
+                    btn.classList.add('btn-success');
+                    btn.disabled = true;
+
+                    // Update receipt status
+                    const statusBadge = document.querySelector('#receiptContent .badge');
+                    if (statusBadge) {
+                        statusBadge.innerText = 'COMPLETED';
+                        statusBadge.classList.remove('bg-warning');
+                        statusBadge.classList.add('bg-success');
                     }
-                    orderDetails.push({
-                        name: item.productName,
-                        size: item.sizeName,
-                        quantity: item.quantity,
-                        price: item.price,
-                        subtotal: item.price * item.quantity
-                    });
-                }
 
-                if (allSuccessful && orderDetails.length > 0) {
-                    const discountSavings = currentCartTotal - currentDiscountedTotal;
-                    showReceiptModal(orderDetails, paymentMethod, currentDiscountType, currentDiscountPercent, discountSavings, currentDiscountedTotal);
-
-                    cart = [];
-                    currentDiscountType = 'None';
-                    currentDiscountPercent = 0;
-                    pendingPaymentMethod = null;
-                    updateCartDisplay();
+                    // Auto-close after 3 seconds
+                    setTimeout(() => {
+                        closeReceiptModal();
+                    }, 3000);
+                } else {
+                    alert('❌ Error: ' + data.message);
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
                 }
             } catch (error) {
-                alert('❌ Error processing order: ' + error.message);
-            } finally {
-                checkoutBtn.innerHTML = originalText;
-                checkoutBtn.disabled = false;
+                alert('❌ Error: ' + error.message);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
             }
         }
-        async function processOrder(paymentMethod) {
+
+async function processOrder(paymentMethod) {
             if (cart.length === 0) {
                 alert('Cart is empty!');
                 return;
@@ -1376,11 +1707,14 @@
             if (panel) panel.style.display = 'none';
         }
 
-               function showReceiptModal(orderDetails, paymentMethod, discountType, discountPercent, discountSavings, total) {
+                    function showReceiptModal(orderDetails, paymentMethod, discountType, discountPercent, discountSavings, total, orderId, orderStatus) {
             const receiptDiv = document.getElementById('receiptContent');
             const now = new Date();
 
-            if (!receiptDiv) return;
+            // Store order ID for actions
+            if (orderId) {
+                window.currentOrderId = orderId;
+            }
 
             let itemsHtml = '';
             orderDetails.forEach(item => {
@@ -1407,11 +1741,13 @@
 
             receiptDiv.innerHTML = `
                 <div class="receipt-header">
-                    <div><strong>${now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</strong></div>
+                    <div><strong>${now.toLocaleDateString()}</strong></div>
                     <div>${now.toLocaleTimeString()}</div>
+                    <div><small>Order #: ${orderId || 'N/A'}</small></div>
                 </div>
                 <div style="margin-bottom: 10px;">
                     <strong>Order Summary</strong>
+                    <span class="badge bg-warning ms-2">PENDING BLENDING</span>
                 </div>
                 ${itemsHtml}
                 <div class="receipt-subtotal">
@@ -1420,18 +1756,22 @@
                 </div>
                 ${discountHtml}
                 <div class="receipt-total">
-                    <span>TOTAL</span>
+                    <span>TOTAL PAID</span>
                     <span>₱${total.toFixed(2)}</span>
                 </div>
                 <div style="margin-top: 15px; text-align: center; padding-top: 10px; border-top: 1px dashed #ccc;">
                     <div>Payment: <strong>${paymentMethod}</strong></div>
-                    <div style="margin-top: 5px;">✅ Order Completed</div>
+                    <div style="margin-top: 5px;">✅ Payment Received: ₱${total.toFixed(2)}</div>
+                    <hr>
+                    <button id="startBlendingBtn" class="btn btn-warning btn-sm w-100" onclick="startBlending(${orderId})">
+                        🥤 START BLENDING (Deduct Ingredients)
+                    </button>
+                    <small class="text-muted d-block mt-1">⚠️ Click this ONLY when you start preparing/blending the order.<br>Once clicked, ingredients will be deducted and cannot be undone without Owner approval.</small>
                 </div>
             `;
 
             document.getElementById('receiptModal').style.display = 'flex';
         }
-
                 function closeReceiptModal() {
             document.getElementById('receiptModal').style.display = 'none';
         }
@@ -1506,6 +1846,265 @@
         document.addEventListener('DOMContentLoaded', function() {
             checkAttendanceStatus();
         });
+
+                function showVoidRefundPanel() {
+            document.getElementById('voidRefundModal').style.display = 'flex';
+            loadPendingOrdersForVoid();
+        }
+
+        function closeVoidRefundModal() {
+            document.getElementById('voidRefundModal').style.display = 'none';
+            document.getElementById('ownerApprovalModal').style.display = 'none';
+        }
+
+        function closeOwnerApprovalModal() {
+            document.getElementById('ownerApprovalModal').style.display = 'none';
+        }
+
+        function switchVoidTab(tab) {
+            const voidTab = document.getElementById('voidTabContent');
+            const refundTab = document.getElementById('refundTabContent');
+            const voidBtn = document.getElementById('voidTabBtn');
+            const refundBtn = document.getElementById('refundTabBtn');
+
+            if (tab === 'void') {
+                voidTab.style.display = 'block';
+                refundTab.style.display = 'none';
+                voidBtn.classList.add('active');
+                refundBtn.classList.remove('active');
+                loadPendingOrdersForVoid();
+            } else {
+                voidTab.style.display = 'none';
+                refundTab.style.display = 'block';
+                voidBtn.classList.remove('active');
+                refundBtn.classList.add('active');
+                loadCompletedOrdersForRefund();
+            }
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            const voidReason = document.getElementById('voidReason');
+            if (voidReason) {
+                voidReason.addEventListener('change', function() {
+                    const otherInput = document.getElementById('voidOtherReason');
+                    otherInput.style.display = this.value === 'Other' ? 'block' : 'none';
+                });
+            }
+
+            const refundReason = document.getElementById('refundReason');
+            if (refundReason) {
+                refundReason.addEventListener('change', function() {
+                    const otherInput = document.getElementById('refundOtherReason');
+                    otherInput.style.display = this.value === 'Other' ? 'block' : 'none';
+                });
+            }
+
+            // Add Void/Refund button
+            const header = document.querySelector('.pos-header');
+            if (header && !document.getElementById('voidRefundBtn')) {
+                const btn = document.createElement('button');
+                btn.id = 'voidRefundBtn';
+                btn.className = 'btn btn-outline-danger ms-2';
+                btn.innerHTML = '<i class="fas fa-ban"></i> Void / Refund';
+                btn.onclick = showVoidRefundPanel;
+                header.appendChild(btn);
+            }
+        });
+
+        function getToken() {
+            return document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+        }
+
+        async function loadPendingOrdersForVoid() {
+            try {
+                const response = await fetch('/VoidRefund/GetPendingOrders');
+                const orders = await response.json();
+                const select = document.getElementById('voidOrderSelect');
+                select.innerHTML = '<option value="">-- Select Order --</option>';
+                orders.forEach(order => {
+                    select.innerHTML += `<option value="${order.orderId}">#${order.orderNumber} - ${order.status} - ₱${order.totalAmount.toFixed(2)}</option>`;
+                });
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function loadCompletedOrdersForRefund() {
+            try {
+                const response = await fetch('/VoidRefund/GetCompletedOrders');
+                const orders = await response.json();
+                const select = document.getElementById('refundOrderSelect');
+                select.innerHTML = '<option value="">-- Select Order --</option>';
+                orders.forEach(order => {
+                    select.innerHTML += `<option value="${order.orderId}">#${order.orderNumber} - ₱${order.totalAmount.toFixed(2)}</option>`;
+                });
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function loadVoidOrderItems() {
+            const orderId = document.getElementById('voidOrderSelect').value;
+            if (!orderId) return;
+            currentVoidOrderId = parseInt(orderId);
+
+            try {
+                const response = await fetch(`/VoidRefund/GetOrderDetails?orderId=${orderId}`);
+                const data = await response.json();
+                if (!data.success) { alert(data.message); return; }
+
+                const container = document.getElementById('voidOrderItems');
+                let html = '<table class="table table-sm table-bordered"><thead><tr><th>Select</th><th>Product</th><th>Qty</th><th>Price</th><th>Status</th></tr></thead><tbody>';
+
+                data.order.items.forEach(item => {
+                    if (!item.isVoided && !item.isRefunded) {
+                        let statusText = data.order.status === 'PREPARING' ? 'PREPARING' : (data.order.status === 'COMPLETED' ? 'COMPLETED' : 'PENDING');
+                        html += `<tr>
+                            <td class="text-center"><input type="checkbox" class="void-item-checkbox" value="${item.orderItemId}"></td>
+                            <td><strong>${escapeHtml(item.productName)}</strong><br><small>${item.sizeName}</small></td>
+                            <td>${item.quantity}</td>
+                            <td>₱${item.price.toFixed(2)}</td>
+                            <td><span class="badge ${data.order.status === 'PREPARING' ? 'bg-warning' : 'bg-secondary'}">${statusText}</span></td>
+                        </tr>`;
+                    }
+                });
+                html += `</tbody></table>`;
+                container.innerHTML = html;
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function loadRefundOrderItems() {
+            const orderId = document.getElementById('refundOrderSelect').value;
+            if (!orderId) return;
+            currentRefundOrderId = parseInt(orderId);
+
+            try {
+                const response = await fetch(`/VoidRefund/GetOrderDetails?orderId=${orderId}`);
+                const data = await response.json();
+                if (!data.success) { alert(data.message); return; }
+
+                const container = document.getElementById('refundOrderItems');
+                let html = '<table class="table table-sm table-bordered"><thead><tr><th>Select</th><th>Product</th><th>Qty</th><th>Price</th><th>Subtotal</th></tr></thead><tbody>';
+
+                data.order.items.forEach(item => {
+                    if (!item.isRefunded && !item.isVoided) {
+                        html += `<tr>
+                            <td class="text-center"><input type="checkbox" class="refund-item-checkbox" value="${item.orderItemId}"></td>
+                            <td><strong>${escapeHtml(item.productName)}</strong><br><small>${item.sizeName}</small></td>
+                            <td>${item.quantity}</td>
+                            <td>₱${item.price.toFixed(2)}</td>
+                            <td>₱${item.subtotal.toFixed(2)}</td>
+                        </tr>`;
+                    }
+                });
+                html += `</tbody></table>`;
+                container.innerHTML = html;
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        function getSelectedVoidReason() {
+            const select = document.getElementById('voidReason');
+            let reason = select.value;
+            if (reason === 'Other') reason = document.getElementById('voidOtherReason').value;
+            return reason;
+        }
+
+        function getSelectedRefundReason() {
+            const select = document.getElementById('refundReason');
+            let reason = select.value;
+            if (reason === 'Other') reason = document.getElementById('refundOtherReason').value;
+            return reason;
+        }
+
+        function showOwnerApprovalModal(message) {
+            const modal = document.getElementById('ownerApprovalModal');
+            const msgDiv = document.getElementById('approvalMessage');
+            msgDiv.innerHTML = message;
+            modal.style.display = 'block';
+        }
+
+        async function processVoidItem() {
+            const selectedItems = document.querySelectorAll('.void-item-checkbox:checked');
+            if (selectedItems.length === 0) { alert('Please select an item to void'); return; }
+
+            const reason = getSelectedVoidReason();
+            if (!reason) { alert('Please select a reason'); return; }
+
+            for (let checkbox of selectedItems) {
+                const response = await fetch('/VoidRefund/VoidItem', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() },
+                    body: JSON.stringify({ orderItemId: parseInt(checkbox.value), reason: reason })
+                });
+                const data = await response.json();
+                if (data.requiresOwner) {
+                    showOwnerApprovalModal(data.message);
+                    return;
+                }
+                if (!data.success) { alert(data.message); return; }
+            }
+            alert('✅ Item(s) voided successfully');
+            loadVoidOrderItems();
+            loadPendingOrdersForVoid();
+        }
+
+        async function processVoidTransaction() {
+            if (!currentVoidOrderId) { alert('Please select an order'); return; }
+            const reason = getSelectedVoidReason();
+            if (!reason) { alert('Please select a reason'); return; }
+
+            const response = await fetch('/VoidRefund/VoidTransaction', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() },
+                body: JSON.stringify({ orderId: currentVoidOrderId, reason: reason })
+            });
+            const data = await response.json();
+            if (data.requiresOwner) {
+                showOwnerApprovalModal(data.message);
+                return;
+            }
+            if (data.success) {
+                alert(data.message);
+                loadPendingOrdersForVoid();
+                document.getElementById('voidOrderSelect').value = '';
+                document.getElementById('voidOrderItems').innerHTML = '';
+            } else {
+                alert(data.message);
+            }
+        }
+
+        async function processRefund() {
+            const selectedItems = document.querySelectorAll('.refund-item-checkbox:checked');
+            if (selectedItems.length === 0) { alert('Please select items to refund'); return; }
+            const reason = getSelectedRefundReason();
+            if (!reason) { alert('Please select a reason'); return; }
+
+            const itemIds = Array.from(selectedItems).map(cb => parseInt(cb.value));
+            const response = await fetch('/VoidRefund/ProcessRefund', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() },
+                body: JSON.stringify({ orderId: currentRefundOrderId, itemIds: itemIds, reason: reason })
+            });
+            const data = await response.json();
+            if (data.requiresOwner) {
+                showOwnerApprovalModal(data.message);
+                return;
+            }
+            if (data.success) {
+                alert(data.message);
+                loadCompletedOrdersForRefund();
+                document.getElementById('refundOrderSelect').value = '';
+                document.getElementById('refundOrderItems').innerHTML = '';
+            } else {
+                alert(data.message);
+            }
+        }
+
     </script>
 </body>
 </html>

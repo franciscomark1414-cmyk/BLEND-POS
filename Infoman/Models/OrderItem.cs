@@ -26,5 +26,10 @@ namespace Infoman.Models
         public decimal Price { get; set; }
         [Required]
         public decimal ActualCost { get; set; }
+
+        public bool IsVoided { get; set; } = false;
+        public string? VoidReason { get; set; }
+        public bool IsRefunded { get; set; } = false;
+        public string? RefundReason { get; set; }
     }
 }

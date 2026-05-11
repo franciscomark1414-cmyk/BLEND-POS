@@ -11,7 +11,8 @@ namespace Infoman.Models
             Spilled,
             Overprepared,
             QualityIssue,
-            Waste,
+            CustomerCancel,
+            BlendedButCancelled,
             Other
         }
         [Key]
@@ -20,6 +21,9 @@ namespace Infoman.Models
         public int RawMaterialId { get; set; }
         [ForeignKey("RawMaterialId")]
         public virtual RawMaterial RawMaterial { get; set; }
+        public int? ProductId { get; set; } // For product waste (blended mango shake)
+        [ForeignKey("ProductId")]
+        public virtual Product Product { get; set; }
         [Required]
         public decimal Quantity { get; set; }
 

@@ -1740,84 +1740,106 @@ namespace Infoman.Controllers
             return Json(receivings);
         }
 
-        // ========== RETURNS ACTIONS ==========
+        [HttpGet]
+        public async Task<IActionResult> GetReturnDetails(int requestId)
+        {
+            var request = await _db.PendingRequests
+                .Include(r => r.Order)
+                .Include(r => r.Requester)
+                .Include(r => r.Approver)
+                .FirstOrDefaultAsync(r => r.Id == requestId);
 
+            if (request == null)
+                return Json(new { success = false, message = "Request not found" });
+
+            return Json(new
+            {
+                success = true,
+                requestId = request.Id,
+                orderNumber = request.Order?.OrderNumber,
+                requestType = request.RequestType,
+                reason = request.Reason,
+                amount = request.Order?.TotalAmount ?? 0,
+                status = request.Status,
+                requesterName = request.Requester?.Username,
+                requestedAt = request.RequestedAt,
+                approverName = request.Approver?.Username,
+                approvedAt = request.ApprovedAt
+            });
+        }
+
+        // ========== RETURNS ACTIONS ==========
         [HttpGet]
         public async Task<IActionResult> GetReturns()
         {
-            // 1. GET APPROVED VOID REQUESTS from PendingRequests
+            // 1. GET APPROVED VOIDS from PendingRequests (yung galing sa COMPLETED orders)
             var approvedVoids = await _db.PendingRequests
                 .Include(r => r.Order)
                 .Include(r => r.Requester)
+                .Include(r => r.Approver)
                 .Where(r => r.RequestType == "VOID" && r.Status == "APPROVED")
                 .Select(r => new
                 {
                     Id = r.Id,
-                    DRNumber = r.Order.OrderNumber,
-                    SupplierName = "N/A - Customer Void",
-                    MaterialName = "Order Void",
-                    Quantity = 1,
+                    OrderNumber = r.Order.OrderNumber,
+                    RequestType = "VOID",
                     Reason = r.Reason,
-                    UnitPrice = r.Order.TotalAmount,
-                    Total = r.Order.TotalAmount,
+                    Amount = r.Order.TotalAmount,
                     Status = "APPROVED",
-                    CreatedAt = r.ApprovedAt ?? r.RequestedAt,
-                    Type = "VOID"
+                    RecordedAt = r.ApprovedAt,
+                    RequesterName = r.Requester.Username,
+                    Source = "APPROVED"
                 })
                 .ToListAsync();
 
-            // 2. GET APPROVED REFUND REQUESTS from PendingRequests
+            // 2. GET DIRECT VOIDS from VoidLogs (yung galing sa PENDING_PAYMENT orders - no approval needed)
+            var directVoids = await _db.VoidLogs
+                .Include(v => v.Transaction)
+                .Include(v => v.User)
+                .Where(v => v.VoidType == "item" || v.VoidType == "transaction")
+                .Where(v => v.PreparedFlag == false) // Hindi prepared = PENDING_PAYMENT
+                .Select(v => new
+                {
+                    Id = v.VoidLogId,
+                    OrderNumber = v.Transaction.OrderNumber,
+                    RequestType = "VOID",
+                    Reason = v.Reason,
+                    Amount = v.Transaction.TotalAmount,
+                    Status = "COMPLETED",
+                    RecordedAt = v.Timestamp,
+                    RequesterName = v.User.Username,
+                    Source = "DIRECT"
+                })
+                .ToListAsync();
+
+            // 3. GET APPROVED REFUNDS from PendingRequests
             var approvedRefunds = await _db.PendingRequests
                 .Include(r => r.Order)
                 .Include(r => r.Requester)
+                .Include(r => r.Approver)
                 .Where(r => r.RequestType == "REFUND" && r.Status == "APPROVED")
                 .Select(r => new
                 {
                     Id = r.Id,
-                    DRNumber = r.Order.OrderNumber,
-                    SupplierName = "N/A - Customer Refund",
-                    MaterialName = "Order Refund",
-                    Quantity = 1,
+                    OrderNumber = r.Order.OrderNumber,
+                    RequestType = "REFUND",
                     Reason = r.Reason,
-                    UnitPrice = r.Order.TotalAmount,
-                    Total = r.Order.TotalAmount,
+                    Amount = r.Order.TotalAmount,
                     Status = "APPROVED",
-                    CreatedAt = r.ApprovedAt ?? r.RequestedAt,
-                    Type = "REFUND"
-                })
-                .ToListAsync();
-
-            // 3. GET SUPPLIER RETURNS from RejectedForReturns
-            var supplierReturns = await _db.RejectedForReturns
-                .Include(r => r.Receiving)
-                    .ThenInclude(rec => rec.Supplier)
-                .Include(r => r.RawMaterial)
-                .OrderByDescending(r => r.CreatedAt)
-                .Select(r => new
-                {
-                    r.Id,
-                    DRNumber = r.Receiving.DRNumber,
-                    SupplierName = r.Receiving.Supplier.Name,
-                    MaterialName = r.RawMaterial.Name,
-                    r.Quantity,
-                    r.Reason,
-                    r.UnitPrice,
-                    Total = r.Quantity * r.UnitPrice,
-                    r.Status,
-                    CreatedAt = r.CreatedAt,
-                    Type = "SUPPLIER_RETURN"
+                    RecordedAt = r.ApprovedAt,
+                    RequesterName = r.Requester.Username,
+                    Source = "APPROVED"
                 })
                 .ToListAsync();
 
             // 4. COMBINE ALL
             var allReturns = new List<object>();
             allReturns.AddRange(approvedVoids);
+            allReturns.AddRange(directVoids);
             allReturns.AddRange(approvedRefunds);
-            allReturns.AddRange(supplierReturns);
 
-            // Order by date descending
             var sortedReturns = allReturns
-                .OrderByDescending(r => ((dynamic)r).CreatedAt)
+                .OrderByDescending(r => ((dynamic)r).RecordedAt)
                 .ToList();
 
             return Json(sortedReturns);

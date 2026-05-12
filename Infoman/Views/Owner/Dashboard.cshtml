@@ -5,7 +5,6 @@
 }
 
 <style>
-    <style>
     body {
         background: linear-gradient(to bottom, #f5f1e6, #e8dcc7);
         font-family: 'Segoe UI', sans-serif;
@@ -2264,26 +2263,25 @@
                 </div>
             </div>
         </div>
-
-    <!-- Returns Module - UPDATED WITH PENDING APPROVALS -->
+<!-- Returns Module - SIMPLIFIED VERSION -->
 <div id="returnsModule" class="module">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3><i class="fas fa-undo-alt text-warning me-2"></i> Returns & Void Management</h3>
+        <h3><i class="fas fa-undo-alt text-warning me-2"></i> Void / Refund Records</h3>
         <div class="d-flex gap-2">
             <button class="btn btn-outline-secondary" onclick="printReturns()">
                 <i class="fas fa-print"></i> Print
             </button>
-            <button class="btn btn-outline-primary" onclick="loadReturns(); loadPendingApprovals();">
+            <button class="btn btn-outline-primary" onclick="loadReturns()">
                 <i class="fas fa-sync-alt"></i> Refresh
             </button>
         </div>
     </div>
 
-    <!-- ========== PENDING APPROVALS SECTION (BAGO) ========== -->
+    <!-- ========== PENDING APPROVALS SECTION ========== -->
     <div class="card mb-4 border-warning">
         <div class="card-header bg-warning">
             <h5 class="mb-0">
-                <i class="fas fa-clock"></i> Pending Approvals (Void/Refund Requests)
+                <i class="fas fa-clock"></i> Pending Approvals
                 <span id="pendingRequestCount" class="badge bg-danger">0</span>
             </h5>
         </div>
@@ -2294,74 +2292,30 @@
         </div>
     </div>
 
-    <!-- ========== EXISTING RETURNS SECTION ========== -->
-    <div class="row g-3 mb-4">
-        <div class="col-md-3">
-            <div class="card border-left-warning shadow h-100">
-                <div class="card-body">
-                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Pending Returns</div>
-                    <div class="h5 mb-0 font-weight-bold" id="pendingReturnsCount">0</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-left-success shadow h-100">
-                <div class="card-body">
-                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Returned</div>
-                    <div class="h5 mb-0 font-weight-bold" id="returnedCount">0</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-left-danger shadow h-100">
-                <div class="card-body">
-                    <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Cancelled</div>
-                    <div class="h5 mb-0 font-weight-bold" id="cancelledCount">0</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-left-info shadow h-100">
-                <div class="card-body">
-                    <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Total Return Value</div>
-                    <div class="h5 mb-0 font-weight-bold" id="totalReturnValue">₱0</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="card shadow-sm">
-        <div class="card-header bg-white">
-            <h5 class="mb-0"><i class="fas fa-list me-2"></i> Return Records (Supplier Returns)</h5>
+    <!-- ========== APPROVED VOID & REFUND RECORDS ========== -->
+    <div class="card">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-check-circle"></i> Approved Void / Refund Records
+                <span id="approvedCount" class="badge bg-light text-dark ms-2">0</span>
+            </h5>
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-bordered table-hover" id="returnsTable">
-                    <thead class="table-dark">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-info">
                         <tr>
-                            <th style="width:5%">ID</th>
-                            <th style="width:12%">DR #</th>
-                            <th style="width:15%">Supplier</th>
-                            <th style="width:15%">Material</th>
-                            <th style="width:8%">Quantity</th>
-                            <th style="width:15%">Reason</th>
-                            <th style="width:8%">Unit Price</th>
-                            <th style="width:8%">Total</th>
-                            <th style="width:10%">Status</th>
-                            <th style="width:10%">Date</th>
-                            <th style="width:10%">Actions</th>
-                        </tr>
+                            <th>Date</th>
+                            <th>Order #</th>
+                            <th>Type</th>
+                            <th>Reason</th>
+                            <th>Amount</th>
+                            <th>Requested By</th>
+                            <th>Actions</th>
+                        <tr>
                     </thead>
                     <tbody id="returnsTableBody">
-                        <tr>
-                            <td colspan="11" class="text-center text-muted">
-                                <div class="py-5">
-                                    <i class="fas fa-undo-alt fa-3x mb-3"></i>
-                                    <p>No return records found</p>
-                                    <small>When you mark rejected items as "Return to Supplier", they will appear here.</small>
-                                </div>
-                            </td>
-                        </tr>
+                        <tr><td colspan="7" class="text-center text-muted">No records found</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -5363,90 +5317,98 @@ function viewDeliveryDetails(receivingId) {
     }
 
 
-        function loadReturns() {
+    function loadReturns() {
     fetch('/Owner/GetReturns')
         .then(response => response.json())
         .then(data => {
             const tbody = document.getElementById('returnsTableBody');
-
-            if (!data || data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">No records found</td></tr>';
-                updateReturnSummary([]);
+            const countSpan = document.getElementById('approvedCount');
+            
+            // Handle different response formats
+            let returns = [];
+            if (data && data.$values) {
+                returns = data.$values;
+            } else if (data && Array.isArray(data)) {
+                returns = data;
+            } else {
+                returns = [];
+            }
+            
+            if (!returns || returns.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No void/refund records found</td></tr>';
+                if (countSpan) countSpan.innerText = '0';
                 return;
             }
-
-            updateReturnSummary(data);
-
+            
+            if (countSpan) countSpan.innerText = returns.length;
+            
             let html = '';
-            data.forEach(r => {
+            for (let i = 0; i < returns.length; i++) {
+                const r = returns[i];
+                
+                const requestType = r.requestType || 'VOID';
                 let typeBadge = '';
-                if (r.type === 'VOID') {
+                if (requestType === 'VOID') {
                     typeBadge = '<span class="badge bg-danger">VOID</span>';
-                } else if (r.type === 'REFUND') {
+                    // Add "Direct" badge for direct voids
+                    if (r.source === 'DIRECT') {
+                        typeBadge = '<span class="badge bg-danger">VOID</span> <span class="badge bg-secondary">DIRECT</span>';
+                    }
+                } else {
                     typeBadge = '<span class="badge bg-warning">REFUND</span>';
-                } else {
-                    typeBadge = '<span class="badge bg-info">SUPPLIER RETURN</span>';
                 }
-
-                let statusBadge = '';
-                if (r.status === 'APPROVED' || r.status === 'Returned') {
-                    statusBadge = '<span class="badge bg-success">✅ APPROVED</span>';
-                } else if (r.status === 'Pending Return') {
-                    statusBadge = '<span class="badge bg-warning">⏳ PENDING</span>';
-                } else {
-                    statusBadge = '<span class="badge bg-secondary">' + (r.status || 'N/A') + '</span>';
-                }
-
-                const date = new Date(r.createdAt);
+                
+                const date = new Date(r.recordedAt);
                 const formattedDate = `${date.getMonth()+1}/${date.getDate()}/${date.getFullYear()}`;
-
-                html += `
-                    <tr>
-                        <td class="text-center">${r.id}</td>
-                        <td><strong>${escapeHtml(r.drNumber)}</strong><br>${typeBadge}</td>
-                        <td>${escapeHtml(r.supplierName)}</td>
-                        <td>${escapeHtml(r.materialName)}</td>
-                        <td class="text-end">${(r.quantity || 0).toFixed(2)}</td>
-                        <td><small>${escapeHtml(r.reason || '-')}</small></td>
-                        <td class="text-end">₱${(r.unitPrice || 0).toFixed(2)}</td>
-                        <td class="text-end text-danger fw-bold">₱${(r.total || 0).toFixed(2)}</td>
-                        <td>${statusBadge}</td>
-                        <td>${formattedDate}</td>
-                        <td>
-                            <button class="btn btn-sm btn-info" onclick="viewReturnDetails(${r.id}, '${r.type}')">
-                                <i class="fas fa-eye"></i> View
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            });
+                const amount = Math.abs(r.amount || 0);
+                const orderNumber = r.orderNumber || 'N/A';
+                const reason = r.reason || 'No reason provided';
+                const requesterName = r.requesterName || 'System';
+                
+                html += '<tr>';
+                html += `<td>${formattedDate}</td>`;
+                html += `<td><strong>${escapeHtml(orderNumber)}</strong><br>${typeBadge}</td>`;
+                html += `<td>${requestType}</td>`;
+                html += `<td>${escapeHtml(reason)}</td>`;
+                html += `<td class="text-end fw-bold text-danger">₱${amount.toFixed(2)}</td>`;
+                html += `<td>${escapeHtml(requesterName)}</td>`;
+                html += `<td><button class="btn btn-sm btn-info" onclick="viewReturnDetails(${r.id})"><i class="fas fa-eye"></i> View</button></td>`;
+                html += '</tr>';
+            }
             tbody.innerHTML = html;
         })
         .catch(error => {
             console.error('Error loading returns:', error);
+            document.getElementById('returnsTableBody').innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading records: ' + error.message + '</td></tr>';
         });
 }
+
 function updateReturnSummary(returns) {
     let pending = 0, returned = 0, cancelled = 0, totalValue = 0;
-    let approvedCount = 0;
+    let voidCount = 0, refundCount = 0;
 
     returns.forEach(r => {
+        // ✅ GAWING POSITIVE ANG TOTAL
+        const total = Math.abs(r.total || 0);
+        totalValue += total;
+        
         if (r.type === 'SUPPLIER_RETURN') {
             if (r.status === 'Pending Return') pending++;
             else if (r.status === 'Returned') returned++;
             else if (r.status === 'Cancelled') cancelled++;
-        } else {
-            // VOID or REFUND - count as approved
-            approvedCount++;
+        } else if (r.type === 'VOID') {
+            voidCount++;
+        } else if (r.type === 'REFUND') {
+            refundCount++;
         }
-        totalValue += r.total || 0;
     });
 
     document.getElementById('pendingReturnsCount').innerText = pending;
-    document.getElementById('returnedCount').innerText = returned + approvedCount;
+    document.getElementById('returnedCount').innerText = returned + voidCount + refundCount;
     document.getElementById('cancelledCount').innerText = cancelled;
     document.getElementById('totalReturnValue').innerHTML = `₱${totalValue.toFixed(2)}`;
 }
+
 function updateReturnStatus(id, status) {
             const statusText = status === 'Returned' ? 'returned to supplier' : 'cancelled';
             if (!confirm(`Mark this return as ${statusText}?`)) return;
@@ -5497,6 +5459,61 @@ function updateReturnStatus(id, status) {
             });
         }
 
+        // ========== VIEW RETURN DETAILS FUNCTION ==========
+
+function viewReturnDetails(requestId) {
+    // Fetch the specific request details
+    fetch(`/Owner/GetReturnDetails?requestId=${requestId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Create a modal to show details
+                const modalHtml = `
+                    <div id="returnDetailModal" class="modal-qty" style="display: flex; z-index: 10001;">
+                        <div class="modal-qty-content" style="width: 500px; max-width: 90%; text-align: left;">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h4 class="mb-0">📋 Return Details</h4>
+                                <button onclick="closeReturnDetailModal()" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+                            </div>
+                            <div class="mb-2">
+                                <strong>Order #:</strong> ${escapeHtml(data.orderNumber)}<br>
+                                <strong>Type:</strong> ${data.requestType}<br>
+                                <strong>Reason:</strong> ${escapeHtml(data.reason)}<br>
+                                <strong>Amount:</strong> ₱${Math.abs(data.amount || 0).toFixed(2)}<br>
+                                <strong>Status:</strong> ${data.status}<br>
+                                <strong>Requested By:</strong> ${escapeHtml(data.requesterName)}<br>
+                                <strong>Requested At:</strong> ${new Date(data.requestedAt).toLocaleString()}<br>
+                                <strong>Approved By:</strong> ${escapeHtml(data.approverName || 'System')}<br>
+                                <strong>Approved At:</strong> ${data.approvedAt ? new Date(data.approvedAt).toLocaleString() : 'N/A'}<br>
+                            </div>
+                            <hr>
+                            <div class="text-center">
+                                <button class="btn btn-secondary" onclick="closeReturnDetailModal()">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Remove existing modal if any
+                const existingModal = document.getElementById('returnDetailModal');
+                if (existingModal) existingModal.remove();
+                
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+            } else {
+                alert('Error loading details: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error loading return details');
+        });
+}
+
+function closeReturnDetailModal() {
+    const modal = document.getElementById('returnDetailModal');
+    if (modal) modal.remove();
+}
+
        
 // ========== HELPER FUNCTION ==========
 function escapeHtml(str) {
@@ -5511,3 +5528,4 @@ function escapeHtml(str) {
 
 
 </script>
+ 

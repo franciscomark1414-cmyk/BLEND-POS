@@ -293,6 +293,8 @@ namespace Infoman.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ApprovedBy");
+
                     b.HasIndex("OrderId");
 
                     b.HasIndex("RequestedBy");
@@ -951,6 +953,10 @@ namespace Infoman.Migrations
 
             modelBuilder.Entity("Infoman.Models.PendingRequest", b =>
                 {
+                    b.HasOne("Infoman.Models.User", "Approver")
+                        .WithMany()
+                        .HasForeignKey("ApprovedBy");
+
                     b.HasOne("Infoman.Models.Order", "Order")
                         .WithMany()
                         .HasForeignKey("OrderId")
@@ -962,6 +968,8 @@ namespace Infoman.Migrations
                         .HasForeignKey("RequestedBy")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Approver");
 
                     b.Navigation("Order");
 

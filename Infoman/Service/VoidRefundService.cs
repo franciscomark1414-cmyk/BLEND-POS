@@ -496,7 +496,7 @@ namespace Infoman.Service
 
             if (order == null) return null;
 
-            // ✅ KUNG VOIDED NA, WALANG IPAPAKITA
+            // ✅ HUWAG IPAKITA ANG VOIDED O REFUNDED ORDERS
             if (order.Status == "VOIDED" || order.Status == "REFUNDED")
                 return null;
 
@@ -506,27 +506,28 @@ namespace Infoman.Service
                 order.OrderNumber,
                 order.Status,
                 order.TotalAmount,
-                order.Date,
+                DiscountType = string.IsNullOrEmpty(order.DiscountType) ? "None" : order.DiscountType,
+                DiscountPercent = order.DiscountPercent,  // Hindi na kailangan ng ?? dahil decimal ito
                 order.PaymentMethod,
+                order.Date,
                 Items = order.Items
-                    .Where(i => !i.IsVoided && !i.IsRefunded)  // ✅ ACTIVE ITEMS LANG
+                    .Where(i => !i.IsVoided && !i.IsRefunded)
                     .Select(oi => new
                     {
                         oi.OrderItemId,
-                        oi.ProductId,
-                        ProductName = oi.Product?.Name ?? "Unknown",
-                        SizeName = oi.ProductSize?.SizeName ?? "Regular",
+                        ProductId = oi.ProductId,  // Hindi na kailangan ng ?? 0
+                        ProductSizeId = oi.ProductSizeId,  // ✅ ITO ANG SUSI!
+                        ProductName = oi.Product != null ? oi.Product.Name : "Unknown Product",
+                        SizeName = oi.ProductSize != null ? oi.ProductSize.SizeName : "Regular",
                         oi.Quantity,
                         oi.Price,
                         Subtotal = oi.Price * oi.Quantity,
                         oi.IsVoided,
-                        oi.IsRefunded,
-                        CanVoid = (order.Status == "PENDING_PAYMENT") && !oi.IsVoided,
-                        CanRefund = order.Status == "COMPLETED" && !oi.IsRefunded && !oi.IsVoided
+                        oi.IsRefunded
                     })
             };
         }
-        
+
         public async Task<List<object>> GetPendingOrders()
         {
             return await _db.Orders

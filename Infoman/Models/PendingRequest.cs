@@ -31,7 +31,11 @@ namespace Infoman.Models
 
         public DateTime RequestedAt { get; set; } = DateTime.Now;
 
+
         public int? ApprovedBy { get; set; }
+
+        [ForeignKey("ApprovedBy")]
+        public virtual User Approver { get; set; }
         public DateTime? ApprovedAt { get; set; }
     }
 }

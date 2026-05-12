@@ -7,11 +7,8 @@
     private decimal GetMinPrice(object sizes)
     {
         if (sizes == null) return 0;
-
-        // I-convert sa IEnumerable para magamit ang LINQ
         var sizesList = sizes as IEnumerable<dynamic>;
         if (sizesList == null || !sizesList.Any()) return 0;
-
         decimal min = decimal.MaxValue;
         foreach (var size in sizesList)
         {
@@ -24,10 +21,8 @@
     private decimal GetMaxPrice(object sizes)
     {
         if (sizes == null) return 0;
-
         var sizesList = sizes as IEnumerable<dynamic>;
         if (sizesList == null || !sizesList.Any()) return 0;
-
         decimal max = 0;
         foreach (var size in sizesList)
         {
@@ -40,10 +35,8 @@
     private int GetTotalStock(object sizes)
     {
         if (sizes == null) return 0;
-
         var sizesList = sizes as IEnumerable<dynamic>;
         if (sizesList == null || !sizesList.Any()) return 0;
-
         int total = 0;
         foreach (var size in sizesList)
         {
@@ -62,12 +55,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* Your existing styles here - keep them as is */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             background: #f5f5f5;
@@ -83,53 +71,40 @@
         }
 
         .pos-categories {
-            width: 250px;
+            width: 220px;
             background: white;
             border-right: 1px solid #e0e0e0;
             display: flex;
             flex-direction: column;
             box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+            flex-shrink: 0;
         }
 
         .store-info {
-            padding: 20px;
+            padding: 16px;
             background: #ff6b35;
             color: white;
             text-align: center;
         }
+        .store-info h3 { font-size: 16px; margin-bottom: 3px; }
+        .store-info p { font-size: 11px; opacity: 0.9; }
 
-            .store-info h3 {
-                font-size: 18px;
-                margin-bottom: 5px;
-            }
-
-            .store-info p {
-                font-size: 12px;
-                opacity: 0.9;
-            }
-
-        .category-list {
-            flex: 1;
-            padding: 10px 0;
-        }
+        .category-list { flex: 1; padding: 8px 0; overflow-y: auto; }
 
         .category-item {
-            padding: 12px 20px;
+            padding: 10px 16px;
             cursor: pointer;
             transition: all 0.2s;
             border-left: 3px solid transparent;
             font-weight: 500;
+            font-size: 13px;
         }
-
-            .category-item:hover {
-                background: #f0f0f0;
-            }
-
-            .category-item.active {
-                background: #fff0e8;
-                border-left-color: #ff6b35;
-                color: #ff6b35;
-            }
+        .category-item:hover { background: #f0f0f0; }
+        .category-item.active {
+            background: #fff0e8;
+            border-left-color: #ff6b35;
+            color: #ff6b35;
+        }
 
         .pos-products {
             flex: 1;
@@ -141,37 +116,28 @@
 
         .pos-header {
             background: white;
-            padding: 15px 20px;
+            padding: 12px 20px;
             border-bottom: 1px solid #e0e0e0;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-
-            .pos-header h2 {
-                font-size: 20px;
-                color: #333;
-            }
-
-        .datetime {
-            text-align: right;
-            font-size: 14px;
-            color: #666;
-        }
+        .pos-header h2 { font-size: 18px; color: #333; }
+        .datetime { text-align: right; font-size: 13px; color: #666; }
 
         .products-grid {
             flex: 1;
             overflow-y: auto;
-            padding: 20px;
+            padding: 16px;
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 12px;
         }
 
         .product-card {
             background: white;
             border-radius: 12px;
-            padding: 15px;
+            padding: 12px;
             text-align: center;
             cursor: pointer;
             transition: all 0.2s;
@@ -179,216 +145,324 @@
             border: 1px solid #e0e0e0;
             position: relative;
         }
-
-            .product-card:hover {
-                transform: translateY(-3px);
-                box-shadow: 0 6px 16px rgba(0,0,0,0.12);
-                border-color: #ff6b35;
-            }
-
-            .product-card.out-of-stock {
-                opacity: 0.5;
-                background: #f5f5f5;
-            }
-
-        .product-emoji {
-            font-size: 48px;
-            margin-bottom: 10px;
+        .product-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+            border-color: #ff6b35;
         }
-
-        .product-name {
-            font-weight: 600;
-            font-size: 14px;
-            margin-bottom: 5px;
-            color: #333;
-        }
-
-        .product-size {
-            font-size: 12px;
-            color: #888;
+        .product-card.out-of-stock { opacity: 0.5; background: #f5f5f5; }
+        .product-img {
+            width: 100%;
+            height: 90px;
+            object-fit: cover;
+            border-radius: 8px;
             margin-bottom: 8px;
         }
+        .product-name { font-weight: 600; font-size: 13px; margin-bottom: 4px; color: #333; }
+        .product-price { font-weight: bold; font-size: 14px; color: #ff6b35; }
 
-        .product-price {
-            font-weight: bold;
-            font-size: 16px;
-            color: #ff6b35;
-        }
-
-        .stock-badge {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            font-size: 10px;
-            padding: 3px 6px;
-            border-radius: 10px;
-        }
-
+        /* ============================================================
+           RIGHT SIDE — REDESIGNED ORDER SUMMARY
+        ============================================================ */
         .pos-cart {
-            width: 350px;
-            background: white;
+            width: 320px;
+            background: #fafafa;
             border-left: 1px solid #e0e0e0;
             display: flex;
             flex-direction: column;
-            box-shadow: -2px 0 5px rgba(0,0,0,0.05);
+            flex-shrink: 0;
         }
 
         .cart-header {
-            padding: 20px;
+            padding: 14px 16px;
             background: #ff6b35;
             color: white;
-        }
-
-            .cart-header h4 {
-                margin: 0;
-                font-size: 18px;
-            }
-
-        .cart-items {
-            flex: 1;
-            overflow-y: auto;
-            padding: 15px;
-        }
-
-        .cart-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid #f0f0f0;
-        }
-
-        .cart-item-info {
-            flex: 1;
-        }
-
-        .cart-item-name {
-            font-weight: 500;
-            font-size: 14px;
-        }
-
-        .cart-item-size {
-            font-size: 11px;
-            color: #888;
-        }
-
-        .cart-item-price {
-            font-size: 13px;
-            color: #ff6b35;
-        }
-
-        .cart-item-qty {
             display: flex;
             align-items: center;
             gap: 8px;
         }
+        .cart-header h4 { margin: 0; font-size: 16px; font-weight: 600; }
 
-        .qty-btn {
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            border: 1px solid #ddd;
+        /* Cart items list */
+        .cart-items {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 12px;
             background: white;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-            .qty-btn:hover {
-                background: #f0f0f0;
-            }
-
-        .cart-item-total {
-            font-weight: bold;
-            font-size: 14px;
-            min-width: 70px;
-            text-align: right;
-        }
-
-        .remove-item {
-            color: #dc3545;
-            cursor: pointer;
-            margin-left: 10px;
-            font-size: 14px;
-        }
-
-        .cart-footer {
-            padding: 20px;
-            border-top: 1px solid #e0e0e0;
-            background: #fafafa;
-        }
-
-        .total-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 15px;
-            font-size: 18px;
-            font-weight: bold;
-        }
-
-        .checkout-btn {
-            width: 100%;
-            padding: 14px;
-            background: #28a745;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-            .checkout-btn:hover {
-                background: #218838;
-            }
-
-            .checkout-btn:disabled {
-                background: #ccc;
-                cursor: not-allowed;
-            }
-
-        .clear-cart {
-            width: 100%;
-            padding: 10px;
-            background: none;
-            border: 1px solid #dc3545;
-            color: #dc3545;
-            border-radius: 8px;
-            margin-top: 10px;
-            cursor: pointer;
         }
 
         .empty-cart {
             text-align: center;
             padding: 40px 20px;
-            color: #999;
+            color: #bbb;
+        }
+        .empty-cart .empty-icon { font-size: 40px; margin-bottom: 8px; }
+        .empty-cart p { font-size: 13px; }
+
+        .cart-item {
+            display: flex;
+            align-items: flex-start;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+            gap: 8px;
+        }
+        .cart-item:last-child { border-bottom: none; }
+
+        .cart-item-info { flex: 1; min-width: 0; }
+        .cart-item-name {
+            font-weight: 600;
+            font-size: 13px;
+            color: #222;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .cart-item-size { font-size: 11px; color: #999; margin-top: 1px; }
+        .cart-item-unitprice { font-size: 11px; color: #ff6b35; margin-top: 1px; }
+
+        .cart-item-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+        .cart-item-total {
+            font-weight: 700;
+            font-size: 13px;
+            color: #222;
+        }
+        .cart-item-qty {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #f5f5f5;
+            border-radius: 20px;
+            padding: 2px 6px;
+        }
+        .qty-btn {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: none;
+            background: white;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            color: #555;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            line-height: 1;
+        }
+        .qty-btn:hover { background: #ff6b35; color: white; }
+        .qty-display { font-size: 13px; font-weight: 600; min-width: 16px; text-align: center; color: #333; }
+        .remove-item {
+            font-size: 11px;
+            color: #ccc;
+            cursor: pointer;
+            padding: 0 2px;
+        }
+        .remove-item:hover { color: #dc3545; }
+
+        /* Cart Footer */
+        .cart-footer {
+            border-top: 1px solid #e8e8e8;
+            background: #fafafa;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
 
+        /* Subtotal row */
+        .subtotal-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #888;
+        }
+
+        /* Discount section */
+        .discount-section {
+            background: white;
+            border: 1px solid #f0f0f0;
+            border-radius: 8px;
+            padding: 8px 10px;
+        }
+        .section-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #aaa;
+            margin-bottom: 6px;
+        }
+        .discount-btns {
+            display: flex;
+            gap: 6px;
+        }
+        .discount-btn-pill {
+            flex: 1;
+            padding: 5px 6px;
+            border-radius: 20px;
+            border: 1.5px solid #dee2e6;
+            background: white;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            color: #555;
+            text-align: center;
+        }
+        .discount-btn-pill:hover { border-color: #ff6b35; color: #ff6b35; }
+        .discount-btn-pill.active {
+            background: #fff3ee;
+            border-color: #ff6b35;
+            color: #ff6b35;
+            font-weight: 700;
+        }
+        .discount-applied {
+            margin-top: 5px;
+            font-size: 11px;
+            color: #28a745;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Payment section */
+        .payment-section {
+            background: white;
+            border: 1px solid #f0f0f0;
+            border-radius: 8px;
+            padding: 8px 10px;
+        }
+        .payment-btns {
+            display: flex;
+            gap: 6px;
+        }
+        .payment-btn {
+            flex: 1;
+            padding: 7px 6px;
+            border-radius: 8px;
+            border: 1.5px solid #dee2e6;
+            background: white;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            color: #555;
+            text-align: center;
+        }
+        .payment-btn.cash:hover, .payment-btn.cash.active {
+            background: #e8f5e9;
+            border-color: #28a745;
+            color: #28a745;
+        }
+        .payment-btn.gcash:hover, .payment-btn.gcash.active {
+            background: #e3f2fd;
+            border-color: #1976d2;
+            color: #1976d2;
+        }
+
+        /* Total row */
+        .total-section {
+            background: white;
+            border: 1px solid #f0f0f0;
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .total-label { font-size: 13px; font-weight: 600; color: #555; }
+        .total-amount { font-size: 20px; font-weight: 800; color: #222; }
+        .discount-line {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #dc3545;
+            margin-top: 4px;
+        }
+
+        /* Action buttons */
+        .checkout-btn {
+            width: 100%;
+            padding: 12px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s;
+            letter-spacing: 0.3px;
+        }
+        .checkout-btn:hover { background: #218838; }
+        .checkout-btn:disabled { background: #ccc; cursor: not-allowed; }
+
+        .clear-cart {
+            width: 100%;
+            padding: 8px;
+            background: none;
+            border: 1px solid #dee2e6;
+            color: #aaa;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .clear-cart:hover { border-color: #dc3545; color: #dc3545; }
+
+        /* ============================================================
+           ORDER QUEUE
+        ============================================================ */
+        .order-queue {
+            background: #f8f9fa;
+            border-top: 1px solid #e0e0e0;
+            padding: 10px;
+        }
+        .queue-item {
+            background: white;
+            border-radius: 8px;
+            padding: 8px;
+            margin-bottom: 6px;
+            border-left: 3px solid #ffc107;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .queue-item:hover { transform: translateX(2px); }
+        .queue-order-number { font-size: 11px; font-weight: bold; }
+        .queue-items { font-size: 11px; color: #666; margin: 3px 0; }
+        .queue-total { font-size: 11px; font-weight: bold; color: #28a745; }
+        .queue-btn { padding: 2px 8px; font-size: 11px; }
+
+        /* ============================================================
+           MODALS — kept same, just receipt modal changes
+        ============================================================ */
         .modal-qty {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.5);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 1000;
         }
-
         .modal-qty-content {
             background: white;
             border-radius: 16px;
             padding: 25px;
             width: 300px;
             text-align: center;
+            max-height: 85vh;
+            overflow-y: auto;
         }
-
-            .modal-qty-content h4 {
-                margin-bottom: 20px;
-            }
-
+        .modal-qty-content h4 { margin-bottom: 20px; }
         .qty-selector {
             display: flex;
             align-items: center;
@@ -396,162 +470,114 @@
             gap: 20px;
             margin-bottom: 20px;
         }
-
-            .qty-selector button {
-                width: 40px;
-                height: 40px;
-                border-radius: 50%;
-                border: 1px solid #ddd;
-                background: white;
-                font-size: 20px;
-                cursor: pointer;
-            }
-
-            .qty-selector span {
-                font-size: 24px;
-                font-weight: bold;
-                min-width: 50px;
-                text-align: center;
-            }
-
-        .modal-buttons {
-            display: flex;
-            gap: 10px;
+        .qty-selector button {
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            border: 1px solid #ddd;
+            background: white;
+            font-size: 20px;
+            cursor: pointer;
         }
-
-            .modal-buttons button {
-                flex: 1;
-                padding: 10px;
-                border-radius: 8px;
-                cursor: pointer;
-            }
-
-        .btn-confirm {
-            background: #ff6b35;
-            color: white;
-            border: none;
+        .qty-selector span {
+            font-size: 24px;
+            font-weight: bold;
+            min-width: 50px;
+            text-align: center;
         }
+        .modal-buttons { display: flex; gap: 10px; }
+        .modal-buttons button { flex: 1; padding: 10px; border-radius: 8px; cursor: pointer; }
+        .btn-confirm { background: #ff6b35; color: white; border: none; }
+        .btn-cancel { background: #f0f0f0; border: none; }
 
-        .btn-cancel {
-            background: #f0f0f0;
-            border: none;
-        }
-
-        .product-img {
-            width: 100%;
-            height: 100px;
-            object-fit: cover;
-            border-radius: 10px;
-            margin-bottom: 10px;
-        }
-
-        /* Receipt Modal Styles */
+        /* Receipt Modal */
         #receiptModal .modal-qty-content {
             background: white;
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            max-height: 80vh;
+            max-height: 85vh;
             overflow-y: auto;
             animation: slideUp 0.3s ease forwards;
         }
 
-            /* Order Queue Styles */
-            .order-queue {
-                background: #f8f9fa;
-                border-top: 1px solid #dee2e6;
-            }
-
-            .queue-item {
-                background: white;
-                border-radius: 8px;
-                padding: 8px;
-                margin-bottom: 8px;
-                border-left: 3px solid #ffc107;
-                box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-                transition: all 0.2s;
-            }
-
-                .queue-item:hover {
-                    transform: translateX(2px);
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                }
-
-                .queue-item.completed {
-                    border-left-color: #28a745;
-                    opacity: 0.7;
-                    background: #e8f5e9;
-                }
-
-            .queue-order-number {
-                font-size: 12px;
-                font-weight: bold;
-            }
-
-            .queue-items {
-                font-size: 11px;
-                color: #666;
-                margin: 4px 0;
-            }
-
-            .queue-total {
-                font-size: 11px;
-                font-weight: bold;
-                color: #28a745;
-            }
-
-            .queue-btn {
-                padding: 2px 8px;
-                font-size: 11px;
-            }
-
         @@keyframes slideUp {
-            from {
-                transform: translateY(50px);
-                opacity: 0;
-            }
-
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
-        .receipt-header {
-            text-align: center;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 1px dashed #ccc;
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
         }
 
         .receipt-item {
             display: flex;
             justify-content: space-between;
             font-size: 13px;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             padding: 5px 0;
             border-bottom: 1px dotted #eee;
         }
-
         .receipt-subtotal, .receipt-discount, .receipt-total {
             display: flex;
             justify-content: space-between;
-            margin-top: 8px;
-            padding-top: 8px;
+            margin-top: 6px;
+            padding-top: 6px;
         }
-
         .receipt-total {
             font-weight: bold;
             font-size: 16px;
             border-top: 2px solid #333;
-            margin-top: 10px;
-            padding-top: 10px;
+            margin-top: 8px;
+            padding-top: 8px;
+        }
+        .receipt-discount { color: #dc3545; font-size: 12px; }
+
+        /* Void/Refund tab styles */
+        .void-tab-btn { border-bottom: 2px solid transparent; }
+        .void-tab-btn.active { border-bottom-color: #dc3545; color: #dc3545; }
+
+        /* Receipt action buttons — the two big buttons inside receipt */
+        .receipt-action-area {
+            margin-top: 16px;
+            padding-top: 14px;
+            border-top: 1px dashed #ddd;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
 
-        .receipt-discount {
+        .btn-start-blending {
+            width: 100%;
+            padding: 11px;
+            background: #ffc107;
+            color: #212529;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-start-blending:hover { background: #e0a800; }
+        .btn-start-blending:disabled { background: #ccc; cursor: not-allowed; }
+
+        .btn-void-receipt {
+            width: 100%;
+            padding: 9px;
+            background: white;
             color: #dc3545;
-            font-size: 12px;
+            border: 1.5px solid #dc3545;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-void-receipt:hover { background: #dc3545; color: white; }
+
+        .blending-warning {
+            font-size: 11px;
+            color: #888;
+            text-align: center;
+            line-height: 1.4;
         }
 
+        /* Confirmation item */
         .confirmation-item {
             display: flex;
             justify-content: space-between;
@@ -559,15 +585,215 @@
             padding: 6px 0;
             border-bottom: 1px solid #c3e6cb;
         }
+        .btn-void-item-receipt {
+    width: 100%;
+    padding: 9px;
+    background: white;
+    color: #ffc107;
+    border: 1.5px solid #ffc107;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 5px;
+}
+.btn-void-item-receipt:hover {
+    background: #ffc107;
+    color: #212529;
+}
 
+        /* ========== VOID/REFUND BUTTON BOX ========== */
+
+/* Void buttons container */
+.d-flex.gap-2 {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 12px;
+    border: 2px solid #dee2e6;
+    margin-top: 15px !important;
+}
+
+/* Void Selected Item button */
+.btn-danger {
+    background: #dc3545 !important;
+    border: none !important;
+    padding: 10px 20px !important;
+    border-radius: 8px !important;
+    font-weight: bold !important;
+}
+
+/* Void Entire Transaction button */
+.btn-warning {
+    background: #ffc107 !important;
+    border: none !important;
+    padding: 10px 20px !important;
+    border-radius: 8px !important;
+    font-weight: bold !important;
+    color: #000 !important;
+}
+
+/* Refund button */
+.btn-primary {
+    background: #007bff !important;
+    border: none !important;
+    padding: 12px !important;
+    border-radius: 8px !important;
+    font-weight: bold !important;
+    width: 100% !important;
+}
+
+/* Tab buttons box */
+#voidTabBtn, #refundTabBtn {
+    background: #e9ecef;
+    border: 1px solid #dee2e6;
+    border-radius: 8px 8px 0 0;
+    padding: 10px 25px;
+    font-weight: bold;
+}
+
+#voidTabBtn.active {
+    background: #dc3545 !important;
+    color: white !important;
+}
+
+#refundTabBtn.active {
+    background: #007bff !important;
+    color: white !important;
+}
+
+/* Improved Void/Refund Modal Styling */
+#voidRefundModal .modal-qty-content {
+    width: 700px;
+    max-width: 95%;
+    border-radius: 20px;
+    padding: 0;
+    overflow: hidden;
+}
+
+#voidRefundModal .modal-header-custom {
+    background: #ff6b35;
+    color: white;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#voidRefundModal .modal-header-custom h4 {
+    margin: 0;
+    font-size: 18px;
+}
+
+#voidRefundModal .modal-body-custom {
+    padding: 20px;
+}
+
+.void-tab-btn-custom {
+    padding: 10px 30px;
+    border: none;
+    background: #f0f0f0;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-radius: 8px 8px 0 0;
+}
+
+.void-tab-btn-custom.active {
+    background: #ff6b35;
+    color: white;
+}
+
+.void-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.void-table th,
+.void-table td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.void-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #555;
+}
+
+.reason-select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.btn-void-item {
+    flex: 1;
+    padding: 12px;
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-void-item:hover {
+    background: #c82333;
+}
+
+.btn-void-transaction {
+    flex: 1;
+    padding: 12px;
+    background: #ffc107;
+    color: #212529;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-void-transaction:hover {
+    background: #e0a800;
+}
+
+.btn-refund {
+    width: 100%;
+    padding: 12px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-refund:hover {
+    background: #0056b3;
+}
+
+        .product-emoji { font-size: 40px; margin-bottom: 8px; }
     </style>
 </head>
 <body>
     @Html.AntiForgeryToken()
-    <!-- MAIN CONTAINER - Naka-vertical ang layout (column) -->
+
     <div style="display: flex; flex-direction: column; height: 100vh; overflow: hidden;">
 
-        <!-- ========== ATTENDANCE BAR (NASA ITAAS) ========== -->
+        <!-- ATTENDANCE BAR -->
         <div class="attendance-bar" style="background: #1e293b; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
             <div>
                 <strong><i class="fas fa-user-circle"></i> Staff: @ViewBag.StaffUsername</strong>
@@ -577,51 +803,47 @@
                 <span id="todayHoursDisplay">0.0</span> hrs today
             </div>
             <div>
-                <button id="timeInBtn" class="btn btn-success btn-sm" onclick="timeIn()">
-                    ✅ TIME IN
-                </button>
-                <button id="timeOutBtn" class="btn btn-danger btn-sm" style="display:none;" onclick="timeOut()">
-                    ❌ TIME OUT
-                </button>
+                <button id="timeInBtn" class="btn btn-success btn-sm" onclick="timeIn()"> TIME IN</button>
+                <button id="timeOutBtn" class="btn btn-danger btn-sm" style="display:none;" onclick="timeOut()"> TIME OUT</button>
             </div>
         </div>
 
-        <!-- ========== EXISTING POS LAYOUT (Flex row) ========== -->
+        <!-- POS LAYOUT -->
         <div class="pos-container" style="display: flex; flex: 1; overflow: hidden;">
 
             <!-- LEFT: Categories -->
             <div class="pos-categories">
                 <div class="store-info">
-                    <h3>🥭 Neldie's Mango & More</h3>
+                    <h3> Neldie's Mango & More</h3>
                     <p>Point of Sale System</p>
                 </div>
                 <div class="category-list">
                     <div class="category-item active" data-category="all" onclick="filterByCategory('all')">
-                        📋 All Products
+                         All Products
                     </div>
                     @if (ViewBag.Categories != null)
                     {
                         foreach (var cat in ViewBag.Categories)
                         {
                             <div class="category-item" data-category="@cat" onclick="filterByCategory('@cat')">
-                                🏷️ @cat
+                                 @cat
                             </div>
                         }
                     }
                 </div>
-                <!-- ========== ORDER QUEUE (ILALIM NG CATEGORIES) ========== -->
-                <div class="order-queue" style="border-top: 1px solid #e0e0e0; margin-top: 10px; padding: 10px;">
+                <!-- ORDER QUEUE -->
+                <div class="order-queue">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <strong style="font-size: 13px;">
-                            <i class="fas fa-blender"></i> Orders Queue
-                            <span id="queueCount" class="badge bg-warning">0</span>
-                        </strong>
+                        <strong style="font-size: 12px;">
+    Orders Queue
+    <span id="queueCount" class="badge bg-warning">0</span>
+</strong>
                         <button class="btn btn-sm btn-outline-warning p-0 px-1" onclick="refreshQueue()" style="font-size: 10px;">
                             <i class="fas fa-sync-alt"></i>
                         </button>
                     </div>
-                    <div id="orderQueueList" style="max-height: 300px; overflow-y: auto;">
-                        <div class="text-center text-muted small">No pending orders</div>
+                    <div id="orderQueueList" style="max-height: 260px; overflow-y: auto;">
+                        <div class="text-center text-muted small">No pending orders to blend</div>
                     </div>
                 </div>
             </div>
@@ -629,11 +851,15 @@
             <!-- MIDDLE: Products -->
             <div class="pos-products">
                 <div class="pos-header">
-                    <h2>🥤 Menu</h2>
+                    <h2> Menu</h2>
                     <div class="datetime">
                         <div id="currentTime"></div>
                         <div id="currentDate"></div>
                     </div>
+                    <!-- Void/Refund button — for RETURN only after blending -->
+                    <button id="voidRefundBtn" class="btn btn-outline-danger btn-sm ms-3" onclick="showVoidRefundPanel()" style="font-size: 12px;">
+                        <i class="fas fa-undo"></i> Return / Refund
+                    </button>
                 </div>
                 <div class="products-grid" id="productsGrid">
                     @if (((System.Collections.IEnumerable)Model).Cast<dynamic>().Any())
@@ -652,16 +878,14 @@
                                     <div class="product-emoji">🥤</div>
                                 }
                                 <div class="product-name">@product.Name</div>
-                                <div class="product-price-range">
+                                <div class="product-price">
                                     @{
                                         var minPrice = GetMinPrice(product.Sizes);
                                         var maxPrice = GetMaxPrice(product.Sizes);
                                     }
-                                    <span>₱@minPrice.ToString("N2") - ₱@maxPrice.ToString("N2")</span>
+                                    ₱@minPrice.ToString("N2") - ₱@maxPrice.ToString("N2")
                                 </div>
-                                <div class="product-stock-total">
-                                    <span class="text-muted">Check availability in size modal</span>
-                                </div>
+                                <div style="font-size: 11px; color: #bbb; margin-top: 3px;">Check availability in size modal</div>
                             </div>
                         }
                     }
@@ -675,62 +899,75 @@
                 </div>
             </div>
 
-            <!-- RIGHT: Cart -->
+            <!-- RIGHT: Redesigned Order Summary -->
             <div class="pos-cart">
                 <div class="cart-header">
-                    <h4>🛒 Order Summary</h4>
+                   <h4>Order Summary</h4>
                 </div>
+
+                <!-- Cart Items -->
                 <div class="cart-items" id="cartItems">
                     <div class="empty-cart">
-                        <div style="font-size: 48px; margin-bottom: 10px;">🛍️</div>
                         <p>No items in cart</p>
                     </div>
                 </div>
+
+                <!-- Footer -->
                 <div class="cart-footer">
-                    <div class="total-row">
-                        <span>Total:</span>
-                        <span id="cartTotal">₱0.00</span>
-                    </div>
 
-                    <!-- Discount Panel - walang "No Discount" button -->
-                    <div id="discountPanel" style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 8px;">
-                        <small class="text-muted">💰 Discount (Optional):</small>
-                        <div style="display: flex; gap: 8px; margin-top: 5px; flex-wrap: wrap;">
-                            <button class="btn btn-sm btn-outline-primary discount-btn" data-discount-type="Senior Citizen" data-discount-percent="0.20" onclick="selectDiscount('Senior Citizen', 0.20)">👴 Senior Citizen (20%)</button>
-                            <button class="btn btn-sm btn-outline-primary discount-btn" data-discount-type="PWD" data-discount-percent="0.20" onclick="selectDiscount('PWD', 0.20)">♿ PWD (20%)</button>
+                    <!-- Total -->
+                    <div class="total-section">
+                        <div class="total-row">
+                            <span class="total-label">Total:</span>
+                            <span class="total-amount" id="cartTotal">₱0.00</span>
                         </div>
-                        <div id="selectedDiscountDisplay" style="font-size: 12px; margin-top: 5px;"></div>
+                        <div id="discountLine" class="discount-line" style="display:none;"></div>
                     </div>
 
-                    <!-- Payment Method Panel - Cash at GCash lang -->
-                    <div id="paymentPanel" style="margin-top: 10px; padding: 10px; background: #e9ecef; border-radius: 8px;">
-                        <small class="text-muted">💳 Payment Method:</small>
-                        <div style="display: flex; gap: 8px; margin-top: 5px;">
-                            <button class="btn btn-sm btn-success" onclick="prepareCheckout()">💵 Cash</button>
-                            <button class="btn btn-sm btn-primary" onclick="prepareCheckout()">📱 GCash</button>
+                    <!-- Discount -->
+                    <div class="discount-section">
+                        <div class="section-label"> Discount (Optional)</div>
+                        <div class="discount-btns">
+                            <button class="discount-btn-pill" id="discBtn_senior" data-discount-type="Senior Citizen" data-discount-percent="0.20" onclick="selectDiscount('Senior Citizen', 0.20)">
+                                 Senior (20%)
+                            </button>
+                            <button class="discount-btn-pill" id="discBtn_pwd" data-discount-type="PWD" data-discount-percent="0.20" onclick="selectDiscount('PWD', 0.20)">
+                                 PWD (20%)
+                            </button>
+                        </div>
+                        <div id="selectedDiscountDisplay"></div>
+                    </div>
+
+                    <!-- Payment -->
+                    <div class="payment-section">
+                        <div class="section-label"> Payment Method</div>
+                        <div class="payment-btns">
+                            <button class="payment-btn cash" onclick="prepareCheckout(this)">💵 Cash</button>
+                            <button class="payment-btn gcash" onclick="prepareCheckout(this)">📱 GCash</button>
                         </div>
                     </div>
 
-                    <button class="checkout-btn" id="checkoutBtn" onclick="confirmOrder()" style="margin-top: 15px;">
-                        💳 Confirm Order
+                    <!-- Confirm + Clear -->
+                    <button class="checkout-btn" id="checkoutBtn" onclick="confirmOrder()">
+                         Confirm Order
                     </button>
                     <button class="clear-cart" onclick="clearCart()">
-                        🗑️ Clear Cart
+                         Clear Cart
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Review Order Modal - Para i-double check ni employee bago mag-order -->
+    <!-- ============================================================
+         MODALS (unchanged logic, only receipt modal updated)
+    ============================================================ -->
+
+    <!-- Review Order Modal -->
     <div id="reviewOrderModal" class="modal-qty" style="display: none;">
         <div class="modal-qty-content" style="width: 450px; max-width: 90%;">
-            <h4 style="text-align: center; margin-bottom: 20px;">📋 Review Your Order</h4>
-
-            <div id="reviewOrderContent" style="margin-bottom: 20px; max-height: 400px; overflow-y: auto;">
-                <!-- Order details will appear here -->
-            </div>
-
+            <h4 style="text-align: center; margin-bottom: 20px;"> Review Your Order</h4>
+            <div id="reviewOrderContent" style="margin-bottom: 20px; max-height: 400px; overflow-y: auto;"></div>
             <div style="display: flex; gap: 10px; margin-top: 20px;">
                 <button class="btn-cancel" onclick="closeReviewModal()" style="flex: 1; padding: 10px;">✕ Cancel</button>
                 <button class="btn-confirm" onclick="processFinalOrder()" style="flex: 1; padding: 10px;">✅ Confirm Order</button>
@@ -738,24 +975,46 @@
         </div>
     </div>
 
-    <!-- Receipt Modal -->
+    <!-- Receipt Modal — UPDATED with Void Transaction button -->
     <div id="receiptModal" class="modal-qty" style="display: none;">
         <div class="modal-qty-content" style="width: 380px; max-width: 90%;">
-            <div style="text-align: center; margin-bottom: 20px;">
-                <h3 style="margin: 5px 0;">Neldie's Mango & More</h3>
-                <small style="color: #666;">Official Receipt</small>
+            <div style="text-align: center; margin-bottom: 16px;">
+                <h3 style="margin: 5px 0; font-size: 18px;">Neldie's Mango & More</h3>
+                <small style="color: #888;">Official Receipt</small>
                 <hr style="margin: 10px 0;">
             </div>
 
-            <div id="receiptContent" style="margin-bottom: 20px;">
-                <!-- Dynamic receipt content -->
+            <div id="receiptContent">
+                <!-- Dynamic receipt content injected here -->
             </div>
 
             <hr style="margin: 10px 0;">
             <div style="text-align: center;">
-                <small style="color: #999;">Thank you for your purchase!</small>
-                <br>
-                <button onclick="closeReceiptModal()" style="margin-top: 15px; padding: 8px 30px; background: #ff6b35; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                <small style="color: #aaa;">Thank you for your purchase!</small>
+            </div>
+
+            <!-- Action area: Start Blending + Void (hidden after blending starts) -->
+            <div class="receipt-action-area" id="receiptActionArea">
+                <button id="startBlendingBtn" class="btn-start-blending" onclick="startBlending(window.currentOrderId)">
+                     START BLENDING (Deduct Ingredients)
+                </button>
+                <p class="blending-warning">
+                    ⚠️ Click only when you start preparing/blending.<br>
+                    Ingredients will be deducted and cannot be undone without Owner approval.
+                </p>
+                  <!-- VOID ITEM — before blending, remove specific item -->
+                <button id="voidItemReceiptBtn" class="btn-void-item-receipt" onclick="voidItemFromReceipt()">
+                         Void Item
+                 </button>
+                <!-- VOID TRANSACTION — visible before blending, hidden after -->
+                <button id="voidReceiptBtn" class="btn-void-receipt" onclick="voidFromReceipt()">
+                     Void Transaction
+                </button>
+            </div>
+
+            <!-- Close button — always visible -->
+            <div style="margin-top: 10px;">
+                <button onclick="closeReceiptModal()" style="width:100%; padding: 8px; background: #f5f5f5; color: #555; border: none; border-radius: 8px; cursor: pointer; font-size: 13px;">
                     Close
                 </button>
             </div>
@@ -767,36 +1026,11 @@
         <div class="modal-qty-content" style="width: 350px;">
             <h4>💳 Select Payment Method</h4>
             <div style="margin: 20px 0;">
-                <button class="btn btn-success w-100 mb-2" onclick="processPayment('Cash')" style="padding: 12px;">
-                    💵 Cash
-                </button>
-                <button class="btn btn-primary w-100 mb-2" onclick="processPayment('GCash')" style="padding: 12px;">
-                    📱 GCash
-                </button>
+                <button class="btn btn-success w-100 mb-2" onclick="processPayment('Cash')" style="padding: 12px;">💵 Cash</button>
+                <button class="btn btn-primary w-100 mb-2" onclick="processPayment('GCash')" style="padding: 12px;">📱 GCash</button>
             </div>
             <div class="modal-buttons">
                 <button class="btn-cancel" onclick="closePaymentModal()">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Discount Modal -->
-    <div id="discountModal" class="modal-qty" style="display: none;">
-        <div class="modal-qty-content" style="width: 350px;">
-            <h4>💰 Select Discount Type</h4>
-            <div style="margin: 20px 0;">
-                <button class="btn btn-outline-secondary w-100 mb-2" onclick="applyDiscount('None', 0)" style="padding: 12px;">
-                    📝 None (0% discount)
-                </button>
-                <button class="btn btn-outline-primary w-100 mb-2" onclick="applyDiscount('Senior Citizen', 0.20)" style="padding: 12px;">
-                    👴 Senior Citizen (20% discount)
-                </button>
-                <button class="btn btn-outline-primary w-100 mb-2" onclick="applyDiscount('PWD', 0.20)" style="padding: 12px;">
-                    ♿ PWD (20% discount)
-                </button>
-            </div>
-            <div class="modal-buttons">
-                <button class="btn-cancel" onclick="closeDiscountModal()">Cancel</button>
             </div>
         </div>
     </div>
@@ -805,15 +1039,12 @@
     <div id="sizeModal" class="modal-qty" style="display: none;">
         <div class="modal-qty-content" style="width: 400px;">
             <h4 id="sizeModalProductName">Select Size</h4>
-            <div id="sizeOptionsList" style="margin: 20px 0;">
-                <!-- Dynamic sizes will appear here -->
-            </div>
+            <div id="sizeOptionsList" style="margin: 20px 0;"></div>
             <div class="modal-buttons">
                 <button class="btn-cancel" onclick="closeSizeModal()">Cancel</button>
             </div>
         </div>
     </div>
-
 
     <!-- Quantity Modal -->
     <div id="quantityModal" class="modal-qty" style="display: none;">
@@ -836,48 +1067,51 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header bg-warning">
-                    <h5 class="modal-title">🕒 Attendance Reminder</h5>
-                </div>
+                    <h5 class="modal-title"> Attendance Reminder</h5>
+                </div>  .
                 <div class="modal-body text-center">
                     <p>You are logged in but not yet timed in.</p>
                     <p><strong>Start your shift now?</strong></p>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" data-bs-dismiss="modal">
-                        Remind Me Later
-                    </button>
-                    <button class="btn btn-success" onclick="timeInFromReminder()">
-                        ✅ Time In Now
-                    </button>
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Remind Me Later</button>
+                    <button class="btn btn-success" onclick="timeInFromReminder()"> Time In Now</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ========== VOID / REFUND MODAL ========== -->
-    <div id="voidRefundModal" class="modal-qty" style="display: none;">
-        <div class="modal-qty-content" style="width: 650px; max-width: 95%;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h4 style="margin: 0;">📋 Void / Refund Transaction</h4>
-                <button onclick="closeVoidRefundModal()" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+   <!-- VOID / REFUND MODAL - Professional Design -->
+<div id="voidRefundModal" class="modal-qty" style="display: none;">
+    <div class="modal-qty-content" style="width: 700px; max-width: 95%; padding: 0;">
+        <!-- Header -->
+        <div style="background: #ff6b35; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
+            <h4 style="margin: 0; font-size: 18px;"><i class="fas fa-exchange-alt"></i> Return / Refund</h4>
+            <button onclick="closeVoidRefundModal()" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer;">&times;</button>
+        </div>
+        
+        <!-- Body -->
+        <div style="padding: 20px;">
+            <!-- Tabs -->
+            <div style="display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid #eee;">
+                <button id="voidTabBtn" class="void-tab-btn-custom active" onclick="switchVoidTab('void')" style="padding: 10px 30px; border: none; background: #ff6b35; color: white; font-weight: 600; cursor: pointer; border-radius: 8px 8px 0 0;">🗑️ VOID</button>
+                <button id="refundTabBtn" class="void-tab-btn-custom" onclick="switchVoidTab('refund')" style="padding: 10px 30px; border: none; background: #f0f0f0; font-weight: 600; cursor: pointer; border-radius: 8px 8px 0 0;">💰 REFUND</button>
             </div>
 
-            <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #ddd;">
-                <button id="voidTabBtn" class="void-tab-btn active" onclick="switchVoidTab('void')" style="padding: 10px 20px; border: none; background: none; cursor: pointer; font-weight: bold;">❌ VOID</button>
-                <button id="refundTabBtn" class="void-tab-btn" onclick="switchVoidTab('refund')" style="padding: 10px 20px; border: none; background: none; cursor: pointer; font-weight: bold;">💰 REFUND</button>
-            </div>
-
+            <!-- VOID TAB CONTENT -->
             <div id="voidTabContent">
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Select Order:</label>
-                    <select id="voidOrderSelect" class="form-control" onchange="loadVoidOrderItems()">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 13px;">Select Order:</label>
+                    <select id="voidOrderSelect" class="reason-select" onchange="loadVoidOrderItems()">
                         <option value="">-- Select Order --</option>
                     </select>
                 </div>
+                
                 <div id="voidOrderItems" style="max-height: 300px; overflow-y: auto; margin-bottom: 15px;"></div>
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Reason for Void:</label>
-                    <select id="voidReason" class="form-control">
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 13px;">Reason for Void:</label>
+                    <select id="voidReason" class="reason-select">
                         <option value="">-- Select Reason --</option>
                         <option value="Customer changed mind">Customer changed mind</option>
                         <option value="Wrong order entered">Wrong order entered</option>
@@ -885,25 +1119,29 @@
                         <option value="Price adjustment">Price adjustment</option>
                         <option value="Other">Other</option>
                     </select>
-                    <input type="text" id="voidOtherReason" class="form-control mt-2" placeholder="Please specify" style="display: none;">
+                    <input type="text" id="voidOtherReason" class="reason-select" style="margin-top: 8px; display: none;" placeholder="Please specify...">
                 </div>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-danger" onclick="processVoidItem()">❌ Void Selected Item</button>
-                    <button class="btn btn-warning" onclick="processVoidTransaction()">🗑️ Void Entire Transaction</button>
+                
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-void-item" onclick="processVoidItem()">🗑️ Void Selected Item</button>
+                    <button class="btn-void-transaction" onclick="processVoidTransaction()">⚠️ Void Entire Transaction</button>
                 </div>
             </div>
 
+            <!-- REFUND TAB CONTENT -->
             <div id="refundTabContent" style="display: none;">
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Select Completed Order:</label>
-                    <select id="refundOrderSelect" class="form-control" onchange="loadRefundOrderItems()">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 13px;">Select Completed Order:</label>
+                    <select id="refundOrderSelect" class="reason-select" onchange="loadRefundOrderItems()">
                         <option value="">-- Select Order --</option>
                     </select>
                 </div>
+                
                 <div id="refundOrderItems" style="max-height: 300px; overflow-y: auto; margin-bottom: 15px;"></div>
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Reason for Refund:</label>
-                    <select id="refundReason" class="form-control">
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 13px;">Reason for Refund:</label>
+                    <select id="refundReason" class="reason-select">
                         <option value="">-- Select Reason --</option>
                         <option value="Wrong item served">Wrong item served</option>
                         <option value="Quality issue">Quality issue</option>
@@ -911,32 +1149,88 @@
                         <option value="Missing item">Missing item</option>
                         <option value="Other">Other</option>
                     </select>
-                    <input type="text" id="refundOtherReason" class="form-control mt-2" placeholder="Please specify" style="display: none;">
+                    <input type="text" id="refundOtherReason" class="reason-select" style="margin-top: 8px; display: none;" placeholder="Please specify...">
                 </div>
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle"></i> Refund requires Owner approval.
+                
+                <div style="background: #fff3cd; padding: 12px; border-radius: 8px; margin-bottom: 15px;">
+                    <i class="fas fa-exclamation-triangle" style="color: #856404;"></i>
+                    <span style="font-size: 12px; color: #856404;"> Refund requires Owner approval.</span>
                 </div>
-                <button class="btn btn-primary" onclick="processRefund()">💰 Process Refund</button>
+                
+                <button class="btn-refund" onclick="processRefund()">💰 Process Refund</button>
             </div>
 
+            <!-- Owner Approval Modal -->
             <div id="ownerApprovalModal" style="display: none; margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 8px;">
-                <div class="d-flex align-items-center mb-2">
-                    <i class="fas fa-lock text-warning me-2"></i>
-                    <strong class="text-warning">OWNER APPROVAL REQUIRED</strong>
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <i class="fas fa-lock" style="color: #856404;"></i>
+                    <strong style="color: #856404;">OWNER APPROVAL REQUIRED</strong>
                 </div>
-                <p id="approvalMessage" class="small mb-2">Please ask the store owner to login and approve this action.</p>
-                <button onclick="closeOwnerApprovalModal()" class="btn btn-sm btn-secondary">Close</button>
+                <p id="approvalMessage" style="font-size: 12px; margin: 0 0 10px 0; color: #856404;">Please ask the store owner to login and approve this action.</p>
+                <button onclick="closeOwnerApprovalModal()" style="padding: 6px 12px; background: #856404; color: white; border: none; border-radius: 5px; cursor: pointer;">Close</button>
             </div>
         </div>
     </div>
+</div>
+    <!-- Void Reason Modal -->
+<div id="voidReasonModal" class="modal-qty" style="display:none;">
+    <div class="modal-qty-content" style="width:380px; text-align:left;">
+        <h4 style="margin-bottom:16px; font-size:16px;">✕ Void This Transaction</h4>
+        <p style="font-size:13px; color:#666; margin-bottom:12px;">
+            Walang mababawas na ingredients dahil hindi pa nasi-start ang blending.
+        </p>
+        <label style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">Reason:</label>
+        <select id="voidReasonSelect" class="form-control" style="margin-bottom:8px;" onchange="document.getElementById('voidReasonInput').value = this.value === 'Other' ? '' : this.value; document.getElementById('voidReasonOther').style.display = this.value === 'Other' ? 'block' : 'none';">
+            <option value="">-- Select Reason --</option>
+            <option value="Customer changed mind">Customer changed mind</option>
+            <option value="Wrong order entered">Wrong order entered</option>
+            <option value="Duplicate order">Duplicate order</option>
+            <option value="Price adjustment">Price adjustment</option>
+            <option value="Other">Other (specify below)</option>
+        </select>
+        <input type="text" id="voidReasonOther" class="form-control" placeholder="Specify reason..." style="display:none; margin-bottom:8px;" oninput="document.getElementById('voidReasonInput').value = this.value;">
+        <input type="hidden" id="voidReasonInput">
+        <div style="display:flex; gap:8px; margin-top:16px;">
+            <button onclick="document.getElementById('voidReasonModal').style.display='none'; document.getElementById('voidReasonSelect').value=''; document.getElementById('voidReasonOther').style.display='none';" style="flex:1; padding:10px; border-radius:8px; border:1px solid #ddd; background:#f5f5f5; cursor:pointer; font-size:13px;">Cancel</button>
+            <button onclick="submitVoidFromReceipt()" style="flex:1; padding:10px; border-radius:8px; border:none; background:#dc3545; color:white; cursor:pointer; font-size:13px; font-weight:600;">✕ Void Transaction</button>
+        </div>
+    </div>
+</div>
+
+<!-- Custom Confirmation Modal -->
+<div id="customConfirmModal" class="modal-qty" style="display: none;">
+    <div class="modal-qty-content" style="width: 350px; max-width: 90%;">
+        <div style="text-align: center;">
+            <div id="confirmIcon" style="font-size: 48px; margin-bottom: 10px;">❓</div>
+            <h4 id="confirmTitle" style="margin-bottom: 15px;">Confirm Action</h4>
+            <p id="confirmMessage" style="margin-bottom: 20px; color: #666;"></p>
+            <div style="display: flex; gap: 10px;">
+                <button id="confirmCancelBtn" class="btn-cancel" style="flex: 1; padding: 10px;">Cancel</button>
+                <button id="confirmOkBtn" class="btn-confirm" style="flex: 1; padding: 10px;">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Custom Alert Modal (for simple messages) -->
+<div id="customAlertModal" class="modal-qty" style="display: none;">
+    <div class="modal-qty-content" style="width: 320px; max-width: 90%;">
+        <div style="text-align: center;">
+            <div id="alertIcon" style="font-size: 48px; margin-bottom: 10px;">ℹ️</div>
+            <h4 id="alertTitle" style="margin-bottom: 15px;">Notice</h4>
+            <p id="alertMessage" style="margin-bottom: 20px; color: #666;"></p>
+            <button id="alertCloseBtn" class="btn-confirm" style="width: 100%; padding: 10px;">OK</button>
+        </div>
+    </div>
+</div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
-                // Cart array
+        // ============================================================
+        // STATE
+        // ============================================================
         let cart = [];
-
-        // Variables for modal
         let modalQuantity = 1;
         let currentMaxOrders = 0;
         let currentDiscountType = 'None';
@@ -949,172 +1243,133 @@
         let currentRefundOrderId = null;
         let pendingOwnerAction = null;
         let pendingOwnerData = null;
-    let queueRefreshInterval = null;
+        let isEditingMode = false;
+let editingOrderId = null;
 
-        // Show Size Modal
-              // Show Size Modal
-
-    // ========== ORDER QUEUE FUNCTIONS ==========
-
+        // ============================================================
+        // ORDER QUEUE
+        // ============================================================
         async function loadOrderQueue() {
-        try {
-        const response = await fetch('/Staff/GetActiveOrders');
-        const orders = await response.json();
-        
-        const container = document.getElementById('orderQueueList');
-        const countSpan = document.getElementById('queueCount');
-        
-        if (!container) return;
-        
-        // ✅ FILTER: Ipakita lang ang mga PENDING_PAYMENT (hindi pa nabe-blend)
-        const pendingOrders = orders.filter(o => o.status === 'PENDING_PAYMENT');
-        
-        if (countSpan) countSpan.innerText = pendingOrders.length;
-        
-        if (pendingOrders.length === 0) {
-        container.innerHTML = '<div class="text-center text-muted small">No pending orders to blend</div>';
-        return;
-        }
-        
-        let html = '';
-        
-        pendingOrders.forEach(order => {
-        let itemsHtml = '';
-        order.items.forEach(item => {
-        itemsHtml += `<div>• ${item.quantity}x ${item.productName} (${item.sizeName})</div>`;
-        });
-            
-        html += `
-        <div class="queue-item" data-order-id="${order.orderId}" style="background: #fff8e7; border-left-color: #ffc107;">
-        <div class="d-flex justify-content-between align-items-center">
-        <span class="queue-order-number">#${order.orderNumber}</span>
-        <span class="badge bg-warning" style="font-size: 9px;">PENDING</span>
-        </div>
-        <div class="queue-items">
-        ${itemsHtml}
-        </div>
-        <div class="d-flex justify-content-between align-items-center mt-1">
-        <span class="queue-total">₱${order.totalAmount.toFixed(2)}</span>
-        <button class="btn btn-warning btn-sm queue-btn" onclick="startBlendingFromQueue(${order.orderId})">
-        <i class="fas fa-blender"></i> Start Blending
-        </button>
-        </div>
-        </div>
-        `;
-        });
-        
-        container.innerHTML = html;
-        
-        } catch (error) {
-        console.error('Error loading queue:', error);
-        const container = document.getElementById('orderQueueList');
-        if (container) container.innerHTML = '<div class="text-center text-danger small">Error loading orders</div>';
-        }
+            try {
+                const response = await fetch('/Staff/GetActiveOrders');
+                const orders = await response.json();
+                const container = document.getElementById('orderQueueList');
+                const countSpan = document.getElementById('queueCount');
+                if (!container) return;
+                const pendingOrders = orders.filter(o => o.status === 'PENDING_PAYMENT');
+                if (countSpan) countSpan.innerText = pendingOrders.length;
+                if (pendingOrders.length === 0) {
+                    container.innerHTML = '<div class="text-center text-muted small">No pending orders to blend</div>';
+                    return;
+                }
+                let html = '';
+                pendingOrders.forEach(order => {
+                    let itemsHtml = '';
+                    order.items.forEach(item => {
+                        itemsHtml += `<div>• ${item.quantity}x ${item.productName} (${item.sizeName})</div>`;
+                    });
+                    html += `
+                        <div class="queue-item" data-order-id="${order.orderId}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="queue-order-number">#${order.orderNumber}</span>
+                                <span class="badge bg-warning" style="font-size: 9px;">PENDING</span>
+                            </div>
+                            <div class="queue-items">${itemsHtml}</div>
+                            <div class="d-flex justify-content-between align-items-center mt-1">
+                                <span class="queue-total">₱${order.totalAmount.toFixed(2)}</span>
+                                <button class="btn btn-warning btn-sm queue-btn" onclick="startBlendingFromQueue(${order.orderId})">
+                                   Start Blending
+                                </button>
+                            </div>
+                        </div>`;
+                });
+                container.innerHTML = html;
+            } catch (error) {
+                const container = document.getElementById('orderQueueList');
+                if (container) container.innerHTML = '<div class="text-center text-danger small">Error loading orders</div>';
+            }
         }
 
-    async function startBlendingFromQueue(orderId) {
-    if (!confirm(`Start blending order #${orderId}?\n\nIngredients will be deducted from inventory.`)) {
-    return;
-    }
+       async function startBlendingFromQueue(orderId) {
+    const confirmed = await showConfirm(`Start blending order #${orderId}?\n\nIngredients will be deducted from inventory.`, 'Start Blending');
+    if (!confirmed) return;
     
+    showLoading('Starting blending process...');
     const btn = event.target.closest('button');
     const originalText = btn.innerHTML;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
     btn.disabled = true;
-    
     try {
-    const response = await fetch('/Staff/StartBlending', {
-    method: 'POST',
-    headers: {
-    'Content-Type': 'application/json',
-    'RequestVerificationToken': getToken()
-    },
-    body: JSON.stringify({ orderId: orderId })
-    });
-        
-    const data = await response.json();
-        
-    if (data.success) {
-    alert('✅ ' + data.message);
-    await loadOrderQueue(); // Refresh the queue
-    // Also refresh the counter in cart footer if exists
-    const countSpan = document.getElementById('pendingOrderCount');
-    if (countSpan) {
-    const queueResponse = await fetch('/Staff/GetActiveOrders');
-    const orders = await queueResponse.json();
-    const pendingCount = orders.filter(o => o.status === 'PENDING_PAYMENT').length;
-    countSpan.innerText = pendingCount;
-    }
-    } else {
-    alert('❌ Error: ' + data.message);
-    btn.innerHTML = originalText;
-    btn.disabled = false;
-    }
+        const response = await fetch('/Staff/StartBlending', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() },
+            body: JSON.stringify({ orderId: orderId })
+        });
+        const data = await response.json();
+        hideLoading();
+        if (data.success) {
+            await showAlert('✅ ' + data.message, 'Success', '✅');
+            await loadOrderQueue();
+        } else {
+            await showAlert('❌ Error: ' + data.message, 'Error', '❌');
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
     } catch (error) {
-    alert('❌ Error: ' + error.message);
-    btn.innerHTML = originalText;
-    btn.disabled = false;
+        hideLoading();
+        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
     }
+}
+
+        function refreshQueue() { loadOrderQueue(); }
+
+        if (document.getElementById('orderQueueList')) {
+            loadOrderQueue();
+            setInterval(loadOrderQueue, 5000);
+        }
+
+        // ============================================================
+        // SIZE / QTY MODALS
+        // ============================================================
+       async function showSizeModal(productId, productName) {
+    const response = await fetch(`/Staff/GetProductWithSizes?productId=${productId}`);
+    const data = await response.json();
+    if (!data.success) { 
+        await showAlert('Error loading product sizes', 'Error', '❌');
+        return; 
     }
-
-    function refreshQueue() {
-    loadOrderQueue();
-    }
-
-    // Start auto-refresh queue every 5 seconds
-    if (document.getElementById('orderQueueList')) {
-    loadOrderQueue();
-    setInterval(loadOrderQueue, 5000);
-    }
-
-              async function showSizeModal(productId, productName) {
-            const response = await fetch(`/Staff/GetProductWithSizes?productId=${productId}`);
-            const data = await response.json();
-
-            console.log('API Response:', data);
-
-            if (!data.success) {
-                alert('Error loading product sizes');
-                return;
-            }
-
-            document.getElementById('sizeModalProductName').innerText = data.productName;
-
-            let sizesHtml = '';
-            for (const size of data.sizes) {
-                const stockValue = size.stock;
-                const stockStatus = stockValue > 0 ? `✅ Stock: ${stockValue}` : '❌ Out of Stock';
-                const disabledClass = stockValue <= 0 ? 'opacity-50' : '';
-
-                sizesHtml += `
-                    <div class="size-option ${disabledClass}" style="border: 1px solid #ddd; border-radius: 12px; padding: 15px; margin-bottom: 10px; cursor: ${stockValue > 0 ? 'pointer' : 'not-allowed'};"
-                         onclick="${stockValue > 0 ? `selectSize(${size.productSizeId}, '${size.sizeName}', ${size.price}, ${stockValue})` : ''}">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <strong style="font-size: 16px;">${size.sizeName}</strong>
-                                <div style="font-size: 12px; color: #666;">${stockStatus}</div>
-                            </div>
-                            <div style="font-size: 20px; font-weight: bold; color: #ff6b35;">₱${size.price.toFixed(2)}</div>
-                        </div>
+    document.getElementById('sizeModalProductName').innerText = data.productName;
+    let sizesHtml = '';
+    for (const size of data.sizes) {
+        const stockValue = size.stock;
+        const stockStatus = stockValue > 0 ? `✅ Stock: ${stockValue}` : '❌ Out of Stock';
+        const disabledClass = stockValue <= 0 ? 'opacity-50' : '';
+        const isAvailable = stockValue > 0;
+        
+        // IMPORTANT: I-escape ang mga special characters sa sizeName
+        const safeSizeName = size.sizeName.replace(/'/g, "\\'");
+        
+        sizesHtml += `
+            <div class="size-option ${disabledClass}" style="border: 1px solid #ddd; border-radius: 12px; padding: 15px; margin-bottom: 10px; cursor: ${isAvailable ? 'pointer' : 'not-allowed'};"
+                 ${isAvailable ? `onclick="selectSize(${size.productSizeId}, '${safeSizeName}', ${size.price}, ${stockValue})"` : ''}>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong style="font-size: 16px;">${escapeHtml(size.sizeName)}</strong>
+                        <div style="font-size: 12px; color: #666;">${stockStatus}</div>
                     </div>
-                `;
-            }
-
-            document.getElementById('sizeOptionsList').innerHTML = sizesHtml;
-            document.getElementById('sizeModal').style.display = 'flex';
-        }
-
-        function closeSizeModal() {
-            document.getElementById('sizeModal').style.display = 'none';
-        }
+                    <div style="font-size: 20px; font-weight: bold; color: #ff6b35;">₱${size.price.toFixed(2)}</div>
+                </div>
+            </div>`;
+    }
+    document.getElementById('sizeOptionsList').innerHTML = sizesHtml;
+    document.getElementById('sizeModal').style.display = 'flex';
+}
+        function closeSizeModal() { document.getElementById('sizeModal').style.display = 'none'; }
 
         function selectSize(productSizeId, sizeName, price, stock) {
-            tempSelectedSize = {
-                productSizeId: productSizeId,
-                sizeName: sizeName,
-                price: price,
-                stock: stock
-            };
+            tempSelectedSize = { productSizeId, sizeName, price, stock };
             modalQuantity = 1;
             document.getElementById('modalProductName').innerHTML = `${sizeName} - ₱${price.toFixed(2)}`;
             document.getElementById('modalQty').innerHTML = '1';
@@ -1131,39 +1386,28 @@
         }
 
         function decrementModalQty() {
-            if (modalQuantity > 1) {
-                modalQuantity--;
-                document.getElementById('modalQty').innerHTML = modalQuantity;
-            }
+            if (modalQuantity > 1) { modalQuantity--; document.getElementById('modalQty').innerHTML = modalQuantity; }
         }
-
         function incrementModalQty() {
-            if (modalQuantity < currentMaxOrders) {
-                modalQuantity++;
-                document.getElementById('modalQty').innerHTML = modalQuantity;
-            } else if (currentMaxOrders > 0) {
-                alert(`Maximum available is ${currentMaxOrders} order(s).`);
-            }
-        }
-
-        function closeQuantityModal() {
-            document.getElementById('quantityModal').style.display = 'none';
-            tempSelectedSize = null;
-        }
+    if (modalQuantity < currentMaxOrders) { 
+        modalQuantity++; 
+        document.getElementById('modalQty').innerHTML = modalQuantity; 
+    } else if (currentMaxOrders > 0) {
+        showAlert(`Maximum available is ${currentMaxOrders} order(s).`, 'Limit Reached', '⚠️');
+    }
+}
+        function closeQuantityModal() { document.getElementById('quantityModal').style.display = 'none'; tempSelectedSize = null; }
 
         async function confirmAddToCart() {
-            if (!tempSelectedSize) return;
-
-            const response = await fetch(`/Staff/CheckAvailability?productSizeId=${tempSelectedSize.productSizeId}&quantity=${modalQuantity}`);
-            const data = await response.json();
-
-            if (!data.available) {
-                alert(`❌ Cannot add to cart:\n${data.message}`);
-                closeQuantityModal();
-                tempSelectedSize = null;
-                return;
-            }
-
+           if (!tempSelectedSize) return;
+    const response = await fetch(`/Staff/CheckAvailability?productSizeId=${tempSelectedSize.productSizeId}&quantity=${modalQuantity}`);
+    const data = await response.json();
+    if (!data.available) { 
+        await showAlert(`❌ Cannot add to cart:\n${data.message}`, 'Not Available', '❌');
+        closeQuantityModal(); 
+        tempSelectedSize = null; 
+        return; 
+    }
             const existingIndex = cart.findIndex(item => item.productSizeId === tempSelectedSize.productSizeId);
             if (existingIndex !== -1) {
                 cart[existingIndex].quantity += modalQuantity;
@@ -1176,30 +1420,33 @@
                     quantity: modalQuantity
                 });
             }
-
             updateCartDisplay();
             closeQuantityModal();
             tempSelectedSize = null;
         }
 
-                       function updateCartDisplay() {
+        // ============================================================
+        // CART DISPLAY — redesigned
+        // ============================================================
+        function updateCartDisplay() {
             const cartDiv = document.getElementById('cartItems');
             const totalSpan = document.getElementById('cartTotal');
+            const discountLine = document.getElementById('discountLine');
 
             if (cart.length === 0) {
-                cartDiv.innerHTML = '<div class="empty-cart"><div style="font-size: 48px; margin-bottom: 10px;">🛍️</div><p>No items in cart</p></div>';
+                cartDiv.innerHTML = '<div class="empty-cart"><div class="empty-icon">🛍️</div><p>No items in cart</p></div>';
                 totalSpan.innerHTML = '₱0.00';
-        currentDiscountType = 'None';
-        currentDiscountPercent = 0;
-        currentDiscountedTotal = 0;
-        document.getElementById('selectedDiscountDisplay').innerHTML = '';
-        updateDiscountPanelHighlight();
-        return;
+                if (discountLine) discountLine.style.display = 'none';
+                currentDiscountType = 'None';
+                currentDiscountPercent = 0;
+                currentDiscountedTotal = 0;
+                document.getElementById('selectedDiscountDisplay').innerHTML = '';
+                updateDiscountBtnHighlight();
+                return;
             }
 
             let html = '';
             let total = 0;
-
             cart.forEach((item, index) => {
                 const itemTotal = item.price * item.quantity;
                 total += itemTotal;
@@ -1208,19 +1455,18 @@
                         <div class="cart-item-info">
                             <div class="cart-item-name">${escapeHtml(item.productName)}</div>
                             <div class="cart-item-size">${item.sizeName}</div>
-                            <div class="cart-item-price">₱${item.price.toFixed(2)}</div>
+                            <div class="cart-item-unitprice">₱${item.price.toFixed(2)} each</div>
                         </div>
-                        <div class="cart-item-qty">
-                            <button class="qty-btn" onclick="updateCartItemQty(${index}, ${item.quantity - 1})">-</button>
-                            <span>${item.quantity}</span>
-                            <button class="qty-btn" onclick="updateCartItemQty(${index}, ${item.quantity + 1})">+</button>
+                        <div class="cart-item-right">
+                            <span class="cart-item-total">₱${itemTotal.toFixed(2)}</span>
+                            <div class="cart-item-qty">
+                                <button class="qty-btn" onclick="updateCartItemQty(${index}, ${item.quantity - 1})">−</button>
+                                <span class="qty-display">${item.quantity}</span>
+                                <button class="qty-btn" onclick="updateCartItemQty(${index}, ${item.quantity + 1})">+</button>
+                            </div>
+                            <span class="remove-item" onclick="removeFromCart(${index})" title="Remove">✕</span>
                         </div>
-                        <div class="cart-item-total">
-                            ₱${itemTotal.toFixed(2)}
-                        </div>
-                        <div class="remove-item" onclick="removeFromCart(${index})">✕</div>
-                    </div>
-                `;
+                    </div>`;
             });
 
             currentCartTotal = total;
@@ -1228,182 +1474,34 @@
 
             cartDiv.innerHTML = html;
 
-            let discountText = '';
+            // Update total display
             if (currentDiscountPercent > 0) {
-                discountText = `<small style="font-size: 11px; color: #dc3545;"> (${currentDiscountPercent * 100}% off - ${currentDiscountType})</small>`;
+                totalSpan.innerHTML = `₱${currentDiscountedTotal.toFixed(2)}`;
+                if (discountLine) {
+                    discountLine.style.display = 'flex';
+                    discountLine.innerHTML = `<span>${currentDiscountType} (${currentDiscountPercent * 100}% off)</span><span>−₱${(currentCartTotal - currentDiscountedTotal).toFixed(2)}</span>`;
+                }
+            } else {
+                totalSpan.innerHTML = `₱${total.toFixed(2)}`;
+                if (discountLine) discountLine.style.display = 'none';
             }
-            totalSpan.innerHTML = `₱${currentDiscountedTotal.toFixed(2)}${discountText}`;
         }
 
-                function updateDiscountPanelHighlight() {
-            const discountBtns = document.querySelectorAll('#discountPanel .discount-btn');
-            discountBtns.forEach(btn => {
-                btn.classList.remove('btn-warning');
-                btn.classList.add('btn-outline-primary');
-
+        function updateDiscountBtnHighlight() {
+            document.querySelectorAll('.discount-btn-pill').forEach(btn => {
                 const btnType = btn.getAttribute('data-discount-type');
                 const btnPercent = parseFloat(btn.getAttribute('data-discount-percent') || 0);
-
-                if (currentDiscountType === btnType && currentDiscountPercent === btnPercent) {
-                    btn.classList.remove('btn-outline-primary');
-                    btn.classList.add('btn-warning');
-                }
+                btn.classList.toggle('active', currentDiscountType === btnType && currentDiscountPercent === btnPercent);
             });
-
             const displayDiv = document.getElementById('selectedDiscountDisplay');
             if (currentDiscountPercent > 0) {
-                displayDiv.innerHTML = `<span class="text-success">✓ ${currentDiscountType} (${currentDiscountPercent * 100}% discount applied)</span>`;
+                displayDiv.innerHTML = `<div class="discount-applied">✓ ${currentDiscountType} discount applied</div>`;
             } else {
                 displayDiv.innerHTML = '';
             }
         }
 
-        async function updateCartItemQty(index, newQty) {
-            if (newQty <= 0) {
-                removeFromCart(index);
-                return;
-            }
-
-            const item = cart[index];
-            const response = await fetch(`/Staff/CheckAvailability?productSizeId=${item.productSizeId}&quantity=${newQty}`);
-            const data = await response.json();
-
-            if (!data.available) {
-                alert(`❌ Cannot update quantity:\n${data.message}`);
-                return;
-            }
-
-            cart[index].quantity = newQty;
-            updateCartDisplay();
-        }
-
-        function removeFromCart(index) {
-            cart.splice(index, 1);
-            updateCartDisplay();
-        }
-
-                function clearCart() {
-            if (cart.length === 0) return;
-            if (confirm('Clear all items from cart?')) {
-                cart = [];
-                currentDiscountType = 'None';
-                currentDiscountPercent = 0;
-                pendingPaymentMethod = null;
-                updateCartDisplay();
-            }
-        }
-        
-        function confirmOrder() {
-            // This function is now handled by prepareCheckout() and showReviewModal()
-            // Keep this as a fallback
-            if (cart.length === 0) {
-                alert('Cart is empty!');
-                return;
-            }
-            prepareCheckout();
-        }
-
-
-        function getToken() {
-            const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
-            return tokenInput ? tokenInput.value : '';
-        }
-
-        function updateDateTime() {
-            const now = new Date();
-            const timeEl = document.getElementById('currentTime');
-            const dateEl = document.getElementById('currentDate');
-            if (timeEl) timeEl.innerHTML = now.toLocaleTimeString();
-            if (dateEl) {
-                dateEl.innerHTML = now.toLocaleDateString('en-US', {
-                    weekday: 'short',
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric'
-                });
-            }
-        }
-        setInterval(updateDateTime, 1000);
-        updateDateTime();
-
-        // Attendance Functions
-        function checkAttendanceStatus() {
-            fetch('/Staff/GetTodayAttendance')
-                .then(res => res.json())
-                .then(data => {
-                    const timeInBtn = document.getElementById('timeInBtn');
-                    const timeOutBtn = document.getElementById('timeOutBtn');
-                    const statusBadge = document.getElementById('attendanceStatusBadge');
-                    const hoursDisplay = document.getElementById('todayHoursDisplay');
-                    if (data.isClockedIn) {
-                        timeInBtn.style.display = 'none';
-                        timeOutBtn.style.display = 'inline-block';
-                        statusBadge.className = 'badge bg-success ms-2';
-                        statusBadge.innerText = '🟢 Clocked In';
-                        if (hoursDisplay) hoursDisplay.innerText = data.hoursToday;
-                    } else if (data.hasClockedOut) {
-                        timeInBtn.style.display = 'none';
-                        timeOutBtn.style.display = 'none';
-                        statusBadge.className = 'badge bg-secondary ms-2';
-                        statusBadge.innerText = '🔴 Completed';
-                        if (hoursDisplay) hoursDisplay.innerText = data.hoursToday;
-                    } else {
-                        timeInBtn.style.display = 'inline-block';
-                        timeOutBtn.style.display = 'none';
-                        statusBadge.className = 'badge bg-secondary ms-2';
-                        statusBadge.innerText = '⭕ Not Clocked In';
-                        if (hoursDisplay) hoursDisplay.innerText = '0.0';
-                        showAttendanceReminder();
-                    }
-                });
-        }
-
-        let reminderShown = false;
-        function showAttendanceReminder() {
-            if (reminderShown) return;
-            reminderShown = true;
-            const modal = new bootstrap.Modal(document.getElementById('attendanceReminderModal'));
-            modal.show();
-            setTimeout(() => { reminderShown = false; checkAttendanceStatus(); }, 300000);
-        }
-
-        function timeInFromReminder() {
-            const modal = bootstrap.Modal.getInstance(document.getElementById('attendanceReminderModal'));
-            modal.hide();
-            timeIn();
-        }
-
-        function timeIn() {
-            fetch('/Staff/TimeIn', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() }
-            })
-            .then(res => res.json())
-            .then(data => { if (data.success) { alert(data.message); checkAttendanceStatus(); } else { alert('❌ ' + data.message); } });
-        }
-
-        function timeOut() {
-            if (!confirm('End your shift?')) return;
-            fetch('/Staff/TimeOut', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() }
-            })
-            .then(res => res.json())
-            .then(data => { if (data.success) { alert(data.message); checkAttendanceStatus(); } else { alert('❌ ' + data.message); } });
-        }
-
-        function filterByCategory(category) {
-            document.querySelectorAll('.category-item').forEach(item => item.classList.remove('active'));
-            event.target.classList.add('active');
-            document.querySelectorAll('.product-card').forEach(product => {
-                const productCategory = product.getAttribute('data-category');
-                product.style.display = (category === 'all' || productCategory === category) ? '' : 'none';
-            });
-        }
-                // ========== NEW FUNCTIONS ==========
-
-               function selectDiscount(type, percent) {
-            // Kung same discount ang pinili, i-remove (toggle off)
+        function selectDiscount(type, percent) {
             if (currentDiscountType === type && currentDiscountPercent === percent) {
                 currentDiscountType = 'None';
                 currentDiscountPercent = 0;
@@ -1411,31 +1509,81 @@
                 currentDiscountType = type;
                 currentDiscountPercent = percent;
             }
-
             currentDiscountedTotal = currentCartTotal * (1 - currentDiscountPercent);
             updateCartDisplay();
-            updateDiscountPanelHighlight();
+            updateDiscountBtnHighlight();
         }
 
-                function prepareCheckout() {
-            if (cart.length === 0) {
-                alert('Cart is empty!');
-                return;
-            }
+        async function updateCartItemQty(index, newQty) {
+    if (newQty <= 0) { removeFromCart(index); return; }
+    const item = cart[index];
+    const response = await fetch(`/Staff/CheckAvailability?productSizeId=${item.productSizeId}&quantity=${newQty}`);
+    const data = await response.json();
+    if (!data.available) { 
+        await showAlert(`❌ Cannot update quantity:\n${data.message}`, 'Not Available', '❌');
+        return; 
+    }
+    cart[index].quantity = newQty;
+    updateCartDisplay();
+}
 
-            // I-store ang napiling payment method
-            const btn = event.target;
-            if (btn.innerText.includes('Cash')) {
-                pendingPaymentMethod = 'Cash';
-            } else if (btn.innerText.includes('GCash')) {
-                pendingPaymentMethod = 'GCash';
-            }
+        function removeFromCart(index) { cart.splice(index, 1); updateCartDisplay(); }
 
-            // Ipakita ang review modal para i-double check
-            showReviewModal();
-        }
-                         async function processFinalOrder() {
+        async function clearCart() {
+    if (cart.length === 0) return;
+    const confirmed = await showConfirm('Clear all items from cart?', 'Clear Cart');
+    if (confirmed) {
+        cart = [];
+        currentDiscountType = 'None';
+        currentDiscountPercent = 0;
+        pendingPaymentMethod = null;
+        updateCartDisplay();
+    }
+}
+
+        // ============================================================
+        // CHECKOUT FLOW
+        // ============================================================
+        async function confirmOrder() {
+    if (cart.length === 0) { 
+        await showAlert('Cart is empty!', 'Cannot Confirm');
+        return; 
+    }
+    if (!pendingPaymentMethod) { 
+        await showAlert('Please select a payment method (Cash or GCash).', 'Payment Required');
+        return; 
+    }
+    showReviewModal();
+}
+
+        async function prepareCheckout(btn) {
+    if (cart.length === 0) { 
+        await showAlert('Cart is empty!', 'Cannot Select Payment', '⚠️');
+        return; 
+    }
+
+    // Highlight active payment button
+    document.querySelectorAll('.payment-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    if (btn.innerText.includes('Cash')) {
+        pendingPaymentMethod = 'Cash';
+    } else if (btn.innerText.includes('GCash')) {
+        pendingPaymentMethod = 'GCash';
+    }
+}
+
+        // ============================================================
+// PROCESS FINAL ORDER (Supports both New Order and Edit Mode)
+// ============================================================
+async function processFinalOrder() {
     const paymentMethod = pendingPaymentMethod;
+    
+   if (!paymentMethod) {
+    await showAlert('Please select a payment method (Cash or GCash)', 'Payment Required');
+    return;
+}
+    
     closeReviewModal();
 
     const checkoutBtn = document.getElementById('checkoutBtn');
@@ -1444,277 +1592,107 @@
     checkoutBtn.disabled = true;
 
     const token = getToken();
-    let orderDetails = [];
-    let lastOrderId = null;
-    let allSuccessful = true;
-
+    
     try {
-        for (const item of cart) {
-            const response = await fetch('/Staff/PlaceOrder', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': token
-                },
-                body: JSON.stringify({
-                    productSizeId: item.productSizeId,
-                    quantity: item.quantity,
-                    orderNumber: `POS-${Date.now()}`,
-                    paymentMethod: paymentMethod,
-                    discountType: currentDiscountType,
-                    discountPercent: currentDiscountPercent
-                })
-            });
-
-            const data = await response.json();
-            if (!data.success) {
-                allSuccessful = false;
-                alert(`❌ Error with ${item.productName}: ${data.message}`);
-                break;
-            }
-            lastOrderId = data.orderId;  // ← Kunin ang orderId
-            orderDetails.push({
-                name: item.productName,
-                size: item.sizeName,
-                quantity: item.quantity,
-                price: item.price,
-                subtotal: item.price * item.quantity
-            });
+        // Check if we're in edit mode
+        if (window.isEditingMode && window.originalOrderId) {
+            await updateExistingOrder();
+        } else {
+            // Normal order creation
+            await createNewOrder();
         }
-
-        if (allSuccessful && orderDetails.length > 0) {
-            const discountSavings = currentCartTotal - currentDiscountedTotal;
-            
-            // ✅ Pass the orderId to receipt modal
-            showReceiptModal(
-                orderDetails, 
-                paymentMethod, 
-                currentDiscountType, 
-                currentDiscountPercent, 
-                discountSavings, 
-                currentDiscountedTotal,
-                lastOrderId,      // ← ORDER ID
-                'PENDING_PAYMENT'
-            );
-
-            cart = [];
-            currentDiscountType = 'None';
-            currentDiscountPercent = 0;
-            pendingPaymentMethod = null;
-            updateCartDisplay();
-        }
+        
     } catch (error) {
-        alert('❌ Error processing order: ' + error.message);
-    } finally {
+    console.error('Error:', error);
+    await showAlert('❌ Error processing order: ' + error.message, 'Error', '❌');
+} finally {
         checkoutBtn.innerHTML = originalText;
         checkoutBtn.disabled = false;
     }
 }
 
-        async function startBlending(orderId) {
-            if (!confirm('⚠️ START BLENDING?\n\nOnce you click OK:\n• Ingredients will be DEDUCTED from inventory\n• This action cannot be undone without Owner approval\n\nContinue?')) {
-                return;
-            }
+async function createNewOrder() {
+    const paymentMethod = pendingPaymentMethod;
+    const token = getToken();
+    let orderDetails = [];
+    let lastOrderId = null;
+    let allSuccessful = true;
 
-            const btn = document.getElementById('startBlendingBtn');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
-            btn.disabled = true;
-
-            try {
-                const response = await fetch('/Staff/StartBlending', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'RequestVerificationToken': getToken()
-                    },
-                    body: JSON.stringify({ orderId: orderId })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    alert('✅ ' + data.message);
-                    btn.innerHTML = '✅ Blending Started!';
-                    btn.classList.remove('btn-warning');
-                    btn.classList.add('btn-success');
-                    btn.disabled = true;
-
-                    // Update receipt status
-                    const statusBadge = document.querySelector('#receiptContent .badge');
-                    if (statusBadge) {
-                        statusBadge.innerText = 'COMPLETED';
-                        statusBadge.classList.remove('bg-warning');
-                        statusBadge.classList.add('bg-success');
-                    }
-
-                    // Auto-close after 3 seconds
-                    setTimeout(() => {
-                        closeReceiptModal();
-                    }, 3000);
-                } else {
-                    alert('❌ Error: ' + data.message);
-                    btn.innerHTML = originalText;
-                    btn.disabled = false;
-                }
-            } catch (error) {
-                alert('❌ Error: ' + error.message);
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
+    for (const item of cart) {
+        const response = await fetch('/Staff/PlaceOrder', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'RequestVerificationToken': token 
+            },
+            body: JSON.stringify({
+                productSizeId: item.productSizeId,
+                quantity: item.quantity,
+                orderNumber: `POS-${Date.now()}`,
+                paymentMethod: paymentMethod,
+                discountType: currentDiscountType,
+                discountPercent: currentDiscountPercent
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+            allSuccessful = false;
+            await showAlert(`❌ Error with ${item.productName}: ${data.message}`, 'Order Failed', '❌');
+            break;
         }
+        
+        lastOrderId = data.orderId;
+        orderDetails.push({
+            name: item.productName,
+            size: item.sizeName,
+            quantity: item.quantity,
+            price: item.price,
+            subtotal: item.price * item.quantity
+        });
+    }
 
-async function processOrder(paymentMethod) {
-            if (cart.length === 0) {
-                alert('Cart is empty!');
-                return;
-            }
+    if (allSuccessful && orderDetails.length > 0) {
+        const discountSavings = currentCartTotal - currentDiscountedTotal;
+        
+        showReceiptModal(
+            orderDetails, 
+            paymentMethod, 
+            currentDiscountType, 
+            currentDiscountPercent, 
+            discountSavings, 
+            currentDiscountedTotal, 
+            lastOrderId, 
+            'PENDING_PAYMENT'
+        );
+        
+        window.lastClosedOrderId = lastOrderId;
+        
+        cart = [];
+        currentDiscountType = 'None';
+        currentDiscountPercent = 0;
+        pendingPaymentMethod = null;
+        window.isEditingMode = false;
+        
+        document.querySelectorAll('.payment-btn').forEach(b => b.classList.remove('active'));
+        updateCartDisplay();
+        updateDiscountBtnHighlight();
+        await loadOrderQueue();
+        
+    } else if (!allSuccessful) {
+        await showAlert('❌ Order failed. Please try again.', 'Order Failed', '❌');
+    }
+}
 
-            const checkoutBtn = document.getElementById('checkoutBtn');
-            const originalText = checkoutBtn.innerHTML;
-            checkoutBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
-            checkoutBtn.disabled = true;
-
-            const token = getToken();
-            let orderDetails = [];
-            let allSuccessful = true;
-
-            try {
-                for (const item of cart) {
-                    const response = await fetch('/Staff/PlaceOrder', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'RequestVerificationToken': token
-                        },
-                        body: JSON.stringify({
-                            productSizeId: item.productSizeId,
-                            quantity: item.quantity,
-                            orderNumber: `POS-${Date.now()}`
-                        })
-                    });
-
-                    const data = await response.json();
-                    if (!data.success) {
-                        allSuccessful = false;
-                        showConfirmationPanel(null, null, null, null, 0, 0, `❌ Error: ${data.message}`);
-                        break;
-                    }
-                    orderDetails.push({
-                        name: item.productName,
-                        size: item.sizeName,
-                        quantity: item.quantity,
-                        price: item.price,
-                        subtotal: item.price * item.quantity
-                    });
-                }
-
-                if (allSuccessful && orderDetails.length > 0) {
-                    const discountSavings = currentCartTotal - currentDiscountedTotal;
-
-                    // Show confirmation panel
-                    showConfirmationPanel(orderDetails, paymentMethod, currentDiscountType, currentDiscountPercent, discountSavings, currentDiscountedTotal);
-
-                    // Show receipt popup
-                    showReceiptModal(orderDetails, paymentMethod, currentDiscountType, currentDiscountPercent, discountSavings, currentDiscountedTotal);
-
-                    // Clear cart and reset discount
-                    cart = [];
-                    currentDiscountType = 'None';
-                    currentDiscountPercent = 0;
-                    updateCartDisplay();
-                }
-            } catch (error) {
-                showConfirmationPanel(null, null, null, null, 0, 0, `❌ Error: ${error.message}`);
-            } finally {
-                checkoutBtn.innerHTML = originalText;
-                checkoutBtn.disabled = false;
-            }
-        }
-
-        function showConfirmationPanel(orderDetails, paymentMethod, discountType, discountPercent, discountSavings, total, errorMessage) {
-            const panel = document.getElementById('confirmationPanel');
-            const detailsDiv = document.getElementById('confirmationDetails');
-
-            if (!panel || !detailsDiv) return;
-
-            if (errorMessage) {
-                detailsDiv.innerHTML = `
-                    <div style="color: #721c24;">
-                        <strong>${escapeHtml(errorMessage)}</strong>
-                    </div>
-                `;
-            } else {
-                let itemsHtml = '';
-                orderDetails.forEach(item => {
-                    itemsHtml += `
-                        <div class="confirmation-item">
-                            <div>
-                                <strong>${escapeHtml(item.name)}</strong>
-                                <small>(${item.size})</small>
-                                <div style="font-size: 11px; color: #666;">x${item.quantity}</div>
-                            </div>
-                            <div>₱${item.subtotal.toFixed(2)}</div>
-                        </div>
-                    `;
-                });
-
-                let discountHtml = '';
-                if (discountPercent > 0) {
-                    discountHtml = `
-                        <div style="display: flex; justify-content: space-between; font-size: 13px; color: #dc3545; margin-top: 8px;">
-                            <span>Discount (${discountType} ${discountPercent * 100}%):</span>
-                            <span>-₱${discountSavings.toFixed(2)}</span>
-                        </div>
-                    `;
-                }
-
-                detailsDiv.innerHTML = `
-                    <div style="margin-bottom: 8px;">
-                        <small>💰 Payment: ${paymentMethod}</small>
-                        <small class="float-end">${new Date().toLocaleTimeString()}</small>
-                    </div>
-                    ${itemsHtml}
-                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #c3e6cb;">
-                        <div style="display: flex; justify-content: space-between;">
-                            <strong>Subtotal:</strong>
-                            <strong>₱${currentCartTotal.toFixed(2)}</strong>
-                        </div>
-                        ${discountHtml}
-                        <div style="display: flex; justify-content: space-between; margin-top: 8px;">
-                            <strong style="font-size: 14px;">TOTAL PAID:</strong>
-                            <strong style="font-size: 14px; color: #155724;">₱${total.toFixed(2)}</strong>
-                        </div>
-                    </div>
-                    <div style="margin-top: 10px; text-align: center;">
-                        <small class="text-muted">📱 Receipt has been generated</small>
-                    </div>
-                `;
-            }
-
-            panel.style.display = 'block';
-
-            // Auto-hide after 8 seconds
-            setTimeout(() => {
-                if (panel && panel.style.display === 'block') {
-                    panel.style.display = 'none';
-                }
-            }, 8000);
-        }
-
-        function hideConfirmationPanel() {
-            const panel = document.getElementById('confirmationPanel');
-            if (panel) panel.style.display = 'none';
-        }
-
-                    function showReceiptModal(orderDetails, paymentMethod, discountType, discountPercent, discountSavings, total, orderId, orderStatus) {
+        // ============================================================
+        // RECEIPT MODAL — with Void Transaction button
+        // ============================================================
+        function showReceiptModal(orderDetails, paymentMethod, discountType, discountPercent, discountSavings, total, orderId, orderStatus) {
             const receiptDiv = document.getElementById('receiptContent');
             const now = new Date();
 
-            // Store order ID for actions
-            if (orderId) {
-                window.currentOrderId = orderId;
-            }
+            if (orderId) window.currentOrderId = orderId;
 
             let itemsHtml = '';
             orderDetails.forEach(item => {
@@ -1725,8 +1703,7 @@ async function processOrder(paymentMethod) {
                             <small>${item.size} × ${item.quantity}</small>
                         </div>
                         <div>₱${item.subtotal.toFixed(2)}</div>
-                    </div>
-                `;
+                    </div>`;
             });
 
             let discountHtml = '';
@@ -1735,19 +1712,18 @@ async function processOrder(paymentMethod) {
                     <div class="receipt-discount">
                         <span>${discountType} (${discountPercent * 100}% OFF)</span>
                         <span>-₱${discountSavings.toFixed(2)}</span>
-                    </div>
-                `;
+                    </div>`;
             }
 
             receiptDiv.innerHTML = `
-                <div class="receipt-header">
-                    <div><strong>${now.toLocaleDateString()}</strong></div>
-                    <div>${now.toLocaleTimeString()}</div>
-                    <div><small>Order #: ${orderId || 'N/A'}</small></div>
+                <div style="text-align:center; margin-bottom: 12px;">
+                    <div style="font-weight:600;">${now.toLocaleDateString()}</div>
+                    <div style="font-size: 13px; color: #888;">${now.toLocaleTimeString()}</div>
+                    <div style="font-size: 12px; color: #aaa;">Order #: ${orderId || 'N/A'}</div>
                 </div>
-                <div style="margin-bottom: 10px;">
-                    <strong>Order Summary</strong>
-                    <span class="badge bg-warning ms-2">PENDING BLENDING</span>
+                <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                    <strong style="font-size: 14px;">Order Summary</strong>
+                    <span class="badge bg-warning text-dark">PENDING BLENDING</span>
                 </div>
                 ${itemsHtml}
                 <div class="receipt-subtotal">
@@ -1759,39 +1735,672 @@ async function processOrder(paymentMethod) {
                     <span>TOTAL PAID</span>
                     <span>₱${total.toFixed(2)}</span>
                 </div>
-                <div style="margin-top: 15px; text-align: center; padding-top: 10px; border-top: 1px dashed #ccc;">
+                <div style="margin-top: 12px; padding: 10px; background: #f9f9f9; border-radius: 8px; font-size: 13px;">
                     <div>Payment: <strong>${paymentMethod}</strong></div>
-                    <div style="margin-top: 5px;">✅ Payment Received: ₱${total.toFixed(2)}</div>
-                    <hr>
-                    <button id="startBlendingBtn" class="btn btn-warning btn-sm w-100" onclick="startBlending(${orderId})">
-                        🥤 START BLENDING (Deduct Ingredients)
-                    </button>
-                    <small class="text-muted d-block mt-1">⚠️ Click this ONLY when you start preparing/blending the order.<br>Once clicked, ingredients will be deducted and cannot be undone without Owner approval.</small>
-                </div>
-            `;
+                    <div style="margin-top: 4px; color: #28a745;">✅ Payment Received: ₱${total.toFixed(2)}</div>
+                </div>`;
+
+            // Show action area with both buttons
+            const actionArea = document.getElementById('receiptActionArea');
+            const startBtn = document.getElementById('startBlendingBtn');
+            const voidBtn = document.getElementById('voidReceiptBtn');
+            if (actionArea) actionArea.style.display = 'flex';
+            if (startBtn) { startBtn.disabled = false; startBtn.innerHTML = ' START BLENDING (Deduct Ingredients)'; }
+            if (voidBtn) voidBtn.style.display = 'block';
 
             document.getElementById('receiptModal').style.display = 'flex';
+            loadOrderQueue();
         }
-                function closeReceiptModal() {
+
+        function closeReceiptModal() {
             document.getElementById('receiptModal').style.display = 'none';
         }
 
-        function escapeHtml(str) {
-            if (!str) return '';
-            return String(str).replace(/[&<>]/g, function(m) {
-                if (m === '&') return '&amp;';
-                if (m === '<') return '&lt;';
-                if (m === '>') return '&gt;';
-                return m;
-            });
+       async function startBlending(orderId) {
+    const confirmed = await showConfirm(
+        '⚠️ START BLENDING?\n\nOnce you click OK:\n• Ingredients will be DEDUCTED from inventory\n• This action cannot be undone without Owner approval\n\nContinue?',
+        'Start Blending Confirmation'
+    );
+    
+    if (!confirmed) return;
+
+    showLoading('Starting blending process...');
+    const btn = document.getElementById('startBlendingBtn');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch('/Staff/StartBlending', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() },
+            body: JSON.stringify({ orderId: orderId })
+        });
+        const data = await response.json();
+        hideLoading();
+
+        if (data.success) {
+            const voidBtn = document.getElementById('voidReceiptBtn');
+            if (voidBtn) voidBtn.style.display = 'none';
+
+            btn.innerHTML = '✅ Blending Started!';
+            btn.style.background = '#28a745';
+            btn.style.color = 'white';
+            btn.disabled = true;
+
+            const statusBadge = document.querySelector('#receiptContent .badge');
+            if (statusBadge) {
+                statusBadge.innerText = 'COMPLETED';
+                statusBadge.classList.remove('bg-warning', 'text-dark');
+                statusBadge.classList.add('bg-success');
+            }
+
+            await loadOrderQueue();
+            await showAlert('✅ Blending started successfully!', 'Success', '✅');
+            setTimeout(() => { closeReceiptModal(); }, 3000);
+        } else {
+            await showAlert('❌ Error: ' + data.message, 'Error', '❌');
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    } catch (error) {
+        hideLoading();
+        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+        // ============================================================
+// EDIT ORDER FUNCTIONALITY
+// ============================================================
+
+       async function editCurrentOrder() {
+    const orderId = window.currentOrderId;
+    if (!orderId) { 
+        await showAlert('No order found.', 'Error', '❌');
+        return; 
+    }
+    
+    editingOrderId = orderId;
+    window.originalOrderId = orderId;
+    
+    try {
+        const response = await fetch(`/VoidRefund/GetOrderDetails?orderId=${orderId}`);
+        const data = await response.json();
+        
+        if (!data.success) {
+            await showAlert('Unable to load order details', 'Error', '❌');
+            return;
+        }
+        
+        closeReceiptModal();
+        cart = [];
+        
+        for (const item of data.order.items) {
+            if (!item.isVoided && !item.isRefunded) {
+                cart.push({
+                    productSizeId: item.productSizeId,
+                    productName: item.productName,
+                    sizeName: item.sizeName,
+                    price: item.price,
+                    quantity: item.quantity
+                });
+            }
+        }
+        
+        window.originalOrderTotal = data.order.totalAmount;
+        updateCartDisplay();
+        showEditModeBanner();
+        
+        const checkoutBtn = document.getElementById('checkoutBtn');
+        checkoutBtn.innerHTML = '✏️ UPDATE ORDER';
+        checkoutBtn.style.background = '#17a2b8';
+        
+        window.isEditingMode = true;
+        
+        await showAlert('Edit Mode: You can now add/remove items or change quantities. Click "UPDATE ORDER" when done.', 'Edit Mode', '✏️');
+        
+    } catch (error) {
+        await showAlert('Error: ' + error.message, 'Error', '❌');
+    }
+}
+
+// ============================================================
+// VOID ITEM FROM RECEIPT (Remove specific item before blending)
+// ============================================================
+
+async function voidItemFromReceipt() {
+    const orderId = window.currentOrderId;
+    if (!orderId) {
+        await showAlert('No order found.', 'Error', '❌');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/VoidRefund/GetOrderDetails?orderId=${orderId}`);
+        const data = await response.json();
+        
+        if (!data.success || !data.order) {
+            await showAlert('Unable to load order details', 'Error', '❌');
+            return;
+        }
+        
+        closeReceiptModal();
+        cart = [];
+        let hasItems = false;
+        
+        for (const item of data.order.items) {
+            if (!item.isVoided && !item.isRefunded) {
+                cart.push({
+                    productSizeId: item.productSizeId,
+                    productName: item.productName,
+                    sizeName: item.sizeName,
+                    price: item.price,
+                    quantity: item.quantity
+                });
+                hasItems = true;
+            }
+        }
+        
+        if (!hasItems) {
+            await showAlert('No active items to edit.', 'Error', '❌');
+            return;
+        }
+        
+        window.originalOrderId = orderId;
+        window.originalOrderTotal = data.order.totalAmount;
+        window.isEditingMode = true;
+        window.currentDiscountType = data.order.discountType || 'None';
+        window.currentDiscountPercent = data.order.discountPercent || 0;
+        window.pendingPaymentMethod = data.order.paymentMethod || 'Cash';
+        
+        currentDiscountType = window.currentDiscountType;
+        currentDiscountPercent = window.currentDiscountPercent;
+        
+        updateCartDisplay();
+        updateDiscountBtnHighlight();
+        
+        document.querySelectorAll('.payment-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if ((window.pendingPaymentMethod === 'Cash' && btn.innerText.includes('Cash')) ||
+                (window.pendingPaymentMethod === 'GCash' && btn.innerText.includes('GCash'))) {
+                btn.classList.add('active');
+            }
+        });
+        
+        showEditModeBanner();
+        
+        const checkoutBtn = document.getElementById('checkoutBtn');
+        checkoutBtn.innerHTML = '✏️ UPDATE ORDER';
+        checkoutBtn.style.background = '#17a2b8';
+        
+        await showAlert('✏️ EDIT MODE: You can now add/remove items, change quantities, or modify discount.\nClick "UPDATE ORDER" when done.', 'Edit Mode', '✏️');
+        
+    } catch (error) {
+        console.error('Error:', error);
+        await showAlert('❌ Error loading order for editing: ' + error.message, 'Error', '❌');
+    }
+}
+async function submitVoidItem(itemId, reason, orderId) {
+    try {
+        const response = await fetch('/VoidRefund/VoidItem', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() },
+            body: JSON.stringify({ orderItemId: itemId, reason: reason })
+        });
+        
+        const data = await response.json();
+        
+        if (data.requiresOwner) {
+            alert('⚠️ ' + data.message);
+            return;
+        }
+        
+        if (data.success) {
+            alert('✅ Item removed from order. Inventory returned.');
+            // Refresh the receipt
+            await loadOrderReceipt(orderId);
+        } else {
+            alert('❌ Error: ' + data.message);
+        }
+    } catch (error) {
+        alert('❌ Error: ' + error.message);
+    }
+}
+
+function showEditModeBanner() {
+    // Remove existing banner if any
+    const existingBanner = document.getElementById('editModeBanner');
+    if (existingBanner) existingBanner.remove();
+    
+    // Create banner
+    const banner = document.createElement('div');
+    banner.id = 'editModeBanner';
+    banner.style.cssText = 'background: #17a2b8; color: white; padding: 8px 12px; text-align: center; font-size: 13px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;';
+    banner.innerHTML = `
+        <span><i class="fas fa-edit"></i> EDITING ORDER #${window.originalOrderId}</span>
+        <div>
+            <button onclick="cancelEditMode()" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 4px 8px; border-radius: 4px; margin-right: 5px; cursor: pointer;">✕ Cancel</button>
+            <button onclick="resetToOriginalOrder()" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 4px 8px; border-radius: 4px; cursor: pointer;">↺ Reset</button>
+        </div>
+    `;
+    
+    const cartHeader = document.querySelector('.cart-header');
+    if (cartHeader) {
+        cartHeader.insertAdjacentElement('afterend', banner);
+    }
+}
+
+async function resetToOriginalOrder() {
+    if (!window.originalOrderId) return;
+    
+    const confirmed = await showConfirm('Reset to original order? All changes will be discarded.', 'Reset Order');
+    if (confirmed) {
+        await loadOrderForEditing(window.originalOrderId);
+    }
+}
+
+async function loadOrderForEditing(orderId) {
+    try {
+        const response = await fetch(`/VoidRefund/GetOrderDetails?orderId=${orderId}`);
+        const data = await response.json();
+        
+        if (!data.success || !data.order) {
+            await showAlert('Unable to load order details', 'Error', '❌');
+            return;
+        }
+        
+        // Reset cart with original items - MAKE SURE productSizeId is included
+        cart = [];
+        for (const item of data.order.items) {
+            if (!item.isVoided && !item.isRefunded) {
+                // CRITICAL: Verify productSizeId exists
+                if (!item.productSizeId || item.productSizeId === 0) {
+                    console.warn('Item missing productSizeId:', item);
+                    await showAlert(`Warning: ${item.productName} (${item.sizeName}) may not be editable because product ID is missing.`, 'Warning', '⚠️');
+                }
+                
+                cart.push({
+                    productSizeId: item.productSizeId,
+                    productName: item.productName,
+                    sizeName: item.sizeName,
+                    price: item.price,
+                    quantity: item.quantity
+                });
+            }
         }
 
-                function showReviewModal() {
+        console.log('=== AFTER LOADING ORDER FOR EDITING ===');
+        console.log('Order data from server:', data.order);
+        debugCart(); 
+        
+        if (cart.length === 0) {
+            await showAlert('No active items to edit.', 'Error', '❌');
+            return;
+        }
+        
+        // Store original order info
+        window.originalOrderId = orderId;
+        window.originalOrderTotal = data.order.totalAmount;
+        window.isEditingMode = true;
+        
+        // Apply original discount and payment
+        currentDiscountType = data.order.discountType || 'None';
+        currentDiscountPercent = data.order.discountPercent || 0;
+        pendingPaymentMethod = data.order.paymentMethod || 'Cash';
+        
+        // Update displays
+        updateCartDisplay();
+        updateDiscountBtnHighlight();
+        
+        // Highlight correct payment method
+        document.querySelectorAll('.payment-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if ((pendingPaymentMethod === 'Cash' && btn.innerText.includes('Cash')) ||
+                (pendingPaymentMethod === 'GCash' && btn.innerText.includes('GCash'))) {
+                btn.classList.add('active');
+            }
+        });
+        
+        // Show edit mode banner
+        showEditModeBanner();
+        
+        // Change button text
+        const checkoutBtn = document.getElementById('checkoutBtn');
+        checkoutBtn.innerHTML = '✏️ UPDATE ORDER';
+        checkoutBtn.style.background = '#17a2b8';
+        
+        await showAlert('✏️ EDIT MODE: You can now modify this order.\nClick "UPDATE ORDER" when done.', 'Edit Mode', '✏️');
+        
+    } catch (error) {
+        console.error('Error loading order:', error);
+        await showAlert('❌ Error loading order for editing: ' + error.message, 'Error', '❌');
+    }
+}
+
+async function cancelEditMode() {
+    const confirmed = await showConfirm('Cancel editing? Changes will be discarded.', 'Cancel Edit');
+    if (confirmed) {
+        cart = [];
+        updateCartDisplay();
+        
+        const banner = document.getElementById('editModeBanner');
+        if (banner) banner.remove();
+        
+        const checkoutBtn = document.getElementById('checkoutBtn');
+        checkoutBtn.innerHTML = '💳 Confirm Order';
+        checkoutBtn.style.background = '#28a745';
+        
+        document.querySelectorAll('.payment-btn').forEach(b => b.classList.remove('active'));
+        
+        window.isEditingMode = false;
+        window.originalOrderId = null;
+        window.originalOrderTotal = null;
+        currentDiscountType = 'None';
+        currentDiscountPercent = 0;
+        pendingPaymentMethod = null;
+        
+        updateDiscountBtnHighlight();
+        
+        if (window.lastClosedOrderId) {
+            loadOrderReceipt(window.lastClosedOrderId);
+        }
+    }
+}
+async function loadOrderReceipt(orderId) {
+    try {
+        const response = await fetch(`/VoidRefund/GetOrderDetails?orderId=${orderId}`);
+        const data = await response.json();
+        
+        if (data.success && data.order) {
+            const orderDetails = [];
+            let total = 0;
+            
+            data.order.items.forEach(item => {
+                if (!item.isVoided && !item.isRefunded) {
+                    orderDetails.push({
+                        name: item.productName,
+                        size: item.sizeName,
+                        quantity: item.quantity,
+                        price: item.price,
+                        subtotal: item.subtotal
+                    });
+                    total += item.subtotal;
+                }
+            });
+            
+            showReceiptModal(orderDetails, data.order.paymentMethod || 'Cash', 
+                data.order.discountType, data.order.discountPercent, 0, total, orderId, 'PENDING_PAYMENT');
+        }
+    } catch (error) {
+        console.error('Error loading receipt:', error);
+    }
+}
+
+function debugCart() {
+    console.log('=== CART DEBUG ===');
+    cart.forEach((item, index) => {
+        console.log(`Item ${index}:`, {
+            productSizeId: item.productSizeId,
+            productName: item.productName,
+            sizeName: item.sizeName,
+            quantity: item.quantity,
+            price: item.price
+        });
+    });
+    console.log('==================');
+}
+
+async function updateExistingOrder() {
+    const orderId = window.originalOrderId;
+    const paymentMethod = pendingPaymentMethod;
+    
+    if (cart.length === 0) {
+        await showAlert('Cart is empty! Cannot update order.', 'Error', '❌');
+        return false;
+    }
+    
+    if (!paymentMethod) {
+        await showAlert('Please select a payment method', 'Required', '⚠️');
+        return false;
+    }
+    
+    const confirmed = await showConfirm('Update this order? The original order will be voided and replaced with your changes.', 'Confirm Update');
+    if (!confirmed) return false;
+    
+    showLoading('Updating order...');
+    
+    const updateBtn = document.getElementById('checkoutBtn');
+    const originalText = updateBtn.innerHTML;
+    updateBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Updating Order...';
+    updateBtn.disabled = true;
+    
+    try {
+        // STEP 1: Get original order details to mark as voided
+        const getOrderResponse = await fetch(`/VoidRefund/GetOrderDetails?orderId=${orderId}`);
+        const orderData = await getOrderResponse.json();
+        
+        console.log('Original order data:', orderData);
+        
+        if (!orderData.success) {
+            throw new Error('Cannot load original order details');
+        }
+        
+        // STEP 2: Void all original items (mark as voided, not delete)
+        if (orderData.success && orderData.order && orderData.order.items) {
+            for (const oldItem of orderData.order.items) {
+                if (!oldItem.isVoided && !oldItem.isRefunded) {
+                    console.log('Voiding old item:', oldItem.orderItemId);
+                    const voidResponse = await fetch('/VoidRefund/VoidItem', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json', 
+                            'RequestVerificationToken': getToken() 
+                        },
+                        body: JSON.stringify({ 
+                            orderItemId: oldItem.orderItemId, 
+                            reason: 'Order modification - replaced with updated order' 
+                        })
+                    });
+                    const voidData = await voidResponse.json();
+                    console.log('Void response:', voidData);
+                }
+            }
+        }
+        
+        // STEP 3: Create a NEW order for the updated items
+        const newOrderNumber = `POS-${Date.now()}`;
+        let newOrderIds = [];
+        let allSuccessful = true;
+        let errorMessage = '';
+        
+        for (const item of cart) {
+            if (!item.productSizeId || item.productSizeId === 0) {
+                errorMessage = `Invalid product ID for ${item.productName}`;
+                allSuccessful = false;
+                break;
+            }
+            
+            console.log('Creating order item:', {
+                productSizeId: item.productSizeId,
+                quantity: item.quantity,
+                productName: item.productName,
+                sizeName: item.sizeName
+            });
+            
+            const response = await fetch('/Staff/PlaceOrder', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'RequestVerificationToken': getToken() 
+                },
+                body: JSON.stringify({
+                    productSizeId: item.productSizeId,
+                    quantity: item.quantity,
+                    orderNumber: newOrderNumber,
+                    paymentMethod: paymentMethod,
+                    discountType: currentDiscountType,
+                    discountPercent: currentDiscountPercent
+                })
+            });
+            
+            const responseData = await response.json();
+            
+            console.log('PlaceOrder response:', responseData);
+            
+            if (!responseData.success) {
+                allSuccessful = false;
+                errorMessage = responseData.message;
+                break;
+            }
+            
+            if (responseData.orderId) {
+                newOrderIds.push(responseData.orderId);
+            }
+        }
+        
+        if (!allSuccessful) {
+            throw new Error(errorMessage || 'Failed to create updated order');
+        }
+        
+        // STEP 4: Mark original order as completed/voided
+        if (orderId) {
+            await fetch('/Staff/CloseOrder', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'RequestVerificationToken': getToken() 
+                },
+                body: JSON.stringify({ orderId: orderId })
+            });
+        }
+        
+        hideLoading();
+        
+        // STEP 5: Show receipt for the new order
+        const newOrderId = newOrderIds[0];
+        const discountSavings = currentCartTotal - currentDiscountedTotal;
+        
+        const orderDetails = cart.map(item => ({
+            name: item.productName,
+            size: item.sizeName,
+            quantity: item.quantity,
+            price: item.price,
+            subtotal: item.price * item.quantity
+        }));
+        
+        showReceiptModal(
+            orderDetails,
+            paymentMethod,
+            currentDiscountType,
+            currentDiscountPercent,
+            discountSavings,
+            currentDiscountedTotal,
+            newOrderId,
+            'PENDING_PAYMENT'
+        );
+        
+        await showAlert('✅ Order updated successfully! New order #' + newOrderId, 'Success', '✅');
+        
+        // Clean up edit mode UI
+        const banner = document.getElementById('editModeBanner');
+        if (banner) banner.remove();
+        
+        // Reset checkout button
+        const checkoutBtn = document.getElementById('checkoutBtn');
+        checkoutBtn.innerHTML = '💳 Confirm Order';
+        checkoutBtn.style.background = '#28a745';
+        
+        // Clear cart and reset all flags
+        cart = [];
+        currentDiscountType = 'None';
+        currentDiscountPercent = 0;
+        pendingPaymentMethod = null;
+        window.isEditingMode = false;
+        window.originalOrderId = null;
+        window.originalOrderTotal = null;
+        
+        // Clear payment button highlights
+        document.querySelectorAll('.payment-btn').forEach(b => b.classList.remove('active'));
+        
+        // Update displays
+        updateCartDisplay();
+        updateDiscountBtnHighlight();
+        
+        // Refresh the order queue
+        await loadOrderQueue();
+        
+        return true;
+        
+    } catch (error) {
+        hideLoading();
+        console.error('Update error details:', error);
+        await showAlert('❌ Error updating order: ' + error.message, 'Error', '❌');
+        return false;
+    } finally {
+        updateBtn.innerHTML = originalText;
+        updateBtn.disabled = false;
+    }
+}
+
+// ============================================================
+        // VOID FROM RECEIPT — quick void transaction before blending
+        // ============================================================
+      async function voidFromReceipt() {
+    const orderId = window.currentOrderId;
+    if (!orderId) { 
+        await showAlert('No order found.', 'Error');
+        return; 
+    }
+
+    document.getElementById('voidReasonModal').style.display = 'flex';
+}
+
+async function submitVoidFromReceipt() {
+    const reason = document.getElementById('voidReasonInput').value.trim();
+    if (!reason) { 
+        await showAlert('Please provide a reason.', 'Required', '⚠️');
+        return; 
+    }
+
+    document.getElementById('voidReasonModal').style.display = 'none';
+    showLoading('Voiding transaction...');
+
+    try {
+        const response = await fetch('/VoidRefund/VoidTransaction', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() },
+            body: JSON.stringify({ orderId: window.currentOrderId, reason: reason })
+        });
+        const data = await response.json();
+        hideLoading();
+        
+       if (data.requiresOwner) {
+    await showAlert( data.message, 'Owner Approval');
+    return;
+}
+
+if (data.success) {
+    await showAlert('Item removed from order. Inventory returned.', 'Success', '✅');
+    await loadOrderReceipt(orderId);
+} else {
+    await showAlert('Error: ' + data.message, 'Error', '❌');
+}
+    } catch (error) {
+        hideLoading();
+        await showAlert('Error: ' + error.message, 'Error', '❌');
+    }
+}
+
+// ============================================================
+        // REVIEW MODAL
+        // ============================================================
+        function showReviewModal() {
             const reviewDiv = document.getElementById('reviewOrderContent');
             const now = new Date();
-
             let itemsHtml = '';
-            cart.forEach((item, index) => {
+            cart.forEach(item => {
                 itemsHtml += `
                     <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;">
                         <div>
@@ -1799,117 +2408,81 @@ async function processOrder(paymentMethod) {
                             <small>${item.sizeName} × ${item.quantity}</small>
                         </div>
                         <div>₱${(item.price * item.quantity).toFixed(2)}</div>
-                    </div>
-                `;
+                    </div>`;
             });
-
             let discountHtml = '';
-            let discountSavings = 0;
             if (currentDiscountPercent > 0) {
-                discountSavings = currentCartTotal - currentDiscountedTotal;
+                const discountSavings = currentCartTotal - currentDiscountedTotal;
                 discountHtml = `
                     <div style="display: flex; justify-content: space-between; padding: 8px 0; color: #dc3545;">
                         <span>Discount (${currentDiscountType} ${currentDiscountPercent * 100}%):</span>
                         <span>-₱${discountSavings.toFixed(2)}</span>
-                    </div>
-                `;
+                    </div>`;
             }
-
             reviewDiv.innerHTML = `
-                <div style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #ddd;">
+                <div style="margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #ddd;">
                     <small>${now.toLocaleDateString()} ${now.toLocaleTimeString()}</small>
-                    <div><strong>Payment Method:</strong> ${pendingPaymentMethod}</div>
+                    <div><strong>Payment:</strong> ${pendingPaymentMethod}</div>
                 </div>
                 ${itemsHtml}
                 <div style="margin-top: 10px; padding-top: 10px; border-top: 2px solid #ddd;">
                     <div style="display: flex; justify-content: space-between;">
-                        <strong>Subtotal:</strong>
-                        <strong>₱${currentCartTotal.toFixed(2)}</strong>
+                        <strong>Subtotal:</strong><strong>₱${currentCartTotal.toFixed(2)}</strong>
                     </div>
                     ${discountHtml}
                     <div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 2px solid #333;">
                         <strong style="font-size: 16px;">TOTAL:</strong>
                         <strong style="font-size: 16px; color: #28a745;">₱${currentDiscountedTotal.toFixed(2)}</strong>
                     </div>
-                </div>
-            `;
-
+                </div>`;
             document.getElementById('reviewOrderModal').style.display = 'flex';
         }
 
-                        function closeReviewModal() {
-            document.getElementById('reviewOrderModal').style.display = 'none';
-            // pendingPaymentMethod = null;  
-        }
+        function closeReviewModal() { document.getElementById('reviewOrderModal').style.display = 'none'; }
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
-            checkAttendanceStatus();
-        });
-
-                function showVoidRefundPanel() {
+        // ============================================================
+        // VOID / REFUND PANEL (Return/Refund button — for after blending)
+        // ============================================================
+        function showVoidRefundPanel() {
             document.getElementById('voidRefundModal').style.display = 'flex';
             loadPendingOrdersForVoid();
         }
-
         function closeVoidRefundModal() {
             document.getElementById('voidRefundModal').style.display = 'none';
             document.getElementById('ownerApprovalModal').style.display = 'none';
         }
-
-        function closeOwnerApprovalModal() {
-            document.getElementById('ownerApprovalModal').style.display = 'none';
-        }
+        function closeOwnerApprovalModal() { document.getElementById('ownerApprovalModal').style.display = 'none'; }
 
         function switchVoidTab(tab) {
             const voidTab = document.getElementById('voidTabContent');
             const refundTab = document.getElementById('refundTabContent');
             const voidBtn = document.getElementById('voidTabBtn');
             const refundBtn = document.getElementById('refundTabBtn');
-
             if (tab === 'void') {
-                voidTab.style.display = 'block';
-                refundTab.style.display = 'none';
-                voidBtn.classList.add('active');
-                refundBtn.classList.remove('active');
+                voidTab.style.display = 'block'; refundTab.style.display = 'none';
+                voidBtn.classList.add('active'); refundBtn.classList.remove('active');
                 loadPendingOrdersForVoid();
             } else {
-                voidTab.style.display = 'none';
-                refundTab.style.display = 'block';
-                voidBtn.classList.remove('active');
-                refundBtn.classList.add('active');
+                voidTab.style.display = 'none'; refundTab.style.display = 'block';
+                voidBtn.classList.remove('active'); refundBtn.classList.add('active');
                 loadCompletedOrdersForRefund();
             }
         }
 
-        // Event listeners
         document.addEventListener('DOMContentLoaded', function() {
             const voidReason = document.getElementById('voidReason');
             if (voidReason) {
                 voidReason.addEventListener('change', function() {
-                    const otherInput = document.getElementById('voidOtherReason');
-                    otherInput.style.display = this.value === 'Other' ? 'block' : 'none';
+                    document.getElementById('voidOtherReason').style.display = this.value === 'Other' ? 'block' : 'none';
                 });
             }
-
             const refundReason = document.getElementById('refundReason');
             if (refundReason) {
                 refundReason.addEventListener('change', function() {
-                    const otherInput = document.getElementById('refundOtherReason');
-                    otherInput.style.display = this.value === 'Other' ? 'block' : 'none';
+                    document.getElementById('refundOtherReason').style.display = this.value === 'Other' ? 'block' : 'none';
                 });
             }
-
-            // Add Void/Refund button
-            const header = document.querySelector('.pos-header');
-            if (header && !document.getElementById('voidRefundBtn')) {
-                const btn = document.createElement('button');
-                btn.id = 'voidRefundBtn';
-                btn.className = 'btn btn-outline-danger ms-2';
-                btn.innerHTML = '<i class="fas fa-ban"></i> Void / Refund';
-                btn.onclick = showVoidRefundPanel;
-                header.appendChild(btn);
-            }
+            checkAttendanceStatus();
         });
 
         function getToken() {
@@ -1925,9 +2498,7 @@ async function processOrder(paymentMethod) {
                 orders.forEach(order => {
                     select.innerHTML += `<option value="${order.orderId}">#${order.orderNumber} - ${order.status} - ₱${order.totalAmount.toFixed(2)}</option>`;
                 });
-            } catch (error) {
-                console.error('Error:', error);
-            }
+            } catch (error) { console.error('Error:', error); }
         }
 
         async function loadCompletedOrdersForRefund() {
@@ -1939,56 +2510,75 @@ async function processOrder(paymentMethod) {
                 orders.forEach(order => {
                     select.innerHTML += `<option value="${order.orderId}">#${order.orderNumber} - ₱${order.totalAmount.toFixed(2)}</option>`;
                 });
-            } catch (error) {
-                console.error('Error:', error);
-            }
+            } catch (error) { console.error('Error:', error); }
         }
 
-        async function loadVoidOrderItems() {
-            const orderId = document.getElementById('voidOrderSelect').value;
-            if (!orderId) return;
-            currentVoidOrderId = parseInt(orderId);
-
-            try {
-                const response = await fetch(`/VoidRefund/GetOrderDetails?orderId=${orderId}`);
-                const data = await response.json();
-                if (!data.success) { alert(data.message); return; }
-
-                const container = document.getElementById('voidOrderItems');
-                let html = '<table class="table table-sm table-bordered"><thead><tr><th>Select</th><th>Product</th><th>Qty</th><th>Price</th><th>Status</th></tr></thead><tbody>';
-
-                data.order.items.forEach(item => {
-                    if (!item.isVoided && !item.isRefunded) {
-                        let statusText = data.order.status === 'PREPARING' ? 'PREPARING' : (data.order.status === 'COMPLETED' ? 'COMPLETED' : 'PENDING');
-                        html += `<tr>
-                            <td class="text-center"><input type="checkbox" class="void-item-checkbox" value="${item.orderItemId}"></td>
-                            <td><strong>${escapeHtml(item.productName)}</strong><br><small>${item.sizeName}</small></td>
-                            <td>${item.quantity}</td>
-                            <td>₱${item.price.toFixed(2)}</td>
-                            <td><span class="badge ${data.order.status === 'PREPARING' ? 'bg-warning' : 'bg-secondary'}">${statusText}</span></td>
-                        </tr>`;
-                    }
-                });
-                html += `</tbody></table>`;
-                container.innerHTML = html;
-            } catch (error) {
-                console.error('Error:', error);
-            }
+      async function loadVoidOrderItems() {
+    const orderId = document.getElementById('voidOrderSelect').value;
+    if (!orderId) return;
+    currentVoidOrderId = parseInt(orderId);
+    try {
+        const response = await fetch(`/VoidRefund/GetOrderDetails?orderId=${orderId}`);
+        const data = await response.json();
+        if (!data.success) { 
+            await showAlert(data.message, 'Error', '❌');
+            return; 
         }
+        const container = document.getElementById('voidOrderItems');
+        let html = `
+            <table class="void-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;"><input type="checkbox" id="selectAllVoid" onchange="toggleSelectAllVoid()"></th>
+                        <th>Product</th>
+                        <th style="width: 60px;">Qty</th>
+                        <th style="width: 80px;">Price</th>
+                        <th style="width: 100px;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+        
+        data.order.items.forEach(item => {
+            if (!item.isVoided && !item.isRefunded) {
+                let statusText = data.order.status === 'PREPARING' ? 'PREPARING' : (data.order.status === 'COMPLETED' ? 'COMPLETED' : 'PENDING');
+                let statusClass = data.order.status === 'PREPARING' ? '#ffc107' : (data.order.status === 'COMPLETED' ? '#28a745' : '#17a2b8');
+                html += `
+                    <tr>
+                        <td style="text-align: center;"><input type="checkbox" class="void-item-checkbox" value="${item.orderItemId}"></td>
+                        <td>
+                            <strong>${escapeHtml(item.productName)}</strong><br>
+                            <small style="color: #888;">${item.sizeName}</small>
+                        </td>
+                        <td>${item.quantity}</td>
+                        <td>₱${item.price.toFixed(2)}</td>
+                        <td><span style="background: ${statusClass}; color: white; padding: 2px 8px; border-radius: 20px; font-size: 10px;">${statusText}</span></td>
+                    </tr>`;
+            }
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    } catch (error) { console.error('Error:', error); }
+}
 
+// Helper function para sa Select All
+function toggleSelectAllVoid() {
+    const selectAll = document.getElementById('selectAllVoid');
+    const checkboxes = document.querySelectorAll('.void-item-checkbox');
+    checkboxes.forEach(cb => cb.checked = selectAll.checked);
+}
         async function loadRefundOrderItems() {
             const orderId = document.getElementById('refundOrderSelect').value;
             if (!orderId) return;
             currentRefundOrderId = parseInt(orderId);
-
             try {
                 const response = await fetch(`/VoidRefund/GetOrderDetails?orderId=${orderId}`);
                 const data = await response.json();
-                if (!data.success) { alert(data.message); return; }
-
+                if (!data.success) { 
+    await showAlert(data.message, 'Error');
+    return; 
+}
                 const container = document.getElementById('refundOrderItems');
                 let html = '<table class="table table-sm table-bordered"><thead><tr><th>Select</th><th>Product</th><th>Qty</th><th>Price</th><th>Subtotal</th></tr></thead><tbody>';
-
                 data.order.items.forEach(item => {
                     if (!item.isRefunded && !item.isVoided) {
                         html += `<tr>
@@ -2000,11 +2590,9 @@ async function processOrder(paymentMethod) {
                         </tr>`;
                     }
                 });
-                html += `</tbody></table>`;
+                html += '</tbody></table>';
                 container.innerHTML = html;
-            } catch (error) {
-                console.error('Error:', error);
-            }
+            } catch (error) { console.error('Error:', error); }
         }
 
         function getSelectedVoidReason() {
@@ -2022,89 +2610,297 @@ async function processOrder(paymentMethod) {
         }
 
         function showOwnerApprovalModal(message) {
-            const modal = document.getElementById('ownerApprovalModal');
-            const msgDiv = document.getElementById('approvalMessage');
-            msgDiv.innerHTML = message;
-            modal.style.display = 'block';
+            document.getElementById('approvalMessage').innerHTML = message;
+            document.getElementById('ownerApprovalModal').style.display = 'block';
         }
 
         async function processVoidItem() {
-            const selectedItems = document.querySelectorAll('.void-item-checkbox:checked');
-            if (selectedItems.length === 0) { alert('Please select an item to void'); return; }
+    const selectedItems = document.querySelectorAll('.void-item-checkbox:checked');
+    if (selectedItems.length === 0) { 
+        await showAlert('Please select an item to void', 'No Selection', '⚠️');
+        return; 
+    }
+    const reason = getSelectedVoidReason();
+    if (!reason) { 
+        await showAlert('Please select a reason', 'Required', '⚠️');
+        return; 
+    }
+    
+    showLoading('Processing void request...');
+    
+    for (let checkbox of selectedItems) {
+        const response = await fetch('/VoidRefund/VoidItem', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() },
+            body: JSON.stringify({ orderItemId: parseInt(checkbox.value), reason: reason })
+        });
+        const data = await response.json();
+        if (data.requiresOwner) { 
+            hideLoading();
+            showOwnerApprovalModal(data.message); 
+            return; 
+        }
+        if (!data.success) { 
+            hideLoading();
+            await showAlert(data.message, 'Error', '❌');
+            return; 
+        }
+    }
+    hideLoading();
+    await showAlert('✅ Item(s) voided successfully', 'Success', '✅');
+    loadVoidOrderItems();
+    loadPendingOrdersForVoid();
+}
+       async function processVoidTransaction() {
+    if (!currentVoidOrderId) { 
+        await showAlert('Please select an order', 'No Selection', '⚠️');
+        return; 
+    }
+    const reason = getSelectedVoidReason();
+    if (!reason) { 
+        await showAlert('Please select a reason', 'Required', '⚠️');
+        return; 
+    }
+    
+    showLoading('Voiding transaction...');
+    
+    const response = await fetch('/VoidRefund/VoidTransaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() },
+        body: JSON.stringify({ orderId: currentVoidOrderId, reason: reason })
+    });
+    const data = await response.json();
+    hideLoading();
+    
+    if (data.requiresOwner) { 
+        showOwnerApprovalModal(data.message); 
+        return; 
+    }
+    if (data.success) {
+        await showAlert(data.message, 'Success', '✅');
+        loadPendingOrdersForVoid();
+        document.getElementById('voidOrderSelect').value = '';
+        document.getElementById('voidOrderItems').innerHTML = '';
+    } else {
+        await showAlert(data.message, 'Error', '❌');
+    }
+}
+ async function processRefund() {
+    const selectedItems = document.querySelectorAll('.refund-item-checkbox:checked');
+    if (selectedItems.length === 0) { 
+        await showAlert('Please select items to refund', 'No Selection', '⚠️');
+        return; 
+    }
+    const reason = getSelectedRefundReason();
+    if (!reason) { 
+        await showAlert('Please select a reason', 'Required', '⚠️');
+        return; 
+    }
+    
+    showLoading('Processing refund...');
+    
+    const itemIds = Array.from(selectedItems).map(cb => parseInt(cb.value));
+    const response = await fetch('/VoidRefund/ProcessRefund', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() },
+        body: JSON.stringify({ orderId: currentRefundOrderId, itemIds: itemIds, reason: reason })
+    });
+    const data = await response.json();
+    hideLoading();
+    
+    if (data.requiresOwner) { 
+        showOwnerApprovalModal(data.message); 
+        return; 
+    }
+    if (data.success) {
+        await showAlert(data.message, 'Success', '✅');
+        loadCompletedOrdersForRefund();
+        document.getElementById('refundOrderSelect').value = '';
+        document.getElementById('refundOrderItems').innerHTML = '';
+    } else {
+        await showAlert(data.message, 'Error', '❌');
+    }
+}
 
-            const reason = getSelectedVoidReason();
-            if (!reason) { alert('Please select a reason'); return; }
-
-            for (let checkbox of selectedItems) {
-                const response = await fetch('/VoidRefund/VoidItem', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() },
-                    body: JSON.stringify({ orderItemId: parseInt(checkbox.value), reason: reason })
-                });
-                const data = await response.json();
-                if (data.requiresOwner) {
-                    showOwnerApprovalModal(data.message);
-                    return;
+        // ============================================================
+        // ATTENDANCE
+        // ============================================================
+        function checkAttendanceStatus() {
+            fetch('/Staff/GetTodayAttendance').then(res => res.json()).then(data => {
+                const timeInBtn = document.getElementById('timeInBtn');
+                const timeOutBtn = document.getElementById('timeOutBtn');
+                const statusBadge = document.getElementById('attendanceStatusBadge');
+                const hoursDisplay = document.getElementById('todayHoursDisplay');
+                if (data.isClockedIn) {
+                    timeInBtn.style.display = 'none'; timeOutBtn.style.display = 'inline-block';
+                    statusBadge.className = 'badge bg-success ms-2'; statusBadge.innerText = '🟢 Clocked In';
+                    if (hoursDisplay) hoursDisplay.innerText = data.hoursToday;
+                } else if (data.hasClockedOut) {
+                    timeInBtn.style.display = 'none'; timeOutBtn.style.display = 'none';
+                    statusBadge.className = 'badge bg-secondary ms-2'; statusBadge.innerText = '🔴 Completed';
+                    if (hoursDisplay) hoursDisplay.innerText = data.hoursToday;
+                } else {
+                    timeInBtn.style.display = 'inline-block'; timeOutBtn.style.display = 'none';
+                    statusBadge.className = 'badge bg-secondary ms-2'; statusBadge.innerText = '⭕ Not Clocked In';
+                    if (hoursDisplay) hoursDisplay.innerText = '0.0';
+                    showAttendanceReminder();
                 }
-                if (!data.success) { alert(data.message); return; }
-            }
-            alert('✅ Item(s) voided successfully');
-            loadVoidOrderItems();
-            loadPendingOrdersForVoid();
-        }
-
-        async function processVoidTransaction() {
-            if (!currentVoidOrderId) { alert('Please select an order'); return; }
-            const reason = getSelectedVoidReason();
-            if (!reason) { alert('Please select a reason'); return; }
-
-            const response = await fetch('/VoidRefund/VoidTransaction', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() },
-                body: JSON.stringify({ orderId: currentVoidOrderId, reason: reason })
             });
-            const data = await response.json();
-            if (data.requiresOwner) {
-                showOwnerApprovalModal(data.message);
-                return;
-            }
-            if (data.success) {
-                alert(data.message);
-                loadPendingOrdersForVoid();
-                document.getElementById('voidOrderSelect').value = '';
-                document.getElementById('voidOrderItems').innerHTML = '';
-            } else {
-                alert(data.message);
-            }
         }
 
-        async function processRefund() {
-            const selectedItems = document.querySelectorAll('.refund-item-checkbox:checked');
-            if (selectedItems.length === 0) { alert('Please select items to refund'); return; }
-            const reason = getSelectedRefundReason();
-            if (!reason) { alert('Please select a reason'); return; }
+        let reminderShown = false;
+        function showAttendanceReminder() {
+            if (reminderShown) return;
+            reminderShown = true;
+            const modal = new bootstrap.Modal(document.getElementById('attendanceReminderModal'));
+            modal.show();
+            setTimeout(() => { reminderShown = false; checkAttendanceStatus(); }, 300000);
+        }
+        function timeInFromReminder() {
+            bootstrap.Modal.getInstance(document.getElementById('attendanceReminderModal')).hide();
+            timeIn();
+        }
+        function timeIn() {
+            fetch('/Staff/TimeIn', { method: 'POST', headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() } })
+                .then(res => res.json()).then(async data => { 
+    if (data.success) { 
+        await showAlert(data.message, 'Success', '✅'); 
+        checkAttendanceStatus(); 
+    } else { 
+        await showAlert('❌ ' + data.message, 'Error', '❌'); 
+    } 
+});
+        }
+        async function timeOut() {
+    const confirmed = await showConfirm('End your shift?', 'Time Out');
+    if (!confirmed) return;
+    
+    fetch('/Staff/TimeOut', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() } 
+    })
+    .then(res => res.json())
+    .then(async data => { 
+        if (data.success) { 
+            await showAlert(data.message, 'Success', '✅');
+            checkAttendanceStatus(); 
+        } else { 
+            await showAlert('❌ ' + data.message, 'Error', '❌');
+        } 
+    });
+}
 
-            const itemIds = Array.from(selectedItems).map(cb => parseInt(cb.value));
-            const response = await fetch('/VoidRefund/ProcessRefund', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() },
-                body: JSON.stringify({ orderId: currentRefundOrderId, itemIds: itemIds, reason: reason })
+        function filterByCategory(category) {
+            document.querySelectorAll('.category-item').forEach(item => item.classList.remove('active'));
+            event.target.classList.add('active');
+            document.querySelectorAll('.product-card').forEach(product => {
+                const productCategory = product.getAttribute('data-category');
+                product.style.display = (category === 'all' || productCategory === category) ? '' : 'none';
             });
-            const data = await response.json();
-            if (data.requiresOwner) {
-                showOwnerApprovalModal(data.message);
-                return;
-            }
-            if (data.success) {
-                alert(data.message);
-                loadCompletedOrdersForRefund();
-                document.getElementById('refundOrderSelect').value = '';
-                document.getElementById('refundOrderItems').innerHTML = '';
-            } else {
-                alert(data.message);
-            }
         }
 
+        // Custom Alert Function (para sa simple messages)
+function showAlert(message, title = "Notice", icon = "ℹ️") {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('customAlertModal');
+        const titleEl = document.getElementById('alertTitle');
+        const messageEl = document.getElementById('alertMessage');
+        const iconEl = document.getElementById('alertIcon');
+        
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        iconEl.textContent = icon;
+        
+        modal.style.display = 'flex';
+        
+        const closeBtn = document.getElementById('alertCloseBtn');
+        const closeHandler = () => {
+            modal.style.display = 'none';
+            closeBtn.removeEventListener('click', closeHandler);
+            resolve(true);
+        };
+        closeBtn.addEventListener('click', closeHandler);
+    });
+}
+
+// Custom Confirm Function (para sa yes/no questions)
+function showConfirm(message, title = "Confirm Action") {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('customConfirmModal');
+        const titleEl = document.getElementById('confirmTitle');
+        const messageEl = document.getElementById('confirmMessage');
+        const iconEl = document.getElementById('confirmIcon');
+        
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        iconEl.textContent = "❓";
+        
+        modal.style.display = 'flex';
+        
+        const confirmBtn = document.getElementById('confirmOkBtn');
+        const cancelBtn = document.getElementById('confirmCancelBtn');
+        
+        const cleanup = () => {
+            modal.style.display = 'none';
+            confirmBtn.removeEventListener('click', confirmHandler);
+            cancelBtn.removeEventListener('click', cancelHandler);
+        };
+        
+        const confirmHandler = () => {
+            cleanup();
+            resolve(true);
+        };
+        
+        const cancelHandler = () => {
+            cleanup();
+            resolve(false);
+        };
+        
+        confirmBtn.addEventListener('click', confirmHandler);
+        cancelBtn.addEventListener('click', cancelHandler);
+    });
+}
+
+// Loading Modal (para sa mahabang proseso)
+function showLoading(message = "Processing...") {
+    let loadingModal = document.getElementById('loadingModal');
+    if (!loadingModal) {
+        loadingModal = document.createElement('div');
+        loadingModal.id = 'loadingModal';
+        loadingModal.className = 'modal-qty';
+        loadingModal.style.cssText = 'display: none;';
+        loadingModal.innerHTML = `
+            <div class="modal-qty-content" style="width: 280px; text-align: center;">
+                <div class="spinner-border" style="width: 40px; height: 40px; margin: 20px;"></div>
+                <p id="loadingMessage" style="margin: 10px 0 20px;">Processing...</p>
+            </div>
+        `;
+        document.body.appendChild(loadingModal);
+    }
+    const loadingMsg = document.getElementById('loadingMessage');
+    if (loadingMsg) loadingMsg.textContent = message;
+    loadingModal.style.display = 'flex';
+}
+
+function hideLoading() {
+    const loadingModal = document.getElementById('loadingModal');
+    if (loadingModal) loadingModal.style.display = 'none';
+}
+
+        function updateDateTime() {
+            const now = new Date();
+            const timeEl = document.getElementById('currentTime');
+            const dateEl = document.getElementById('currentDate');
+            if (timeEl) timeEl.innerHTML = now.toLocaleTimeString();
+            if (dateEl) dateEl.innerHTML = now.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+        }
+        setInterval(updateDateTime, 1000);
+        updateDateTime();
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;');
+        }
     </script>
 </body>
 </html>

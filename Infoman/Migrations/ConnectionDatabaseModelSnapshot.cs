@@ -581,6 +581,12 @@ namespace Infoman.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<int?>("ReturnId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ReturnStatus")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<decimal>("UnitPrice")
                         .HasColumnType("decimal(18,2)");
 
@@ -749,6 +755,71 @@ namespace Infoman.Migrations
                     b.HasKey("SupplierId");
 
                     b.ToTable("Suppliers");
+                });
+
+            modelBuilder.Entity("Infoman.Models.SupplierReturn", b =>
+                {
+                    b.Property<int>("ReturnId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ReturnId"));
+
+                    b.Property<DateTime?>("ActualReturnDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("CreditAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("RawMaterialId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ReceivingId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ReceivingItemId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ReturnDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ReturnNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("SupplierId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("ReturnId");
+
+                    b.HasIndex("RawMaterialId");
+
+                    b.HasIndex("ReceivingId");
+
+                    b.HasIndex("SupplierId");
+
+                    b.ToTable("SupplierReturns");
                 });
 
             modelBuilder.Entity("Infoman.Models.User", b =>
@@ -1086,6 +1157,33 @@ namespace Infoman.Migrations
                     b.Navigation("RawMaterial");
 
                     b.Navigation("Receiving");
+                });
+
+            modelBuilder.Entity("Infoman.Models.SupplierReturn", b =>
+                {
+                    b.HasOne("Infoman.Models.RawMaterial", "RawMaterial")
+                        .WithMany()
+                        .HasForeignKey("RawMaterialId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Infoman.Models.Receiving", "Receiving")
+                        .WithMany()
+                        .HasForeignKey("ReceivingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Infoman.Models.Supplier", "Supplier")
+                        .WithMany()
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RawMaterial");
+
+                    b.Navigation("Receiving");
+
+                    b.Navigation("Supplier");
                 });
 
             modelBuilder.Entity("Infoman.Models.VoidLog", b =>

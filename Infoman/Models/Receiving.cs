@@ -71,6 +71,7 @@ namespace Infoman.Models
         [Required]
         public decimal RejectedQty { get; set; }
 
+
         [MaxLength(200)]
         public string? RejectionReason { get; set; }
 
@@ -78,6 +79,9 @@ namespace Infoman.Models
         public decimal UnitPrice { get; set; }
 
         public DateTime? ExpiryDate { get; set; }
+        // Idagdag sa ReceivingItem class
+        public string? ReturnStatus { get; set; } // null, PENDING, RETURNED
+        public int? ReturnId { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 

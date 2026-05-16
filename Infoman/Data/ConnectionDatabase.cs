@@ -29,6 +29,7 @@ namespace Infoman.Data
         public DbSet<Refund> Refunds { get; set; }
         public DbSet<VoidLog> VoidLogs { get; set; }
         public DbSet<PendingRequest> PendingRequests { get; set; }
+        public DbSet<SupplierReturn> SupplierReturns { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

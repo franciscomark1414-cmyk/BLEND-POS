@@ -21,7 +21,8 @@ namespace Infoman.Controllers
         {
             var allProductSizes = await _db.ProductSizes
                 .Include(ps => ps.RecipeItems)
-                    .ThenInclude(ri => ri.RawMaterial)  // ← KAILANGAN ITO
+                    .ThenInclude(ri => ri.RawMaterial)
+                .Include(ps => ps.Product)
                 .ToListAsync();
 
             foreach (var productSize in allProductSizes)
@@ -31,7 +32,6 @@ namespace Infoman.Controllers
                 {
                     decimal activePrice = await GetFIFOUnitPrice(ri.RawMaterialId);
 
-                    // ✅ Same logic — laging divide by 1000 kung BaseUnit ay g o mL
                     decimal quantityForCost = ri.Quantity;
                     if (ri.RawMaterial?.BaseUnit == "g" || ri.RawMaterial?.BaseUnit == "mL")
                     {
@@ -43,7 +43,10 @@ namespace Infoman.Controllers
 
                 if (productSize.Margin > 0 && productSize.Margin < 1)
                 {
-                    productSize.Price = Math.Round(totalCost / (1 - productSize.Margin), 2);
+                    decimal computedPrice = totalCost / (1 - productSize.Margin);
+                    // ✅ Fixed ending 9 lang
+                    decimal newPrice = RoundToPriceEnding(computedPrice);
+                    productSize.Price = newPrice;
                 }
             }
 
@@ -330,6 +333,10 @@ namespace Infoman.Controllers
         {
             try
             {
+                // Gawing optional ang Category, Description, at ImagePath
+                ModelState.Remove("Category");
+                ModelState.Remove("Description");
+                ModelState.Remove("ImagePath");
                 ModelState.Remove("Sizes[*].RecipeItems[*].RawMaterialName");
 
                 if (model.Sizes == null || !model.Sizes.Any())
@@ -399,8 +406,6 @@ namespace Infoman.Controllers
 
                     foreach (var recipeVM in sizeVM.RecipeItems)
                     {
-
-                        System.Diagnostics.Debug.WriteLine($"RawMaterialId: {recipeVM.RawMaterialId}, Quantity: {recipeVM.Quantity}, UnitUsed: {recipeVM.UnitUsed}");
                         if (recipeVM.RawMaterialId > 0 && recipeVM.Quantity > 0)
                         {
                             var rawMat = await _db.RawMaterials.FindAsync(recipeVM.RawMaterialId);
@@ -414,28 +419,25 @@ namespace Infoman.Controllers
 
                             if (latestPrice >= 0)
                             {
-                                // ✅ I-CONVERT ANG QUANTITY SA BASE UNIT (grams, mL)
                                 decimal quantityInBaseUnit = recipeVM.Quantity;
 
                                 if (recipeVM.UnitUsed == "kg" && rawMat.BaseUnit == "g")
                                 {
-                                    quantityInBaseUnit = recipeVM.Quantity * 1000;  // 0.5 kg → 500 grams
+                                    quantityInBaseUnit = recipeVM.Quantity * 1000;
                                 }
                                 else if (recipeVM.UnitUsed == "L" && rawMat.BaseUnit == "mL")
                                 {
-                                    quantityInBaseUnit = recipeVM.Quantity * 1000;  // 0.5 L → 500 mL
+                                    quantityInBaseUnit = recipeVM.Quantity * 1000;
                                 }
-                                // kung g, mL, pcs — walang conversion
 
-                                // ✅ I-CONVERT ANG QUANTITY PARA SA COST COMPUTATION (para maging kg)
                                 decimal quantityForCost = recipeVM.Quantity;
                                 if (recipeVM.UnitUsed == "kg")
                                 {
-                                    quantityForCost = recipeVM.Quantity;  // 0.5 kg → 0.5 kg
+                                    quantityForCost = recipeVM.Quantity;
                                 }
                                 else if (recipeVM.UnitUsed == "g")
                                 {
-                                    quantityForCost = recipeVM.Quantity / 1000;  // 500g → 0.5 kg
+                                    quantityForCost = recipeVM.Quantity / 1000;
                                 }
 
                                 var cost = quantityForCost * latestPrice;
@@ -445,7 +447,7 @@ namespace Infoman.Controllers
                                 productSize.RecipeItems.Add(new RecipeItem
                                 {
                                     RawMaterialId = recipeVM.RawMaterialId,
-                                    Quantity = quantityInBaseUnit,  // ✅ STORE IN BASE UNIT (grams)
+                                    Quantity = quantityInBaseUnit,
                                     UnitUsed = recipeVM.UnitUsed
                                 });
                             }
@@ -457,13 +459,19 @@ namespace Infoman.Controllers
                         return Json(new { success = false, message = $"Please add at least one ingredient for {sizeVM.SizeName}" });
                     }
 
+                    // ✅ COMPUTE PRICE WITH FIXED ENDING 9 (no category check)
+                    decimal computedPrice = totalCost / (1 - margin);
+
+                    // Apply fixed ending 9 pricing
+                    decimal finalPrice = RoundToPriceEnding(computedPrice);
+
                     if (sizeVM.Price > 0)
                     {
-                        productSize.Price = sizeVM.Price;
+                        productSize.Price = RoundToPriceEnding(sizeVM.Price);
                     }
                     else
                     {
-                        productSize.Price = Math.Round(totalCost / (1 - margin), 2);
+                        productSize.Price = finalPrice;
                     }
 
                     product.Sizes.Add(productSize);
@@ -785,6 +793,7 @@ namespace Infoman.Controllers
         {
             var productSize = await _db.ProductSizes
                 .Include(ps => ps.RecipeItems)
+                .Include(ps => ps.Product)
                 .FirstOrDefaultAsync(ps => ps.ProductSizeId == model.ProductSizeId);
 
             if (productSize == null)
@@ -809,21 +818,19 @@ namespace Infoman.Controllers
                 {
                     decimal quantityInBaseUnit = ingredient.Quantity;
 
-                    // I-convert sa BASE UNIT (grams, mL, pcs) para i-store sa database
                     if (ingredient.UnitUsed == "kg" && rawMat.BaseUnit == "g")
                     {
-                        quantityInBaseUnit = ingredient.Quantity * 1000;  // 0.5 kg → 500 grams
+                        quantityInBaseUnit = ingredient.Quantity * 1000;
                     }
                     else if (ingredient.UnitUsed == "L" && rawMat.BaseUnit == "mL")
                     {
-                        quantityInBaseUnit = ingredient.Quantity * 1000;  // 0.5 L → 500 mL
+                        quantityInBaseUnit = ingredient.Quantity * 1000;
                     }
-                    // Kung g, mL, pcs — walang conversion
 
                     productSize.RecipeItems.Add(new RecipeItem
                     {
                         RawMaterialId = ingredient.RawMaterialId,
-                        Quantity = quantityInBaseUnit,  // ✅ STORE IN BASE UNIT
+                        Quantity = quantityInBaseUnit,
                         UnitUsed = ingredient.UnitUsed,
                         ProductSizeId = productSize.ProductSizeId
                     });
@@ -832,47 +839,47 @@ namespace Infoman.Controllers
 
             await _db.SaveChangesAsync();
 
-            // RECOMPUTE PRICE (gamit ang tamang conversion)
+            // RECOMPUTE PRICE
             decimal totalCost = 0;
             foreach (var ingredient in model.Ingredients)
             {
                 var rawMat = await _db.RawMaterials.FindAsync(ingredient.RawMaterialId);
-                decimal unitPrice = await GetFIFOUnitPrice(ingredient.RawMaterialId);  // ₱ per KG or per L
+                decimal unitPrice = await GetFIFOUnitPrice(ingredient.RawMaterialId);
 
                 decimal quantityForCost = ingredient.Quantity;
 
-                // I-convert sa tamang unit para sa costing
                 if (ingredient.UnitUsed == "kg")
                 {
-                    quantityForCost = ingredient.Quantity;  // 0.5 kg → 0.5 kg ✅
+                    quantityForCost = ingredient.Quantity;
                 }
                 else if (ingredient.UnitUsed == "g")
                 {
-                    quantityForCost = ingredient.Quantity / 1000;  // 500g → 0.5 kg ✅
+                    quantityForCost = ingredient.Quantity / 1000;
                 }
                 else if (ingredient.UnitUsed == "L")
                 {
-                    quantityForCost = ingredient.Quantity;  // 0.5 L → 0.5 L ✅
+                    quantityForCost = ingredient.Quantity;
                 }
                 else if (ingredient.UnitUsed == "mL")
                 {
-                    quantityForCost = ingredient.Quantity / 1000;  // 500mL → 0.5 L ✅
-                }
-                else // pcs
-                {
-                    quantityForCost = ingredient.Quantity;
+                    quantityForCost = ingredient.Quantity / 1000;
                 }
 
                 totalCost += quantityForCost * unitPrice;
             }
 
-            decimal newSellingPrice = Math.Round(totalCost / (1 - productSize.Margin), 2);
+            // ✅ APPLY FIXED ENDING 9 PRICING (no category check)
+            decimal computedPrice = totalCost / (1 - productSize.Margin);
+            decimal newSellingPrice = RoundToPriceEnding(computedPrice);
+
             productSize.Price = newSellingPrice;
 
             await _db.SaveChangesAsync();
 
             return Json(new { success = true, newPrice = newSellingPrice });
         }
+
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ArchiveProduct(int id)
@@ -1450,21 +1457,31 @@ namespace Infoman.Controllers
                     foreach (var ri in productSize.RecipeItems)
                     {
                         decimal activePrice = await GetFIFOUnitPrice(ri.RawMaterialId);
-                        totalCost += ri.Quantity * activePrice;
+                        decimal quantityForCost = ri.Quantity;
+
+                        if (ri.RawMaterial?.BaseUnit == "g" || ri.RawMaterial?.BaseUnit == "mL")
+                        {
+                            quantityForCost = ri.Quantity / 1000;
+                        }
+
+                        totalCost += quantityForCost * activePrice;
                     }
 
-                    decimal newPrice = Math.Round(totalCost / (1 - productSize.Margin), 2);
-
-                    if (productSize.Price != newPrice)
+                    if (productSize.Margin > 0 && productSize.Margin < 1)
                     {
-                        productSize.Price = newPrice;
-                        updatedCount++;
+                        decimal computedPrice = totalCost / (1 - productSize.Margin);
+                        decimal newPrice = RoundToPriceEnding(computedPrice);
+
+                        if (productSize.Price != newPrice)
+                        {
+                            productSize.Price = newPrice;
+                            updatedCount++;
+                        }
                     }
                 }
 
                 await _db.SaveChangesAsync();
-
-                return Json(new { success = true, message = $"Updated {updatedCount} product prices", updatedCount = updatedCount });
+                return Json(new { success = true, message = $"Updated {updatedCount} product prices to ending 9", updatedCount = updatedCount });
             }
             catch (Exception ex)
             {
@@ -1625,7 +1642,9 @@ namespace Infoman.Controllers
                         RejectedQty = item.RejectedQty,
                         RejectionReason = item.RejectedQty > 0 ? item.RejectionReason : null,
                         UnitPrice = item.UnitPrice,
-                        ExpiryDate = item.ExpiryDate
+                        ExpiryDate = item.ExpiryDate,
+                        ReturnStatus = null,  
+                        ReturnId = null
                     };
                     _db.ReceivingItems.Add(receivingItem);
                     await _db.SaveChangesAsync();
@@ -1691,7 +1710,16 @@ namespace Infoman.Controllers
             }
             catch (Exception ex)
             {
-                return Json(new { success = false, message = ex.Message });
+                string errorMessage = ex.Message;
+                if (ex.InnerException != null)
+                {
+                    errorMessage += " - Inner: " + ex.InnerException.Message;
+                    if (ex.InnerException.InnerException != null)
+                    {
+                        errorMessage += " - Inner2: " + ex.InnerException.InnerException.Message;
+                    }
+                }
+                return Json(new { success = false, message = errorMessage });
             }
         }// Helper method to update main stock
         private async Task UpdateStockFromBatches(int rawMaterialId)
@@ -2052,6 +2080,401 @@ namespace Infoman.Controllers
             return Json(new { success = true, message = "Request rejected" });
         }
 
+        // ========== SUPPLIER RETURNS ACTIONS ==========
+
+        [HttpGet]
+        public async Task<IActionResult> GetReceivingDetails(int id)
+        {
+            var receiving = await _db.Receivings
+                .Include(r => r.Supplier)
+                .Include(r => r.ReceivingItems)
+                    .ThenInclude(ri => ri.RawMaterial)
+                .FirstOrDefaultAsync(r => r.ReceivingId == id);
+
+            if (receiving == null)
+                return Json(new { success = false });
+
+            var result = new
+            {
+                receivingId = receiving.ReceivingId,
+                drNumber = receiving.DRNumber,
+                supplierName = receiving.Supplier?.Name,
+                dateReceived = receiving.DateReceived,
+                items = receiving.ReceivingItems.Select(ri => new
+                {
+                    receivingItemId = ri.ReceivingItemId,
+                    name = ri.RawMaterial?.Name,
+                    acceptedQty = ri.AcceptedQty,
+                    rejectedQty = ri.RejectedQty,
+                    unit = ri.RawMaterial?.Unit,
+                    unitPrice = ri.UnitPrice,
+                    returnStatus = ri.ReturnStatus,
+                    returnId = ri.ReturnId
+                })
+            };
+
+            return Json(result);
+        }
+
+        [HttpPost]
+        //[ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateSupplierReturn([FromBody] CreateSupplierReturnRequest request)
+        {
+            try
+            {
+                if (request == null)
+                    return Json(new { success = false, message = "Invalid request data" });
+
+                var receivingItem = await _db.ReceivingItems
+    .Include(ri => ri.Receiving)
+        .ThenInclude(r => r.Supplier)   
+    .Include(ri => ri.RawMaterial)
+    .FirstOrDefaultAsync(ri => ri.ReceivingItemId == request.ReceivingItemId);
+
+                if (receivingItem == null)
+                    return Json(new { success = false, message = "Item not found" });
+
+                if (receivingItem.Receiving == null)
+                    return Json(new { success = false, message = "Receiving record not found" });
+
+                if (receivingItem.RawMaterial == null)
+                    return Json(new { success = false, message = "Raw material not found" });
+
+                if (request.Quantity > receivingItem.RejectedQty)
+                    return Json(new { success = false, message = "Cannot return more than rejected quantity" });
+
+                // Check if may existing return na
+                if (receivingItem.ReturnStatus == "PENDING" || receivingItem.ReturnStatus == "RETURNED")
+                    return Json(new { success = false, message = "Return already processed for this item" });
+
+                // Get supplier ID - handle potential null
+                int supplierId = receivingItem.Receiving.SupplierId;
+
+                // Create return record
+                var supplierReturn = new SupplierReturn
+                {
+                    ReturnNumber = GenerateReturnNumber(),
+                    ReceivingId = receivingItem.ReceivingId,
+                    ReceivingItemId = request.ReceivingItemId,
+                    SupplierId = supplierId,
+                    RawMaterialId = receivingItem.RawMaterialId,
+                    Quantity = request.Quantity,
+                    UnitPrice = receivingItem.UnitPrice,
+                    CreditAmount = request.Quantity * receivingItem.UnitPrice,
+                    Reason = request.Reason ?? "No reason provided",
+                    Status = "Pending Return",
+                    ReturnDate = DateTime.Now,
+                    CreatedBy = GetCurrentUserId(),
+                    Notes = request.Notes ?? ""
+                };
+
+                _db.SupplierReturns.Add(supplierReturn);
+
+                // Update receiving item
+                receivingItem.ReturnStatus = "PENDING";
+                receivingItem.ReturnId = supplierReturn.ReturnId;
+
+                await _db.SaveChangesAsync();
+
+                return Json(new { success = true, message = $"Return #{supplierReturn.ReturnNumber} created. Pending return to supplier." });
+            }
+            catch (Exception ex)
+            {
+                string errorMessage = ex.Message;
+                if (ex.InnerException != null)
+                {
+                    errorMessage += " - Inner: " + ex.InnerException.Message;
+                }
+                return Json(new { success = false, message = errorMessage });
+            }
+        }
+
+
+        [HttpGet]
+        public async Task<IActionResult> GetSupplierReturns()
+        {
+            var returns = await _db.SupplierReturns
+                .Include(r => r.Receiving)
+                .Include(r => r.Supplier)
+                .Include(r => r.RawMaterial)
+                .OrderByDescending(r => r.ReturnDate)
+                .Select(r => new
+                {
+                    r.ReturnId,
+                    r.ReturnNumber,
+                    r.ReturnDate,
+                    DRNumber = r.Receiving.DRNumber,
+                    SupplierName = r.Supplier.Name,
+                    ItemName = r.RawMaterial.Name,
+                    r.Quantity,
+                    Unit = r.RawMaterial.Unit,
+                    r.Reason,
+                    r.CreditAmount,
+                    r.Status,
+                    r.UnitPrice
+                })
+                .ToListAsync();
+
+            var summary = new
+            {
+                pendingCount = returns.Count(r => r.Status == "Pending Return"),
+                completedCount = returns.Count(r => r.Status == "Returned"),
+                cancelledCount = returns.Count(r => r.Status == "Cancelled"),
+                totalCredit = returns.Sum(r => r.CreditAmount)
+            };
+
+            return Json(new { success = true, returns = returns, summary = summary });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetSupplierReturnDetail(int returnId)
+        {
+            var supplierReturn = await _db.SupplierReturns
+                .Include(r => r.Receiving)
+                .Include(r => r.Supplier)
+                .Include(r => r.RawMaterial)
+                .FirstOrDefaultAsync(r => r.ReturnId == returnId);
+
+            if (supplierReturn == null)
+                return Json(new { success = false, message = "Return not found" });
+
+            var result = new
+            {
+                success = true,
+                @return = new
+                {
+                    supplierReturn.ReturnId,
+                    supplierReturn.ReturnNumber,
+                    supplierReturn.ReceivingId,
+                    DRNumber = supplierReturn.Receiving?.DRNumber,
+                    SupplierName = supplierReturn.Supplier?.Name,
+                    ItemName = supplierReturn.RawMaterial?.Name,
+                    supplierReturn.Quantity,
+                    Unit = supplierReturn.RawMaterial?.Unit,
+                    supplierReturn.UnitPrice,
+                    supplierReturn.CreditAmount,
+                    supplierReturn.Reason,
+                    supplierReturn.Status,
+                    supplierReturn.ReturnDate,
+                    supplierReturn.ActualReturnDate,
+                    supplierReturn.Notes
+                }
+            };
+
+            return Json(result);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> MarkSupplierReturnCompleted([FromBody] MarkSupplierReturnRequest request)
+        {
+            try
+            {
+                var supplierReturn = await _db.SupplierReturns
+                    .FirstOrDefaultAsync(r => r.ReturnId == request.ReturnId);
+
+                if (supplierReturn == null)
+                    return Json(new { success = false, message = "Return not found" });
+
+                if (supplierReturn.Status != "Pending Return")
+                    return Json(new { success = false, message = "Return already processed" });
+
+                supplierReturn.Status = "Returned";
+                supplierReturn.ActualReturnDate = DateTime.Now;
+
+                // Update the receiving item
+                var receivingItem = await _db.ReceivingItems
+                    .FirstOrDefaultAsync(ri => ri.ReceivingItemId == supplierReturn.ReceivingItemId);
+
+                if (receivingItem != null)
+                {
+                    receivingItem.ReturnStatus = "RETURNED";
+                }
+
+                await _db.SaveChangesAsync();
+
+                return Json(new { success = true, message = "Return marked as completed" });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CancelSupplierReturn([FromBody] CancelSupplierReturnRequest request)
+        {
+            try
+            {
+                var supplierReturn = await _db.SupplierReturns
+                    .FirstOrDefaultAsync(r => r.ReturnId == request.ReturnId);
+
+                if (supplierReturn == null)
+                    return Json(new { success = false, message = "Return not found" });
+
+                if (supplierReturn.Status != "Pending Return")
+                    return Json(new { success = false, message = "Cannot cancel - return already processed" });
+
+                supplierReturn.Status = "Cancelled";
+
+                // Update the receiving item - remove return status
+                var receivingItem = await _db.ReceivingItems
+                    .FirstOrDefaultAsync(ri => ri.ReceivingItemId == supplierReturn.ReceivingItemId);
+
+                if (receivingItem != null)
+                {
+                    receivingItem.ReturnStatus = null;
+                    receivingItem.ReturnId = null;
+                }
+
+                await _db.SaveChangesAsync();
+
+                return Json(new { success = true, message = "Return cancelled" });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetApprovedReturns()
+        {
+            // Get approved voids from PendingRequests
+            var approvedVoids = await _db.PendingRequests
+                .Include(r => r.Order)
+                .Include(r => r.Requester)
+                .Include(r => r.Approver)
+                .Where(r => r.RequestType == "VOID" && r.Status == "APPROVED")
+                .Select(r => new
+                {
+                    Id = r.Id,
+                    OrderNumber = r.Order.OrderNumber,
+                    RequestType = "VOID",
+                    Reason = r.Reason,
+                    Amount = r.Order.TotalAmount,
+                    Status = r.Status,
+                    RecordedAt = r.ApprovedAt,
+                    RequesterName = r.Requester.Username,
+                    Source = "APPROVED"
+                })
+                .ToListAsync();
+
+            // Get approved refunds
+            var approvedRefunds = await _db.PendingRequests
+                .Include(r => r.Order)
+                .Include(r => r.Requester)
+                .Include(r => r.Approver)
+                .Where(r => r.RequestType == "REFUND" && r.Status == "APPROVED")
+                .Select(r => new
+                {
+                    Id = r.Id,
+                    OrderNumber = r.Order.OrderNumber,
+                    RequestType = "REFUND",
+                    Reason = r.Reason,
+                    Amount = r.Order.TotalAmount,
+                    Status = r.Status,
+                    RecordedAt = r.ApprovedAt,
+                    RequesterName = r.Requester.Username,
+                    Source = "APPROVED"
+                })
+                .ToListAsync();
+
+            // ✅ ADD DIRECT VOIDS (no approval needed)
+            var directVoids = await _db.VoidLogs
+                .Include(v => v.Transaction)
+                .Include(v => v.User)
+                .Where(v => v.VoidType == "item" || v.VoidType == "transaction")
+                .Where(v => v.PreparedFlag == false)
+                .Select(v => new
+                {
+                    Id = v.VoidLogId,
+                    OrderNumber = v.Transaction.OrderNumber,
+                    RequestType = "VOID",
+                    Reason = v.Reason,
+                    Amount = v.Transaction.TotalAmount,
+                    Status = "COMPLETED",
+                    RecordedAt = v.Timestamp,
+                    RequesterName = v.User.Username,
+                    Source = "DIRECT"
+                })
+                .ToListAsync();
+
+            var allReturns = new List<object>();
+            allReturns.AddRange(approvedVoids);
+            allReturns.AddRange(approvedRefunds);
+            allReturns.AddRange(directVoids);  // ✅ ADD DIRECT VOIDS
+
+            var sortedReturns = allReturns
+                .OrderByDescending(r => ((dynamic)r).RecordedAt)
+                .ToList();
+
+            return Json(sortedReturns);
+        }
+        private string GenerateReturnNumber()
+        {
+            string prefix = "RET";
+            int year = DateTime.Now.Year;
+            int month = DateTime.Now.Month;
+            int count = _db.SupplierReturns.Count(r => r.ReturnDate.Year == year && r.ReturnDate.Month == month) + 1;
+            return $"{prefix}-{year}{month:D2}-{count:D4}";
+        }
+
+        // Idagdag sa OwnerController.cs
+        [HttpGet]
+        public async Task<IActionResult> GetRawMaterialsForProduct()
+        {
+            var rawMaterials = await _db.RawMaterials
+                .Where(r => !r.IsDeleted)
+                .Select(r => new
+                {
+                    id = r.RawMaterialId,
+                    name = r.Name,
+                    unit = r.Unit,
+                    price = r.Price,
+                    latestBatchPrice = _db.RawMaterialBatches
+                        .Where(b => b.RawMaterialId == r.RawMaterialId && b.QuantityRemaining > 0)
+                        .OrderByDescending(b => b.ReceivedDate)
+                        .Select(b => b.UnitPrice)
+                        .FirstOrDefault()
+                })
+                .ToListAsync();
+
+            return Json(rawMaterials);
+        }
+        // Price rounding helper methods - FIXED ENDING 9 ONLY
+        private decimal RoundToPriceEnding(decimal price)
+        {
+            // I-round sa whole number
+            decimal rounded = Math.Round(price, 0, MidpointRounding.AwayFromZero);
+
+            // Minimum price check (₱9 para sa maliliit)
+            if (rounded > 0 && rounded < 10)
+            {
+                return 9; // ₱9 minimum
+            }
+
+            if (rounded >= 10)
+            {
+                // Hanapin ang susunod na numero na ending sa 9
+                // Halimbawa: 10-19 → 19, 20-29 → 29, 30-39 → 39
+                decimal basePrice = Math.Floor(rounded / 10) * 10;
+                decimal result = basePrice + 9;
+
+                // Round up only (hindi pwedeng bumaba)
+                if (result < rounded)
+                {
+                    result = basePrice + 10 + 9;
+                }
+
+                return result;
+            }
+
+            return rounded;
+        }
+
+
         private int GetCurrentUserId()
         {
             return HttpContext.Session.GetInt32("UserId") ?? 0;
@@ -2102,6 +2525,27 @@ namespace Infoman.Controllers
             public decimal UnitPrice { get; set; }
             public DateTime? ExpiryDate { get; set; }
         }
-    
+
+        // ========== SUPPLIER RETURN REQUEST MODELS ==========
+
+        public class CreateSupplierReturnRequest
+        {
+            public int ReceivingItemId { get; set; }
+            public decimal Quantity { get; set; }
+            public string Reason { get; set; }
+            public string Notes { get; set; }
+        }
+
+        public class MarkSupplierReturnRequest
+        {
+            public int ReturnId { get; set; }
+        }
+
+        public class CancelSupplierReturnRequest
+        {
+            public int ReturnId { get; set; }
+        }
+
+
     }
 } 

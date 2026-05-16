@@ -1250,48 +1250,72 @@ let editingOrderId = null;
         // ORDER QUEUE
         // ============================================================
         async function loadOrderQueue() {
-            try {
-                const response = await fetch('/Staff/GetActiveOrders');
-                const orders = await response.json();
-                const container = document.getElementById('orderQueueList');
-                const countSpan = document.getElementById('queueCount');
-                if (!container) return;
-                const pendingOrders = orders.filter(o => o.status === 'PENDING_PAYMENT');
-                if (countSpan) countSpan.innerText = pendingOrders.length;
-                if (pendingOrders.length === 0) {
-                    container.innerHTML = '<div class="text-center text-muted small">No pending orders to blend</div>';
-                    return;
-                }
-                let html = '';
-                pendingOrders.forEach(order => {
-                    let itemsHtml = '';
-                    order.items.forEach(item => {
-                        itemsHtml += `<div>• ${item.quantity}x ${item.productName} (${item.sizeName})</div>`;
-                    });
-                    html += `
-                        <div class="queue-item" data-order-id="${order.orderId}">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="queue-order-number">#${order.orderNumber}</span>
-                                <span class="badge bg-warning" style="font-size: 9px;">PENDING</span>
-                            </div>
-                            <div class="queue-items">${itemsHtml}</div>
-                            <div class="d-flex justify-content-between align-items-center mt-1">
-                                <span class="queue-total">₱${order.totalAmount.toFixed(2)}</span>
-                                <button class="btn btn-warning btn-sm queue-btn" onclick="startBlendingFromQueue(${order.orderId})">
-                                   Start Blending
-                                </button>
-                            </div>
-                        </div>`;
-                });
-                container.innerHTML = html;
-            } catch (error) {
-                const container = document.getElementById('orderQueueList');
-                if (container) container.innerHTML = '<div class="text-center text-danger small">Error loading orders</div>';
-            }
+    try {
+        const response = await fetch('/Staff/GetActiveOrders');
+        const orders = await response.json();
+        const container = document.getElementById('orderQueueList');
+        const countSpan = document.getElementById('queueCount');
+        if (!container) return;
+        
+        // PENDING PAYMENT LANG ang ipapakita (hindi pa na-start ang blending)
+        const pendingOrders = orders.filter(o => o.status === 'PENDING_PAYMENT');
+        
+        if (countSpan) countSpan.innerText = pendingOrders.length;
+        
+        if (pendingOrders.length === 0) {
+            container.innerHTML = '<div class="text-center text-muted small">No pending orders to blend</div>';
+            return;
         }
+        
+        let html = '';
+        pendingOrders.forEach(order => {
+            let itemsHtml = '';
+            order.items.forEach(item => {
+                itemsHtml += `<div>• ${item.quantity}x ${item.productName} (${item.sizeName})</div>`;
+            });
+            // Kunin ang huling 6 na character ng order number
+            const shortOrderNum = order.orderNumber.substring(order.orderNumber.length - 6);
+            html += `
+                <div class="queue-item" data-order-id="${order.orderId}" style="border-left: 3px solid #ffc107; margin-bottom: 8px; background: white; border-radius: 8px; padding: 8px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="queue-order-number" style="font-size: 12px; font-weight: bold;" title="${order.orderNumber}">#${shortOrderNum}</span>
+                        <span class="badge bg-warning" style="font-size: 9px;">PENDING</span>
+                    </div>
+                    <div class="queue-items" style="font-size: 11px; color: #666; margin: 5px 0;">${itemsHtml}</div>
+                    <div class="d-flex justify-content-between align-items-center mt-1">
+                        <span class="queue-total" style="font-size: 12px; font-weight: bold; color: #28a745;">₱${order.totalAmount.toFixed(2)}</span>
+                        <div>
+                            <button class="btn btn-sm btn-outline-info" style="font-size: 10px; margin-right: 5px;" onclick="event.stopPropagation(); showReceiptPopup(${order.orderId})">
+                                 View
+                            </button>
+                            <button class="btn btn-warning btn-sm" style="font-size: 10px;" onclick="event.stopPropagation(); startBlendingFromQueue(${order.orderId})">
+                                Start Blending
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+        });
+        container.innerHTML = html;
+    } catch (error) {
+        const container = document.getElementById('orderQueueList');
+        if (container) container.innerHTML = '<div class="text-center text-danger small">Error loading orders</div>';
+    }
+}
 
-       async function startBlendingFromQueue(orderId) {
-    const confirmed = await showConfirm(`Start blending order #${orderId}?\n\nIngredients will be deducted from inventory.`, 'Start Blending');
+      async function startBlendingFromQueue(orderId) {
+    // Isara muna ang receipt modal kung bukas
+    const receiptModal = document.getElementById('receiptModal');
+    if (receiptModal && receiptModal.style.display === 'flex') {
+        receiptModal.style.display = 'none';
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    const confirmed = await showConfirm(
+        `⚠️ START BLENDING?\n\nOrder #${orderId}\n\nOnce you click OK:\n• Ingredients will be DEDUCTED from inventory\n• This action cannot be undone without Owner approval\n\nContinue?`,
+        'Start Blending Confirmation'
+    );
+    
     if (!confirmed) return;
     
     showLoading('Starting blending process...');
@@ -1299,6 +1323,7 @@ let editingOrderId = null;
     const originalText = btn.innerHTML;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
     btn.disabled = true;
+    
     try {
         const response = await fetch('/Staff/StartBlending', {
             method: 'POST',
@@ -1307,6 +1332,7 @@ let editingOrderId = null;
         });
         const data = await response.json();
         hideLoading();
+        
         if (data.success) {
             await showAlert('✅ ' + data.message, 'Success', '✅');
             await loadOrderQueue();
@@ -1322,7 +1348,6 @@ let editingOrderId = null;
         btn.disabled = false;
     }
 }
-
         function refreshQueue() { loadOrderQueue(); }
 
         if (document.getElementById('orderQueueList')) {
@@ -1756,7 +1781,176 @@ async function createNewOrder() {
             document.getElementById('receiptModal').style.display = 'none';
         }
 
+       // Function para mag-pop-up ng receipt ng kahit anong order
+async function showReceiptPopup(orderId) {
+    if (!orderId) {
+        await showAlert('No order selected.', 'Error', '❌');
+        return;
+    }
+    
+    showLoading('Loading receipt...');
+    
+    try {
+        const response = await fetch(`/VoidRefund/GetOrderDetails?orderId=${orderId}`);
+        const data = await response.json();
+        hideLoading();
+        
+        if (!data.success || !data.order) {
+            await showAlert('Unable to load receipt', 'Error', '❌');
+            return;
+        }
+        
+        const orderDetails = [];
+        let subtotal = 0;
+        
+        data.order.items.forEach(item => {
+            if (!item.isVoided && !item.isRefunded) {
+                const itemSubtotal = item.price * item.quantity;
+                orderDetails.push({
+                    name: item.productName,
+                    size: item.sizeName,
+                    quantity: item.quantity,
+                    price: item.price,
+                    subtotal: itemSubtotal
+                });
+                subtotal += itemSubtotal;
+            }
+        });
+        
+        // I-compute ang discounted total
+        const discountPercent = data.order.discountPercent || 0;
+        const discountedTotal = subtotal * (1 - discountPercent);
+        const discountSavings = subtotal - discountedTotal;
+        
+        // I-store ang order ID para magamit ng start blending at void buttons
+        window.currentOrderId = orderId;
+        
+        // I-save ang original subtotal para sa receipt display
+        const originalSubtotal = subtotal;
+        
+        // Ipakita ang receipt modal - gamitin ang computed values
+        showReceiptModalWithValues(
+            orderDetails, 
+            data.order.paymentMethod || 'Cash', 
+            data.order.discountType || 'None', 
+            discountPercent, 
+            discountSavings, 
+            discountedTotal, 
+            originalSubtotal,
+            orderId, 
+            data.order.status
+        );
+        
+    } catch (error) {
+        hideLoading();
+        console.error('Error loading receipt:', error);
+        await showAlert('Error loading receipt: ' + error.message, 'Error', '❌');
+    }
+}
+
+// Bagong function para sa receipt modal na may tamang subtotal
+function showReceiptModalWithValues(orderDetails, paymentMethod, discountType, discountPercent, discountSavings, total, subtotal, orderId, orderStatus) {
+    const receiptDiv = document.getElementById('receiptContent');
+    const now = new Date();
+
+    // I-store ang order ID para magamit ng mga button
+    if (orderId) window.currentOrderId = orderId;
+
+    let itemsHtml = '';
+    orderDetails.forEach(item => {
+        itemsHtml += `
+            <div class="receipt-item">
+                <div>
+                    <strong>${escapeHtml(item.name)}</strong><br>
+                    <small>${item.size} × ${item.quantity}</small>
+                </div>
+                <div>₱${item.subtotal.toFixed(2)}</div>
+            </div>`;
+    });
+
+    let discountHtml = '';
+    if (discountPercent > 0) {
+        discountHtml = `
+            <div class="receipt-discount">
+                <span>${discountType} (${discountPercent * 100}% OFF)</span>
+                <span>-₱${discountSavings.toFixed(2)}</span>
+            </div>`;
+    }
+
+    // Shortened order number for display
+    const shortOrderId = orderId ? orderId.toString().substring(orderId.toString().length - 6) : 'N/A';
+
+    receiptDiv.innerHTML = `
+        <div style="text-align:center; margin-bottom: 12px;">
+            <div style="font-weight:600;">${now.toLocaleDateString()}</div>
+            <div style="font-size: 13px; color: #888;">${now.toLocaleTimeString()}</div>
+            <div style="font-size: 12px; color: #aaa;">Order #: ${shortOrderId}</div>
+        </div>
+        <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+            <strong style="font-size: 14px;">Order Summary</strong>
+            <span class="badge bg-warning text-dark">${orderStatus === 'COMPLETED' ? 'COMPLETED' : 'PENDING BLENDING'}</span>
+        </div>
+        ${itemsHtml}
+        <div class="receipt-subtotal">
+            <span>Subtotal</span>
+            <span>₱${subtotal.toFixed(2)}</span>
+        </div>
+        ${discountHtml}
+        <div class="receipt-total">
+            <span>TOTAL PAID</span>
+            <span>₱${total.toFixed(2)}</span>
+        </div>
+        <div style="margin-top: 12px; padding: 10px; background: #f9f9f9; border-radius: 8px; font-size: 13px;">
+            <div>Payment: <strong>${paymentMethod}</strong></div>
+            <div style="margin-top: 4px; color: #28a745;">✅ Payment Received: ₱${total.toFixed(2)}</div>
+        </div>`;
+
+    // Ipakita ang action buttons (Start Blending, Void Item, Void Transaction)
+    const actionArea = document.getElementById('receiptActionArea');
+    const startBtn = document.getElementById('startBlendingBtn');
+    const voidBtn = document.getElementById('voidReceiptBtn');
+    const voidItemBtn = document.getElementById('voidItemReceiptBtn');
+    
+    if (actionArea) actionArea.style.display = 'flex';
+    
+    // Kung COMPLETED na ang order, i-disable ang Start Blending button
+    if (startBtn) {
+        if (orderStatus === 'COMPLETED') {
+            startBtn.disabled = true;
+            startBtn.innerHTML = '✅ Already Blended';
+            startBtn.style.background = '#28a745';
+            startBtn.style.color = 'white';
+        } else {
+            startBtn.disabled = false;
+            startBtn.innerHTML = ' START BLENDING (Deduct Ingredients)';
+            startBtn.style.background = '#ffc107';
+            startBtn.style.color = '#212529';
+        }
+    }
+    
+    // Ipakita ang void buttons kung hindi pa completed
+    if (voidBtn) voidBtn.style.display = orderStatus === 'COMPLETED' ? 'none' : 'block';
+    if (voidItemBtn) voidItemBtn.style.display = orderStatus === 'COMPLETED' ? 'none' : 'block';
+
+    document.getElementById('receiptModal').style.display = 'flex';
+}
+
        async function startBlending(orderId) {
+    if (!orderId) {
+        await showAlert('No order found.', 'Error', '❌');
+        return;
+    }
+    
+    // Isara muna ang receipt modal kung bukas
+    const receiptModal = document.getElementById('receiptModal');
+    if (receiptModal && receiptModal.style.display === 'flex') {
+        receiptModal.style.display = 'none';
+    }
+    
+    // Maghintay ng konti para magsara ang modal
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Gamitin ang custom confirm
     const confirmed = await showConfirm(
         '⚠️ START BLENDING?\n\nOnce you click OK:\n• Ingredients will be DEDUCTED from inventory\n• This action cannot be undone without Owner approval\n\nContinue?',
         'Start Blending Confirmation'
@@ -1765,11 +1959,7 @@ async function createNewOrder() {
     if (!confirmed) return;
 
     showLoading('Starting blending process...');
-    const btn = document.getElementById('startBlendingBtn');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
-    btn.disabled = true;
-
+    
     try {
         const response = await fetch('/Staff/StartBlending', {
             method: 'POST',
@@ -1780,36 +1970,18 @@ async function createNewOrder() {
         hideLoading();
 
         if (data.success) {
-            const voidBtn = document.getElementById('voidReceiptBtn');
-            if (voidBtn) voidBtn.style.display = 'none';
-
-            btn.innerHTML = '✅ Blending Started!';
-            btn.style.background = '#28a745';
-            btn.style.color = 'white';
-            btn.disabled = true;
-
-            const statusBadge = document.querySelector('#receiptContent .badge');
-            if (statusBadge) {
-                statusBadge.innerText = 'COMPLETED';
-                statusBadge.classList.remove('bg-warning', 'text-dark');
-                statusBadge.classList.add('bg-success');
-            }
-
-            await loadOrderQueue();
             await showAlert('✅ Blending started successfully!', 'Success', '✅');
-            setTimeout(() => { closeReceiptModal(); }, 3000);
+            await loadOrderQueue();
         } else {
             await showAlert('❌ Error: ' + data.message, 'Error', '❌');
-            btn.innerHTML = originalText;
-            btn.disabled = false;
         }
     } catch (error) {
         hideLoading();
         await showAlert('❌ Error: ' + error.message, 'Error', '❌');
-        btn.innerHTML = originalText;
-        btn.disabled = false;
     }
 }
+
+
 
         // ============================================================
 // EDIT ORDER FUNCTIONALITY
@@ -2454,20 +2626,29 @@ if (data.success) {
         function closeOwnerApprovalModal() { document.getElementById('ownerApprovalModal').style.display = 'none'; }
 
         function switchVoidTab(tab) {
-            const voidTab = document.getElementById('voidTabContent');
-            const refundTab = document.getElementById('refundTabContent');
-            const voidBtn = document.getElementById('voidTabBtn');
-            const refundBtn = document.getElementById('refundTabBtn');
-            if (tab === 'void') {
-                voidTab.style.display = 'block'; refundTab.style.display = 'none';
-                voidBtn.classList.add('active'); refundBtn.classList.remove('active');
-                loadPendingOrdersForVoid();
-            } else {
-                voidTab.style.display = 'none'; refundTab.style.display = 'block';
-                voidBtn.classList.remove('active'); refundBtn.classList.add('active');
-                loadCompletedOrdersForRefund();
-            }
-        }
+    const voidTab = document.getElementById('voidTabContent');
+    const refundTab = document.getElementById('refundTabContent');
+    const voidBtn = document.getElementById('voidTabBtn');
+    const refundBtn = document.getElementById('refundTabBtn');
+    
+    if (tab === 'void') {
+        voidTab.style.display = 'block';
+        refundTab.style.display = 'none';
+        voidBtn.style.background = '#dc3545';
+        voidBtn.style.color = 'white';
+        refundBtn.style.background = '#e9ecef';
+        refundBtn.style.color = '#333';
+        loadPendingOrdersForVoid();  // I-load ang pending orders
+    } else {
+        voidTab.style.display = 'none';
+        refundTab.style.display = 'block';
+        voidBtn.style.background = '#e9ecef';
+        voidBtn.style.color = '#333';
+        refundBtn.style.background = '#007bff';
+        refundBtn.style.color = 'white';
+        loadCompletedOrdersForRefund();  // I-load ang completed orders
+    }
+}
 
         document.addEventListener('DOMContentLoaded', function() {
             const voidReason = document.getElementById('voidReason');
@@ -2489,29 +2670,99 @@ if (data.success) {
             return document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
         }
 
-        async function loadPendingOrdersForVoid() {
-            try {
-                const response = await fetch('/VoidRefund/GetPendingOrders');
-                const orders = await response.json();
-                const select = document.getElementById('voidOrderSelect');
-                select.innerHTML = '<option value="">-- Select Order --</option>';
-                orders.forEach(order => {
-                    select.innerHTML += `<option value="${order.orderId}">#${order.orderNumber} - ${order.status} - ₱${order.totalAmount.toFixed(2)}</option>`;
-                });
-            } catch (error) { console.error('Error:', error); }
+       async function loadPendingOrdersForVoid() {
+    try {
+        const response = await fetch('/VoidRefund/GetPendingOrders');
+        const orders = await response.json();
+        const select = document.getElementById('voidOrderSelect');
+        select.innerHTML = '<option value="">-- Select Order --</option>';
+        
+        // I-filter lang ang mga PENDING_PAYMENT orders (hindi pa nabe-blend)
+        const pendingOrders = orders.filter(o => o.status === 'PENDING_PAYMENT' || o.status === 'PENDING');
+        
+        if (pendingOrders.length === 0) {
+            select.innerHTML = '<option value="">-- No pending orders to void --</option>';
+            return;
         }
+        
+        for (const order of pendingOrders) {
+            try {
+                const orderDetailsResponse = await fetch(`/VoidRefund/GetOrderDetails?orderId=${order.orderId}`);
+                const orderDetails = await orderDetailsResponse.json();
+                
+                let productNames = '';
+                if (orderDetails.success && orderDetails.order && orderDetails.order.items) {
+                    const items = orderDetails.order.items.map(item => `${item.quantity}x ${item.productName} (${item.sizeName})`);
+                    productNames = items.join(', ');
+                }
+                
+                const shortOrderNum = order.orderNumber.substring(order.orderNumber.length - 8);
+                const displayText = productNames.length > 35 ? productNames.substring(0, 32) + '...' : productNames;
+                
+                select.innerHTML += `<option value="${order.orderId}">
+                    #${shortOrderNum} - ${displayText} - ₱${order.totalAmount.toFixed(2)}
+                </option>`;
+            } catch (err) {
+                console.error('Error loading order details:', err);
+                const shortOrderNum = order.orderNumber.substring(order.orderNumber.length - 8);
+                select.innerHTML += `<option value="${order.orderId}">
+                    #${shortOrderNum} - ₱${order.totalAmount.toFixed(2)}
+                </option>`;
+            }
+        }
+    } catch (error) { 
+        console.error('Error:', error); 
+        const select = document.getElementById('voidOrderSelect');
+        if (select) select.innerHTML = '<option value="">-- Error loading orders --</option>';
+    }
+}
 
         async function loadCompletedOrdersForRefund() {
-            try {
-                const response = await fetch('/VoidRefund/GetCompletedOrders');
-                const orders = await response.json();
-                const select = document.getElementById('refundOrderSelect');
-                select.innerHTML = '<option value="">-- Select Order --</option>';
-                orders.forEach(order => {
-                    select.innerHTML += `<option value="${order.orderId}">#${order.orderNumber} - ₱${order.totalAmount.toFixed(2)}</option>`;
-                });
-            } catch (error) { console.error('Error:', error); }
+    try {
+        const response = await fetch('/VoidRefund/GetCompletedOrders');
+        const orders = await response.json();
+        const select = document.getElementById('refundOrderSelect');
+        select.innerHTML = '<option value="">-- Select Order --</option>';
+        
+        // I-filter lang ang mga COMPLETED orders
+        const completedOrders = orders.filter(o => o.status === 'COMPLETED');
+        
+        if (completedOrders.length === 0) {
+            select.innerHTML = '<option value="">-- No completed orders to refund --</option>';
+            return;
         }
+        
+        for (const order of completedOrders) {
+            try {
+                const orderDetailsResponse = await fetch(`/VoidRefund/GetOrderDetails?orderId=${order.orderId}`);
+                const orderDetails = await orderDetailsResponse.json();
+                
+                let productNames = '';
+                if (orderDetails.success && orderDetails.order && orderDetails.order.items) {
+                    const items = orderDetails.order.items.map(item => `${item.quantity}x ${item.productName} (${item.sizeName})`);
+                    productNames = items.join(', ');
+                }
+                
+                const shortOrderNum = order.orderNumber.substring(order.orderNumber.length - 8);
+                const displayText = productNames.length > 35 ? productNames.substring(0, 32) + '...' : productNames;
+                
+                select.innerHTML += `<option value="${order.orderId}">
+                    #${shortOrderNum} - ${displayText} - ₱${order.totalAmount.toFixed(2)}
+                </option>`;
+            } catch (err) {
+                console.error('Error loading order details:', err);
+                const shortOrderNum = order.orderNumber.substring(order.orderNumber.length - 8);
+                select.innerHTML += `<option value="${order.orderId}">
+                    #${shortOrderNum} - ₱${order.totalAmount.toFixed(2)}
+                </option>`;
+            }
+        }
+    } catch (error) { 
+        console.error('Error:', error); 
+        const select = document.getElementById('refundOrderSelect');
+        if (select) select.innerHTML = '<option value="">-- Error loading orders --</option>';
+    }
+}
 
       async function loadVoidOrderItems() {
     const orderId = document.getElementById('voidOrderSelect').value;
@@ -2835,15 +3086,21 @@ function showConfirm(message, title = "Confirm Action") {
         messageEl.textContent = message;
         iconEl.textContent = "❓";
         
+        // I-set ang z-index para nasa ibabaw
+        modal.style.zIndex = '10000';
         modal.style.display = 'flex';
         
         const confirmBtn = document.getElementById('confirmOkBtn');
         const cancelBtn = document.getElementById('confirmCancelBtn');
         
+        // IMPORTANTE: I-remove ang mga lumang event listeners
+        const newConfirmBtn = confirmBtn.cloneNode(true);
+        const newCancelBtn = cancelBtn.cloneNode(true);
+        confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+        cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+        
         const cleanup = () => {
             modal.style.display = 'none';
-            confirmBtn.removeEventListener('click', confirmHandler);
-            cancelBtn.removeEventListener('click', cancelHandler);
         };
         
         const confirmHandler = () => {
@@ -2856,11 +3113,18 @@ function showConfirm(message, title = "Confirm Action") {
             resolve(false);
         };
         
-        confirmBtn.addEventListener('click', confirmHandler);
-        cancelBtn.addEventListener('click', cancelHandler);
+        newConfirmBtn.addEventListener('click', confirmHandler);
+        newCancelBtn.addEventListener('click', cancelHandler);
+        
+        // I-close kapag nag-click sa labas ng modal
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                cleanup();
+                resolve(false);
+            }
+        };
     });
 }
-
 // Loading Modal (para sa mahabang proseso)
 function showLoading(message = "Processing...") {
     let loadingModal = document.getElementById('loadingModal');

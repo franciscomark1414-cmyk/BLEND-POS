@@ -463,6 +463,42 @@
             animation: slideUp 0.3s ease forwards;
         }
 
+        /* Idagdag sa loob ng <style> tag */
+.size-row {
+    position: relative;
+}
+
+.size-row .btn-danger {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
+}
+
+.ingredient-row {
+    position: relative;
+    margin-bottom: 10px;
+}
+
+    /* Product card collapse animation */
+    .product-card .card-body {
+        transition: all 0.3s ease;
+    }
+
+    .product-card .card-header {
+        transition: background-color 0.2s ease;
+    }
+
+        .product-card .card-header:hover {
+            background-color: #f8f9fa;
+        }
+
+    .toggle-icon {
+        font-size: 14px;
+        color: #f59e0b;
+        transition: transform 0.2s ease;
+    }
+
     @@keyframes slideUp {
         from {
             transform: translateY(50px);
@@ -685,9 +721,9 @@
                                         <td data-minqty="@item.MinQty" data-unit="@item.Unit">@item.MinQtyWithUnit</td>
                                         <td>@item.Status</td>
                                         <td>
-                                            <button class="btn btn-sm btn-info" onclick="viewBatchHistory(@item.RawMaterialId, '@item.Name')">📦 Batches</button>
-                                            <button class="btn btn-sm btn-primary" onclick="editMaterial(@item.RawMaterialId)">Edit</button>
-                                            <button class="btn btn-sm btn-danger" onclick="deleteMaterial(@item.RawMaterialId, event)">Delete</button>
+                                            <button class="btn btn-sm btn-info" onclick="viewBatchHistory(@item.RawMaterialId, '@item.Name')"> Batches</button>
+                                             <button class="btn btn-sm btn-primary" onclick="editMaterialFromInventory(@item.RawMaterialId, '@item.Name')"> Edit</button>
+                                             <button class="btn btn-sm btn-danger" onclick="deleteMaterialFromInventory(@item.RawMaterialId, '@item.Name')"> Delete</button>
                                         </td>
                                     </tr>
                                 }
@@ -896,11 +932,11 @@
                             <label class="form-label fw-bold">Unit <span class="text-danger">*</span></label>
                             <select name="Unit" id="Unit" class="form-control" required>
                                 <option value="">-- Select Unit --</option>
-                                <option value="kg">📦 kilogram (kg)</option>
-                                <option value="g">⚖️ gram (g)</option>
-                                <option value="L">💧 liter (L)</option>
-                                <option value="mL">🧪 milliliter (mL)</option>
-                                <option value="pcs">🔢 pieces (pcs)</option>
+                                <option value="kg"> kilogram (kg)</option>
+                                <option value="g"> gram (g)</option>
+                                <option value="L"> liter (L)</option>
+                                <option value="mL"> milliliter (mL)</option>
+                                <option value="pcs"> pieces (pcs)</option>
                             </select>
                             <small class="text-muted">Select measurement unit for this raw material</small>
                         </div>
@@ -931,141 +967,151 @@
         </div>
 
         <!-- Products Module -->
-        <div id="productsModule" class="module">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2 class="mb-0">🧋 PRODUCTS LISTING</h2>
-                <button class="btn btn-primary" onclick="showAddProductModal()">
-                    <i class="fas fa-plus"></i> Add Product
-                </button>
-            </div>
+<div id="productsModule" class="module">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">🧋 PRODUCTS LISTING</h2>
+        <button class="btn btn-primary" onclick="showAddProductModal()">
+            <i class="fas fa-plus"></i> Add Product
+        </button>
+    </div>
 
-            <!-- Search and Filter Bar -->
-            <div class="row mb-4">
-                <div class="col-md-6">
-                    <input type="text" id="searchProduct" class="form-control" placeholder="🔍 Search Products..." onkeyup="filterProducts()">
-                </div>
-                <div class="col-md-3">
-                    <select id="filterCategory" class="form-control" onchange="filterProducts()">
-                        <option value="">Filter by Category ▼</option>
-                        <option value="Fruit Shake">Fruit Shake</option>
-                        <option value="Milk Shake">Milk Shake</option>
-                        <option value="Specialty">Specialty</option>
-                    </select>
-                </div>
-                <div class="col-md-3 text-end">
-                    <button class="btn btn-outline-secondary" onclick="refreshProducts()">
-                        <i class="fas fa-sync-alt"></i> Refresh
-                    </button>
-                </div>
-            </div>
-
-            <!-- Products List Container -->
-            <div id="productsList">
-                @if (Model.Products != null && Model.Products.Any())
-                {
-                    foreach (var product in Model.Products)
-                    {
-                        <div class="product-card card mb-4" data-product-id="@product.ProductId" data-category="@product.Category">
-                            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h4 class="mb-0">🥤 @product.Name</h4>
-                                    <small class="text-muted">SKU: @product.SKU | Category: @product.Category</small>
-                                </div>
-                                <div>
-                                    <button class="btn btn-sm btn-outline-primary me-2" onclick="editProduct(@product.ProductId)">
-                                        <i class="fas fa-edit"></i> Edit
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-danger" onclick="archiveProduct(@product.ProductId)">
-                                        <i class="fas fa-archive"></i> Archive
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <h5 class="mb-0">Sizes & Inventory</h5>
-                                    <button class="btn btn-sm btn-success" onclick="addSize(@product.ProductId)">
-                                        <i class="fas fa-plus"></i> Add Size
-                                    </button>
-                                </div>
-
-                                <div class="table-responsive">
-                                    <table class="table table-bordered table-hover">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>Size</th>
-                                                <th>SKU</th>
-                                                <th>Price</th>
-                                                <th>POS Status</th>      <!-- Bago: Displayed/Hidden -->
-                                                <th>Recipe</th>           <!-- Keep: View/Edit buttons -->
-                                                <th>Actions</th>          <!-- Display/Hide buttons -->
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @if (product.Sizes != null && product.Sizes.Any())
-                                            {
-                                                foreach (var size in product.Sizes)
-                                                {
-                                                    <tr data-size-id="@size.ProductSizeId">
-                                                        <td>
-                                                            @{
-                                                                string emoji = size.SizeName == "Small" ? "🟢" : (size.SizeName == "Medium" ? "🟡" : "🔴");
-                                                            }
-                                                            @emoji @size.SizeName
-                                                        </td>
-                                                        <td><code>@(string.IsNullOrEmpty(size.SKU) ? "—" : size.SKU)</code></td>  <!-- ✅ ITO ANG PALITAN -->
-                                                        <td>₱@size.Price.ToString("N2")</td>
-                                                        <td id="pos-status-@size.ProductSizeId">
-                                                            @if (size.IsAvailableInPOS)
-                                                            {
-                                                                <span class="badge bg-success">✅ Displayed in POS</span>
-                                                            }
-                                                            else
-                                                            {
-                                                                <span class="badge bg-secondary">⚫ Hidden from POS</span>
-                                                            }
-                                                        </td>
-                                                        <td>
-                                                            <button class="btn btn-sm btn-info me-1" onclick="viewRecipe(@size.ProductSizeId)">
-                                                                👁️ View Recipe
-                                                            </button>
-                                                            <button class="btn btn-sm btn-warning" onclick="editRecipe(@size.ProductSizeId)">
-                                                                ✏️ Edit Recipe
-                                                            </button>
-                                                        </td>
-                                                        <td>
-                                                            @if (size.IsAvailableInPOS)
-                                                            {
-                                                                <button class="btn btn-sm btn-warning" onclick="hideFromPOS(@size.ProductSizeId, '@product.Name', '@size.SizeName')">
-                                                                    🙈 Hide from POS
-                                                                </button>
-                                                            }
-                                                            else
-                                                            {
-                                                                <button class="btn btn-sm btn-success" onclick="displayInPOS(@size.ProductSizeId, '@product.Name', '@size.SizeName')">
-                                                                    🖥️ Display in POS
-                                                                </button>
-                                                            }
-                                                        </td>
-                                                    </tr>
-                                                }
-                                            }
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    }
-                }
-                else
-                {
-                    <div class="text-center py-5">
-                        <h4 class="text-muted">No products yet</h4>
-                        <p>Click "Add Product" to get started</p>
-                    </div>
-                }
-            </div>
+    <!-- Search and Filter Bar -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <input type="text" id="searchProduct" class="form-control" placeholder="🔍 Search Products..." onkeyup="filterProducts()">
         </div>
+        <div class="col-md-3">
+            <select id="filterCategory" class="form-control" onchange="filterProducts()">
+                <option value=""> All Categories ▼</option>
+                <option value="Fruit Shake"> Fruit Shake ▼</option>
+                <option value="Milk Shake"> Milk Shake ▼</option>
+                        <option value="Specialty"> Specialty ▼</option>
+            </select>
+        </div>
+        <div class="col-md-3 text-end">
+            <button class="btn btn-outline-secondary" onclick="refreshProducts()">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+    </div>
 
+    <!-- Products List Container -->
+    <div id="productsList">
+        @if (Model.Products != null && Model.Products.Any())
+        {
+            foreach (var product in Model.Products)
+            {
+                <div class="product-card card mb-4" data-product-id="@product.ProductId" data-category="@product.Category">
+                    <!-- CARD HEADER WITH DROPDOWN ARROW -->
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center" style="cursor: pointer;" onclick="toggleProductCard(this)">
+                        <div>
+                            <i class="fas fa-chevron-down me-2 toggle-icon" style="transition: transform 0.2s;"></i>
+                            <h4 class="mb-0 d-inline-block">🥤 @product.Name</h4>
+                            <br />
+                            <small class="text-muted ms-4">SKU: @product.SKU | Category: @product.Category</small>
+                        </div>
+                        <div onclick="event.stopPropagation()">
+                            <button class="btn btn-sm btn-outline-primary me-2" onclick="editProduct(@product.ProductId)">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="archiveProduct(@product.ProductId)">
+                                <i class="fas fa-archive"></i> Archive
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- CARD BODY (COLLAPSIBLE) -->
+                    <div class="card-body product-card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0">📊 Sizes & Inventory</h5>
+                            <button class="btn btn-sm btn-success" onclick="addSize(@product.ProductId)">
+                                <i class="fas fa-plus"></i> Add Size
+                            </button>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th> Size</th>
+                                        <th> SKU</th>
+                                        <th> Price</th>
+                                        <th> POS Status</th>
+                                        <th> Recipe</th>
+                                        <th> Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (product.Sizes != null && product.Sizes.Any())
+                                    {
+                                        foreach (var size in product.Sizes)
+                                        {
+                                            <tr data-size-id="@size.ProductSizeId">
+                                                <td>
+                                                    @{
+                                                        string emoji = size.SizeName == "Small" ? "🟢" : (size.SizeName == "Medium" ? "🟡" : "🔴");
+                                                    }
+                                                    @emoji @size.SizeName
+                                                </td>
+                                                <td><code>@(string.IsNullOrEmpty(size.SKU) ? "—" : size.SKU)</code></td>
+                                                <td>₱@((int)size.Price)</td>
+                                                <td id="pos-status-@size.ProductSizeId">
+                                                    @if (size.IsAvailableInPOS)
+                                                    {
+                                                        <span class="badge bg-success">✅ Displayed in POS</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-secondary">⚫ Hidden from POS</span>
+                                                    }
+                                                </td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-info me-1" onclick="viewRecipe(@size.ProductSizeId)">
+                                                        👁️ View Recipe
+                                                    </button>
+                                                    <button class="btn btn-sm btn-warning" onclick="editRecipe(@size.ProductSizeId)">
+                                                        ✏️ Edit Recipe
+                                                    </button>
+                                                </td>
+                                                <td>
+                                                    @if (size.IsAvailableInPOS)
+                                                    {
+                                                        <button class="btn btn-sm btn-warning" onclick="hideFromPOS(@size.ProductSizeId, '@product.Name', '@size.SizeName')">
+                                                            🙈 Hide from POS
+                                                        </button>
+                                                    }
+                                                    else
+                                                    {
+                                                        <button class="btn btn-sm btn-success" onclick="displayInPOS(@size.ProductSizeId, '@product.Name', '@size.SizeName')">
+                                                            🖥️ Display in POS
+                                                        </button>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <tr>
+                                            <td colspan="6" class="text-center text-muted">➕ No sizes added yet. Click "Add Size" to add.</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <h4 class="text-muted">📭 No products yet</h4>
+                <p>Click <strong>"Add Product"</strong> to get started</p>
+            </div>
+        }
+    </div>
+</div>
         <!-- Modal para sa Affected Products -->
         <div class="modal fade" id="affectedProductsModal" tabindex="-1">
             <div class="modal-dialog">
@@ -2263,66 +2309,171 @@
                 </div>
             </div>
         </div>
-<!-- Returns Module - SIMPLIFIED VERSION -->
-<div id="returnsModule" class="module">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3><i class="fas fa-undo-alt text-warning me-2"></i> Void / Refund Records</h3>
-        <div class="d-flex gap-2">
-            <button class="btn btn-outline-secondary" onclick="printReturns()">
-                <i class="fas fa-print"></i> Print
-            </button>
-            <button class="btn btn-outline-primary" onclick="loadReturns()">
-                <i class="fas fa-sync-alt"></i> Refresh
-            </button>
-        </div>
-    </div>
+                        <!-- Returns Module - COMPLETE VERSION with Supplier Returns -->
+                        <div id="returnsModule" class="module">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h3><i class="fas fa-undo-alt text-warning me-2"></i> Returns & Void Management</h3>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-outline-secondary" onclick="printReturns()">
+                                        <i class="fas fa-print"></i> Print
+                                    </button>
+                                    <button class="btn btn-outline-primary" onclick="loadAllReturns()">
+                                        <i class="fas fa-sync-alt"></i> Refresh
+                                    </button>
+                                </div>
+                            </div>
 
-    <!-- ========== PENDING APPROVALS SECTION ========== -->
-    <div class="card mb-4 border-warning">
-        <div class="card-header bg-warning">
-            <h5 class="mb-0">
-                <i class="fas fa-clock"></i> Pending Approvals
-                <span id="pendingRequestCount" class="badge bg-danger">0</span>
-            </h5>
-        </div>
-        <div class="card-body">
-            <div id="pendingRequestsList">
-                <div class="text-center text-muted">Loading pending requests...</div>
-            </div>
-        </div>
-    </div>
+                            <!-- ========== TABS ========== -->
+                            <ul class="nav nav-tabs mb-3">
+                                <li class="nav-item">
+                                    <button class="nav-link active" onclick="switchReturnTab('pending', event)">
+                                        ⏳ Pending Approvals <span id="pendingTabBadge" class="badge bg-danger ms-1">0</span>
+                                    </button>
+                                </li>
+                                <li class="nav-item">
+                                    <button class="nav-link" onclick="switchReturnTab('approved', event)">
+                                        ✅ Approved Voids/Refunds <span id="approvedTabBadge" class="badge bg-success ms-1">0</span>
+                                    </button>
+                                </li>
+                                <li class="nav-item">
+                                    <button class="nav-link" onclick="switchReturnTab('supplier', event)">
+                                        🏭 Supplier Returns <span id="supplierTabBadge" class="badge bg-warning ms-1">0</span>
+                                    </button>
+                                </li>
+                            </ul>
 
-    <!-- ========== APPROVED VOID & REFUND RECORDS ========== -->
-    <div class="card">
-        <div class="card-header bg-info text-white">
-            <h5 class="mb-0">
-                <i class="fas fa-check-circle"></i> Approved Void / Refund Records
-                <span id="approvedCount" class="badge bg-light text-dark ms-2">0</span>
-            </h5>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover">
-                    <thead class="table-info">
-                        <tr>
-                            <th>Date</th>
-                            <th>Order #</th>
-                            <th>Type</th>
-                            <th>Reason</th>
-                            <th>Amount</th>
-                            <th>Requested By</th>
-                            <th>Actions</th>
-                        <tr>
-                    </thead>
-                    <tbody id="returnsTableBody">
-                        <tr><td colspan="7" class="text-center text-muted">No records found</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
+                            <!-- ========== PENDING APPROVALS TAB ========== -->
+                            <div id="pendingTab" class="return-tab-content active">
+                                <div class="card border-warning">
+                                    <div class="card-header bg-warning">
+                                        <h5 class="mb-0"><i class="fas fa-clock"></i> Pending Approvals</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="table-responsive">
+                                            <table class="table table-bordered table-hover">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th>Date</th>
+                                                        <th>Order #</th>
+                                                        <th>Type</th>
+                                                        <th>Reason</th>
+                                                        <th>Requested By</th>
+                                                        <th>Amount</th>
+                                                        <th>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="pendingRequestsTableBody">
+                                                    <tr><td colspan="7" class="text-center">Loading...</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
+                            <!-- ========== APPROVED VOIDS/REFUNDS TAB ========== -->
+                            <div id="approvedTab" class="return-tab-content" style="display:none;">
+                                <div class="card">
+                                    <div class="card-header bg-info text-white">
+                                        <h5 class="mb-0"><i class="fas fa-check-circle"></i> Approved Void / Refund Records</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="table-responsive">
+                                            <table class="table table-bordered table-hover">
+                                                <thead class="table-info">
+                                                    <tr>
+                                                        <th>Date</th>
+                                                        <th>Order #</th>
+                                                        <th>Type</th>
+                                                        <th>Reason</th>
+                                                        <th>Amount</th>
+                                                        <th>Requested By</th>
+                                                        <th>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="approvedReturnsTableBody">
+                                                    <tr><td colspan="7" class="text-center">Loading...</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- ========== SUPPLIER RETURNS TAB ========== -->
+                            <div id="supplierTab" class="return-tab-content" style="display:none;">
+                                <div class="card">
+                                    <div class="card-header bg-warning">
+                                        <h5 class="mb-0">
+                                            <i class="fas fa-exchange-alt"></i> Supplier Returns
+                                            <button class="btn btn-sm btn-outline-primary ms-3" onclick="exportSupplierReturns()">
+                                                <i class="fas fa-download"></i> Export
+                                            </button>
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <!-- Summary Cards -->
+                                        <div class="row g-3 mb-4">
+                                            <div class="col-md-3">
+                                                <div class="card bg-warning text-white">
+                                                    <div class="card-body text-center">
+                                                        <h6>Pending Returns</h6>
+                                                        <h2 id="pendingSupplierCount">0</h2>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="card bg-success text-white">
+                                                    <div class="card-body text-center">
+                                                        <h6>Completed Returns</h6>
+                                                        <h2 id="completedSupplierCount">0</h2>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="card bg-danger text-white">
+                                                    <div class="card-body text-center">
+                                                        <h6>Cancelled</h6>
+                                                        <h2 id="cancelledSupplierCount">0</h2>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="card bg-info text-white">
+                                                    <div class="card-body text-center">
+                                                        <h6>Total Credit Amount</h6>
+                                                        <h2 id="totalCreditAmount">₱0</h2>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Supplier Returns Table -->
+                                        <div class="table-responsive">
+                                            <table class="table table-bordered table-hover">
+                                                <thead class="table-warning">
+                                                    <tr>
+                                                        <th>Return #</th>
+                                                        <th>Date</th>
+                                                        <th>DR #</th>
+                                                        <th>Supplier</th>
+                                                        <th>Item</th>
+                                                        <th>Quantity</th>
+                                                        <th>Reason</th>
+                                                        <th>Credit Amount</th>
+                                                        <th>Status</th>
+                                                        <th>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="supplierReturnsTableBody">
+                                                    <tr><td colspan="10" class="text-center">Loading...</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
         <!-- Supplier Modal -->
         <div class="modal fade" id="supplierModal" tabindex="-1">
             <div class="modal-dialog">
@@ -2371,6 +2522,39 @@
             </div>
         </div>
 
+                        <!-- Custom Modal for Supplier Return -->
+                        <div id="supplierReturnModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 10002;">
+                            <div style="background: white; border-radius: 12px; width: 400px; max-width: 90%; padding: 25px;">
+                                <h4 class="mb-3">🔄 Return to Supplier</h4>
+                                <div id="supplierReturnItemInfo" class="mb-3"></div>
+        
+                                <div class="mb-3">
+                                    <label class="form-label">Quantity to Return:</label>
+                                    <input type="number" id="returnQuantity" class="form-control" step="0.01" min="0">
+                                    <small id="returnMaxQtyHint" class="text-muted"></small>
+                                </div>
+        
+                                <div class="mb-3">
+                                    <label class="form-label">Reason for Return:</label>
+                                    <select id="returnReason" class="form-control">
+                                        <option value="Damaged Packaging">📦 Damaged Packaging</option>
+                                        <option value="Overripe/Expired">🍂 Overripe/Expired</option>
+                                        <option value="Wrong Item">❌ Wrong Item</option>
+                                        <option value="Quality Issue">⚠️ Quality Issue</option>
+                                        <option value="Short Dated">📅 Short Dated</option>
+                                        <option value="Other">📝 Other (specify)</option>
+                                    </select>
+                                    <input type="text" id="returnOtherReason" class="form-control mt-2" placeholder="Please specify..." style="display: none;">
+                                </div>
+        
+                                <div class="d-flex justify-content-end gap-2">
+                                    <button class="btn btn-secondary" onclick="closeSupplierReturnModal()">Cancel</button>
+                                    <button class="btn btn-warning" onclick="confirmSupplierReturn()">Confirm Return</button>
+                                </div>
+                            </div>
+                        </div>
+
+
     </div>
 </div>
 
@@ -2383,6 +2567,18 @@
     let currentProductSizeId = null;
     let currentViewProductSizeId = null;
     let ingredientCounter = 0;
+                    let currentReturnTab = 'pending';
+                    let currentReturnData = {
+                    receivingItemId: null,
+                    maxQty: 0,
+                    itemName: '',
+                    unitPrice: 0
+                    };
+const unitCategories = {
+    weight: ['kg', 'g'],
+    volume: ['L', 'mL'],
+    count: ['pcs']
+};
 
     // Chart
     var labels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.SalesLabels ?? new List<string>()));
@@ -2396,62 +2592,102 @@
         });
     }
 
-      // ========== PENDING REQUESTS FUNCTIONS ==========
+ 
 
-async function loadPendingRequests() {
-    try {
-        const response = await fetch('/Owner/GetPendingRequests');
-        const requests = await response.json();
+function getUnitCategory(unit) {
+    if (unitCategories.weight.includes(unit)) return 'weight';
+    if (unitCategories.volume.includes(unit)) return 'volume';
+    if (unitCategories.count.includes(unit)) return 'count';
+    return null;
+}
+
+function isUnitCompatible(materialUnit, recipeUnit) {
+    const materialCategory = getUnitCategory(materialUnit);
+    const recipeCategory = getUnitCategory(recipeUnit);
+    
+    if (!materialCategory || !recipeCategory) return false;
+    return materialCategory === recipeCategory;
+}
+
+// I-update ang unit dropdown options based sa napiling raw material
+function updateUnitDropdown(selectElement) {
+    const row = selectElement.closest('.ingredient-row');
+    if (!row) return;
+    
+    const unitSelect = row.querySelector('select[name*="UnitUsed"]');
+    if (!unitSelect) return;
+    
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+    const materialUnit = selectedOption.getAttribute('data-unit');
+    
+    if (!materialUnit) return;
+    
+    // I-disable/enable options based on material unit category
+    const materialCategory = getUnitCategory(materialUnit);
+    
+    for (let i = 0; i < unitSelect.options.length; i++) {
+        const opt = unitSelect.options[i];
+        const optCategory = getUnitCategory(opt.value);
         
-        const container = document.getElementById('pendingRequestsList');
-        const countSpan = document.getElementById('pendingRequestCount');
-        
-        if (!container) return;
-        
-        if (!requests || requests.length === 0) {
-            container.innerHTML = '<div class="text-center text-muted">No pending requests</div>';
-            if (countSpan) countSpan.innerText = '0';
-            return;
+        if (materialCategory === optCategory) {
+            opt.disabled = false;
+            opt.style.color = '';
+            opt.style.backgroundColor = '';
+        } else {
+            opt.disabled = true;
+            opt.style.color = '#999';
+            opt.style.backgroundColor = '#f0f0f0';
         }
-        
-        if (countSpan) countSpan.innerText = requests.length;
-        
-        let html = '<div class="table-responsive"><table class="table table-bordered"><thead class="table-light">什';
-        html += '<th>Date</th><th>Order #</th><th>Type</th><th>Reason</th><th>Requested By</th><th>Amount</th><th>Actions</th>';
-        html += '</thead><tbody>';
-        
-        requests.forEach(req => {
-            const typeBadge = req.requestType === 'VOID' ? 
-                '<span class="badge bg-danger">VOID</span>' : 
-                '<span class="badge bg-warning">REFUND</span>';
-            
-            html += `<tr>
-                <td>${new Date(req.requestedAt).toLocaleString()}</td>
-                <td><strong>${escapeHtml(req.orderNumber)}</strong></td>
-                <td>${typeBadge}</td>
-                <td>${escapeHtml(req.reason)}</td>
-                <td>${escapeHtml(req.requesterName)}</td>
-                <td>₱${(req.orderTotal || 0).toFixed(2)}</td>
-                <td>
-                    <button class="btn btn-sm btn-success me-1" onclick="approveRequest(${req.id})">
-                        <i class="fas fa-check"></i> Approve
-                    </button>
-                    <button class="btn btn-sm btn-danger" onclick="rejectRequest(${req.id})">
-                        <i class="fas fa-times"></i> Reject
-                    </button>
-                </td>
-            </tr>`;
-        });
-        
-        html += '</tbody></table></div>';
-        container.innerHTML = html;
-        
-    } catch (error) {
-        console.error('Error loading requests:', error);
-        const container = document.getElementById('pendingRequestsList');
-        if (container) container.innerHTML = '<div class="alert alert-danger">Error loading requests</div>';
+    }
+    
+    // Kung disabled ang kasalukuyang napili, pumili ng enabled option
+    if (unitSelect.options[unitSelect.selectedIndex].disabled) {
+        for (let i = 0; i < unitSelect.options.length; i++) {
+            if (!unitSelect.options[i].disabled) {
+                unitSelect.selectedIndex = i;
+                break;
+            }
+        }
     }
 }
+
+// Validation bago mag-save
+function validateIngredientsUnits() {
+    const ingredientRows = document.querySelectorAll('.ingredient-row');
+    let errors = [];
+    
+    ingredientRows.forEach(row => {
+        const materialSelect = row.querySelector('select:first-child');
+        const unitSelect = row.querySelector('select[name*="UnitUsed"]');
+        
+        if (!materialSelect || !materialSelect.value) return;
+        
+        const selectedOption = materialSelect.options[materialSelect.selectedIndex];
+        const materialUnit = selectedOption.getAttribute('data-unit');
+        const selectedUnit = unitSelect ? unitSelect.value : '';
+        const materialName = selectedOption.text.split('(')[0].trim();
+        
+        if (!materialUnit) return;
+        
+        // Check compatibility
+        if (!isUnitCompatible(materialUnit, selectedUnit)) {
+            let expectedUnits = '';
+            const category = getUnitCategory(materialUnit);
+            if (category === 'weight') expectedUnits = 'kg or g';
+            else if (category === 'volume') expectedUnits = 'L or mL';
+            else if (category === 'count') expectedUnits = 'pcs';
+            
+            errors.push(`❌ "${materialName}" uses ${materialUnit}.\n   You cannot use "${selectedUnit}" in recipe. Please use ${expectedUnits}.`);
+        }
+    });
+    
+    if (errors.length > 0) {
+        alert('⚠️ UNIT COMPATIBILITY ERRORS:\n\n' + errors.join('\n\n'));
+        return false;
+    }
+    return true;
+}
+
 
 async function approveRequest(requestId) {
     if (!confirm('Approve this request? This action cannot be undone.')) return;
@@ -2565,8 +2801,10 @@ async function rejectRequest(requestId) {
             loadDeliveryHistory();
         }
         if (module === 'returns') {
-            loadReturns();
+            
             loadPendingRequests();
+                    loadApprovedReturns();
+            loadSupplierReturns();
         }
     } 
     // Add Delivery Form Functions
@@ -2934,140 +3172,406 @@ async function rejectRequest(requestId) {
     }
 
     // Products Functions
-    function showAddProductModal() {
-        const form = document.getElementById('addProductForm');
-        form.reset();
-        document.getElementById('sizesContainer').innerHTML = '';
-        sizeCounter = 0;
-        addSizeRow('Small');
-        addSizeRow('Medium');
-        addSizeRow('Large');
-        form.onsubmit = async function(e) {
-            e.preventDefault();
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = 'Saving...';
-            submitBtn.disabled = true;
-            try {
-                const formData = new FormData(form);
-                const response = await fetch('/Owner/AddProduct', {
-                    method: 'POST',
-                    headers: { 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value },
-                    body: formData
-                });
-                const result = await response.json();
-                if (result.success) {
-                    alert(result.message);
-                    bootstrap.Modal.getInstance(document.getElementById('addProductModal')).hide();
-                    location.reload();
-                } else {
-                    let errorMsg = result.message || 'Please check all fields';
-                    if (result.errors && typeof result.errors === 'object') errorMsg = Object.values(result.errors).flat().join('\n');
-                    alert('Error:\n' + errorMsg);
-                }
-            } catch (error) {
-                alert('An error occurred. Please try again.');
-            } finally {
+  function showAddProductModal() {
+    const form = document.getElementById('addProductForm');
+    form.reset();
+    document.getElementById('sizesContainer').innerHTML = '';
+    sizeCounter = 0;
+    
+    // I-disable muna ang submit button habang naglo-load
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+    
+    // Mag-load ng lahat ng size rows nang sabay-sabay
+    Promise.all([
+        addSizeRowPromise('Small'),
+        addSizeRowPromise('Medium'),
+        addSizeRowPromise('Large')
+    ]).then(() => {
+        // I-enable ulit ang submit button
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    }).catch(err => {
+        console.error('Error loading sizes:', err);
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    });
+    
+    form.onsubmit = async function(e) {
+        e.preventDefault();
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        submitBtn.disabled = true;
+        
+        try {
+            // ✅ I-REINDEX ANG LAHAT NG SIZE ROWS BAGO MAG-SUBMIT
+            reindexSizeRows();
+            
+            // Simple check: may laman ba ang sizesContainer?
+            const sizeRows = document.querySelectorAll('#sizesContainer .size-row');
+            console.log('Number of size rows:', sizeRows.length);
+            
+            if (sizeRows.length === 0) {
+                alert('❌ Please add at least one size');
                 submitBtn.innerHTML = originalText;
                 submitBtn.disabled = false;
+                return;
             }
-        };
-        new bootstrap.Modal(document.getElementById('addProductModal')).show();
-    }
+            
+            // I-validate ang bawat size kung may laman ang ingredients
+            let hasValidIngredients = true;
+            for (let i = 0; i < sizeRows.length; i++) {
+                const sizeRow = sizeRows[i];
+                const sizeName = sizeRow.querySelector('input[name*="SizeName"]')?.value || `Size ${i+1}`;
+                const ingredientSelects = sizeRow.querySelectorAll('select[name*="RawMaterialId"]');
+                let hasIngredient = false;
+                
+                for (let j = 0; j < ingredientSelects.length; j++) {
+                    if (ingredientSelects[j].value && ingredientSelects[j].value !== '') {
+                        hasIngredient = true;
+                        break;
+                    }
+                }
+                
+                if (!hasIngredient) {
+                    alert(`❌ Please add at least one ingredient for "${sizeName}"`);
+                    hasValidIngredients = false;
+                    break;
+                }
+            }
+            
+            if (!hasValidIngredients) {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+                return;
+            }
+            
+            const formData = new FormData(form);
+            
+            // I-debug: I-print ang lahat ng Sizes data (para makita kung tama)
+            console.log('=== FORM DATA (Sizes) ===');
+            for (let pair of formData.entries()) {
+                if (pair[0].includes('Sizes')) {
+                    console.log(pair[0] + ': ' + pair[1]);
+                }
+            }
+            
+            const response = await fetch('/Owner/AddProduct', {
+                method: 'POST',
+                headers: { 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value },
+                body: formData
+            });
+            const result = await response.json();
+            
+            if (result.success) {
+                alert('✅ ' + result.message);
+                bootstrap.Modal.getInstance(document.getElementById('addProductModal')).hide();
+                location.reload();
+            } else {
+                let errorMsg = result.message || 'Please check all fields';
+                if (result.errors && typeof result.errors === 'object') {
+                    errorMsg = Object.values(result.errors).flat().join('\n');
+                }
+                alert('❌ Error:\n' + errorMsg);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('❌ An error occurred: ' + error.message);
+        } finally {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }
+    };
+    new bootstrap.Modal(document.getElementById('addProductModal')).show();
+}
 
-       function addSizeRow(predefinedName = null) {
+// Function to reindex all size rows para mag-match sa model binding
+function reindexSizeRows() {
+    const sizeRows = document.querySelectorAll('#sizesContainer .size-row');
+    
+    sizeRows.forEach((row, newIndex) => {
+        // Update data-size-id attribute
+        row.setAttribute('data-size-id', newIndex);
+        
+        // Update all input names
+        const inputs = row.querySelectorAll('input, select');
+        inputs.forEach(input => {
+            const name = input.getAttribute('name');
+            if (name) {
+                // Replace Sizes[oldIndex] with Sizes[newIndex]
+                const newName = name.replace(/Sizes\[\d+\]/, `Sizes[${newIndex}]`);
+                input.setAttribute('name', newName);
+            }
+        });
+        
+        // Update recipe-items div id
+        const recipeDiv = row.querySelector('.recipe-items');
+        if (recipeDiv) {
+            const oldId = recipeDiv.id;
+            const newId = oldId.replace(/\d+/, newIndex);
+            recipeDiv.id = newId;
+        }
+    });
+}
+
+// I-update ang removeSizeRow function
+function removeSizeRow(sizeId) {
+    const row = document.querySelector(`.size-row[data-size-id="${sizeId}"]`);
+    if (row) row.remove();
+    
+    // Re-index all remaining size rows
+    reindexSizeRows();
+}
+
+// Gumawa ng Promise version ng addSizeRow
+function addSizeRowPromise(predefinedName = null) {
+    return new Promise((resolve, reject) => {
         const container = document.getElementById('sizesContainer');
         const sizeId = sizeCounter++;
         const sizeName = predefinedName || '';
-        const sizeHtml = `
-            <div class="size-row border p-3 mb-3 rounded" data-size-id="${sizeId}" style="background: #fef9e6;">
-                <button type="button" class="btn btn-sm btn-danger float-end" onclick="removeSizeRow(${sizeId})">✕</button>
-                <div class="row">
-                    <div class="col-md-3 mb-2">
-                        <label class="form-label fw-bold">Size Name</label>
-                        <input type="text" name="Sizes[${sizeId}].SizeName" class="form-control" value="${sizeName}" required placeholder="e.g., Small, Medium, Large">
-                    </div>
-                    <div class="col-md-3 mb-2">
-                        <label class="form-label fw-bold">Selling Price (₱)</label>
-                        <input type="number" name="Sizes[${sizeId}].Price" class="form-control" step="0.01" value="0" placeholder="0.00">
-                        <small class="text-muted">Leave 0 to auto-calculate</small>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <label class="form-label fw-bold">Recipe / Ingredients</label>
-                        <div class="recipe-items" id="recipe-items-${sizeId}">
-                            <div class="row mb-2 g-2">
-                                <div class="col-md-5">
-                                    <select name="Sizes[${sizeId}].RecipeItems[0].RawMaterialId" class="form-control" required>
-                                        <option value="">-- Select Ingredient --</option>
-                                        @if (ViewBag.RawMaterials != null)
-                                        {
-                                                foreach (var item in ViewBag.RawMaterials)
-                                                {
-                                                                    <option value="@item.RawMaterialId">
-                            @item.Name (@item.Unit - ₱@item.Price.ToString("N2"))
-                        </option>
-                                                }
-                                        }
-                                    </select>
+        
+        fetch('/RawMaterial/GetAllWithLatestPrice')
+            .then(response => response.json())
+            .then(materials => {
+                let materialOptions = '<option value="">-- Select Ingredient --</option>';
+                materials.forEach(m => {
+                    const price = m.latestBatchPrice > 0 ? m.latestBatchPrice : m.defaultPrice;
+                    materialOptions += `<option value="${m.id}" data-price="${price}" data-unit="${m.unit}">${m.name} (${m.unit} - ₱${price})</option>`;
+                });
+                
+                const sizeHtml = `
+                    <div class="size-row border p-3 mb-3 rounded" data-size-id="${sizeId}" style="background: #fef9e6; position: relative;">
+                        <button type="button" class="btn btn-sm btn-danger position-absolute" style="top: 10px; right: 10px;" onclick="removeSizeRow(${sizeId})">✕</button>
+                        <div class="row">
+                            <div class="col-md-3 mb-2">
+                                <label class="form-label fw-bold">Size Name</label>
+                                <input type="text" name="Sizes[${sizeId}].SizeName" class="form-control" value="${sizeName}" required placeholder="e.g., Small, Medium, Large">
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label class="form-label fw-bold">Selling Price (₱)</label>
+                                <input type="number" name="Sizes[${sizeId}].Price" class="form-control" step="0.01" value="0" placeholder="0.00">
+                                <small class="text-muted">Leave 0 to auto-calculate</small>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label fw-bold">Recipe / Ingredients</label>
+                                <div class="recipe-items" id="recipe-items-${sizeId}">
+                                    <div class="row mb-2 g-2 ingredient-row" data-ingredient-index="0">
+                                        <div class="col-md-5">
+                                            <select name="Sizes[${sizeId}].RecipeItems[0].RawMaterialId" class="form-control" required onchange="updateUnitDropdown(this)">
+                                                ${materialOptions}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <input type="number" name="Sizes[${sizeId}].RecipeItems[0].Quantity" class="form-control" placeholder="Qty" step="0.01" min="0.01" value="1" required>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <select name="Sizes[${sizeId}].RecipeItems[0].UnitUsed" class="form-control" required>
+                                                <option value="kg">📦 kilogram (kg)</option>
+                                                <option value="g">⚖️ gram (g)</option>
+                                                <option value="L">💧 liter (L)</option>
+                                                <option value="mL">🧪 milliliter (mL)</option>
+                                                <option value="pcs">🔢 pieces (pcs)</option>
+                                            </select>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="col-md-3">
-                                    <input type="number" name="Sizes[${sizeId}].RecipeItems[0].Quantity" class="form-control" placeholder="Qty" step="0.01" min="0.01" value="1" required>
-                                </div>
-                                <div class="col-md-4">
-                                           <select name="Sizes[${sizeId}].RecipeItems[0].UnitUsed" class="form-control" required>
-        <option value="kg">📦 kilogram (kg)</option>
-        <option value="g">⚖️ gram (g)</option>
-        <option value="L">💧 liter (L)</option>
-        <option value="mL">🧪 milliliter (mL)</option>
-        <option value="pcs">🔢 pieces (pcs)</option>
-    </select>
+                                <button type="button" class="btn btn-sm btn-link text-success mt-1" onclick="addRecipeItem(${sizeId})">
+                                    <i class="fas fa-plus"></i> Add Ingredient
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', sizeHtml);
+                resolve();
+            })
+            .catch(err => {
+                console.error('Error loading materials:', err);
+                const fallbackHtml = `
+                    <div class="size-row border p-3 mb-3 rounded" data-size-id="${sizeId}" style="background: #fef9e6;">
+                        <button type="button" class="btn btn-sm btn-danger float-end" onclick="removeSizeRow(${sizeId})">✕</button>
+                        <div class="row">
+                            <div class="col-md-3 mb-2">
+                                <label class="form-label fw-bold">Size Name</label>
+                                <input type="text" name="Sizes[${sizeId}].SizeName" class="form-control" value="${sizeName}" required>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label class="form-label fw-bold">Selling Price (₱)</label>
+                                <input type="number" name="Sizes[${sizeId}].Price" class="form-control" step="0.01" value="0">
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label fw-bold">Recipe / Ingredients</label>
+                                <div class="recipe-items" id="recipe-items-${sizeId}">
+                                    <div class="row mb-2 g-2">
+                                        <div class="col-md-5">
+                                            <input type="text" class="form-control" placeholder="No materials available">
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <button type="button" class="btn btn-sm btn-link text-success mt-1" onclick="addRecipeItem(${sizeId})">
-                            <i class="fas fa-plus"></i> Add Ingredient
-                        </button>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', fallbackHtml);
+                resolve(); // I-resolve pa rin para hindi ma-stuck
+            });
+    });
+}
+
+ // Para sa "Add Size" button sa loob ng modal (synchronous na version)
+// Para sa "Add Size" button sa loob ng modal (synchronous na version)
+function addSizeRowSync(predefinedName = null) {
+    const container = document.getElementById('sizesContainer');
+    const sizeId = sizeCounter++;
+    const sizeName = predefinedName || '';
+    
+    fetch('/RawMaterial/GetAllWithLatestPrice')
+        .then(response => response.json())
+        .then(materials => {
+            let materialOptions = '<option value="">-- Select Ingredient --</option>';
+            materials.forEach(m => {
+                const price = m.latestBatchPrice > 0 ? m.latestBatchPrice : m.defaultPrice;
+                materialOptions += `<option value="${m.id}" data-price="${price}" data-unit="${m.unit}">${m.name} (${m.unit} - ₱${price})</option>`;
+            });
+            
+            const sizeHtml = `
+                <div class="size-row border p-3 mb-3 rounded" data-size-id="${sizeId}" style="background: #fef9e6; position: relative;">
+                    <button type="button" class="btn btn-sm btn-danger position-absolute" style="top: 10px; right: 10px;" onclick="removeSizeRowAndReindex(${sizeId})">✕</button>
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <label class="form-label fw-bold">Size Name</label>
+                            <input type="text" name="Sizes[${sizeId}].SizeName" class="form-control" value="${sizeName}" required placeholder="e.g., Small, Medium, Large">
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <label class="form-label fw-bold">Selling Price (₱)</label>
+                            <input type="number" name="Sizes[${sizeId}].Price" class="form-control" step="0.01" value="0" placeholder="0.00">
+                            <small class="text-muted">Leave 0 to auto-calculate</small>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label fw-bold">Recipe / Ingredients</label>
+                            <div class="recipe-items" id="recipe-items-${sizeId}">
+                                <div class="row mb-2 g-2 ingredient-row" data-ingredient-index="0">
+                                    <div class="col-md-5">
+                                        <select name="Sizes[${sizeId}].RecipeItems[0].RawMaterialId" class="form-control" required onchange="updateUnitDropdown(this)">
+                                            ${materialOptions}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <input type="number" name="Sizes[${sizeId}].RecipeItems[0].Quantity" class="form-control" placeholder="Qty" step="0.01" min="0.01" value="1" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <select name="Sizes[${sizeId}].RecipeItems[0].UnitUsed" class="form-control" required>
+                                            <option value="kg">📦 kilogram (kg)</option>
+                                            <option value="g">⚖️ gram (g)</option>
+                                            <option value="L">💧 liter (L)</option>
+                                            <option value="mL">🧪 milliliter (mL)</option>
+                                            <option value="pcs">🔢 pieces (pcs)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-link text-success mt-1" onclick="addRecipeItem(${sizeId})">
+                                <i class="fas fa-plus"></i> Add Ingredient
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
-        `;
-        container.insertAdjacentHTML('beforeend', sizeHtml);
-    }
+            `;
+            container.insertAdjacentHTML('beforeend', sizeHtml);
+        })
+        .catch(err => {
+            console.error('Error loading materials:', err);
+        });
+}
+
+// Bagong remove function na magre-reindex ng lahat ng natitirang sizes
+function removeSizeRowAndReindex(sizeId) {
+    // Remove the row
+    const row = document.querySelector(`.size-row[data-size-id="${sizeId}"]`);
+    if (row) row.remove();
+    
+    // Re-index all remaining size rows
+    reindexSizeRows();
+}
+
+// Function to reindex all size rows para mag-match sa model binding
+function reindexSizeRows() {
+    const sizeRows = document.querySelectorAll('#sizesContainer .size-row');
+    
+    sizeRows.forEach((row, newIndex) => {
+        // Update data-size-id attribute
+        row.setAttribute('data-size-id', newIndex);
+        
+        // Update all input names
+        const inputs = row.querySelectorAll('input, select');
+        inputs.forEach(input => {
+            const name = input.getAttribute('name');
+            if (name) {
+                // Replace Sizes[oldIndex] with Sizes[newIndex]
+                const newName = name.replace(/Sizes\[\d+\]/, `Sizes[${newIndex}]`);
+                input.setAttribute('name', newName);
+            }
+        });
+    });
+}
+
+// I-update ang removeSizeRow function
+function removeSizeRow(sizeId) {
+    removeSizeRowAndReindex(sizeId);
+}
+
+// I-set ang addSizeRow function na tawagin ang sync version
+function addSizeRow(predefinedName = null) {
+    addSizeRowSync(predefinedName);
+}
 
     function removeSizeRow(sizeId) { document.querySelector(`.size-row[data-size-id="${sizeId}"]`).remove(); }
       function addRecipeItem(sizeId) {
-        const container = document.getElementById(`recipe-items-${sizeId}`);
-        const itemCount = container.children.length;
-        const html = `
-            <div class="row mb-2 g-2">
-                <div class="col-md-5">
-                    <select name="Sizes[${sizeId}].RecipeItems[${itemCount}].RawMaterialId" class="form-control" required>
-                        <option value="">-- Select Ingredient --</option>
-                        @if (ViewBag.RawMaterials != null)
-                        {
-                                foreach (var item in ViewBag.RawMaterials)
-                                {
-                                        <option value="@item.RawMaterialId">@item.Name (@item.Unit - ₱@item.Price)</option>
-                                }
-                        }
-                    </select>
+    const container = document.getElementById(`recipe-items-${sizeId}`);
+    const itemCount = container.children.length;
+    
+    fetch('/RawMaterial/GetAllWithLatestPrice')
+        .then(response => response.json())
+        .then(materials => {
+            let materialOptions = '<option value="">-- Select Ingredient --</option>';
+            materials.forEach(m => {
+                const price = m.latestBatchPrice > 0 ? m.latestBatchPrice : m.defaultPrice;
+                materialOptions += `<option value="${m.id}" data-price="${price}" data-unit="${m.unit}">${m.name} (${m.unit} - ₱${price})</option>`;
+            });
+            
+            const html = `
+                <div class="row mb-2 g-2 ingredient-row" data-ingredient-index="${itemCount}">
+                    <div class="col-md-5">
+                        <select name="Sizes[${sizeId}].RecipeItems[${itemCount}].RawMaterialId" class="form-control" required onchange="updateUnitDropdown(this)">
+                            ${materialOptions}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="number" name="Sizes[${sizeId}].RecipeItems[${itemCount}].Quantity" class="form-control" placeholder="Qty" step="0.01" min="0.01" value="1" required>
+                    </div>
+                    <div class="col-md-4">
+                        <select name="Sizes[${sizeId}].RecipeItems[${itemCount}].UnitUsed" class="form-control" required>
+                            <option value="kg"> kilogram (kg)</option>
+                            <option value="g"> gram (g)</option>
+                            <option value="L"> liter (L)</option>
+                            <option value="mL"> milliliter (mL)</option>
+                            <option value="pcs"> pieces (pcs)</option>
+                        </select>
+                        <button type="button" class="btn btn-sm btn-danger mt-1" onclick="this.closest('.ingredient-row').remove()">Remove</button>
+                    </div>
                 </div>
-                <div class="col-md-3">
-                    <input type="number" name="Sizes[${sizeId}].RecipeItems[${itemCount}].Quantity" class="form-control" placeholder="Qty" step="0.01" min="0.01" required>
-                </div>
-                <div class="col-md-4">
-                    <select name="Sizes[${sizeId}].RecipeItems[${itemCount}].UnitUsed" class="form-control" required>
-                        <option value="kg">📦 kilogram (kg)</option>
-                        <option value="g">⚖️ gram (g)</option>
-                        <option value="L">💧 liter (L)</option>
-                        <option value="mL">🧪 milliliter (mL)</option>
-                        <option value="pcs">🔢 pieces (pcs)</option>
-                    </select>
-                </div>
-            </div>
-        `;
-        container.insertAdjacentHTML('beforeend', html);
-    }
+            `;
+            container.insertAdjacentHTML('beforeend', html);
+        })
+        .catch(err => {
+            console.error('Error loading materials for recipe item:', err);
+            alert('Error loading ingredients. Please refresh and try again.');
+        });
+}
+
       function filterProducts() {
         const searchTerm = document.getElementById('searchProduct').value.toLowerCase();
         const categoryFilter = document.getElementById('filterCategory').value;
@@ -3372,6 +3876,11 @@ async function rejectRequest(requestId) {
     // Alerts Functions
     function loadInventoryAlerts() {
         fetch('/Owner/GetInventoryAlertsData').then(response => response.json()).then(data => {
+                    console.log('=== WASTE LOGS ORDER FROM SERVER ===');
+                    data.wasteLogs.forEach((log, index) => {
+                    console.log(`${index + 1}. ${log.date} - ${log.materialName}`);
+                    });
+
             document.getElementById('statLowStock').innerText = data.lowStockCount;
             document.getElementById('statExpiring').innerText = data.expiringCount;
             document.getElementById('statExpired').innerText = data.expiredCount;
@@ -4797,6 +5306,28 @@ function deleteRawMaterial(id) {
     deleteMaterial(id, event);
 }
 
+// Redirect from Inventory to Raw Materials module for EDIT
+function editMaterialFromInventory(materialId, materialName) {
+    if (confirm(`⚠️ Edit Master Record\n\n"${materialName}" is a master record.\n\nDo you want to go to RAW MATERIALS module to edit this?`)) {
+        showModule('rawMaterials');
+        setTimeout(function() {
+            // Tawagin ang editRawMaterial function sa Raw Materials module
+            editRawMaterial(materialId);
+        }, 300);
+    }
+}
+
+// Redirect from Inventory to Raw Materials module for DELETE
+function deleteMaterialFromInventory(materialId, materialName) {
+    if (confirm(`⚠️ Delete Master Record\n\n"${materialName}" will be PERMANENTLY deleted.\n\n⚠️ WARNING: If this material is used in any recipe, deletion will be BLOCKED.\n\nDo you want to go to RAW MATERIALS module to delete this?`)) {
+        showModule('rawMaterials');
+        setTimeout(function() {
+            // Tawagin ang deleteRawMaterial function sa Raw Materials module
+            deleteRawMaterial(materialId);
+        }, 300);
+    }
+}
+
 function filterRawMaterialsTable() {
     var input = document.getElementById("searchRawMaterial2").value.toLowerCase();
     var rows = document.getElementById("rawMaterialTable2").getElementsByTagName("tbody")[0].getElementsByTagName("tr");
@@ -4921,23 +5452,53 @@ function deleteSupplier(id) {
 let receivingRowCount = 0;
 let rawMaterialsList = [];
 
-    function loadReceivingFormData() {
-        fetch('/Owner/GetReceivingFormData')
-            .then(r => r.json())
-            .then(data => {
-                const supplierSelect = document.getElementById('supplierId');
-                supplierSelect.innerHTML = '<option value="">-- Select Supplier --</option>';
-                data.suppliers.forEach(s => {
+                    function loadReceivingFormData() {
+                    console.log('Fetching receiving form data...');
+    
+                    fetch('/Owner/GetReceivingFormData')
+                    .then(r => r.json())
+                    .then(data => {
+                    console.log('Raw data received:', data);
+                    console.log('Suppliers:', data.suppliers);
+                    console.log('Raw materials:', data.rawMaterials);
+            
+                    const supplierSelect = document.getElementById('supplierId');
+                    supplierSelect.innerHTML = '<option value="">-- Select Supplier --</option>';
+            
+                    if (data.suppliers && data.suppliers.length > 0) {
+                    data.suppliers.forEach(s => {
                     supplierSelect.innerHTML += `<option value="${s.supplierId}">${escapeHtml(s.name)}</option>`;
-                });
+                    });
+                    } else {
+                    console.warn('No suppliers found');
+                    }
 
-                rawMaterialsList = data.rawMaterials;
-                document.getElementById('drNumber').value = generateDRNumber();
-                // ✅ IDAGDAG ITO - AUTO-GENERATE INVOICE NUMBER
-                document.getElementById('invoiceNumber').value = generateInvoiceNumber();
-            });
-    }
-    function generateDRNumber() {
+                    // I-assign ang rawMaterialsList
+                    if (data.rawMaterials && data.rawMaterials.length > 0) {
+                    rawMaterialsList = data.rawMaterials;
+                    console.log('Raw materials loaded:', rawMaterialsList.length, 'items');
+                    } else {
+                    console.warn('No raw materials found');
+                    rawMaterialsList = [];
+                    }
+            
+                    document.getElementById('drNumber').value = generateDRNumber();
+                    document.getElementById('invoiceNumber').value = generateInvoiceNumber();
+            
+                    // I-clear at mag-add ng row
+                    const tbody = document.getElementById('receivingItemsBody');
+                    if (tbody) {
+                    tbody.innerHTML = '';
+                    receivingRowCount = 0;
+                    addReceivingRow();
+                    }
+                    })
+                    .catch(error => {
+                    console.error('Error loading form data:', error);
+                    alert('Error loading form data: ' + error.message);
+                    });
+                    }
+function generateDRNumber() {
         const today = new Date();
         const year = today.getFullYear();
         const month = String(today.getMonth() + 1).padStart(2, '0');
@@ -5227,29 +5788,241 @@ function loadDeliveryHistory() {
 }
 
 function viewDeliveryDetails(receivingId) {
-    fetch('/Owner/GetReceivingHistory')
+    fetch('/Owner/GetReceivingDetails/' + receivingId)
         .then(r => r.json())
         .then(data => {
-            const receiving = data.find(r => r.receivingId === receivingId);
-            if (receiving && receiving.items) {
-                let msg = `📋 DR#: ${receiving.drNumber}\n`;
-                msg += `Supplier: ${receiving.supplierName}\n`;
-                msg += `Date: ${new Date(receiving.dateReceived).toLocaleDateString()}\n`;
-                msg += `\n--- ITEMS ---\n`;
-                receiving.items.forEach(item => {
-                    msg += `\n${item.name}:\n`;
-                    msg += `  Received: ${item.receivedQty}\n`;
-                    msg += `  Accepted: ${item.acceptedQty}\n`;
-                    msg += `  Rejected: ${item.rejectedQty}\n`;
-                    if (item.rejectionReason) msg += `  Reason: ${item.rejectionReason}\n`;
-                    if (item.expiryDate) msg += `  Expiry: ${new Date(item.expiryDate).toLocaleDateString()}\n`;
-                });
-                alert(msg);
-            }
+            // Show modal instead of alert
+            showDeliveryDetailsModal(data);
         });
 }
 
-        function closeReceiptModalForReports() {
+                  function showDeliveryDetailsModal(delivery) {
+    console.log("Showing modal for delivery:", delivery);
+    
+    let itemsHtml = '';
+    
+    delivery.items.forEach(item => {
+        if (item.rejectedQty > 0 && item.returnStatus !== 'RETURNED' && item.returnStatus !== 'PENDING') {
+            itemsHtml += `
+                <tr>
+                    <td><strong>${escapeHtml(item.name)}</strong></td>
+                    <td class="text-success">${item.acceptedQty}</td>
+                    <td class="text-danger">${item.rejectedQty} ${item.unit}</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning" onclick="createSupplierReturn(${item.receivingItemId}, ${item.rejectedQty}, '${escapeHtml(item.name)}', ${item.unitPrice})">
+                            <i class="fas fa-exchange-alt"></i> Return to Supplier
+                        </button>
+                    </td>
+                </tr>
+            `;
+        } else if (item.rejectedQty > 0 && (item.returnStatus === 'RETURNED' || item.returnStatus === 'PENDING')) {
+            itemsHtml += `
+                <tr class="table-secondary">
+                    <td><strong>${escapeHtml(item.name)}</strong></td>
+                    <td class="text-success">${item.acceptedQty}</td>
+                    <td class="text-danger">${item.rejectedQty} ${item.unit}</td>
+                    <td><span class="badge bg-info">${item.returnStatus === 'RETURNED' ? '✅ Returned' : '⏳ Pending Return'}</span></td>
+                </tr>
+            `;
+        } else {
+            itemsHtml += `
+                <tr>
+                    <td><strong>${escapeHtml(item.name)}</strong></td>
+                    <td class="text-success">${item.acceptedQty}</td>
+                    <td class="text-muted">0</td>
+                    <td>—</td>
+                </tr>
+            `;
+        }
+    });
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('deliveryDetailsModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Create modal HTML
+    const modalHtml = `
+        <div id="deliveryDetailsModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10001;">
+            <div style="background: white; border-radius: 12px; width: 700px; max-width: 90%; max-height: 80vh; overflow-y: auto; padding: 20px;">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="mb-0">📦 DR#: ${escapeHtml(delivery.drNumber)}</h4>
+                    <button onclick="closeModal('deliveryDetailsModal')" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+                </div>
+                <p><strong>Supplier:</strong> ${escapeHtml(delivery.supplierName)}</p>
+                <p><strong>Date:</strong> ${new Date(delivery.dateReceived).toLocaleDateString()}</p>
+                <hr>
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead class="table-light">
+                            <tr><th>Item</th><th>Accepted</th><th>Rejected</th><th>Action</th></tr>
+                        </thead>
+                        <tbody>
+                            ${itemsHtml}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-end">
+                    <button class="btn btn-secondary" onclick="closeModal('deliveryDetailsModal')">Close</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+
+function createSupplierReturn(receivingItemId, maxQty, itemName, unitPrice) {
+    // Store data for later use
+    currentReturnData = {
+        receivingItemId: receivingItemId,
+        maxQty: maxQty,
+        itemName: itemName,
+        unitPrice: unitPrice
+    };
+    
+    // Show modal
+    const modal = document.getElementById('supplierReturnModal');
+    const itemInfo = document.getElementById('supplierReturnItemInfo');
+    const qtyInput = document.getElementById('returnQuantity');
+    const maxHint = document.getElementById('returnMaxQtyHint');
+    const reasonSelect = document.getElementById('returnReason');
+    const otherReason = document.getElementById('returnOtherReason');
+    
+    // Reset form
+    qtyInput.value = maxQty;
+    qtyInput.max = maxQty;
+    reasonSelect.value = 'Damaged Packaging';
+    otherReason.style.display = 'none';
+    otherReason.value = '';
+    
+    // Set item info
+    itemInfo.innerHTML = `
+        <strong>Item:</strong> ${escapeHtml(itemName)}<br>
+        <strong>Unit Price:</strong> ₱${unitPrice.toFixed(2)}<br>
+        <strong>Max Quantity:</strong> ${maxQty} (rejected quantity)
+    `;
+    maxHint.innerHTML = `Max: ${maxQty}`;
+    
+    // Validate quantity input
+    qtyInput.onchange = function() {
+        let val = parseFloat(this.value);
+        if (isNaN(val)) val = 0;
+        if (val > maxQty) {
+            this.value = maxQty;
+            alert(`Maximum quantity is ${maxQty}`);
+        }
+        if (val < 0) this.value = 0;
+    };
+    
+    // Show/hide other reason input
+    reasonSelect.onchange = function() {
+        const otherInput = document.getElementById('returnOtherReason');
+        if (this.value === 'Other') {
+            otherInput.style.display = 'block';
+        } else {
+            otherInput.style.display = 'none';
+            otherInput.value = '';
+        }
+    };
+    
+    modal.style.display = 'flex';
+}
+
+                    function closeSupplierReturnModal() {
+                    document.getElementById('supplierReturnModal').style.display = 'none';
+                    }
+
+                    async function confirmSupplierReturn() {
+                    const qty = parseFloat(document.getElementById('returnQuantity').value);
+                    const maxQty = currentReturnData.maxQty;
+                    const reasonSelect = document.getElementById('returnReason');
+                    let reason = reasonSelect.value;
+    
+                    // Get other reason if selected
+                    if (reason === 'Other') {
+                    const otherReason = document.getElementById('returnOtherReason').value.trim();
+                    if (!otherReason) {
+                    alert('Please specify the reason');
+                    return;
+                    }
+                    reason = otherReason;
+                    }
+    
+                    // Validate
+                    if (isNaN(qty) || qty <= 0) {
+                    alert('Please enter a valid quantity');
+                    return;
+                    }
+    
+                    if (qty > maxQty) {
+                    alert(`Quantity cannot exceed ${maxQty}`);
+                    return;
+                    }
+    
+                    if (!reason || reason === '') {
+                    alert('Please select a reason');
+                    return;
+                    }
+    
+                    // Console log para makita ang data
+                    console.log('Sending data:', {
+                    receivingItemId: currentReturnData.receivingItemId,
+                    quantity: qty,
+                    reason: reason,
+                    notes: null
+                    });
+    
+                    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+                    const confirmBtn = document.querySelector('#supplierReturnModal .btn-warning');
+                    const originalText = confirmBtn.innerHTML;
+                    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+                    confirmBtn.disabled = true;
+    
+                    try {
+                    const response = await fetch('/Owner/CreateSupplierReturn', {
+                    method: 'POST',
+                    headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token
+                    },
+                    body: JSON.stringify({
+                    receivingItemId: currentReturnData.receivingItemId,
+                    quantity: qty,
+                    reason: reason,
+                    notes: null
+                    })
+                    });
+        
+                    console.log('Response status:', response.status);
+        
+                    // IMPORTANT: Basahin ang response ng isang beses lang
+                    const result = await response.json();
+                    console.log('Response data:', result);
+        
+                    if (result.success) {
+                    alert('✅ ' + result.message);
+                    closeSupplierReturnModal();
+                    closeModal('deliveryDetailsModal');
+                    loadDeliveryHistory();
+                    if (typeof currentReturnTab !== 'undefined' && currentReturnTab === 'supplier') {
+                    loadSupplierReturns();
+                    }
+                    } else {
+                    alert('❌ Error: ' + (result.message || 'Unknown error'));
+                    }
+                    } catch (error) {
+                    console.error('Error details:', error);
+                    alert('❌ Error: ' + error.message);
+                    } finally {
+                    confirmBtn.innerHTML = originalText;
+                    confirmBtn.disabled = false;
+                    }
+                    }
+
+function closeReceiptModalForReports() {
             const modal = document.getElementById('receiptModalForReports');
             if (modal) {
                 modal.style.display = 'none';
@@ -5316,6 +6089,46 @@ function viewDeliveryDetails(receivingId) {
         return { disposition, reason };
     }
 
+                            async function returnToSupplier(receivingItemId, rejectedQty, itemName) {
+                            const qty = prompt(`Return ${rejectedQty} ${itemName} to supplier?\n\nEnter quantity to return:`, rejectedQty);
+    
+                            if (!qty || qty <= 0) return;
+                            if (qty > rejectedQty) {
+                            alert(`Cannot return more than ${rejectedQty}`);
+                            return;
+                            }
+    
+                            if (!confirm(`Return ${qty} ${itemName} to supplier?\n\nThis will:\n1. Record the return\n2. Create a credit memo for supplier\n3. Track in return history`)) {
+                            return;
+                            }
+    
+                            const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    
+                            try {
+                            const response = await fetch('/Owner/ReturnToSupplier', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
+                            body: JSON.stringify({
+                            receivingItemId: receivingItemId,
+                            quantity: parseFloat(qty),
+                            reason: document.getElementById('returnReason')?.value || 'Damaged/Defective'
+                            })
+                            });
+        
+                            const result = await response.json();
+        
+                            if (result.success) {
+                            alert('✅ ' + result.message);
+                            closeModal('deliveryDetailsModal');
+                            loadDeliveryHistory();
+                            loadSupplierReturns();
+                            } else {
+                            alert('❌ Error: ' + result.message);
+                            }
+                            } catch (error) {
+                            alert('❌ Error: ' + error.message);
+                            }
+                            }
 
     function loadReturns() {
     fetch('/Owner/GetReturns')
@@ -5323,6 +6136,12 @@ function viewDeliveryDetails(receivingId) {
         .then(data => {
             const tbody = document.getElementById('returnsTableBody');
             const countSpan = document.getElementById('approvedCount');
+            
+            // Check if elements exist
+            if (!tbody) {
+                console.warn('returnsTableBody not found');
+                return;
+            }
             
             // Handle different response formats
             let returns = [];
@@ -5335,7 +6154,7 @@ function viewDeliveryDetails(receivingId) {
             }
             
             if (!returns || returns.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No void/refund records found</td></tr>';
+                if (tbody) tbody.innerHTML = '</table><td colspan="7" class="text-center text-muted">No void/refund records found<\/td><\/tr>';
                 if (countSpan) countSpan.innerText = '0';
                 return;
             }
@@ -5350,7 +6169,6 @@ function viewDeliveryDetails(receivingId) {
                 let typeBadge = '';
                 if (requestType === 'VOID') {
                     typeBadge = '<span class="badge bg-danger">VOID</span>';
-                    // Add "Direct" badge for direct voids
                     if (r.source === 'DIRECT') {
                         typeBadge = '<span class="badge bg-danger">VOID</span> <span class="badge bg-secondary">DIRECT</span>';
                     }
@@ -5366,20 +6184,23 @@ function viewDeliveryDetails(receivingId) {
                 const requesterName = r.requesterName || 'System';
                 
                 html += '<tr>';
-                html += `<td>${formattedDate}</td>`;
-                html += `<td><strong>${escapeHtml(orderNumber)}</strong><br>${typeBadge}</td>`;
-                html += `<td>${requestType}</td>`;
-                html += `<td>${escapeHtml(reason)}</td>`;
-                html += `<td class="text-end fw-bold text-danger">₱${amount.toFixed(2)}</td>`;
-                html += `<td>${escapeHtml(requesterName)}</td>`;
-                html += `<td><button class="btn btn-sm btn-info" onclick="viewReturnDetails(${r.id})"><i class="fas fa-eye"></i> View</button></td>`;
-                html += '</tr>';
+                html += `<td>${formattedDate}<\/td>`;
+                html += `<td><strong>${escapeHtml(orderNumber)}</strong><br>${typeBadge}<\/td>`;
+                html += `<td>${requestType}<\/td>`;
+                html += `<td>${escapeHtml(reason)}<\/td>`;
+                html += `<td class="text-end fw-bold text-danger">₱${amount.toFixed(2)}<\/td>`;
+                html += `<td>${escapeHtml(requesterName)}<\/td>`;
+                html += `<td><button class="btn btn-sm btn-info" onclick="viewReturnDetails(${r.id})"><i class="fas fa-eye"></i> View<\/button><\/td>`;
+                html += '<\/tr>';
             }
-            tbody.innerHTML = html;
+            if (tbody) tbody.innerHTML = html;
         })
         .catch(error => {
             console.error('Error loading returns:', error);
-            document.getElementById('returnsTableBody').innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading records: ' + error.message + '</td></tr>';
+            const tbody = document.getElementById('returnsTableBody');
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading records: ' + error.message + '<\/td><\/tr>';
+            }
         });
 }
 
@@ -5459,59 +6280,484 @@ function updateReturnStatus(id, status) {
             });
         }
 
-        // ========== VIEW RETURN DETAILS FUNCTION ==========
-
-function viewReturnDetails(requestId) {
-    // Fetch the specific request details
-    fetch(`/Owner/GetReturnDetails?requestId=${requestId}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Create a modal to show details
-                const modalHtml = `
-                    <div id="returnDetailModal" class="modal-qty" style="display: flex; z-index: 10001;">
-                        <div class="modal-qty-content" style="width: 500px; max-width: 90%; text-align: left;">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h4 class="mb-0">📋 Return Details</h4>
-                                <button onclick="closeReturnDetailModal()" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
-                            </div>
-                            <div class="mb-2">
-                                <strong>Order #:</strong> ${escapeHtml(data.orderNumber)}<br>
-                                <strong>Type:</strong> ${data.requestType}<br>
-                                <strong>Reason:</strong> ${escapeHtml(data.reason)}<br>
-                                <strong>Amount:</strong> ₱${Math.abs(data.amount || 0).toFixed(2)}<br>
-                                <strong>Status:</strong> ${data.status}<br>
-                                <strong>Requested By:</strong> ${escapeHtml(data.requesterName)}<br>
-                                <strong>Requested At:</strong> ${new Date(data.requestedAt).toLocaleString()}<br>
-                                <strong>Approved By:</strong> ${escapeHtml(data.approverName || 'System')}<br>
-                                <strong>Approved At:</strong> ${data.approvedAt ? new Date(data.approvedAt).toLocaleString() : 'N/A'}<br>
-                            </div>
-                            <hr>
-                            <div class="text-center">
-                                <button class="btn btn-secondary" onclick="closeReturnDetailModal()">Close</button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                
-                // Remove existing modal if any
-                const existingModal = document.getElementById('returnDetailModal');
-                if (existingModal) existingModal.remove();
-                
-                document.body.insertAdjacentHTML('beforeend', modalHtml);
-            } else {
-                alert('Error loading details: ' + (data.message || 'Unknown error'));
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error loading return details');
-        });
-}
 
 function closeReturnDetailModal() {
     const modal = document.getElementById('returnDetailModal');
     if (modal) modal.remove();
+}
+
+                    function switchReturnTab(tabName, clickEvent) {
+                    // Update tabs
+                    const tabs = document.querySelectorAll('#returnsModule .nav-link');
+                    tabs.forEach(tab => tab.classList.remove('active'));
+                    if (clickEvent && clickEvent.target) {
+                    clickEvent.target.classList.add('active');
+                    }
+    
+                    // Hide all tab contents
+                    document.getElementById('pendingTab').style.display = 'none';
+                    document.getElementById('approvedTab').style.display = 'none';
+                    document.getElementById('supplierTab').style.display = 'none';
+    
+                    // Show selected tab
+                    if (tabName === 'pending') {
+                    document.getElementById('pendingTab').style.display = 'block';
+                    loadPendingRequests();
+                    } else if (tabName === 'approved') {
+                    document.getElementById('approvedTab').style.display = 'block';
+                    loadApprovedReturns();
+                    } else if (tabName === 'supplier') {
+                    document.getElementById('supplierTab').style.display = 'block';
+                    loadSupplierReturns();
+                    }
+    
+                    currentReturnTab = tabName;
+                    }
+
+                    function loadAllReturns() {
+    loadPendingRequests();
+    loadApprovedReturns();
+    loadSupplierReturns();
+}
+
+                    // ========== PENDING REQUESTS (Voids/Refunds from POS) ==========
+                  // ========== PENDING REQUESTS (Voids/Refunds from POS) ==========
+async function loadPendingRequests() {
+    try {
+        const response = await fetch('/Owner/GetPendingRequests');
+        const requests = await response.json();
+        
+        const tbody = document.getElementById('pendingRequestsTableBody');
+        const badge = document.getElementById('pendingTabBadge');
+        
+        // Check if elements exist
+        if (!tbody) {
+            console.warn('pendingRequestsTableBody not found');
+            return;
+        }
+        
+        if (!requests || requests.length === 0) {
+            tbody.innerHTML = '<td><td colspan="7" class="text-center text-muted">No pending requests</td></tr>';
+            if (badge) badge.innerText = '0';
+            return;
+        }
+        
+        if (badge) badge.innerText = requests.length;
+        
+        let html = '';
+        requests.forEach(req => {
+            const typeBadge = req.requestType === 'VOID' ?
+                '<span class="badge bg-danger">VOID</span>' :
+                '<span class="badge bg-warning">REFUND</span>';
+            
+            const date = new Date(req.requestedAt);
+            const formattedDate = `${date.getMonth()+1}/${date.getDate()}/${date.getFullYear()}, ${date.toLocaleTimeString()}`;
+            
+            html += `
+                <tr>
+                    <td>${formattedDate}</td>
+                    <td><strong>${escapeHtml(req.orderNumber)}</strong></td>
+                    <td>${typeBadge}</td>
+                    <td>${escapeHtml(req.reason)}</td>
+                    <td>${escapeHtml(req.requesterName)}</td>
+                    <td class="text-danger fw-bold">₱${(req.orderTotal || 0).toFixed(2)}</td>
+                    <td>
+                        <button class="btn btn-sm btn-success me-1" onclick="approveRequest(${req.id})">
+                            <i class="fas fa-check"></i> Approve
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="rejectRequest(${req.id})">
+                            <i class="fas fa-times"></i> Reject
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    } catch (error) {
+        console.error('Error loading pending:', error);
+        const tbody = document.getElementById('pendingRequestsTableBody');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading requests</td></tr>';
+        }
+    }
+}
+
+// ========== APPROVED VOIDS/REFUNDS ==========
+                   // ========== APPROVED VOIDS/REFUNDS ==========
+// ========== APPROVED VOIDS/REFUNDS ==========
+// ========== APPROVED VOIDS/REFUNDS ==========
+async function loadApprovedReturns() {
+    try {
+        const response = await fetch('/Owner/GetApprovedReturns');
+        const data = await response.json();
+        
+        const tbody = document.getElementById('approvedReturnsTableBody');
+        const badge = document.getElementById('approvedTabBadge');
+        
+        // Check if elements exist
+        if (!tbody) {
+            console.warn('approvedReturnsTableBody not found');
+            return;
+        }
+        
+        let returns = [];
+        if (data && data.$values) returns = data.$values;
+        else if (data && Array.isArray(data)) returns = data;
+        else returns = [];
+        
+        if (badge) badge.innerText = returns.length;
+        
+        if (returns.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No approved records<\/td><\/tr>';
+            return;
+        }
+        
+        let html = '';
+        returns.forEach(r => {
+            const date = new Date(r.recordedAt);
+            const formattedDate = `${date.getMonth()+1}/${date.getDate()}/${date.getFullYear()}`;
+            
+            // Show both VOID and REFUND
+            let typeBadge = '';
+            let displayType = '';
+            if (r.requestType === 'VOID') {
+                typeBadge = '<span class="badge bg-danger">VOID</span>';
+                displayType = 'VOID';
+            } else {
+                typeBadge = '<span class="badge bg-warning">REFUND</span>';
+                displayType = 'REFUND';
+            }
+            
+            html += `
+                <tr>
+                    <td>${formattedDate}<\/td>
+                    <td><strong>${escapeHtml(r.orderNumber)}</strong><br>${typeBadge}<\/td>
+                    <td>${displayType}<\/td>
+                    <td>${escapeHtml(r.reason)}<\/td>
+                    <td class="text-danger fw-bold">₱${Math.abs(r.amount || 0).toFixed(2)}<\/td>
+                    <td>${escapeHtml(r.requesterName)}<\/td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="viewReturnDetails(${r.id})">
+                            <i class="fas fa-eye"></i> View
+                        </button>
+                     <\/td>
+                 \</tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    } catch (error) {
+        console.error('Error loading approved:', error);
+        const tbody = document.getElementById('approvedReturnsTableBody');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading records<\/td><\/tr>';
+        }
+    }
+}
+
+async function loadSupplierReturns() {
+                    try {
+                    const response = await fetch('/Owner/GetSupplierReturns');
+                    const data = await response.json();
+        
+                    const tbody = document.getElementById('supplierReturnsTableBody');
+        
+                    if (!data.returns || data.returns.length === 0) {
+                    if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">No supplier returns yet<\/td><\/tr>';
+                    updateSupplierSummary({ pendingCount: 0, completedCount: 0, cancelledCount: 0, totalCredit: 0 });
+                    return;
+                    }
+        
+                    updateSupplierSummary(data.summary);
+        
+                    let html = '';
+                    data.returns.forEach(r => {
+                    let statusBadge = '';
+                    let statusActions = '';
+            
+                    if (r.status === 'Pending Return') {
+                    statusBadge = '<span class="badge bg-warning">⏳ Pending Return</span>';
+                    statusActions = `
+                    <button class="btn btn-sm btn-success me-1" onclick="markReturnCompleted(${r.returnId})">
+                    <i class="fas fa-check"></i> Mark Returned
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="cancelSupplierReturn(${r.returnId})">
+                    <i class="fas fa-times"></i> Cancel
+                    </button>
+                    `;
+                    } else if (r.status === 'Returned') {
+                    statusBadge = '<span class="badge bg-success">✅ Returned to Supplier</span>';
+                    statusActions = '<span class="text-muted">Completed</span>';
+                    } else {
+                    statusBadge = '<span class="badge bg-secondary">❌ Cancelled</span>';
+                    statusActions = '<span class="text-muted">Cancelled</span>';
+                    }
+            
+                    const returnDate = new Date(r.returnDate);
+                    const formattedDate = `${returnDate.getMonth()+1}/${returnDate.getDate()}/${returnDate.getFullYear()}`;
+            
+                    html += `
+                    <tr>
+                    <td><code>${escapeHtml(r.returnNumber)}</code></td>
+                    <td>${formattedDate}</td>
+                    <td>${escapeHtml(r.drNumber)}<\/td>
+                    <td><strong>${escapeHtml(r.supplierName)}<\/strong></td>
+                    <td>${escapeHtml(r.itemName)}<\/td>
+                    <td class="text-danger">${r.quantity} ${r.unit}<\/td>
+                    <td>${escapeHtml(r.reason)}<\/td>
+                    <td class="text-success fw-bold">₱${r.creditAmount.toFixed(2)}<\/td>
+                    <td>${statusBadge}<\/td>
+                    <td>
+                    <button class="btn btn-sm btn-info me-1" onclick="viewSupplierReturnDetail(${r.returnId})">
+                    <i class="fas fa-eye"></i>
+                    </button>
+                    ${statusActions}
+                    <\/td>
+                    \</tr>
+                    `;
+                    });
+                    if (tbody) tbody.innerHTML = html;
+        
+                    // Update badge count - check if element exists
+                    const supplierBadge = document.getElementById('supplierTabBadge');
+                    if (supplierBadge && data.summary) {
+                    supplierBadge.innerText = data.summary.pendingCount;
+                    }
+                    } catch (error) {
+                    console.error('Error loading supplier returns:', error);
+                    const tbody = document.getElementById('supplierReturnsTableBody');
+                    if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="10" class="text-center text-danger">Error loading supplier returns<\/td><\/tr>';
+                    }
+                    }
+                    }
+function updateSupplierSummary(summary) {
+    const pendingEl = document.getElementById('pendingSupplierCount');
+    const completedEl = document.getElementById('completedSupplierCount');
+    const cancelledEl = document.getElementById('cancelledSupplierCount');
+    const totalEl = document.getElementById('totalCreditAmount');
+    
+    if (pendingEl) pendingEl.innerText = summary.pendingCount || 0;
+    if (completedEl) completedEl.innerText = (summary.completedCount || 0) + (summary.returnedCount || 0);
+    if (cancelledEl) cancelledEl.innerText = summary.cancelledCount || 0;
+    if (totalEl) totalEl.innerHTML = `₱${(summary.totalCredit || 0).toFixed(2)}`;
+}
+
+
+// ========== SUPPLIER RETURN ACTIONS ==========
+                    async function markReturnCompleted(returnId) {
+                    if (!confirm('Mark this as returned to supplier? This will finalize the return.')) return;
+    
+                    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    
+                    try {
+                    const response = await fetch('/Owner/MarkSupplierReturnCompleted', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
+                    body: JSON.stringify({ returnId: returnId })
+                    });
+        
+                    const result = await response.json();
+        
+                    if (result.success) {
+                    alert('✅ ' + result.message);
+                    loadSupplierReturns();
+                    } else {
+                    alert('❌ Error: ' + result.message);
+                    }
+                    } catch (error) {
+                    alert('❌ Error: ' + error.message);
+                    }
+                    }
+
+                    async function cancelSupplierReturn(returnId) {
+                    if (!confirm('Cancel this supplier return? This action cannot be undone.')) return;
+    
+                    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    
+                    try {
+                    const response = await fetch('/Owner/CancelSupplierReturn', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
+                    body: JSON.stringify({ returnId: returnId })
+                    });
+        
+                    const result = await response.json();
+        
+                    if (result.success) {
+                    alert('✅ ' + result.message);
+                    loadSupplierReturns();
+                    } else {
+                    alert('❌ Error: ' + result.message);
+                    }
+                    } catch (error) {
+                    alert('❌ Error: ' + error.message);
+                    }
+                    }
+
+                    async function viewSupplierReturnDetail(returnId) {
+                    try {
+                    const response = await fetch(`/Owner/GetSupplierReturnDetail/${returnId}`);
+                    const data = await response.json();
+        
+                    if (data.success) {
+                    showSupplierReturnModal(data.return);
+                    } else {
+                    alert('Error loading details');
+                    }
+                    } catch (error) {
+                    alert('Error: ' + error.message);
+                    }
+                    }
+
+                    function showSupplierReturnModal(returnData) {
+                    const modalHtml = `
+                    <div id="supplierReturnModal" class="modal-qty" style="display: flex; z-index: 10001;">
+                    <div class="modal-qty-content" style="width: 500px; max-width: 90%;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="mb-0">🏭 Supplier Return Details</h4>
+                    <button onclick="closeModal('supplierReturnModal')" style="background: none; border: none; font-size: 24px;">&times;</button>
+                    </div>
+                    <hr>
+                    <div class="mb-2">
+                    <strong>Return #:</strong> ${escapeHtml(returnData.returnNumber)}<br>
+                    <strong>DR #:</strong> ${escapeHtml(returnData.drNumber)}<br>
+                    <strong>Supplier:</strong> ${escapeHtml(returnData.supplierName)}<br>
+                    <strong>Item:</strong> ${escapeHtml(returnData.itemName)}<br>
+                    <strong>Quantity:</strong> ${returnData.quantity} ${returnData.unit}<br>
+                    <strong>Unit Price:</strong> ₱${returnData.unitPrice.toFixed(2)}<br>
+                    <strong>Credit Amount:</strong> <span class="text-success fw-bold">₱${returnData.creditAmount.toFixed(2)}</span><br>
+                    <strong>Reason:</strong> ${escapeHtml(returnData.reason)}<br>
+                    <strong>Status:</strong> ${returnData.status}<br>
+                    <strong>Return Date:</strong> ${new Date(returnData.returnDate).toLocaleString()}<br>
+                    ${returnData.actualReturnDate ? `<strong>Actual Return Date:</strong> ${new Date(returnData.actualReturnDate).toLocaleString()}<br>` : ''}
+                    ${returnData.notes ? `<strong>Notes:</strong> ${escapeHtml(returnData.notes)}<br>` : ''}
+                    </div>
+                    <hr>
+                    <div class="text-end">
+                    <button class="btn btn-secondary" onclick="closeModal('supplierReturnModal')">Close</button>
+                    </div>
+                    </div>
+                    </div>
+                    `;
+    
+                    const existing = document.getElementById('supplierReturnModal');
+                    if (existing) existing.remove();
+                    document.body.insertAdjacentHTML('beforeend', modalHtml);
+                    }
+                    function viewReturnDetails(requestId) {
+                    fetch(`/Owner/GetReturnDetails?requestId=${requestId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                    if (data.success) {
+                    showReturnDetailModal(data);
+                    } else {
+                    alert('Error loading details: ' + (data.message || 'Unknown error'));
+                    }
+                    })
+                    .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error loading return details');
+                    });
+                    }
+
+                    function showReturnDetailModal(data) {
+                    const modalHtml = `
+                    <div id="returnDetailModal" class="modal-qty" style="display: flex; z-index: 10001;">
+                    <div class="modal-qty-content" style="width: 500px; max-width: 90%;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="mb-0">📋 ${data.requestType} Details</h4>
+                    <button onclick="closeModal('returnDetailModal')" style="background: none; border: none; font-size: 24px;">&times;</button>
+                    </div>
+                    <hr>
+                    <div class="mb-2">
+                    <strong>Order #:</strong> ${escapeHtml(data.orderNumber)}<br>
+                    <strong>Type:</strong> ${data.requestType}<br>
+                    <strong>Reason:</strong> ${escapeHtml(data.reason)}<br>
+                    <strong>Amount:</strong> <span class="text-danger fw-bold">₱${Math.abs(data.amount || 0).toFixed(2)}</span><br>
+                    <strong>Status:</strong> ${data.status}<br>
+                    <strong>Requested By:</strong> ${escapeHtml(data.requesterName)}<br>
+                    <strong>Requested At:</strong> ${new Date(data.requestedAt).toLocaleString()}<br>
+                    <strong>Approved By:</strong> ${escapeHtml(data.approverName || 'System')}<br>
+                    <strong>Approved At:</strong> ${data.approvedAt ? new Date(data.approvedAt).toLocaleString() : 'N/A'}<br>
+                    </div>
+                    <hr>
+                    <div class="text-end">
+                    <button class="btn btn-secondary" onclick="closeModal('returnDetailModal')">Close</button>
+                    </div>
+                    </div>
+                    </div>
+                    `;
+    
+                    const existing = document.getElementById('returnDetailModal');
+                    if (existing) existing.remove();
+                    document.body.insertAdjacentHTML('beforeend', modalHtml);
+                    }
+
+                    function closeModal(modalId) {
+                    const modal = document.getElementById(modalId);
+                    if (modal) modal.remove();
+                    }
+
+                    function printReturns() {
+                    window.print();
+                    }
+
+                    function exportSupplierReturns() {
+                    alert('Export feature coming soon!');
+                    }
+
+// Toggle product card expansion/collapse
+function toggleProductCard(headerElement) {
+    const cardBody = headerElement.nextElementSibling;
+    const icon = headerElement.querySelector('.toggle-icon');
+    
+    if (cardBody.style.display === 'none') {
+        cardBody.style.display = 'block';
+        icon.style.transform = 'rotate(0deg)';
+        icon.classList.remove('fa-chevron-right');
+        icon.classList.add('fa-chevron-down');
+    } else {
+        cardBody.style.display = 'none';
+        icon.style.transform = 'rotate(-90deg)';
+        icon.classList.remove('fa-chevron-down');
+        icon.classList.add('fa-chevron-right');
+    }
+}
+
+// Update filterProducts function para hindi naapektuhan ang visibility
+function filterProducts() {
+    const searchTerm = document.getElementById('searchProduct').value.toLowerCase();
+    const categoryFilter = document.getElementById('filterCategory').value;
+    const products = document.querySelectorAll('.product-card');
+
+    products.forEach(product => {
+        const name = product.querySelector('h4')?.innerText.toLowerCase() || '';
+        const category = product.getAttribute('data-category') || '';
+        const skuCells = product.querySelectorAll('table tbody tr td:nth-child(2) code');
+        let matchesSKU = false;
+        skuCells.forEach(cell => {
+            if (cell.innerText.toLowerCase().includes(searchTerm)) matchesSKU = true;
+        });
+
+        const matches = (name.includes(searchTerm) || matchesSKU) &&
+                        (!categoryFilter || category === categoryFilter);
+        
+        product.style.display = matches ? '' : 'none';
+        
+        // Optional: Auto-expand kapag may nag-match sa filter (para makita agad)
+        if (matches && searchTerm !== '') {
+            const cardBody = product.querySelector('.product-card-body');
+            const icon = product.querySelector('.toggle-icon');
+            if (cardBody && cardBody.style.display === 'none') {
+                cardBody.style.display = 'block';
+                if (icon) {
+                    icon.style.transform = 'rotate(0deg)';
+                    icon.classList.remove('fa-chevron-right');
+                    icon.classList.add('fa-chevron-down');
+                }
+            }
+        }
+    });
 }
 
        

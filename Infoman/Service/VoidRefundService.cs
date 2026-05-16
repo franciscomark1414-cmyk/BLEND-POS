@@ -531,10 +531,10 @@ namespace Infoman.Service
         public async Task<List<object>> GetPendingOrders()
         {
             return await _db.Orders
-                .Where(o => (o.Status == "PENDING_PAYMENT" || o.Status == "COMPLETED")
-                            && o.Status != "VOIDED"  // ✅ HUWAG ISAMA ANG VOIDED
-                            && o.Status != "REFUNDED"  // ✅ HUWAG ISAMA ANG REFUNDED
-                            && o.Items.Any(i => !i.IsVoided && !i.IsRefunded))  // ✅ MAY ACTIVE ITEMS PA
+                .Where(o => o.Status == "PENDING_PAYMENT"  // ✅ PENDING_PAYMENT LANG, WALANG COMPLETED
+                            && o.Status != "VOIDED"
+                            && o.Status != "REFUNDED"
+                            && o.Items.Any(i => !i.IsVoided && !i.IsRefunded))
                 .OrderByDescending(o => o.Date)
                 .Select(o => new
                 {
@@ -550,7 +550,7 @@ namespace Infoman.Service
         public async Task<List<object>> GetCompletedOrders()
         {
             return await _db.Orders
-                .Where(o => o.Status == "COMPLETED"
+                .Where(o => o.Status == "COMPLETED"  // ✅ COMPLETED LANG
                             && o.Status != "VOIDED"
                             && o.Status != "REFUNDED"
                             && o.Items.Any(i => !i.IsRefunded && !i.IsVoided))

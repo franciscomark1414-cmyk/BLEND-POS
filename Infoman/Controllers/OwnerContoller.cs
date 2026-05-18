@@ -485,7 +485,12 @@ namespace Infoman.Controllers
                 _db.Products.Add(product);
                 await _db.SaveChangesAsync();
 
-                return Json(new { success = true, message = $"Product added successfully! SKU: {generatedProductSKU}", redirect = "/Owner/Dashboard" });
+                return Json(new
+                {
+                    success = true,
+                    message = $"Product added successfully! SKU: {generatedProductSKU}",
+                    stayOnPage = true  // Add this flag to indicate stay on same page
+                });
             }
             catch (Exception ex)
             {

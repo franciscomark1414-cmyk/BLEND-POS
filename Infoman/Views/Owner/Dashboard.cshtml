@@ -499,6 +499,96 @@
         transition: transform 0.2s ease;
     }
 
+    /* Base Modal Styles - KULANG ITO! */
+.modal-qty {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-qty-content {
+    background: white;
+    border-radius: 16px;
+    padding: 25px;
+    width: 350px;
+    max-width: 90%;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    animation: slideUp 0.3s ease forwards;
+}
+
+    /* Custom Modal Styles */
+#customConfirmModal, #customAlertModal {
+    z-index: 10000 !important;
+}
+
+
+#customConfirmModal .modal-qty-content,
+#customAlertModal .modal-qty-content {
+    z-index: 10001 !important;
+    position: relative;
+    background: white;
+    border-radius: 16px !important;
+    padding: 25px !important;
+    width: 350px !important;
+    max-width: 90% !important;
+    text-align: center !important;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3) !important;
+}
+
+#confirmOkBtn, #confirmCancelBtn, #alertCloseBtn {
+    cursor: pointer !important;
+    padding: 10px 20px !important;
+    border-radius: 8px !important;
+    border: none !important;
+    font-weight: 600 !important;
+}
+
+#confirmOkBtn, #alertCloseBtn {
+    background: #ff6b35 !important;
+    color: white !important;
+}
+
+#confirmCancelBtn {
+    background: #f0f0f0 !important;
+    color: #333 !important;
+}
+
+#confirmOkBtn:hover, #alertCloseBtn:hover {
+    background: #e55a2b !important;
+}
+
+#confirmCancelBtn:hover {
+    background: #e0e0e0 !important;
+}
+
+/* Loading Modal */
+#loadingModal {
+    z-index: 10002 !important;
+}
+
+.spinner-border {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    vertical-align: text-bottom;
+    border: 0.2em solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: spinner-border 0.75s linear infinite;
+}
+
+@@keyframes spinner-border {
+    to { transform: rotate(360deg); }
+}
+
     @@keyframes slideUp {
         from {
             transform: translateY(50px);
@@ -2554,6 +2644,33 @@
                             </div>
                         </div>
 
+                        <!-- Custom Confirmation Modal -->
+<div id="customConfirmModal" class="modal-qty" style="display: none;">
+    <div class="modal-qty-content" style="width: 350px; max-width: 90%;">
+        <div style="text-align: center;">
+            <div id="confirmIcon" style="font-size: 48px; margin-bottom: 10px;">❓</div>
+            <h4 id="confirmTitle" style="margin-bottom: 15px;">Confirm Action</h4>
+            <p id="confirmMessage" style="margin-bottom: 20px; color: #666;"></p>
+            <div style="display: flex; gap: 10px;">
+                <button id="confirmCancelBtn" class="btn-cancel" style="flex: 1; padding: 10px;">Cancel</button>
+                <button id="confirmOkBtn" class="btn-confirm" style="flex: 1; padding: 10px;">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Custom Alert Modal -->
+<div id="customAlertModal" class="modal-qty" style="display: none;">
+    <div class="modal-qty-content" style="width: 320px; max-width: 90%;">
+        <div style="text-align: center;">
+            <div id="alertIcon" style="font-size: 48px; margin-bottom: 10px;">ℹ️</div>
+            <h4 id="alertTitle" style="margin-bottom: 15px;">Notice</h4>
+            <p id="alertMessage" style="margin-bottom: 20px; color: #666;"></p>
+            <button id="alertCloseBtn" class="btn-confirm" style="width: 100%; padding: 10px;">OK</button>
+        </div>
+    </div>
+</div>
+
 
     </div>
 </div>
@@ -2652,7 +2769,7 @@ function updateUnitDropdown(selectElement) {
 }
 
 // Validation bago mag-save
-function validateIngredientsUnits() {
+async function validateIngredientsUnits() {
     const ingredientRows = document.querySelectorAll('.ingredient-row');
     let errors = [];
     
@@ -2682,15 +2799,18 @@ function validateIngredientsUnits() {
     });
     
     if (errors.length > 0) {
-        alert('⚠️ UNIT COMPATIBILITY ERRORS:\n\n' + errors.join('\n\n'));
-        return false;
-    }
+    await showAlert(' UNIT COMPATIBILITY ERRORS:\n\n' + errors.join('\n\n'), 'Error');
+    return false;
+}
     return true;
 }
 
 
 async function approveRequest(requestId) {
-    if (!confirm('Approve this request? This action cannot be undone.')) return;
+    const confirmed = await showConfirm('Approve this request? This action cannot be undone.', 'Approve Request');
+    if (!confirmed) return;
+    
+    showLoading('Approving request...');
     
     const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
     
@@ -2702,21 +2822,26 @@ async function approveRequest(requestId) {
         });
         
         const data = await response.json();
+        hideLoading();
         
         if (data.success) {
-            alert('✅ ' + data.message);
+            await showAlert('✅ ' + data.message, 'Success', '✅');
             loadPendingRequests();
             location.reload();
         } else {
-            alert('❌ Error: ' + data.message);
+            await showAlert('❌ Error: ' + data.message, 'Error', '❌');
         }
     } catch (error) {
-        alert('❌ Error: ' + error.message);
+        hideLoading();
+        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
     }
 }
 
 async function rejectRequest(requestId) {
-    if (!confirm('Reject this request?')) return;
+    const confirmed = await showConfirm('Reject this request?', 'Reject Request');
+    if (!confirmed) return;
+    
+    showLoading('Rejecting request...');
     
     const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
     
@@ -2728,85 +2853,89 @@ async function rejectRequest(requestId) {
         });
         
         const data = await response.json();
+        hideLoading();
         
         if (data.success) {
-            alert('✅ Request rejected');
+            await showAlert('✅ Request rejected', 'Success', '✅');
             loadPendingRequests();
         } else {
-            alert('❌ Error: ' + data.message);
+            await showAlert('❌ Error: ' + data.message, 'Error', '❌');
         }
     } catch (error) {
-        alert('❌ Error: ' + error.message);
+        hideLoading();
+        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
     }
 }
 
 
                       function showModule(module) {
-        // Hide all modules
-        var modules = ['dashboard', 'rawMaterials', 'inventory', 'products', 'inventoryAlerts', 'reports', 'employees', 'settings', 'suppliers', 'receiving', 'receivingHistory', 'returns'];
-        modules.forEach(function(m) {
-            var el = document.getElementById(m + 'Module');
-            if (el) el.classList.remove('active');
-        });
+    // ✅ SAVE current module to localStorage
+    localStorage.setItem('activeModule', module);
+    
+    // Hide all modules
+    var modules = ['dashboard', 'rawMaterials', 'inventory', 'products', 'inventoryAlerts', 'reports', 'employees', 'settings', 'suppliers', 'receiving', 'receivingHistory', 'returns'];
+    modules.forEach(function(m) {
+        var el = document.getElementById(m + 'Module');
+        if (el) el.classList.remove('active');
+    });
 
-        // Show selected module
-        var selectedModule = document.getElementById(module + 'Module');
-        if (selectedModule) selectedModule.classList.add('active');
+    // Show selected module
+    var selectedModule = document.getElementById(module + 'Module');
+    if (selectedModule) selectedModule.classList.add('active');
 
-        // Update sidebar active state
-        var navItems = document.querySelectorAll('.sidebar .nav-item');
-        navItems.forEach(function(item) {
-            item.classList.remove('active');
-        });
+    // Update sidebar active state
+    var navItems = document.querySelectorAll('.sidebar .nav-item');
+    navItems.forEach(function(item) {
+        item.classList.remove('active');
+    });
 
-        var activeNavItem = document.querySelector('.sidebar .nav-item[onclick*="showModule(\'' + module + '\')"]');
-        if (activeNavItem) {
-            activeNavItem.classList.add('active');
-        } else {
-            var allNavItems = document.querySelectorAll('.sidebar .nav-item');
-            for (var i = 0; i < allNavItems.length; i++) {
-                var item = allNavItems[i];
-                var onclickAttr = item.getAttribute('onclick');
-                if (onclickAttr && onclickAttr.includes(module)) {
-                    item.classList.add('active');
-                    break;
-                }
+    var activeNavItem = document.querySelector('.sidebar .nav-item[onclick*="showModule(\'' + module + '\')"]');
+    if (activeNavItem) {
+        activeNavItem.classList.add('active');
+    } else {
+        var allNavItems = document.querySelectorAll('.sidebar .nav-item');
+        for (var i = 0; i < allNavItems.length; i++) {
+            var item = allNavItems[i];
+            var onclickAttr = item.getAttribute('onclick');
+            if (onclickAttr && onclickAttr.includes(module)) {
+                item.classList.add('active');
+                break;
             }
         }
+    }
 
-        // Load module-specific data
-        if (module === 'inventoryAlerts') {
-            loadInventoryAlerts();
-        }
-        if (module === 'reports') {
-            reportsDataLoaded = false;
-            setTimeout(function() { loadReportsData(); }, 150);
-        }
-        if (module === 'employees') {
-            setTimeout(function() { loadEmployees(); }, 100);
-        }
-        if (module === 'suppliers') {
-            loadSuppliers();
-        }
-        if (module === 'receiving') {
-            console.log('Loading receiving data...');
-            loadReceivingFormData();
-            setTimeout(function() {
-                if (document.getElementById('receivingItemsBody').children.length === 0) {
-                    addReceivingRow();
-                }
-            }, 200);
-        }
-        if (module === 'receivingHistory') {
-            loadDeliveryHistory();
-        }
-        if (module === 'returns') {
-            
-            loadPendingRequests();
-                    loadApprovedReturns();
-            loadSupplierReturns();
-        }
-    } 
+    // Load module-specific data
+    if (module === 'inventoryAlerts') {
+        loadInventoryAlerts();  
+    }
+    if (module === 'reports') {
+        reportsDataLoaded = false;
+        setTimeout(function() { loadReportsData(); }, 150);
+    }
+    if (module === 'employees') {
+        setTimeout(function() { loadEmployees(); }, 100);
+    }
+    if (module === 'suppliers') {
+        loadSuppliers();
+    }
+    if (module === 'receiving') {
+        console.log('Loading receiving data...');
+        loadReceivingFormData();
+        setTimeout(function() {
+            if (document.getElementById('receivingItemsBody').children.length === 0) {
+                addReceivingRow();
+            }
+        }, 200);
+    }
+    if (module === 'receivingHistory') {
+        loadDeliveryHistory();
+    }
+    if (module === 'returns') {
+        loadPendingRequests();
+        loadApprovedReturns();
+        loadSupplierReturns();
+    }
+}
     // Add Delivery Form Functions
     function showAddDeliveryForm() {
         document.getElementById('addDeliveryBox').style.display = 'block';
@@ -2852,20 +2981,20 @@ async function rejectRequest(requestId) {
         console.log('Unit Price:', unitPrice);
         console.log('Expiry Date:', expiryDate);
 
-        if (!rawMaterialId || rawMaterialId === '') {
-            alert('Please select a raw material');
-            return;
-        }
+       if (!rawMaterialId || rawMaterialId === '') {
+    await showAlert('Please select a raw material', 'Required', '⚠️');
+    return;
+}
 
-        if (!quantity || quantity <= 0) {
-            alert('Please enter a valid quantity');
-            return;
-        }
+if (!quantity || quantity <= 0) {
+    await showAlert('Please enter a valid quantity', 'Required', '⚠️');
+    return;
+}
 
-        if (!unitPrice || unitPrice <= 0) {
-            alert('Please enter a valid unit price');
-            return;
-        }
+if (!unitPrice || unitPrice <= 0) {
+    await showAlert('Please enter a valid unit price', 'Required', '⚠️');
+    return;
+}
 
         const submitBtn = this.querySelector('button[type="submit"]');
         const originalText = submitBtn.innerHTML;
@@ -2940,12 +3069,12 @@ async function rejectRequest(requestId) {
         var parts = stockWithUnit.trim().split(' ');
         return parts.length > 1 ? parts[1] : '';
     }
-              function editMaterial(id) {
+              async function editMaterial(id) {
         var row = document.querySelector('tr[data-id="' + id + '"]');
         if (!row) {
-            alert('Material not found');
-            return;
-        }
+    await showAlert('Material not found', 'Error');
+    return;
+}
 
         // Get values from the row
         var sku = row.children[0]?.innerText || '';           // Column 0: SKU
@@ -2987,69 +3116,69 @@ async function rejectRequest(requestId) {
 
         document.getElementById('formHeader').innerHTML = '<i class="fas fa-edit"></i> Edit Raw Material';
         document.getElementById('addRawMaterialBox').style.display = 'block';
-    }      function deleteMaterial(id, clickEvent) {
-        const deleteButton = clickEvent ? clickEvent.target : event.target;
-        const originalText = deleteButton.innerText;
+    }      
+    
+   async function deleteMaterial(id, clickEvent) {
+    const deleteButton = clickEvent ? clickEvent.target : event.target;
+    const originalText = deleteButton.innerText;
 
-        // Mag-prompt para sa confirmation
-        if (!confirm("Are you sure you want to delete this raw material?\n\nThis action cannot be undone.")) {
-            return;
-        }
+    // Mag-prompt para sa confirmation
+    const confirmed = await showConfirm("Are you sure you want to delete this raw material?\n\nThis action cannot be undone.", "Delete Raw Material");
+    if (!confirmed) return;
 
-        deleteButton.innerText = 'Checking...';
-        deleteButton.disabled = true;
+    deleteButton.innerText = 'Checking...';
+    deleteButton.disabled = true;
 
-        const token = document.querySelector('input[name="__RequestVerificationToken"]');
-        if (!token) {
-            alert('Security token missing. Please refresh the page.');
-            deleteButton.innerText = originalText;
-            deleteButton.disabled = false;
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append('__RequestVerificationToken', token.value);
-        formData.append('id', id);
-
-        fetch('@Url.Action("DeleteConfirmed", "RawMaterial")', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('✅ ' + data.message);
-                location.reload();
-            } else {
-                // ✅ KUNG MAY AFFECTED PRODUCTS, I-DISPLAY ANG DETAILS
-                if (data.hasAffectedProducts && data.affectedProducts) {
-                    const productListHtml = data.affectedProducts.map(p => `
-                        <div class="list-group-item">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1">${escapeHtml(p.productName)} - ${escapeHtml(p.sizeName)}</h6>
-                                <small class="text-muted">Stock: ${p.stock} pcs</small>
-                            </div>
-                            <small class="text-muted">Price: ₱${p.price}</small>
-                        </div>
-                    `).join('');
-
-                    document.getElementById('affectedProductsList').innerHTML = productListHtml;
-                    new bootstrap.Modal(document.getElementById('affectedProductsModal')).show();
-                } else {
-                    alert('❌ ' + data.message);
-                }
-                deleteButton.innerText = originalText;
-                deleteButton.disabled = false;
-            }
-        })
-        .catch(err => {
-            alert('❌ Error deleting material: ' + err.message);
-            deleteButton.innerText = originalText;
-            deleteButton.disabled = false;
-        });
+    const token = document.querySelector('input[name="__RequestVerificationToken"]');
+    if (!token) {
+        await showAlert('Security token missing. Please refresh the page.', 'Error', '❌');
+        deleteButton.innerText = originalText;
+        deleteButton.disabled = false;
+        return;
     }
 
-        document.getElementById('addRawMaterialForm')?.addEventListener('submit', function(e) {
+    const formData = new FormData();
+    formData.append('__RequestVerificationToken', token.value);
+    formData.append('id', id);
+
+    fetch('@Url.Action("DeleteConfirmed", "RawMaterial")', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(async data => {
+        if (data.success) {
+            await showAlert('✅ ' + data.message, 'Success', '✅');
+            location.reload();
+        } else {
+            if (data.hasAffectedProducts && data.affectedProducts) {
+                const productListHtml = data.affectedProducts.map(p => `
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">${escapeHtml(p.productName)} - ${escapeHtml(p.sizeName)}</h6>
+                            <small class="text-muted">Stock: ${p.stock} pcs</small>
+                        </div>
+                        <small class="text-muted">Price: ₱${p.price}</small>
+                    </div>
+                `).join('');
+
+                document.getElementById('affectedProductsList').innerHTML = productListHtml;
+                new bootstrap.Modal(document.getElementById('affectedProductsModal')).show();
+            } else {
+                await showAlert('❌ ' + data.message, 'Error', '❌');
+            }
+            deleteButton.innerText = originalText;
+            deleteButton.disabled = false;
+        }
+    })
+    .catch(async err => {
+        await showAlert('❌ Error deleting material: ' + err.message, 'Error', '❌');
+        deleteButton.innerText = originalText;
+        deleteButton.disabled = false;
+    });
+}
+
+        document.getElementById('addRawMaterialForm')?.addEventListener('submit', async function(e) {
         e.preventDefault();
 
         var id = document.getElementById('RawMaterialId').value;
@@ -3058,9 +3187,9 @@ async function rejectRequest(requestId) {
         var minQty = parseFloat(document.getElementById('MinQty').value) || 0;
         var unit = document.getElementById('Unit').value.trim();
 
-        if (!name) { alert('Please enter a name'); return; }
-        if (!unit) { alert('Please enter a unit'); return; }
-        if (isNaN(category)) { alert('Please select a valid category'); return; }
+        if (!name) { await showAlert('Please enter a name', 'Required'); return; }
+if (!unit) { await showAlert('Please enter a unit', 'Required'); return; }
+if (isNaN(category)) { await showAlert('Please select a valid category', 'Required'); return; }
 
         // ✅ Hindi na kasama ang Stock, Price, at ExpirationDate
         var formData = new FormData();
@@ -3092,84 +3221,82 @@ async function rejectRequest(requestId) {
     });
 
         async function adjustBatchStock(batchId, currentRemaining, materialName) {
-        const newQuantity = prompt(`Adjust stock for ${materialName}\n\nCurrent remaining: ${currentRemaining} kg\nEnter new quantity:`, currentRemaining);
-
-        if (newQuantity === null) return;
-
-        const newQty = parseFloat(newQuantity);
-        if (isNaN(newQty) || newQty < 0) {
-            alert('Please enter a valid quantity (0 or positive number)');
-            return;
-        }
-
-        if (newQty === currentRemaining) {
-            alert('No changes made');
-            return;
-        }
-
-        if (!confirm(`Adjust stock from ${currentRemaining} kg to ${newQty} kg?\n\nThis will create a waste log if stock is reduced.`)) {
-            return;
-        }
-
-        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
-
-        try {
-            const response = await fetch('/RawMaterial/AdjustBatchStock', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': token
-                },
-                body: JSON.stringify({
-                    batchId: batchId,
-                    newQuantity: newQty,
-                    reason: 'Manual adjustment'
-                })
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                alert('✅ Stock adjusted successfully');
-                location.reload();
-            } else {
-                alert('❌ Error: ' + result.message);
-            }
-        } catch (error) {
-            alert('❌ Error: ' + error.message);
-        }
+    const newQuantity = prompt(`Adjust stock for ${materialName}\n\nCurrent remaining: ${currentRemaining} kg\nEnter new quantity:`, currentRemaining);
+    
+    if (newQuantity === null) return;
+    
+    const newQty = parseFloat(newQuantity);
+    if (isNaN(newQty) || newQty < 0) {
+        await showAlert('Please enter a valid quantity (0 or positive number)', 'Invalid', '⚠️');
+        return;
     }
+    
+    if (newQty === currentRemaining) {
+        await showAlert('No changes made', 'Notice', 'ℹ️');
+        return;
+    }
+    
+    const confirmed = await showConfirm(`Adjust stock from ${currentRemaining} kg to ${newQty} kg?\n\nThis will create a waste log if stock is reduced.`, 'Confirm Adjustment');
+    if (!confirmed) return;
+    
+    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    
+    try {
+        const response = await fetch('/RawMaterial/AdjustBatchStock', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': token
+            },
+            body: JSON.stringify({
+                batchId: batchId,
+                newQuantity: newQty,
+                reason: 'Manual adjustment'
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            await showAlert('✅ Stock adjusted successfully', 'Success', '✅');
+            location.reload();
+        } else {
+            await showAlert('❌ Error: ' + result.message, 'Error', '❌');
+        }
+    } catch (error) {
+        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+    }
+}
 
     // Mark as Expired
     async function markBatchAsExpired(batchId, materialName) {
-        if (!confirm(`Mark this batch of ${materialName} as EXPIRED?\n\nAll remaining stock will be moved to waste.`)) {
-            return;
+    const confirmed = await showConfirm(`Mark this batch of ${materialName} as EXPIRED?\n\nAll remaining stock will be moved to waste.`, 'Mark as Expired');
+    if (!confirmed) return;
+    
+    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    
+    try {
+        const response = await fetch('/RawMaterial/MarkBatchAsExpired', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': token
+            },
+            body: JSON.stringify({ batchId: batchId })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            await showAlert('✅ Batch marked as expired. Stock moved to waste.', 'Success', '✅');
+            location.reload();
+        } else {
+            await showAlert('❌ Error: ' + result.message, 'Error', '❌');
         }
-
-        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
-
-        try {
-            const response = await fetch('/RawMaterial/MarkBatchAsExpired', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': token
-                },
-                body: JSON.stringify({ batchId: batchId })
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                alert('✅ Batch marked as expired. Stock moved to waste.');
-                location.reload();
-            } else {
-                alert('❌ Error: ' + result.message);
-            }
-        } catch (error) {
-            alert('❌ Error: ' + error.message);
-        }
+    } catch (error) {
+        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
     }
+}
 
     // Products Functions
   function showAddProductModal() {
@@ -3199,92 +3326,98 @@ async function rejectRequest(requestId) {
         submitBtn.innerHTML = originalText;
     });
     
-    form.onsubmit = async function(e) {
-        e.preventDefault();
-        const submitBtn = form.querySelector('button[type="submit"]');
-        const originalText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-        submitBtn.disabled = true;
+    // FIND this code in your script (around line where addProductForm is handled)
+// REPLACE the form.onsubmit function with this:
+
+form.onsubmit = async function(e) {
+    e.preventDefault();
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    
+    // Show loading state
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving Product...';
+    submitBtn.disabled = true;
+    
+    try {
+        reindexSizeRows();
         
-        try {
-            // ✅ I-REINDEX ANG LAHAT NG SIZE ROWS BAGO MAG-SUBMIT
-            reindexSizeRows();
+        const sizeRows = document.querySelectorAll('#sizesContainer .size-row');
+        if (sizeRows.length === 0) {
+            await showAlert('❌ Please add at least one size', 'Error');
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+            return;
+        }
+        
+        // Validate ingredients
+        let hasValidIngredients = true;
+        for (let i = 0; i < sizeRows.length; i++) {
+            const sizeRow = sizeRows[i];
+            const sizeName = sizeRow.querySelector('input[name*="SizeName"]')?.value || `Size ${i+1}`;
+            const ingredientSelects = sizeRow.querySelectorAll('select[name*="RawMaterialId"]');
+            let hasIngredient = false;
             
-            // Simple check: may laman ba ang sizesContainer?
-            const sizeRows = document.querySelectorAll('#sizesContainer .size-row');
-            console.log('Number of size rows:', sizeRows.length);
-            
-            if (sizeRows.length === 0) {
-                alert('❌ Please add at least one size');
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = false;
-                return;
-            }
-            
-            // I-validate ang bawat size kung may laman ang ingredients
-            let hasValidIngredients = true;
-            for (let i = 0; i < sizeRows.length; i++) {
-                const sizeRow = sizeRows[i];
-                const sizeName = sizeRow.querySelector('input[name*="SizeName"]')?.value || `Size ${i+1}`;
-                const ingredientSelects = sizeRow.querySelectorAll('select[name*="RawMaterialId"]');
-                let hasIngredient = false;
-                
-                for (let j = 0; j < ingredientSelects.length; j++) {
-                    if (ingredientSelects[j].value && ingredientSelects[j].value !== '') {
-                        hasIngredient = true;
-                        break;
-                    }
-                }
-                
-                if (!hasIngredient) {
-                    alert(`❌ Please add at least one ingredient for "${sizeName}"`);
-                    hasValidIngredients = false;
+            for (let j = 0; j < ingredientSelects.length; j++) {
+                if (ingredientSelects[j].value && ingredientSelects[j].value !== '') {
+                    hasIngredient = true;
                     break;
                 }
             }
             
-            if (!hasValidIngredients) {
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = false;
-                return;
+            if (!hasIngredient) {
+                await showAlert(`Please add at least one ingredient for "${sizeName}"`, 'Error');
+                hasValidIngredients = false;
+                break;
             }
-            
-            const formData = new FormData(form);
-            
-            // I-debug: I-print ang lahat ng Sizes data (para makita kung tama)
-            console.log('=== FORM DATA (Sizes) ===');
-            for (let pair of formData.entries()) {
-                if (pair[0].includes('Sizes')) {
-                    console.log(pair[0] + ': ' + pair[1]);
-                }
-            }
-            
-            const response = await fetch('/Owner/AddProduct', {
-                method: 'POST',
-                headers: { 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value },
-                body: formData
-            });
-            const result = await response.json();
-            
-            if (result.success) {
-                alert('✅ ' + result.message);
-                bootstrap.Modal.getInstance(document.getElementById('addProductModal')).hide();
-                location.reload();
-            } else {
-                let errorMsg = result.message || 'Please check all fields';
-                if (result.errors && typeof result.errors === 'object') {
-                    errorMsg = Object.values(result.errors).flat().join('\n');
-                }
-                alert('❌ Error:\n' + errorMsg);
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('❌ An error occurred: ' + error.message);
-        } finally {
+        }
+        
+        if (!hasValidIngredients) {
             submitBtn.innerHTML = originalText;
             submitBtn.disabled = false;
+            return;
         }
-    };
+        
+        const formData = new FormData(form);
+        
+        const response = await fetch('/Owner/AddProduct', {
+            method: 'POST',
+            headers: { 
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value 
+            },
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // ✅ Save that we want to stay in products module
+            localStorage.setItem('activeModule', 'products');
+            
+            // ✅ Show success message
+            await showAlert('✅ ' + result.message, 'Success', '✅');
+            
+            // ✅ Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addProductModal'));
+            if (modal) modal.hide();
+            
+            // ✅ Reload with flag to stay in products module
+            window.location.href = window.location.pathname + '?fromProductSave=true';
+            
+        } else {
+            let errorMsg = result.message || 'Please check all fields';
+            if (result.errors && typeof result.errors === 'object') {
+                errorMsg = Object.values(result.errors).flat().join('\n');
+            }
+            await showAlert('❌ Error:\n' + errorMsg, 'Error', '❌');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        await showAlert('❌ An error occurred: ' + error.message, 'Error', '❌');
+    } finally {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    }
+};
     new bootstrap.Modal(document.getElementById('addProductModal')).show();
 }
 
@@ -3529,7 +3662,7 @@ function addSizeRow(predefinedName = null) {
 }
 
     function removeSizeRow(sizeId) { document.querySelector(`.size-row[data-size-id="${sizeId}"]`).remove(); }
-      function addRecipeItem(sizeId) {
+      async function addRecipeItem(sizeId) {
     const container = document.getElementById(`recipe-items-${sizeId}`);
     const itemCount = container.children.length;
     
@@ -3568,7 +3701,8 @@ function addSizeRow(predefinedName = null) {
         })
         .catch(err => {
             console.error('Error loading materials for recipe item:', err);
-            alert('Error loading ingredients. Please refresh and try again.');
+            // ✅ FIX: Remove await, use regular showAlert or just log
+            showAlert('Error loading ingredients. Please refresh and try again.', 'Error');
         });
 }
 
@@ -3595,14 +3729,31 @@ function addSizeRow(predefinedName = null) {
 
     function refreshProducts() { location.reload(); }
     function editProduct(productId) { alert('Edit product feature - implement based on your needs'); }
-    function archiveProduct(productId) {
-        if (confirm('Are you sure you want to archive this product?')) {
-            fetch(`/Owner/ArchiveProduct/${productId}`, {
-                method: 'POST',
-                headers: { 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value }
-            }).then(response => response.json()).then(data => { if (data.success) { alert('Product archived successfully'); location.reload(); } else { alert('Error archiving product'); } });
-        }
-    }
+   async function archiveProduct(productId) {
+    const confirmed = await showConfirm('Are you sure you want to archive this product?', 'Archive Product');
+    if (!confirmed) return;
+    
+    showLoading('Archiving product...');
+    
+    fetch(`/Owner/ArchiveProduct/${productId}`, {
+        method: 'POST',
+        headers: { 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value }
+    })
+    .then(response => response.json())
+    .then(async data => { 
+        hideLoading();
+        if (data.success) { 
+            await showAlert('Product archived successfully', 'Success', '✅');
+            location.reload(); 
+        } else { 
+            await showAlert('Error archiving product', 'Error', '❌');
+        } 
+    })
+    .catch(async error => {
+        hideLoading();
+        await showAlert('Error: ' + error.message, 'Error', '❌');
+    });
+}
     function addSize(productId) { showAddProductModal(); }
 
     // Recipe Functions
@@ -4004,7 +4155,7 @@ function addSizeRow(predefinedName = null) {
     function showAddWasteModal() { document.getElementById('wasteForm').reset(); new bootstrap.Modal(document.getElementById('addWasteModal')).show(); }
         let currentRestockMaterialId = null;
 
-    function restockMaterial(materialId) {
+    async function restockMaterial(materialId) {
         // Hanapin ang material details mula sa table
         const row = document.querySelector(`#lowStockContent table tbody tr td:first-child`); // Need i-improve
 
@@ -4023,39 +4174,43 @@ function addSizeRow(predefinedName = null) {
 
                     new bootstrap.Modal(document.getElementById('restockModal')).show();
                 } else {
-                    alert('Error loading material details');
+                    showAlert('Error loading material details', 'Error');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Error loading material details');
+                  showAlert('Error loading material details', 'Error');
             });
     }
 
-    function confirmRestock() {
-        const materialId = document.getElementById('restockMaterialId').value;
-        const quantity = document.getElementById('restockQuantity').value;
-        const unitPrice = document.getElementById('restockUnitPrice').value;
-        const expiryDate = document.getElementById('restockExpiryDate').value;
+  async function confirmRestock(event) {  // ← IDAGDAG ANG 'event' PARAMETER
+    const materialId = document.getElementById('restockMaterialId').value;
+    const quantity = document.getElementById('restockQuantity').value;
+    const unitPrice = document.getElementById('restockUnitPrice').value;
+    const expiryDate = document.getElementById('restockExpiryDate').value;
 
-        if (!quantity || quantity <= 0) {
-            alert('Please enter a valid quantity');
-            return;
-        }
+    if (!quantity || quantity <= 0) {
+        await showAlert('Please enter a valid quantity', 'Required', '⚠️');
+        return;
+    }
 
-        if (!unitPrice || unitPrice <= 0) {
-            alert('Please enter a valid unit price');
-            return;
-        }
+    if (!unitPrice || unitPrice <= 0) {
+        await showAlert('Please enter a valid unit price', 'Required', '⚠️');
+        return;
+    }
 
-        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    const confirmed = await showConfirm('Add this stock delivery?', 'Confirm Restock');
+    if (!confirmed) return;
 
-        const submitBtn = event.target;
-        const originalText = submitBtn.innerHTML;
-        submitBtn.innerHTML = 'Adding...';
-        submitBtn.disabled = true;
+    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
 
-        fetch('/RawMaterial/AddDelivery', {
+    const submitBtn = event.target;  // ← Ngayon may event na
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+    submitBtn.disabled = true;
+
+    try {
+        const response = await fetch('/RawMaterial/AddDelivery', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -4067,95 +4222,115 @@ function addSizeRow(predefinedName = null) {
                 unitPrice: parseFloat(unitPrice),
                 expiryDate: expiryDate || null
             })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('✅ ' + data.message);
-                bootstrap.Modal.getInstance(document.getElementById('restockModal')).hide();
-                loadInventoryAlerts(); // I-refresh ang alerts
-                location.reload(); // O i-reload ang page para mag-update ang inventory
-            } else {
-                alert('❌ Error: ' + data.message);
-            }
-        })
-        .catch(error => {
-            alert('❌ Error: ' + error.message);
-        })
-        .finally(() => {
-            submitBtn.innerHTML = originalText;
-            submitBtn.disabled = false;
         });
-    }
-    function useMaterialFirst(id) { alert(`Priority usage for material ID: ${id}`); }
-    function logExpiredAsWaste(id) { if (confirm('Log this expired item as waste?')) { showAddWasteModal(); document.getElementById('wasteMaterialId').value = id; document.getElementById('wasteReason').value = 'Expired'; document.getElementById('wasteNotes').value = 'Auto-logged from expired items'; } }
 
-    function saveWasteLog() {
-        const materialId = document.getElementById('wasteMaterialId').value;
-        const quantity = document.getElementById('wasteQuantity').value;
-        const reason = document.getElementById('wasteReason').value;
-        const notes = document.getElementById('wasteNotes').value;
-        const recordedBy = document.getElementById('wasteRecordedBy').value;
-        if (!materialId || !quantity || !reason) { alert('Please fill in all required fields'); return; }
-        const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
-        fetch('/Owner/AddWasteLog', {
+        const data = await response.json();
+
+        if (data.success) {
+            await showAlert('✅ ' + data.message, 'Success', '✅');
+            bootstrap.Modal.getInstance(document.getElementById('restockModal')).hide();
+            loadInventoryAlerts();
+            location.reload();
+        } else {
+            await showAlert('❌ Error: ' + data.message, 'Error', '❌');
+        }
+    } catch (error) {
+        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+    } finally {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    }
+}
+    async function useMaterialFirst(id) {
+    await showAlert(`Priority usage for material ID: ${id}`, 'Notice');
+}
+  async function logExpiredAsWaste(id) {
+    const confirmed = await showConfirm('Log this expired item as waste?', 'Confirm Waste');
+    if (confirmed) {
+        showAddWasteModal();
+        document.getElementById('wasteMaterialId').value = id;
+        document.getElementById('wasteReason').value = 'Expired';
+        document.getElementById('wasteNotes').value = 'Auto-logged from expired items';
+    }
+}
+    async function saveWasteLog() {
+    const materialId = document.getElementById('wasteMaterialId').value;
+    const quantity = document.getElementById('wasteQuantity').value;
+    const reason = document.getElementById('wasteReason').value;
+    const notes = document.getElementById('wasteNotes').value;
+    const recordedBy = document.getElementById('wasteRecordedBy').value;
+    
+    if (!materialId || !quantity || !reason) {
+        await showAlert('Please fill in all required fields', 'Required', '⚠️');
+        return;
+    }
+    
+    const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+    
+    try {
+        const response = await fetch('/Owner/AddWasteLog', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
             body: JSON.stringify({ rawMaterialId: parseInt(materialId), quantity: parseFloat(quantity), reason: reason, notes: notes, recordedBy: recordedBy })
-        }).then(response => response.json()).then(data => {
-            if (data.success) { bootstrap.Modal.getInstance(document.getElementById('addWasteModal')).hide(); loadInventoryAlerts(); alert('Waste logged successfully!'); }
-            else { alert('Error: ' + data.message); }
-        }).catch(error => { alert('An error occurred'); });
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('addWasteModal')).hide();
+            loadInventoryAlerts();
+            await showAlert('Waste logged successfully!', 'Success', '✅');
+        } else {
+            await showAlert('Error: ' + data.message, 'Error', '❌');
+        }
+    } catch (error) {
+        await showAlert('An error occurred: ' + error.message, 'Error', '❌');
     }
+}
+
     // PRODUCE FUNCTION - idagdag ito kasama ng ibang functions
-function produceProduct(productSizeId, sizeName, currentStock) {
-    let quantity = prompt(`🏭 Produce ${sizeName}\n\nCurrent stock: ${currentStock} pcs\nEnter quantity to produce:`, "1");
+async function produceProduct(productSizeId, sizeName, currentStock) {
+    const quantity = prompt(` Produce ${sizeName}\n\nCurrent stock: ${currentStock} pcs\nEnter quantity to produce:`, "1");
     
-    if (!quantity || quantity <= 0) {
-        return;
-    }
+    if (!quantity || quantity <= 0) return;
     
-    // Confirmation
-    if (!confirm(`Produce ${quantity} pcs of ${sizeName}?\n\nThis will deduct raw materials from inventory using FIFO.`)) {
-        return;
-    }
+    const confirmed = await showConfirm(`Produce ${quantity} pcs of ${sizeName}?\n\nThis will deduct raw materials from inventory using FIFO.`, 'Confirm Production');
+    if (!confirmed) return;
     
     const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
     
-    // Show loading
     const btn = event.target.closest('button');
     const originalText = btn.innerHTML;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Producing...';
     btn.disabled = true;
     
-    fetch('/Owner/ProduceProduct', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'RequestVerificationToken': token
-        },
-        body: JSON.stringify({
-            productSizeId: productSizeId,
-            quantity: parseInt(quantity),
-            referenceNo: null
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
+    try {
+        const response = await fetch('/Owner/ProduceProduct', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': token
+            },
+            body: JSON.stringify({
+                productSizeId: productSizeId,
+                quantity: parseInt(quantity),
+                referenceNo: null
+            })
+        });
+        const data = await response.json();
+        
         if (data.success) {
-            alert('✅ ' + data.message);
-            location.reload(); // Refresh para makita ang bagong stock
+            await showAlert( data.message, 'Success');
+            location.reload();
         } else {
-            alert('❌ Error: ' + data.message);
+            await showAlert(' Error: ' + data.message, 'Error');
             btn.innerHTML = originalText;
             btn.disabled = false;
         }
-    })
-    .catch(error => {
-        alert('❌ Network error: ' + error.message);
+    } catch (error) {
+        await showAlert(' Network error: ' + error.message, 'Error');
         btn.innerHTML = originalText;
         btn.disabled = false;
-    });
+    }
 }
 
       async function viewBatchHistory(materialId, materialName) {
@@ -4256,139 +4431,113 @@ function produceProduct(productSizeId, sizeName, currentStock) {
 }
 
 async function displayInPOS(productSizeId, productName, sizeName) {
-        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
-        const btn = event.target;
-        const originalText = btn.innerHTML;
+    const confirmed = await showConfirm(`Display "${productName} - ${sizeName}" in POS menu?`, 'Confirm');
+    if (!confirmed) return;
+    
+    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    const btn = event.target;
+    const originalText = btn.innerHTML;
 
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    btn.disabled = true;
 
-        try {
-            const response = await fetch('/Owner/TogglePOSVisibility', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': token
-                },
-                body: JSON.stringify({
-                    productSizeId: productSizeId,
-                    isAvailable: true
-                })
-            });
+    try {
+        const response = await fetch('/Owner/TogglePOSVisibility', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': token
+            },
+            body: JSON.stringify({
+                productSizeId: productSizeId,
+                isAvailable: true
+            })
+        });
 
-            const data = await response.json();
+        const data = await response.json();
 
-            if (data.success) {
-                // I-update ang UI
-                const statusCell = document.getElementById(`pos-status-${productSizeId}`);
-                statusCell.innerHTML = '<span class="badge bg-success">✅ Displayed in POS</span>';
-
-                // Palitan ang button
-                const actionsCell = btn.parentElement;
-                actionsCell.innerHTML = `
-                    <button class="btn btn-sm btn-warning me-1" onclick="hideFromPOS(${productSizeId}, '${productName}', '${sizeName}')">
-                        🙈 Hide from POS
-                    </button>
-                    <button class="btn btn-sm btn-info me-1" onclick="viewRecipe(${productSizeId})">
-                        👁️ View Recipe
-                    </button>
-                    <button class="btn btn-sm btn-warning" onclick="editRecipe(${productSizeId})">
-                        ✏️ Edit Recipe
-                    </button>
-                `;
-
-                alert(`✅ "${productName} - ${sizeName}" is now DISPLAYED in POS menu.\n\nRaw materials will only be deducted when a customer orders.`);
-            } else {
-                alert('❌ Error: ' + data.message);
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
-        } catch (error) {
-            alert('❌ Error: ' + error.message);
+        if (data.success) {
+            await showAlert(`✅ "${productName} - ${sizeName}" is now DISPLAYED in POS menu.`, 'Success', '✅');
+            // ✅ Auto refresh after 1 second
+            setTimeout(function() {
+                location.reload();
+            }, 1000);
+        } else {
+            await showAlert('❌ Error: ' + data.message, 'Error', '❌');
             btn.innerHTML = originalText;
             btn.disabled = false;
         }
+    } catch (error) {
+        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
     }
+}
 
     // Hide product from POS
     async function hideFromPOS(productSizeId, productName, sizeName) {
-        if (!confirm(`Hide "${productName} - ${sizeName}" from POS menu?`)) {
-            return;
-        }
+    const confirmed = await showConfirm(`Hide "${productName} - ${sizeName}" from POS menu?`, 'Confirm');
+    if (!confirmed) return;
+    
+    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    const btn = event.target;
+    const originalText = btn.innerHTML;
 
-        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
-        const btn = event.target;
-        const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    btn.disabled = true;
 
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        btn.disabled = true;
+    try {
+        const response = await fetch('/Owner/TogglePOSVisibility', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': token
+            },
+            body: JSON.stringify({
+                productSizeId: productSizeId,
+                isAvailable: false
+            })
+        });
 
-        try {
-            const response = await fetch('/Owner/TogglePOSVisibility', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': token
-                },
-                body: JSON.stringify({
-                    productSizeId: productSizeId,
-                    isAvailable: false
-                })
-            });
+        const data = await response.json();
 
-            const data = await response.json();
-
-            if (data.success) {
-                // I-update ang UI
-                const statusCell = document.getElementById(`pos-status-${productSizeId}`);
-                statusCell.innerHTML = '<span class="badge bg-secondary">⚫ Hidden from POS</span>';
-
-                // Palitan ang button
-                const actionsCell = btn.parentElement;
-                actionsCell.innerHTML = `
-                    <button class="btn btn-sm btn-success me-1" onclick="displayInPOS(${productSizeId}, '${productName}', '${sizeName}')">
-                        🖥️ Display in POS
-                    </button>
-                    <button class="btn btn-sm btn-info me-1" onclick="viewRecipe(${productSizeId})">
-                        👁️ View Recipe
-                    </button>
-                    <button class="btn btn-sm btn-warning" onclick="editRecipe(${productSizeId})">
-                        ✏️ Edit Recipe
-                    </button>
-                `;
-
-                alert(`✅ "${productName} - ${sizeName}" is now HIDDEN from POS menu.`);
-            } else {
-                alert('❌ Error: ' + data.message);
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
-        } catch (error) {
-            alert('❌ Error: ' + error.message);
+        if (data.success) {
+            await showAlert(`✅ "${productName} - ${sizeName}" is now HIDDEN from POS menu.`, 'Success', '✅');
+            // ✅ Auto refresh after 1 second
+            setTimeout(function() {
+                location.reload();
+            }, 1000);
+        } else {
+            await showAlert('❌ Error: ' + data.message, 'Error', '❌');
             btn.innerHTML = originalText;
             btn.disabled = false;
         }
+    } catch (error) {
+        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
     }
+}
 
     // Helper function to show usage details
-    function showUsageDetails(usageList) {
-        if (!usageList || usageList.length === 0) {
-            alert('No usage records found for this batch.');
-            return;
-        }
-
-        let message = '📋 USAGE HISTORY:\n\n';
-        usageList.forEach((use, index) => {
-            const dateUsed = use.dateUsed ? new Date(use.dateUsed).toLocaleString() : 'Unknown date';
-            const quantity = use.quantityUsed || 0;
-            const reference = use.referenceNo || 'N/A';
-            message += `${index + 1}. Date: ${dateUsed}\n`;
-            message += `   Quantity: ${quantity.toFixed(2)} kg\n`;
-            message += `   Reference: ${reference}\n\n`;
-        });
-
-        alert(message);
+    async function showUsageDetails(usageList) {
+    if (!usageList || usageList.length === 0) {
+        await showAlert('No usage records found for this batch.', 'Notice');
+        return;
     }
+    
+    let message = ' USAGE HISTORY:\n\n';
+    usageList.forEach((use, index) => {
+        const dateUsed = use.dateUsed ? new Date(use.dateUsed).toLocaleString() : 'Unknown date';
+        const quantity = use.quantityUsed || 0;
+        const reference = use.referenceNo || 'N/A';
+        message += `${index + 1}. Date: ${dateUsed}\n`;
+        message += `   Quantity: ${quantity.toFixed(2)} kg\n`;
+        message += `   Reference: ${reference}\n\n`;
+    });
+    
+    await showAlert(message, 'Usage History');
+}
 
     // Make sure closeBatchHistory exists
     function closeBatchHistory() {
@@ -5302,27 +5451,33 @@ function editRawMaterial(id) {
     editMaterial(id);
 }
 
-function deleteRawMaterial(id) {
-    deleteMaterial(id, event);
+async function deleteRawMaterial(id) {
+    await deleteMaterial(id, event);
 }
 
 // Redirect from Inventory to Raw Materials module for EDIT
-function editMaterialFromInventory(materialId, materialName) {
-    if (confirm(`⚠️ Edit Master Record\n\n"${materialName}" is a master record.\n\nDo you want to go to RAW MATERIALS module to edit this?`)) {
+async function editMaterialFromInventory(materialId, materialName) {
+    const confirmed = await showConfirm(
+        `⚠️ Edit Master Record\n\n"${materialName}" is a master record.\n\nDo you want to go to RAW MATERIALS module to edit this?`,
+        'Edit Master Record'
+    );
+    if (confirmed) {
         showModule('rawMaterials');
         setTimeout(function() {
-            // Tawagin ang editRawMaterial function sa Raw Materials module
             editRawMaterial(materialId);
         }, 300);
     }
 }
 
 // Redirect from Inventory to Raw Materials module for DELETE
-function deleteMaterialFromInventory(materialId, materialName) {
-    if (confirm(`⚠️ Delete Master Record\n\n"${materialName}" will be PERMANENTLY deleted.\n\n⚠️ WARNING: If this material is used in any recipe, deletion will be BLOCKED.\n\nDo you want to go to RAW MATERIALS module to delete this?`)) {
+async function deleteMaterialFromInventory(materialId, materialName) {
+    const confirmed = await showConfirm(
+        `⚠️ Delete Master Record\n\n"${materialName}" will be PERMANENTLY deleted.\n\n⚠️ WARNING: If this material is used in any recipe, deletion will be BLOCKED.\n\nDo you want to go to RAW MATERIALS module to delete this?`,
+        'Delete Master Record'
+    );
+    if (confirmed) {
         showModule('rawMaterials');
         setTimeout(function() {
-            // Tawagin ang deleteRawMaterial function sa Raw Materials module
             deleteRawMaterial(materialId);
         }, 300);
     }
@@ -5431,21 +5586,30 @@ function saveSupplier() {
     });
 }
 
-function deleteSupplier(id) {
-    if (confirm('Delete this supplier?')) {
-        fetch(`/Owner/DeleteSupplier?id=${id}`, {
-            method: 'POST',
-            headers: { 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value }
-        })
-        .then(r => r.json())
-        .then(result => {
-            if (result.success) {
-                loadSuppliers();
-            } else {
-                alert(result.message);
-            }
-        });
-    }
+async function deleteSupplier(id) {
+    const confirmed = await showConfirm('Delete this supplier?', 'Delete Supplier');
+    if (!confirmed) return;
+    
+    showLoading('Deleting supplier...');
+    
+    fetch(`/Owner/DeleteSupplier?id=${id}`, {
+        method: 'POST',
+        headers: { 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value }
+    })
+    .then(r => r.json())
+    .then(async result => {
+        hideLoading();
+        if (result.success) {
+            await showAlert('Supplier deleted successfully', 'Success', '✅');
+            loadSuppliers();
+        } else {
+            await showAlert(result.message, 'Error', '❌');
+        }
+    })
+    .catch(async error => {
+        hideLoading();
+        await showAlert('Error: ' + error.message, 'Error', '❌');
+    });
 }
 
 // ========== RECEIVING FUNCTIONS ==========
@@ -5678,9 +5842,9 @@ document.getElementById('receivingForm')?.addEventListener('submit', async funct
             
             // Validate: If rejected > 0, dapat may disposition
             if (!disposition) {
-                alert(`Please select disposition (Return or Waste) for ${materialSelect.options[materialSelect.selectedIndex].text}`);
-                return;
-            }
+    await showAlert(`Please select disposition (Return or Waste) for ${materialSelect.options[materialSelect.selectedIndex].text}`, 'Required', '⚠️');
+    return;
+}
             
             // If rejected but no reason, set default
             if (!rejectionReason || rejectionReason === '') {
@@ -5902,22 +6066,22 @@ function createSupplierReturn(receivingItemId, maxQty, itemName, unitPrice) {
     itemInfo.innerHTML = `
         <strong>Item:</strong> ${escapeHtml(itemName)}<br>
         <strong>Unit Price:</strong> ₱${unitPrice.toFixed(2)}<br>
-        <strong>Max Quantity:</strong> ${maxQty} (rejected quantity)
+        <strong>Max Quantity:</strong> ${maxQty}
     `;
     maxHint.innerHTML = `Max: ${maxQty}`;
     
-    // Validate quantity input
-    qtyInput.onchange = function() {
+    // ✅ Gawing async ang onchange para magamit ang await showAlert
+    qtyInput.onchange = async function() {
         let val = parseFloat(this.value);
         if (isNaN(val)) val = 0;
         if (val > maxQty) {
             this.value = maxQty;
-            alert(`Maximum quantity is ${maxQty}`);
+            await showAlert(`Maximum quantity is ${maxQty}`, 'Limit Reached', '⚠️');
         }
         if (val < 0) this.value = 0;
     };
     
-    // Show/hide other reason input
+    // ✅ Gawin ding async ang reasonSelect.onchange kung gusto mo
     reasonSelect.onchange = function() {
         const otherInput = document.getElementById('returnOtherReason');
         if (this.value === 'Other') {
@@ -5931,96 +6095,84 @@ function createSupplierReturn(receivingItemId, maxQty, itemName, unitPrice) {
     modal.style.display = 'flex';
 }
 
-                    function closeSupplierReturnModal() {
-                    document.getElementById('supplierReturnModal').style.display = 'none';
-                    }
+function closeSupplierReturnModal() {
+    document.getElementById('supplierReturnModal').style.display = 'none';
+}
 
-                    async function confirmSupplierReturn() {
-                    const qty = parseFloat(document.getElementById('returnQuantity').value);
-                    const maxQty = currentReturnData.maxQty;
-                    const reasonSelect = document.getElementById('returnReason');
-                    let reason = reasonSelect.value;
+async function confirmSupplierReturn() {
+    const qty = parseFloat(document.getElementById('returnQuantity').value);
+    const maxQty = currentReturnData.maxQty;
+    const reasonSelect = document.getElementById('returnReason');
+    let reason = reasonSelect.value;
     
-                    // Get other reason if selected
-                    if (reason === 'Other') {
-                    const otherReason = document.getElementById('returnOtherReason').value.trim();
-                    if (!otherReason) {
-                    alert('Please specify the reason');
-                    return;
-                    }
-                    reason = otherReason;
-                    }
+    // Get other reason if selected
+    if (reason === 'Other') {
+        const otherReason = document.getElementById('returnOtherReason').value.trim();
+        if (!otherReason) {
+            await showAlert('Please specify the reason', 'Required');
+            return;
+        }
+        reason = otherReason;
+    }
     
-                    // Validate
-                    if (isNaN(qty) || qty <= 0) {
-                    alert('Please enter a valid quantity');
-                    return;
-                    }
+    // Validate
+    if (isNaN(qty) || qty <= 0) {
+        await showAlert('Please enter a valid quantity', 'Invalid');
+        return;
+    }
     
-                    if (qty > maxQty) {
-                    alert(`Quantity cannot exceed ${maxQty}`);
-                    return;
-                    }
+    if (qty > maxQty) {
+        await showAlert(`Quantity cannot exceed ${maxQty}`, 'Limit Exceeded');
+        return;
+    }
     
-                    if (!reason || reason === '') {
-                    alert('Please select a reason');
-                    return;
-                    }
+    if (!reason || reason === '') {
+        await showAlert('Please select a reason', 'Required');
+        return;
+    }
     
-                    // Console log para makita ang data
-                    console.log('Sending data:', {
-                    receivingItemId: currentReturnData.receivingItemId,
-                    quantity: qty,
-                    reason: reason,
-                    notes: null
-                    });
+    const confirmed = await showConfirm(
+        `Return ${qty} ${currentReturnData.itemName} to supplier?\n\nThis will:\n1. Record the return\n2. Create a credit memo for supplier\n3. Track in return history`,
+        'Confirm Return'
+    );
     
-                    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
-                    const confirmBtn = document.querySelector('#supplierReturnModal .btn-warning');
-                    const originalText = confirmBtn.innerHTML;
-                    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-                    confirmBtn.disabled = true;
+    if (!confirmed) return;
     
-                    try {
-                    const response = await fetch('/Owner/CreateSupplierReturn', {
-                    method: 'POST',
-                    headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': token
-                    },
-                    body: JSON.stringify({
-                    receivingItemId: currentReturnData.receivingItemId,
-                    quantity: qty,
-                    reason: reason,
-                    notes: null
-                    })
-                    });
+    showLoading('Processing return...');
+    
+    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    
+    try {
+        const response = await fetch('/Owner/ReturnToSupplier', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
+            body: JSON.stringify({
+                receivingItemId: currentReturnData.receivingItemId,
+                quantity: qty,
+                reason: reason,
+                notes: null
+            })
+        });
         
-                    console.log('Response status:', response.status);
+        const result = await response.json();
+        hideLoading();
+        closeSupplierReturnModal();
         
-                    // IMPORTANT: Basahin ang response ng isang beses lang
-                    const result = await response.json();
-                    console.log('Response data:', result);
-        
-                    if (result.success) {
-                    alert('✅ ' + result.message);
-                    closeSupplierReturnModal();
-                    closeModal('deliveryDetailsModal');
-                    loadDeliveryHistory();
-                    if (typeof currentReturnTab !== 'undefined' && currentReturnTab === 'supplier') {
-                    loadSupplierReturns();
-                    }
-                    } else {
-                    alert('❌ Error: ' + (result.message || 'Unknown error'));
-                    }
-                    } catch (error) {
-                    console.error('Error details:', error);
-                    alert('❌ Error: ' + error.message);
-                    } finally {
-                    confirmBtn.innerHTML = originalText;
-                    confirmBtn.disabled = false;
-                    }
-                    }
+        if (result.success) {
+            await showAlert( result.message, 'Success');
+            // Isara ang delivery details modal kung bukas
+            const deliveryModal = document.getElementById('deliveryDetailsModal');
+            if (deliveryModal) deliveryModal.remove();
+            loadDeliveryHistory();
+            loadSupplierReturns();
+        } else {
+            await showAlert(' Error: ' + result.message, 'Error');
+        }
+    } catch (error) {
+        hideLoading();
+        await showAlert(' Error: ' + error.message, 'Error');
+    }
+}
 
 function closeReceiptModalForReports() {
             const modal = document.getElementById('receiptModalForReports');
@@ -6089,46 +6241,11 @@ function closeReceiptModalForReports() {
         return { disposition, reason };
     }
 
-                            async function returnToSupplier(receivingItemId, rejectedQty, itemName) {
-                            const qty = prompt(`Return ${rejectedQty} ${itemName} to supplier?\n\nEnter quantity to return:`, rejectedQty);
-    
-                            if (!qty || qty <= 0) return;
-                            if (qty > rejectedQty) {
-                            alert(`Cannot return more than ${rejectedQty}`);
-                            return;
-                            }
-    
-                            if (!confirm(`Return ${qty} ${itemName} to supplier?\n\nThis will:\n1. Record the return\n2. Create a credit memo for supplier\n3. Track in return history`)) {
-                            return;
-                            }
-    
-                            const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
-    
-                            try {
-                            const response = await fetch('/Owner/ReturnToSupplier', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
-                            body: JSON.stringify({
-                            receivingItemId: receivingItemId,
-                            quantity: parseFloat(qty),
-                            reason: document.getElementById('returnReason')?.value || 'Damaged/Defective'
-                            })
-                            });
-        
-                            const result = await response.json();
-        
-                            if (result.success) {
-                            alert('✅ ' + result.message);
-                            closeModal('deliveryDetailsModal');
-                            loadDeliveryHistory();
-                            loadSupplierReturns();
-                            } else {
-                            alert('❌ Error: ' + result.message);
-                            }
-                            } catch (error) {
-                            alert('❌ Error: ' + error.message);
-                            }
-                            }
+                            // Ito ay nagre-redirect sa createSupplierReturn
+async function returnToSupplier(receivingItemId, rejectedQty, itemName, unitPrice) {
+    // I-call lang ang createSupplierReturn function
+    createSupplierReturn(receivingItemId, rejectedQty, itemName, unitPrice);
+}
 
     function loadReturns() {
     fetch('/Owner/GetReturns')
@@ -6230,55 +6347,65 @@ function updateReturnSummary(returns) {
     document.getElementById('totalReturnValue').innerHTML = `₱${totalValue.toFixed(2)}`;
 }
 
-function updateReturnStatus(id, status) {
-            const statusText = status === 'Returned' ? 'returned to supplier' : 'cancelled';
-            if (!confirm(`Mark this return as ${statusText}?`)) return;
-
-            fetch('/Owner/UpdateReturnStatus', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
-                },
-                body: JSON.stringify({ id: id, status: status })
-            })
-            .then(r => r.json())
-            .then(result => {
-                if (result.success) {
-                    alert('✅ ' + result.message);
-                    loadReturns(); // Refresh the list
-                } else {
-                    alert('❌ Error: ' + result.message);
-                }
-            })
-            .catch(error => {
-                alert('❌ Error: ' + error.message);
-            });
+async function updateReturnStatus(id, status) {
+    const statusText = status === 'Returned' ? 'returned to supplier' : 'cancelled';
+    const confirmed = await showConfirm(`Mark this return as ${statusText}?`, 'Update Status');
+    if (!confirmed) return;
+    
+    showLoading('Updating status...');
+    
+    fetch('/Owner/UpdateReturnStatus', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+        },
+        body: JSON.stringify({ id: id, status: status })
+    })
+    .then(r => r.json())
+    .then(async result => {
+        hideLoading();
+        if (result.success) {
+            await showAlert('✅ ' + result.message, 'Success', '✅');
+            loadReturns();
+        } else {
+            await showAlert('❌ Error: ' + result.message, 'Error', '❌');
         }
-              function deleteReturn(id) {
-            if (!confirm('Delete this return record? This action cannot be undone.')) return;
-
-            fetch('/Owner/DeleteReturn', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
-                },
-                body: JSON.stringify({ id: id })
-            })
-            .then(r => r.json())
-            .then(result => {
-                if (result.success) {
-                    alert('✅ ' + result.message);
-                    loadReturns(); // Refresh the list
-                } else {
-                    alert('❌ Error: ' + result.message);
-                }
-            })
-            .catch(error => {
-                alert('❌ Error: ' + error.message);
-            });
+    })
+    .catch(async error => {
+        hideLoading();
+        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+    });
+}
+            async function deleteReturn(id) {
+    const confirmed = await showConfirm('Delete this return record? This action cannot be undone.', 'Delete Record');
+    if (!confirmed) return;
+    
+    showLoading('Deleting record...');
+    
+    fetch('/Owner/DeleteReturn', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+        },
+        body: JSON.stringify({ id: id })
+    })
+    .then(r => r.json())
+    .then(async result => {
+        hideLoading();
+        if (result.success) {
+            await showAlert('✅ ' + result.message, 'Success', '✅');
+            loadReturns();
+        } else {
+            await showAlert('❌ Error: ' + result.message, 'Error', '❌');
         }
+    })
+    .catch(async error => {
+        hideLoading();
+        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+    });
+}
 
 
 function closeReturnDetailModal() {
@@ -6545,54 +6672,64 @@ function updateSupplierSummary(summary) {
 
 // ========== SUPPLIER RETURN ACTIONS ==========
                     async function markReturnCompleted(returnId) {
-                    if (!confirm('Mark this as returned to supplier? This will finalize the return.')) return;
+    const confirmed = await showConfirm('Mark this as returned to supplier? This will finalize the return.', 'Mark Returned');
+    if (!confirmed) return;
     
-                    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    showLoading('Processing...');
     
-                    try {
-                    const response = await fetch('/Owner/MarkSupplierReturnCompleted', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
-                    body: JSON.stringify({ returnId: returnId })
-                    });
+    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    
+    try {
+        const response = await fetch('/Owner/MarkSupplierReturnCompleted', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
+            body: JSON.stringify({ returnId: returnId })
+        });
         
-                    const result = await response.json();
+        const result = await response.json();
+        hideLoading();
         
-                    if (result.success) {
-                    alert('✅ ' + result.message);
-                    loadSupplierReturns();
-                    } else {
-                    alert('❌ Error: ' + result.message);
-                    }
-                    } catch (error) {
-                    alert('❌ Error: ' + error.message);
-                    }
-                    }
+        if (result.success) {
+            await showAlert('✅ ' + result.message, 'Success', '✅');
+            loadSupplierReturns();
+        } else {
+            await showAlert('❌ Error: ' + result.message, 'Error', '❌');
+        }
+    } catch (error) {
+        hideLoading();
+        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+    }
+}
 
-                    async function cancelSupplierReturn(returnId) {
-                    if (!confirm('Cancel this supplier return? This action cannot be undone.')) return;
+                   async function cancelSupplierReturn(returnId) {
+    const confirmed = await showConfirm('Cancel this supplier return? This action cannot be undone.', 'Cancel Return');
+    if (!confirmed) return;
     
-                    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    showLoading('Cancelling...');
     
-                    try {
-                    const response = await fetch('/Owner/CancelSupplierReturn', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
-                    body: JSON.stringify({ returnId: returnId })
-                    });
+    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    
+    try {
+        const response = await fetch('/Owner/CancelSupplierReturn', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
+            body: JSON.stringify({ returnId: returnId })
+        });
         
-                    const result = await response.json();
+        const result = await response.json();
+        hideLoading();
         
-                    if (result.success) {
-                    alert('✅ ' + result.message);
-                    loadSupplierReturns();
-                    } else {
-                    alert('❌ Error: ' + result.message);
-                    }
-                    } catch (error) {
-                    alert('❌ Error: ' + error.message);
-                    }
-                    }
+        if (result.success) {
+            await showAlert('✅ ' + result.message, 'Success', '✅');
+            loadSupplierReturns();
+        } else {
+            await showAlert('❌ Error: ' + result.message, 'Error', '❌');
+        }
+    } catch (error) {
+        hideLoading();
+        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+    }
+}
 
                     async function viewSupplierReturnDetail(returnId) {
                     try {
@@ -6760,6 +6897,152 @@ function filterProducts() {
     });
 }
 
+// ========== CUSTOM MODAL FUNCTIONS (gaya sa POS) ==========
+
+// Custom Alert Function
+function showAlert(message, title = "Notice", icon = "ℹ️") {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('customAlertModal');
+        
+        if (!modal) {
+            console.error('customAlertModal not found!');
+            alert(message);
+            resolve(true);
+            return;
+        }
+        
+        const titleEl = document.getElementById('alertTitle');
+        const messageEl = document.getElementById('alertMessage');
+        const iconEl = document.getElementById('alertIcon');
+        
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        iconEl.textContent = icon;
+        
+        modal.style.display = 'flex';
+        modal.style.position = 'fixed';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        modal.style.width = '100%';
+        modal.style.height = '100%';
+        modal.style.backgroundColor = 'rgba(0,0,0,0.5)';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+        modal.style.zIndex = '99999';
+        
+        const closeBtn = document.getElementById('alertCloseBtn');
+        const newCloseBtn = closeBtn.cloneNode(true);
+        closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+        
+        const closeHandler = () => {
+            modal.style.display = 'none';
+            resolve(true);
+        };
+        
+        newCloseBtn.addEventListener('click', closeHandler);
+        
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+                resolve(true);
+            }
+        };
+    });
+}
+
+// Custom Confirm Function
+function showConfirm(message, title = "Confirm Action") {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('customConfirmModal');
+        
+        if (!modal) {
+            console.error('customConfirmModal not found!');
+            resolve(confirm(message));
+            return;
+        }
+        
+        const titleEl = document.getElementById('confirmTitle');
+        const messageEl = document.getElementById('confirmMessage');
+        const iconEl = document.getElementById('confirmIcon');
+        
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        iconEl.textContent = "❓";
+        
+        // I-set ang display at styling
+        modal.style.display = 'flex';
+        modal.style.position = 'fixed';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        modal.style.width = '100%';
+        modal.style.height = '100%';
+        modal.style.backgroundColor = 'rgba(0,0,0,0.5)';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+        modal.style.zIndex = '99999';
+        
+        const confirmBtn = document.getElementById('confirmOkBtn');
+        const cancelBtn = document.getElementById('confirmCancelBtn');
+        
+        // I-remove ang lumang event listeners
+        const newConfirmBtn = confirmBtn.cloneNode(true);
+        const newCancelBtn = cancelBtn.cloneNode(true);
+        confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+        cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+        
+        const cleanup = () => {
+            modal.style.display = 'none';
+        };
+        
+        const confirmHandler = () => {
+            cleanup();
+            resolve(true);
+        };
+        
+        const cancelHandler = () => {
+            cleanup();
+            resolve(false);
+        };
+        
+        newConfirmBtn.addEventListener('click', confirmHandler);
+        newCancelBtn.addEventListener('click', cancelHandler);
+        
+        // I-close kapag nag-click sa labas ng modal content
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                cleanup();
+                resolve(false);
+            }
+        };
+    });
+}
+
+// Loading Modal
+function showLoading(message = "Processing...") {
+    let loadingModal = document.getElementById('loadingModal');
+    if (!loadingModal) {
+        loadingModal = document.createElement('div');
+        loadingModal.id = 'loadingModal';
+        loadingModal.className = 'modal-qty';
+        loadingModal.style.cssText = 'display: none;';
+        loadingModal.innerHTML = `
+            <div class="modal-qty-content" style="width: 280px; text-align: center;">
+                <div class="spinner-border" style="width: 40px; height: 40px; margin: 20px;"></div>
+                <p id="loadingMessage" style="margin: 10px 0 20px;">Processing...</p>
+            </div>
+        `;
+        document.body.appendChild(loadingModal);
+    }
+    const loadingMsg = document.getElementById('loadingMessage');
+    if (loadingMsg) loadingMsg.textContent = message;
+    loadingModal.style.display = 'flex';
+}
+
+function hideLoading() {
+    const loadingModal = document.getElementById('loadingModal');
+    if (loadingModal) loadingModal.style.display = 'none';
+}
+
        
 // ========== HELPER FUNCTION ==========
 function escapeHtml(str) {
@@ -6772,6 +7055,28 @@ function escapeHtml(str) {
     });
 }
 
+// ✅ RESTORE active module on page load
+document.addEventListener('DOMContentLoaded', function() {
+    var savedModule = localStorage.getItem('activeModule');
+    var urlParams = new URLSearchParams(window.location.search);
+    var fromProductSave = urlParams.get('fromProductSave');
+    
+    // ✅ I-CLEAR muna ang localStorage para hindi mag-stuck sa products
+    if (!fromProductSave) {
+        // Kung hindi galing sa product save, i-clear ang saved module
+        // para bumalik sa dashboard sa susunod na bukas
+        localStorage.removeItem('activeModule');
+    }
+    
+    if (fromProductSave === 'true') {
+        showModule('products');
+        window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (savedModule && savedModule !== 'null' && savedModule !== 'undefined' && fromProductSave) {
+        showModule(savedModule);
+    } else {
+        // ✅ Default to dashboard
+        showModule('dashboard');
+    }
+});
 
 </script>
- 

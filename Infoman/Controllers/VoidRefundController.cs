@@ -11,11 +11,13 @@ namespace Infoman.Controllers
     {
         private readonly ConnectionDatabase _db;
         private readonly VoidRefundService _voidRefundService;
+        private readonly RefundService _refundService;  // ✅ ADD THIS
 
         public VoidRefundController(ConnectionDatabase db)
         {
             _db = db;
             _voidRefundService = new VoidRefundService(_db);
+            _refundService = new RefundService(_db);  // ✅ ADD THIS
         }
 
         private int GetCurrentUserId()
@@ -92,6 +94,7 @@ namespace Infoman.Controllers
             return Json(new { success = result.success, message = result.message });
         }
 
+        // ✅ UPDATED: Use RefundService, not VoidRefundService
         [HttpPost]
         public async Task<IActionResult> ProcessRefund([FromBody] RefundRequest request)
         {
@@ -101,16 +104,16 @@ namespace Infoman.Controllers
             if (userId == 0)
                 return Json(new { success = false, message = "User not logged in" });
 
-            var result = await _voidRefundService.ProcessRefund(
-                request.OrderId, request.ItemIds, request.Reason, userId, userRole);
+            // ✅ Use _refundService, not _voidRefundService
+            var result = await _refundService.RequestRefundAsync(
+                request.OrderId, request.ItemIds, request.Reason, userId);
 
-            if (result.needsOwner)
+            if (result.success)
             {
-                // ✅ TAMA: success = true dahil successful ang paggawa ng pending request
-                return Json(new { success = true, requiresOwner = true, message = result.message });
+                return Json(new { success = true, requiresOwner = true, message = result.message, requestId = result.requestId });
             }
 
-            return Json(new { success = result.success, message = result.message });
+            return Json(new { success = false, message = result.message });
         }
 
         // Request Models

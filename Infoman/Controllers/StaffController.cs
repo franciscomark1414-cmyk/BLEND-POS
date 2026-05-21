@@ -195,7 +195,9 @@ namespace Infoman.Controllers
                     DiscountType = string.IsNullOrEmpty(request.DiscountType) ? "None" : request.DiscountType,
                     DiscountPercent = request.DiscountPercent,
                     DiscountAmount = discountAmount,
-                    ReceiptNumber = $"RC-{DateTime.Now:yyyyMMdd}-{new Random().Next(1000, 9999)}"
+                    ReceiptNumber = $"RC-{DateTime.Now:yyyyMMdd}-{new Random().Next(1000, 9999)}",
+                    OriginalTotalAmount = discountedTotal,  
+                    CreatedAt = DateTime.Now
                 };
 
                 _db.Orders.Add(order);

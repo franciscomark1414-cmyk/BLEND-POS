@@ -17,7 +17,7 @@ namespace Infoman.Models
         public string? ItemIds { get; set; } // Comma-separated list of item IDs
 
         [Required]
-        public string RequestType { get; set; } // "VOID" or "REFUND"
+        public string RequestType { get; set; } // "VOID" or "REFUND" or "EXCHANGE_REFUND"
 
         [Required]
         public string Reason { get; set; }
@@ -31,11 +31,13 @@ namespace Infoman.Models
 
         public DateTime RequestedAt { get; set; } = DateTime.Now;
 
-
         public int? ApprovedBy { get; set; }
-
         [ForeignKey("ApprovedBy")]
         public virtual User Approver { get; set; }
+
         public DateTime? ApprovedAt { get; set; }
+
+        // ✅ ADD THIS FOR REJECTION REASON
+        public string? RejectionReason { get; set; }
     }
 }

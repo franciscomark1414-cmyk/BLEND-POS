@@ -26,10 +26,13 @@ namespace Infoman.Data
         public DbSet<ReceivingItem> ReceivingItems { get; set; }
         public DbSet<RejectedForReturn> RejectedForReturns { get; set; }
         public DbSet<InventoryMovement> InventoryMovements { get; set; }
-        public DbSet<Refund> Refunds { get; set; }
+        public DbSet<RefundTransaction> RefundTransactions { get; set; }
         public DbSet<VoidLog> VoidLogs { get; set; }
         public DbSet<PendingRequest> PendingRequests { get; set; }
         public DbSet<SupplierReturn> SupplierReturns { get; set; }
+        public DbSet<OrderAdjustment> OrderAdjustments { get; set; }
+        public DbSet<ExchangeTransaction> ExchangeTransactions { get; set; }
+        public DbSet<ExchangeItem> ExchangeItems { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

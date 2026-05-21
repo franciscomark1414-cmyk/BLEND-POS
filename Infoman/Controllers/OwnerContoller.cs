@@ -62,7 +62,6 @@ namespace Infoman.Controllers
 
         public async Task<ActionResult> Dashboard()
         {
-
             // ✅ I-check kung naka-login
             if (!IsUserLoggedIn())
             {
@@ -79,39 +78,42 @@ namespace Infoman.Controllers
             await RefreshProductPricesInternal();
             DateTime today = DateTime.Today;
 
-            // ========== TODAY'S ORDERS (EXCLUDE REFUNDED) ==========
-            var todaysOrders = _db.Orders
-    .Where(o => o.Date.Date == today
-        && (o.Status == "COMPLETED" || o.Status == "PENDING_REFUND"))
-    .ToList();
+            // ========== TODAY'S NET REVENUE (Using Order NetRevenue property) ==========
+            var todaysOrders = await _db.Orders
+                .Include(o => o.Adjustments)
+                .Where(o => o.Date.Date == today && o.Status == "COMPLETED")
+                .ToListAsync();
 
-            // Compute today's sales - ibawas ang mga narefund
-            decimal todaysSales = todaysOrders.Sum(o => o.TotalAmount);
+            decimal todaysNetRevenue = 0;
+            foreach (var order in todaysOrders)
+            {
+                todaysNetRevenue += order.NetRevenue;
+            }
 
-            // Ibawas ang mga refunds na nangyari ngayong araw
-            var todaysRefunds = await _db.Refunds
-                .Where(r => r.Timestamp.Date == today)
-                .SumAsync(r => (decimal?)r.Amount) ?? 0;
+            ViewBag.TodaysSales = todaysNetRevenue;
+            ViewBag.TotalOrdersToday = todaysOrders.Count;
 
-            ViewBag.TodaysSales = todaysSales - todaysRefunds;
-            ViewBag.TotalOrdersToday = todaysOrders.Count();
+            // ========== ALL-TIME NET REVENUE ==========
+            var allOrders = await _db.Orders
+                .Include(o => o.Adjustments)
+                .Where(o => o.Status == "COMPLETED")
+                .ToListAsync();
 
-            // ========== ALL-TIME TOTAL REVENUE (EXCLUDE REFUNDED) ==========
-            var allTimeRevenue = _db.Orders
-                .Where(o => o.Status != "Cancelled" && o.Status != "REFUNDED")
-                .Sum(o => (decimal?)o.TotalAmount) ?? 0;
+            decimal allTimeNetRevenue = 0;
+            foreach (var order in allOrders)
+            {
+                allTimeNetRevenue += order.NetRevenue;
+            }
 
-            // Ibawas ang lahat ng refunds
-            var totalRefunds = await _db.Refunds.SumAsync(r => (decimal?)r.Amount) ?? 0;
-            ViewBag.AllTimeRevenue = allTimeRevenue - totalRefunds;
+            ViewBag.AllTimeRevenue = allTimeNetRevenue;
 
             // Para sa 30% profit estimate
-            ViewBag.EstimatedProfit = ViewBag.AllTimeRevenue * 0.3m;
+            ViewBag.EstimatedProfit = allTimeNetRevenue * 0.3m;
 
             // ========== CRITICAL STOCK ALERT ==========
-            int criticalStockCount = _db.RawMaterials
+            int criticalStockCount = await _db.RawMaterials
                 .Where(r => r.IsDeleted == false && r.Stock <= r.MinQty)
-                .Count();
+                .CountAsync();
             ViewBag.CriticalStockCount = criticalStockCount;
 
             // ========== EXPIRING SOON (from BATCHES) ==========
@@ -139,14 +141,14 @@ namespace Infoman.Controllers
             ViewBag.ExpiredCount = expiredCount;
 
             // ========== WASTE LOGS ============
-            int wasteCount = _db.WasteLogs.Count();
+            int wasteCount = await _db.WasteLogs.CountAsync();
             ViewBag.WasteCount = wasteCount;
 
             // Total other alerts (for badge)
             ViewBag.TotalOtherAlerts = expiringCount + expiredCount + wasteCount;
             ViewBag.LowStockCount = criticalStockCount;
 
-            // ========== SALES TREND (Last 7 Days) - EXCLUDE REFUNDED ==========
+            // ========== SALES TREND (Last 7 Days) - Using NetRevenue ==========
             var last7Days = Enumerable.Range(0, 7)
                 .Select(i => today.AddDays(-6 + i))
                 .ToList();
@@ -156,15 +158,17 @@ namespace Infoman.Controllers
 
             foreach (var day in last7Days)
             {
-                var dailySales = _db.Orders
-                    .Where(o => o.Date.Date == day.Date && o.Status != "Cancelled" && o.Status != "REFUNDED")
-                    .Sum(o => (decimal?)o.TotalAmount) ?? 0;
+                var dayOrders = await _db.Orders
+                    .Include(o => o.Adjustments)
+                    .Where(o => o.Date.Date == day.Date && o.Status == "COMPLETED")
+                    .ToListAsync();
 
-                var dailyRefunds = await _db.Refunds
-                    .Where(r => r.Timestamp.Date == day)
-                    .SumAsync(r => (decimal?)r.Amount) ?? 0;
-
-                salesValues.Add(dailySales - dailyRefunds);
+                decimal dayNetRevenue = 0;
+                foreach (var order in dayOrders)
+                {
+                    dayNetRevenue += order.NetRevenue;
+                }
+                salesValues.Add(dayNetRevenue);
             }
 
             ViewBag.SalesLabels = salesLabels;
@@ -175,11 +179,12 @@ namespace Infoman.Controllers
 
             try
             {
-                var orderItems = _db.OrderItems
+                var orderItems = await _db.OrderItems
                     .Include(oi => oi.Order)
                     .Include(oi => oi.Product)
-                    .Where(oi => oi.Order.Status != "Cancelled" && oi.Order.Status != "REFUNDED")
-                    .ToList();
+                    .Include(oi => oi.ProductSize)
+                    .Where(oi => oi.Order.Status == "COMPLETED" && !oi.IsRefunded && !oi.IsVoided)
+                    .ToListAsync();
 
                 bestSelling = orderItems
                     .GroupBy(oi => new {
@@ -226,7 +231,7 @@ namespace Infoman.Controllers
                 .ToListAsync();
 
             // Raw materials for inventory module
-            ViewBag.RawMaterials = _db.RawMaterials
+            ViewBag.RawMaterials = await _db.RawMaterials
                 .Where(r => !r.IsDeleted)
                 .Select(r => new RawMaterial
                 {
@@ -242,7 +247,7 @@ namespace Infoman.Controllers
                         .Where(b => b.RawMaterialId == r.RawMaterialId)
                         .Sum(b => (decimal?)b.QuantityRemaining) ?? 0
                 })
-                .ToList();
+                .ToListAsync();
 
             var products = await _db.Products
                 .Include(p => p.Sizes)
@@ -271,7 +276,6 @@ namespace Infoman.Controllers
                 Products = products
             };
 
-            // ========== ENSURE ALL ViewBag PROPERTIES HAVE DEFAULT VALUES ==========
             if (ViewBag.TotalRevenue == null) ViewBag.TotalRevenue = 0;
             if (ViewBag.EstimatedProfit == null) ViewBag.EstimatedProfit = 0;
             if (ViewBag.TotalWasteCost == null) ViewBag.TotalWasteCost = 0;
@@ -289,6 +293,8 @@ namespace Infoman.Controllers
 
             return View(dashboardViewModel);
         }
+
+         
 
         public IActionResult LowStockRawMaterials()
         {
@@ -1260,9 +1266,9 @@ namespace Infoman.Controllers
                     .Where(o => o.Date.Date == day && o.Status != "Cancelled" && o.Status != "REFUNDED")
                     .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
 
-                var dailyRefunds = await _db.Refunds
-                    .Where(r => r.Timestamp.Date == day)
-                    .SumAsync(r => (decimal?)r.Amount) ?? 0;
+                var dailyRefunds = await _db.RefundTransactions
+    .Where(r => r.CreatedAt.Date == day)
+    .SumAsync(r => (decimal?)r.Amount) ?? 0;
 
                 salesRevenue.Add(dailyRevenue - dailyRefunds);
 
@@ -1362,7 +1368,7 @@ namespace Infoman.Controllers
                 .Where(o => o.Status != "Cancelled" && o.Status != "REFUNDED")
                 .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
 
-            var allRefunds = await _db.Refunds.SumAsync(r => (decimal?)r.Amount) ?? 0;
+            var allRefunds = await _db.RefundTransactions.SumAsync(r => (decimal?)r.Amount) ?? 0;
             var netRevenue = totalRevenue - allRefunds;
 
             // ========== REVENUE BY CATEGORY (EXCLUDE REFUNDED) ==========
@@ -1829,9 +1835,9 @@ namespace Infoman.Controllers
             if (request.RequestType == "REFUND")
             {
                 // ✅ Kunin ang refund amount mula sa Refunds table
-                amount = await _db.Refunds
-                    .Where(r => r.TransactionId == request.OrderId)
-                    .SumAsync(r => r.Amount);
+                amount = await _db.RefundTransactions
+    .Where(r => r.OriginalOrderId == request.OrderId)
+    .SumAsync(r => r.Amount);
             }
             else
             {
@@ -1910,7 +1916,7 @@ namespace Infoman.Controllers
                     OrderNumber = r.Order.OrderNumber,
                     RequestType = "REFUND",
                     Reason = r.Reason,
-                    Amount = _db.Refunds.Where(refund => refund.TransactionId == r.OrderId).Sum(refund => refund.Amount),
+                    Amount = _db.RefundTransactions.Where(refund => refund.OriginalOrderId == r.OrderId).Sum(refund => refund.Amount),
                     Status = "APPROVED",
                     RecordedAt = r.ApprovedAt,
                     RequesterName = r.Requester.Username,
@@ -2025,7 +2031,7 @@ namespace Infoman.Controllers
             {
                 if (pendingRequest.RequestType == "VOID")
                 {
-                    // Process void
+                    // ========== PROCESS VOID ==========
                     var order = pendingRequest.Order;
                     var itemIds = string.IsNullOrEmpty(pendingRequest.ItemIds)
                         ? new List<int>()
@@ -2058,12 +2064,19 @@ namespace Infoman.Controllers
                     order.VoidReason = pendingRequest.Reason;
                     order.VoidedBy = userId;
                     order.VoidedAt = DateTime.Now;
-                    order.TotalAmount = 0;
+                    order.TotalAmount = 0;  // ✅ VOID = zero
                 }
                 else if (pendingRequest.RequestType == "REFUND")
                 {
-                    // Process refund
+                    // ========== PROCESS REFUND ==========
                     var order = pendingRequest.Order;
+
+                    // Ensure OriginalTotalAmount is set
+                    if (order.OriginalTotalAmount == 0)
+                    {
+                        order.OriginalTotalAmount = order.TotalAmount;
+                    }
+
                     var itemIds = pendingRequest.ItemIds.Split(',').Select(int.Parse).ToList();
                     decimal refundAmount = 0;
 
@@ -2080,29 +2093,55 @@ namespace Infoman.Controllers
 
                     if (refundAmount > 0)
                     {
-                        var refund = new Refund
+                        // Create OrderAdjustment
+                        var adjustment = new OrderAdjustment
                         {
-                            TransactionId = order.OrderId,
+                            OriginalOrderId = order.OrderId,
+                            AdjustmentType = "REFUND",
                             Amount = refundAmount,
                             Reason = pendingRequest.Reason,
-                            ProcessedBy = pendingRequest.RequestedBy,
+                            ReferenceNumber = $"RFD-{DateTime.Now:yyyyMMddHHmmss}",
+                            Status = "APPROVED",
                             ApprovedBy = userId,
-                            Timestamp = DateTime.Now,
-                            RefundReference = $"RFD-{DateTime.Now:yyyyMMddHHmmss}"
+                            ApprovedAt = DateTime.Now,
+                            CreatedAt = DateTime.Now,
+                            CreatedBy = pendingRequest.RequestedBy
                         };
-                        _db.Refunds.Add(refund);
+                        _db.OrderAdjustments.Add(adjustment);
+                        await _db.SaveChangesAsync();
+
+                        // Create RefundTransaction
+                        var refund = new RefundTransaction
+                        {
+                            AdjustmentId = adjustment.AdjustmentId,
+                            OriginalOrderId = order.OrderId,
+                            Amount = refundAmount,
+                            Reason = pendingRequest.Reason,
+                            ProcessedBy = userId,
+                            RefundReference = adjustment.ReferenceNumber,
+                            CreatedAt = DateTime.Now
+                        };
+                        _db.RefundTransactions.Add(refund);
+
+                        // ✅ REFUND = subtract from total
                         order.TotalAmount -= refundAmount;
                     }
 
-                    // ✅ UPDATE STATUS DEPENDE SA FULL O PARTIAL REFUND
+                    // Update status
                     if (order.Items.All(i => i.IsRefunded || i.IsVoided))
                     {
-                        order.Status = "REFUNDED";  // Full refund
+                        order.Status = "REFUNDED";
                     }
                     else
                     {
-                        order.Status = "PARTIALLY_REFUNDED";  // Partial refund
+                        order.Status = "PARTIALLY_REFUNDED";
                     }
+                }
+                else if (pendingRequest.RequestType == "EXCHANGE_REFUND")
+                {
+                    pendingRequest.Status = "APPROVED";
+                    pendingRequest.ApprovedBy = userId;
+                    pendingRequest.ApprovedAt = DateTime.Now;
                 }
 
                 pendingRequest.Status = "APPROVED";
@@ -2120,6 +2159,7 @@ namespace Infoman.Controllers
                 return Json(new { success = false, message = ex.Message });
             }
         }
+
         [HttpPost]
         public async Task<IActionResult> RejectRequest([FromBody] RejectRequestRequest request)
         {
@@ -2411,9 +2451,9 @@ namespace Infoman.Controllers
                     RequestType = "REFUND",
                     Reason = r.Reason,
                     // ✅ ITO ANG PROBLEMA - Kunin mula sa Refunds table
-                    Amount = _db.Refunds
-                        .Where(refund => refund.TransactionId == r.OrderId)
-                        .Sum(refund => refund.Amount),
+                    Amount = _db.RefundTransactions
+    .Where(refund => refund.OriginalOrderId == r.OrderId)
+    .Sum(refund => refund.Amount),
                     Status = r.Status,
                     RecordedAt = r.ApprovedAt,
                     RequesterName = r.Requester.Username,

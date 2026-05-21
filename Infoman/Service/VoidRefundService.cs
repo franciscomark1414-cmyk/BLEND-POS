@@ -1,4 +1,5 @@
-﻿using Infoman.Data;
+﻿using Infoman.Constants;
+using Infoman.Data;
 using Infoman.Models;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -8,6 +9,9 @@ using System.Threading.Tasks;
 
 namespace Infoman.Service
 {
+    /// <summary>
+    /// VOID ONLY Service - For voiding items/transactions BEFORE completion
+    /// </summary>
     public class VoidRefundService
     {
         private readonly ConnectionDatabase _db;
@@ -17,14 +21,16 @@ namespace Infoman.Service
             _db = db;
         }
 
+        #region Private Helpers
+
         private async Task<bool> IsItemPrepared(int orderItemId)
         {
             var orderItem = await _db.OrderItems
                 .Include(oi => oi.Order)
                 .FirstOrDefaultAsync(oi => oi.OrderItemId == orderItemId);
 
-            return orderItem?.Order?.Status == "PREPARING" ||
-                   orderItem?.Order?.Status == "COMPLETED";
+            return orderItem?.Order?.Status == OrderStatus.PREPARING ||
+                   orderItem?.Order?.Status == OrderStatus.COMPLETED;
         }
 
         private async Task LogInventoryMovement(int rawMaterialId, int? productId, decimal quantity,
@@ -164,11 +170,31 @@ namespace Infoman.Service
             }
         }
 
-        // Services/VoidRefundService.cs - VoidItem method
+        private async Task RecomputeOrderDiscount(Order order)
+        {
+            var activeItems = await _db.OrderItems
+                .Where(oi => oi.OrderId == order.OrderId &&
+                             oi.DispositionStatusId == ItemDispositionConstants.AVAILABLE)
+                .ToListAsync();
 
-        // Services/VoidRefundService.cs - VoidItem method
+            decimal newSubtotal = activeItems.Sum(i => i.Price * i.Quantity);
+            decimal newDiscountedTotal = newSubtotal * (1 - order.DiscountPercent);
+            decimal newDiscountAmount = newSubtotal - newDiscountedTotal;
 
-        // Services/VoidRefundService.cs - VoidItem method
+            order.TotalAmount = newDiscountedTotal;
+            order.DiscountAmount = newDiscountAmount;
+
+            if (activeItems.Count == 0)
+            {
+                order.DiscountPercent = 0;
+                order.DiscountAmount = 0;
+                order.DiscountType = "None";
+            }
+        }
+
+        #endregion
+
+        #region Void Methods
 
         public async Task<(bool success, string message, bool needsOwner)> VoidItem(
             int orderItemId, int userId, string userRole, string reason)
@@ -184,9 +210,10 @@ namespace Infoman.Service
             if (orderItem == null)
                 return (false, "Order item not found", false);
 
-            bool isPrepared = orderItem.Order?.Status == "COMPLETED";
+            bool isPrepared = orderItem.Order?.Status == OrderStatus.COMPLETED;
             bool isOwner = userRole == "Owner";
 
+            // If prepared and not owner, request approval
             if (isPrepared && !isOwner)
             {
                 var pendingRequest = new PendingRequest
@@ -210,11 +237,12 @@ namespace Infoman.Service
             {
                 if (!isPrepared)
                 {
-                    // Do nothing - no inventory change
-                    System.Diagnostics.Debug.WriteLine($"Void item #{orderItemId} - NOT PREPARED. No inventory change.");
+                    // Not prepared - return to stock
+                    await ReturnIngredientsToStock(orderItem, userId);
                 }
                 else
                 {
+                    // Prepared - mark as waste
                     await LogWasteForPreparedItem(orderItem, $"Void: {reason}", userId);
                 }
 
@@ -232,23 +260,26 @@ namespace Infoman.Service
                 };
                 _db.VoidLogs.Add(voidLog);
 
-                orderItem.IsVoided = true;
-                orderItem.VoidReason = reason;
+                // Update item disposition
+                orderItem.DispositionStatusId = ItemDispositionConstants.VOIDED;
+                orderItem.DispositionReason = reason;
+                orderItem.DispositionProcessedAt = DateTime.Now;
+                orderItem.DispositionProcessedBy = userId;
 
-                // ✅ I-REMOVE ANG ITEM TOTAL SA ORDER TOTAL
+                // Remove item total from order
                 decimal itemTotal = orderItem.Price * orderItem.Quantity;
                 orderItem.Order.TotalAmount -= itemTotal;
 
-                // ✅ I-RECOMPUTE ANG DISCOUNT KUNG KUMPLETO NA ANG VOID
                 await RecomputeOrderDiscount(orderItem.Order);
 
                 var remainingItems = await _db.OrderItems
-                    .Where(oi => oi.OrderId == orderItem.OrderId && !oi.IsVoided)
+                    .Where(oi => oi.OrderId == orderItem.OrderId &&
+                                 oi.DispositionStatusId == ItemDispositionConstants.AVAILABLE)
                     .CountAsync();
 
                 if (remainingItems == 0)
                 {
-                    orderItem.Order.Status = "VOIDED";
+                    orderItem.Order.Status = OrderStatus.VOIDED;
                     orderItem.Order.VoidReason = "All items voided";
                     orderItem.Order.VoidedBy = userId;
                     orderItem.Order.VoidedAt = DateTime.Now;
@@ -262,7 +293,7 @@ namespace Infoman.Service
 
                 string msg = isPrepared ?
                     $"✅ Prepared item '{orderItem.Product?.Name}' voided as WASTE." :
-                    $"✅ Item '{orderItem.Product?.Name}' voided. (No inventory change - nothing was deducted)";
+                    $"✅ Item '{orderItem.Product?.Name}' voided. Inventory returned to stock.";
                 return (true, msg, false);
             }
             catch (Exception ex)
@@ -272,36 +303,8 @@ namespace Infoman.Service
             }
         }
 
-        // ✅ IDAGDAG ANG HELPER METHOD NA ITO
-        private async Task RecomputeOrderDiscount(Order order)
-        {
-            // Kunin ang lahat ng active items (hindi voided)
-            var activeItems = await _db.OrderItems
-                .Where(oi => oi.OrderId == order.OrderId && !oi.IsVoided && !oi.IsRefunded)
-                .ToListAsync();
-
-            // I-compute ang bagong subtotal
-            decimal newSubtotal = activeItems.Sum(i => i.Price * i.Quantity);
-
-            // I-apply ang discount percentage
-            decimal newDiscountedTotal = newSubtotal * (1 - order.DiscountPercent);
-            decimal newDiscountAmount = newSubtotal - newDiscountedTotal;
-
-            // I-update ang order
-            order.TotalAmount = newDiscountedTotal;
-            order.DiscountAmount = newDiscountAmount;
-
-            // Kung walang items, i-reset ang discount
-            if (activeItems.Count == 0)
-            {
-                order.DiscountPercent = 0;
-                order.DiscountAmount = 0;
-                order.DiscountType = "None";
-            }
-        }  // Services/VoidRefundService.cs - VoidTransaction method
-
         public async Task<(bool success, string message, bool needsOwner)> VoidTransaction(
-      int orderId, int userId, string userRole, string reason)
+            int orderId, int userId, string userRole, string reason)
         {
             var order = await _db.Orders
                 .Include(o => o.Items)
@@ -310,11 +313,9 @@ namespace Infoman.Service
             if (order == null)
                 return (false, "Order not found", false);
 
-            // ✅ CHECK KUNG COMPLETED NA (blended na)
-            bool hasPrepared = order.Status == "COMPLETED";
+            bool hasPrepared = order.Status == OrderStatus.COMPLETED;
             bool isOwner = userRole == "Owner";
 
-            // Kapag prepared at hindi Owner, i-save sa PendingRequests
             if (hasPrepared && !isOwner)
             {
                 var pendingRequest = new PendingRequest
@@ -336,7 +337,6 @@ namespace Infoman.Service
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                // Reload with full includes
                 order = await _db.Orders
                     .Include(o => o.Items)
                         .ThenInclude(oi => oi.Product)
@@ -345,14 +345,13 @@ namespace Infoman.Service
                                 .ThenInclude(ri => ri.RawMaterial)
                     .FirstOrDefaultAsync(o => o.OrderId == orderId);
 
-                foreach (var item in order.Items.Where(i => !i.IsVoided))
+                foreach (var item in order.Items.Where(i => i.DispositionStatusId == ItemDispositionConstants.AVAILABLE))
                 {
-                    if (!hasPrepared)  // PENDING_PAYMENT - hindi pa nabe-blend
+                    if (!hasPrepared)
                     {
-                        // Do nothing - no inventory change
-                        System.Diagnostics.Debug.WriteLine($"Void transaction #{orderId} item #{item.OrderItemId} - NOT PREPARED. No inventory change.");
+                        await ReturnIngredientsToStock(item, userId);
                     }
-                    else  // COMPLETED - blended na
+                    else
                     {
                         await LogWasteForPreparedItem(item, $"Transaction voided: {reason}", userId);
                     }
@@ -371,22 +370,22 @@ namespace Infoman.Service
                     };
                     _db.VoidLogs.Add(voidLog);
 
-                    item.IsVoided = true;
-                    item.VoidReason = reason;
+                    item.DispositionStatusId = ItemDispositionConstants.VOIDED;
+                    item.DispositionReason = reason;
+                    item.DispositionProcessedAt = DateTime.Now;
+                    item.DispositionProcessedBy = userId;
                 }
 
-                order.Status = "VOIDED";
+                order.Status = OrderStatus.VOIDED;
                 order.VoidReason = reason;
                 order.VoidedBy = userId;
                 order.VoidedAt = DateTime.Now;
-
-                // ✅ I-RECOMPUTE ANG DISCOUNT (kung may natirang items, pero voided na lahat - dapat zero)
-                await RecomputeOrderDiscount(order);
+                order.TotalAmount = 0;
 
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                string stockMsg = hasPrepared ? "Prepared items marked as waste." : "Transaction voided. No inventory change (nothing was deducted).";
+                string stockMsg = hasPrepared ? "Prepared items marked as waste." : "Inventory returned to stock.";
                 return (true, $"✅ Transaction voided. {stockMsg}", false);
             }
             catch (Exception ex)
@@ -395,103 +394,10 @@ namespace Infoman.Service
                 return (false, $"Error: {ex.Message}", false);
             }
         }
-        public async Task<(bool success, string message, bool needsOwner)> ProcessRefund(
-    int orderId, List<int> itemIds, string reason, int userId, string userRole)
-        {
-            var isOwner = userRole == "Owner";
 
-            // Kapag Staff, i-save muna sa PendingRequests
-            if (!isOwner)
-            {
-                // ✅ IDAGDAG ITO: I-update ang order status to PENDING_REFUND
-                var order = await _db.Orders.FindAsync(orderId);
-                if (order != null && order.Status == "COMPLETED")
-                {
-                    order.Status = "PENDING_REFUND";
-                    await _db.SaveChangesAsync();
-                }
+        #endregion
 
-                var pendingRequest = new PendingRequest
-                {
-                    OrderId = orderId,
-                    ItemIds = itemIds != null ? string.Join(",", itemIds) : "",
-                    RequestType = "REFUND",
-                    Reason = reason,
-                    RequestedBy = userId,
-                    Status = "PENDING",
-                    RequestedAt = DateTime.Now
-                };
-                _db.PendingRequests.Add(pendingRequest);
-                await _db.SaveChangesAsync();
-
-                return (false, "⚠️ Refund request sent to Owner for approval. Please wait for Owner to process.", true);
-            }
-
-            // Kapag Owner, diretso process (same as before)
-            using var transaction = await _db.Database.BeginTransactionAsync();
-            try
-            {
-                var order = await _db.Orders
-                    .Include(o => o.Items)
-                        .ThenInclude(oi => oi.Product)
-                        .ThenInclude(p => p.Sizes)
-                    .FirstOrDefaultAsync(o => o.OrderId == orderId);
-
-                if (order == null)
-                    return (false, "Order not found", false);
-
-                if (order.Status != "COMPLETED")
-                    return (false, "Only completed orders can be refunded", false);
-
-                decimal refundAmount = 0;
-
-                foreach (var itemId in itemIds)
-                {
-                    var item = order.Items.FirstOrDefault(i => i.OrderItemId == itemId && !i.IsRefunded);
-                    if (item == null) continue;
-
-                    refundAmount += item.Price * item.Quantity;
-
-                    // Log as waste dahil prepared na ang item
-                    await LogWasteForPreparedItem(item, $"Refund: {reason}", userId);
-
-                    item.IsRefunded = true;
-                    item.RefundReason = reason;
-                }
-
-                if (refundAmount == 0)
-                    return (false, "No valid items to refund", false);
-
-                var refund = new Refund
-                {
-                    TransactionId = orderId,
-                    Amount = refundAmount,
-                    Reason = reason,
-                    ProcessedBy = userId,
-                    ApprovedBy = userId,
-                    Timestamp = DateTime.Now,
-                    RefundReference = $"RFD-{DateTime.Now:yyyyMMddHHmmss}"
-                };
-                _db.Refunds.Add(refund);
-
-                order.TotalAmount -= refundAmount;
-
-                if (order.Items.All(i => i.IsRefunded || i.IsVoided))
-                {
-                    order.Status = "REFUNDED";
-                }
-
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                return (true, $"✅ Refund of ₱{refundAmount:N2} processed. Items marked as waste.", false);
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                return (false, $"Error: {ex.Message}", false);
-            }
-        }
+        #region Query Methods
 
         public async Task<object> GetOrderDetails(int orderId)
         {
@@ -504,8 +410,7 @@ namespace Infoman.Service
 
             if (order == null) return null;
 
-            // ✅ HUWAG IPAKITA ANG VOIDED O REFUNDED ORDERS
-            if (order.Status == "VOIDED" || order.Status == "REFUNDED")
+            if (order.Status == OrderStatus.VOIDED || order.Status == OrderStatus.REFUNDED)
                 return null;
 
             return new
@@ -515,23 +420,24 @@ namespace Infoman.Service
                 order.Status,
                 order.TotalAmount,
                 DiscountType = string.IsNullOrEmpty(order.DiscountType) ? "None" : order.DiscountType,
-                DiscountPercent = order.DiscountPercent,  // Hindi na kailangan ng ?? dahil decimal ito
+                DiscountPercent = order.DiscountPercent,
                 order.PaymentMethod,
                 order.Date,
                 Items = order.Items
-                    .Where(i => !i.IsVoided && !i.IsRefunded)
+                    .Where(i => i.DispositionStatusId == ItemDispositionConstants.AVAILABLE)
                     .Select(oi => new
                     {
                         oi.OrderItemId,
-                        ProductId = oi.ProductId,  // Hindi na kailangan ng ?? 0
-                        ProductSizeId = oi.ProductSizeId,  // ✅ ITO ANG SUSI!
+                        ProductId = oi.ProductId,
+                        ProductSizeId = oi.ProductSizeId,
                         ProductName = oi.Product != null ? oi.Product.Name : "Unknown Product",
                         SizeName = oi.ProductSize != null ? oi.ProductSize.SizeName : "Regular",
                         oi.Quantity,
                         oi.Price,
                         Subtotal = oi.Price * oi.Quantity,
-                        oi.IsVoided,
-                        oi.IsRefunded
+                        IsVoided = oi.DispositionStatusId == ItemDispositionConstants.VOIDED,
+                        IsRefunded = oi.DispositionStatusId == ItemDispositionConstants.REFUNDED,
+                        IsExchanged = oi.DispositionStatusId == ItemDispositionConstants.EXCHANGED
                     })
             };
         }
@@ -539,10 +445,10 @@ namespace Infoman.Service
         public async Task<List<object>> GetPendingOrders()
         {
             return await _db.Orders
-                .Where(o => o.Status == "PENDING_PAYMENT"  // ✅ PENDING_PAYMENT LANG, WALANG COMPLETED
-                            && o.Status != "VOIDED"
-                            && o.Status != "REFUNDED"
-                            && o.Items.Any(i => !i.IsVoided && !i.IsRefunded))
+                .Where(o => o.Status == OrderStatus.PENDING &&
+                            o.Status != OrderStatus.VOIDED &&
+                            o.Status != OrderStatus.REFUNDED &&
+                            o.Items.Any(i => i.DispositionStatusId == ItemDispositionConstants.AVAILABLE))
                 .OrderByDescending(o => o.Date)
                 .Select(o => new
                 {
@@ -555,13 +461,14 @@ namespace Infoman.Service
                 })
                 .ToListAsync<object>();
         }
+
         public async Task<List<object>> GetCompletedOrders()
         {
             return await _db.Orders
-                .Where(o => o.Status == "COMPLETED"  // ✅ COMPLETED LANG
-                            && o.Status != "VOIDED"
-                            && o.Status != "REFUNDED"
-                            && o.Items.Any(i => !i.IsRefunded && !i.IsVoided))
+                .Where(o => o.Status == OrderStatus.COMPLETED &&
+                            o.Status != OrderStatus.VOIDED &&
+                            o.Status != OrderStatus.REFUNDED &&
+                            o.Items.Any(i => i.DispositionStatusId == ItemDispositionConstants.AVAILABLE))
                 .OrderByDescending(o => o.Date)
                 .Select(o => new
                 {
@@ -571,10 +478,11 @@ namespace Infoman.Service
                     o.TotalAmount,
                     o.Date,
                     o.PaymentMethod,
-                    ItemCount = o.Items.Count(i => !i.IsRefunded && !i.IsVoided)
+                    ItemCount = o.Items.Count(i => i.DispositionStatusId == ItemDispositionConstants.AVAILABLE)
                 })
                 .ToListAsync<object>();
         }
+
         public async Task<object> GetReports(DateTime startDate, DateTime endDate)
         {
             var voidLogs = await _db.VoidLogs
@@ -583,11 +491,6 @@ namespace Infoman.Service
                     .ThenInclude(i => i.Product)
                 .Include(v => v.User)
                 .Where(v => v.Timestamp.Date >= startDate.Date && v.Timestamp.Date <= endDate.Date)
-                .ToListAsync();
-
-            var refunds = await _db.Refunds
-                .Include(r => r.Transaction)
-                .Where(r => r.Timestamp.Date >= startDate.Date && r.Timestamp.Date <= endDate.Date)
                 .ToListAsync();
 
             var wasteLogs = await _db.WasteLogs
@@ -609,14 +512,6 @@ namespace Infoman.Service
                     v.Timestamp,
                     Amount = v.Item != null ? (v.Item.Price * v.Item.Quantity) : 0
                 }),
-                Refunds = refunds.Select(r => new
-                {
-                    r.RefundId,
-                    OrderNumber = r.Transaction?.OrderNumber,
-                    r.Amount,
-                    r.Reason,
-                    r.Timestamp
-                }),
                 WasteLogs = wasteLogs.Select(w => new
                 {
                     w.WasteLogId,
@@ -627,11 +522,11 @@ namespace Infoman.Service
                     TotalCost = w.Quantity * (w.RawMaterial?.Price ?? 0)
                 }),
                 TotalVoidAmount = voidLogs.Sum(v => v.Item != null ? (v.Item.Price * v.Item.Quantity) : 0),
-                TotalRefundAmount = refunds.Sum(r => r.Amount),
                 TotalWasteCost = wasteLogs.Sum(w => w.Quantity * (w.RawMaterial?.Price ?? 0)),
-                VoidCount = voidLogs.Count,
-                RefundCount = refunds.Count
+                VoidCount = voidLogs.Count
             };
         }
+
+        #endregion
     }
 }

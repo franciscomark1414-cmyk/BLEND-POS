@@ -208,7 +208,7 @@ namespace Infoman.Controllers
                     ProductSizeId = productSize.ProductSizeId,
                     Quantity = request.Quantity,
                     Price = productSize.Price,
-                    ActualCost = 0  // ← Wala pa, hindi pa nadededuct
+                    ActualCost = 0
                 };
 
                 _db.OrderItems.Add(orderItem);
@@ -224,24 +224,19 @@ namespace Infoman.Controllers
                 return Json(new
                 {
                     success = true,
-                    message = $"✅ Order #{orderNumber} created! Payment received. Click 'Start Blending' to deduct ingredients.",
+                    message = $"✅ Order #{orderNumber} created! Payment received.",
                     orderId = order.OrderId,
                     orderNumber = orderNumber,
                     totalAmount = discountedTotal,
-                    requiresBlending = true
+                    status = "PENDING_PAYMENT"
                 });
             }
             catch (Exception ex)
             {
-                // Get the full error message
                 var errorMessage = ex.Message;
                 if (ex.InnerException != null)
                 {
                     errorMessage += " | INNER: " + ex.InnerException.Message;
-                    if (ex.InnerException.InnerException != null)
-                    {
-                        errorMessage += " | INNER2: " + ex.InnerException.InnerException.Message;
-                    }
                 }
                 System.Diagnostics.Debug.WriteLine("=== PLACE ORDER ERROR ===");
                 System.Diagnostics.Debug.WriteLine(errorMessage);
@@ -631,7 +626,6 @@ namespace Infoman.Controllers
         }
 
         // ========== BLENDING / PREPARATION ==========
-
         [HttpPost]
         public async Task<IActionResult> StartBlending([FromBody] StartBlendingRequest request)
         {
@@ -654,6 +648,7 @@ namespace Infoman.Controllers
             foreach (var orderItem in order.Items)
             {
                 var productSize = orderItem.ProductSize;
+                decimal itemCost = 0;
 
                 foreach (var recipe in productSize.RecipeItems)
                 {
@@ -677,13 +672,15 @@ namespace Infoman.Controllers
                         return Json(new { success = false, message = $"Failed to deduct {recipe.RawMaterial.Name}" });
                     }
 
-                    totalActualCost += cost;
+                    itemCost += cost;
                 }
 
-                orderItem.ActualCost = totalActualCost;
+                orderItem.ActualCost = itemCost;
+                totalActualCost += itemCost;
             }
 
-            order.Status = "COMPLETED";  // ← Tapos na, nadeduct na
+            // ✅ UPDATE STATUS TO COMPLETED
+            order.Status = "COMPLETED";
             await _db.SaveChangesAsync();
 
             return Json(new

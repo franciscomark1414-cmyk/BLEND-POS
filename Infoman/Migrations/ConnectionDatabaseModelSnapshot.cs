@@ -771,9 +771,6 @@ namespace Infoman.Migrations
                     b.Property<int>("CreatedBy")
                         .HasColumnType("int");
 
-                    b.Property<decimal>("CreditAmount")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<string>("Notes")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -816,6 +813,8 @@ namespace Infoman.Migrations
                     b.HasIndex("RawMaterialId");
 
                     b.HasIndex("ReceivingId");
+
+                    b.HasIndex("ReceivingItemId");
 
                     b.HasIndex("SupplierId");
 
@@ -1173,6 +1172,12 @@ namespace Infoman.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Infoman.Models.ReceivingItem", "ReceivingItem")
+                        .WithMany()
+                        .HasForeignKey("ReceivingItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("Infoman.Models.Supplier", "Supplier")
                         .WithMany()
                         .HasForeignKey("SupplierId")
@@ -1182,6 +1187,8 @@ namespace Infoman.Migrations
                     b.Navigation("RawMaterial");
 
                     b.Navigation("Receiving");
+
+                    b.Navigation("ReceivingItem");
 
                     b.Navigation("Supplier");
                 });

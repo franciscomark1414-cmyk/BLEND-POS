@@ -106,7 +106,8 @@ namespace Infoman.Controllers
 
             if (result.needsOwner)
             {
-                return Json(new { success = false, requiresOwner = true, message = result.message });
+                // ✅ TAMA: success = true dahil successful ang paggawa ng pending request
+                return Json(new { success = true, requiresOwner = true, message = result.message });
             }
 
             return Json(new { success = result.success, message = result.message });

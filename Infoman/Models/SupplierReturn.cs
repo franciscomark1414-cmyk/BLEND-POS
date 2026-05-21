@@ -21,7 +21,6 @@ namespace Infoman.Models
         public decimal Quantity { get; set; }
 
         public decimal UnitPrice { get; set; }
-        public decimal CreditAmount { get; set; }
 
         public string Reason { get; set; }
 
@@ -36,6 +35,9 @@ namespace Infoman.Models
         // Navigation properties
         [ForeignKey("ReceivingId")]
         public virtual Receiving Receiving { get; set; }
+
+        [ForeignKey("ReceivingItemId")]  // ← IDAGDAG ITO
+        public virtual ReceivingItem ReceivingItem { get; set; }  // ← IDAGDAG ITO
 
         [ForeignKey("SupplierId")]
         public virtual Supplier Supplier { get; set; }

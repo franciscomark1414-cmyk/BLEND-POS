@@ -1,6 +1,7 @@
 ﻿using Infoman.Data;
 using Infoman.Models;
 using Infoman.Service;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using static Infoman.Models.WasteLog;
@@ -52,29 +53,62 @@ namespace Infoman.Controllers
 
             await _db.SaveChangesAsync();
         }
+
+        private bool IsUserLoggedIn()
+        {
+            var userId = HttpContext.Session.GetInt32("UserId");
+            return userId.HasValue && userId.Value > 0;
+        }
+
         public async Task<ActionResult> Dashboard()
-        {// Get current date
+        {
+
+            // ✅ I-check kung naka-login
+            if (!IsUserLoggedIn())
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            // ✅ I-check kung Owner ang role
+            var userRole = HttpContext.Session.GetString("UserRole");
+            if (userRole != "Owner")
+            {
+                return RedirectToAction("Login", "Account");
+            }
 
             await RefreshProductPricesInternal();
-
             DateTime today = DateTime.Today;
 
-            // ========== TODAY'S ORDERS ==========
-            var todaysOrders = _db.Orders.Where(o => o.Date.Date == today && o.Status != "Cancelled").ToList();
-            ViewBag.TodaysSales = todaysOrders.Sum(o => o.TotalAmount);  // TODAY'S REVENUE
+            // ========== TODAY'S ORDERS (EXCLUDE REFUNDED) ==========
+            var todaysOrders = _db.Orders
+    .Where(o => o.Date.Date == today
+        && (o.Status == "COMPLETED" || o.Status == "PENDING_REFUND"))
+    .ToList();
+
+            // Compute today's sales - ibawas ang mga narefund
+            decimal todaysSales = todaysOrders.Sum(o => o.TotalAmount);
+
+            // Ibawas ang mga refunds na nangyari ngayong araw
+            var todaysRefunds = await _db.Refunds
+                .Where(r => r.Timestamp.Date == today)
+                .SumAsync(r => (decimal?)r.Amount) ?? 0;
+
+            ViewBag.TodaysSales = todaysSales - todaysRefunds;
             ViewBag.TotalOrdersToday = todaysOrders.Count();
 
-            // ========== ALL-TIME TOTAL REVENUE (FIXED!) ==========
+            // ========== ALL-TIME TOTAL REVENUE (EXCLUDE REFUNDED) ==========
             var allTimeRevenue = _db.Orders
-                .Where(o => o.Status != "Cancelled")
+                .Where(o => o.Status != "Cancelled" && o.Status != "REFUNDED")
                 .Sum(o => (decimal?)o.TotalAmount) ?? 0;
-            ViewBag.AllTimeRevenue = allTimeRevenue;  // ← BAGO: ito ang ALL TIME
+
+            // Ibawas ang lahat ng refunds
+            var totalRefunds = await _db.Refunds.SumAsync(r => (decimal?)r.Amount) ?? 0;
+            ViewBag.AllTimeRevenue = allTimeRevenue - totalRefunds;
 
             // Para sa 30% profit estimate
-            ViewBag.EstimatedProfit = allTimeRevenue * 0.3m;
+            ViewBag.EstimatedProfit = ViewBag.AllTimeRevenue * 0.3m;
 
             // ========== CRITICAL STOCK ALERT ==========
-            // Critical stock = Stock <= MinQty
             int criticalStockCount = _db.RawMaterials
                 .Where(r => r.IsDeleted == false && r.Stock <= r.MinQty)
                 .Count();
@@ -104,17 +138,15 @@ namespace Infoman.Controllers
                 .CountAsync();
             ViewBag.ExpiredCount = expiredCount;
 
-            // ========== WASTE LOGS (today) ============
+            // ========== WASTE LOGS ============
             int wasteCount = _db.WasteLogs.Count();
             ViewBag.WasteCount = wasteCount;
 
             // Total other alerts (for badge)
             ViewBag.TotalOtherAlerts = expiringCount + expiredCount + wasteCount;
-
-            // Keep existing low stock count for compatibility
             ViewBag.LowStockCount = criticalStockCount;
 
-            // ========== SALES TREND (Last 7 Days) ==========
+            // ========== SALES TREND (Last 7 Days) - EXCLUDE REFUNDED ==========
             var last7Days = Enumerable.Range(0, 7)
                 .Select(i => today.AddDays(-6 + i))
                 .ToList();
@@ -125,59 +157,61 @@ namespace Infoman.Controllers
             foreach (var day in last7Days)
             {
                 var dailySales = _db.Orders
-                    .Where(o => o.Date.Date == day.Date && o.Status != "Cancelled")
+                    .Where(o => o.Date.Date == day.Date && o.Status != "Cancelled" && o.Status != "REFUNDED")
                     .Sum(o => (decimal?)o.TotalAmount) ?? 0;
-                salesValues.Add(dailySales);
+
+                var dailyRefunds = await _db.Refunds
+                    .Where(r => r.Timestamp.Date == day)
+                    .SumAsync(r => (decimal?)r.Amount) ?? 0;
+
+                salesValues.Add(dailySales - dailyRefunds);
             }
 
             ViewBag.SalesLabels = salesLabels;
             ViewBag.SalesValues = salesValues;
 
-            // ========== BEST SELLING PRODUCTS (FIXED) ==========
+            // ========== BEST SELLING PRODUCTS ==========
             var bestSelling = new List<BestSellingProductVM>();
 
             try
             {
-                // Get order items first, then do grouping in memory
                 var orderItems = _db.OrderItems
                     .Include(oi => oi.Order)
                     .Include(oi => oi.Product)
-                    .Where(oi => oi.Order.Status != "Cancelled")
-                    .ToList(); // Execute query first
+                    .Where(oi => oi.Order.Status != "Cancelled" && oi.Order.Status != "REFUNDED")
+                    .ToList();
 
                 bestSelling = orderItems
-    .GroupBy(oi => new {
-        ProductName = oi.Product?.Name ?? "Unknown",
-        SizeName = oi.ProductSize?.SizeName ?? "Regular"  // ← ISAMA ANG SIZE
-    })
-    .Select(g => new BestSellingProductVM
-    {
-        Name = g.Key.ProductName,
-        SizeName = g.Key.SizeName,
-        TotalSold = g.Sum(oi => oi.Quantity),
-        Price = 0
-    })
-    .Where(p => p.TotalSold > 0)
-    .OrderByDescending(p => p.TotalSold)
-    .Take(5)
-    .Select((p, index) => new BestSellingProductVM
-    {
-        Rank = index + 1,
-        Name = p.Name,
-        SizeName = p.SizeName,
-        TotalSold = p.TotalSold,
-        Price = 0
-    })
-    .ToList();
+                    .GroupBy(oi => new {
+                        ProductName = oi.Product?.Name ?? "Unknown",
+                        SizeName = oi.ProductSize?.SizeName ?? "Regular"
+                    })
+                    .Select(g => new BestSellingProductVM
+                    {
+                        Name = g.Key.ProductName,
+                        SizeName = g.Key.SizeName,
+                        TotalSold = g.Sum(oi => oi.Quantity),
+                        Price = 0
+                    })
+                    .Where(p => p.TotalSold > 0)
+                    .OrderByDescending(p => p.TotalSold)
+                    .Take(5)
+                    .Select((p, index) => new BestSellingProductVM
+                    {
+                        Rank = index + 1,
+                        Name = p.Name,
+                        SizeName = p.SizeName,
+                        TotalSold = p.TotalSold,
+                        Price = 0
+                    })
+                    .ToList();
             }
             catch (Exception ex)
             {
-                // Log error if needed
                 bestSelling = new List<BestSellingProductVM>();
             }
 
-            // ========== RAW MATERIALS MASTER RECORD (para sa Raw Materials module) ==========
-            // Walang Stock at MinQty - master record lang
+            // ========== RAW MATERIALS MASTER RECORD ==========
             ViewBag.RawMaterialsMaster = await _db.RawMaterials
                 .Where(r => !r.IsDeleted)
                 .Select(r => new
@@ -193,68 +227,69 @@ namespace Infoman.Controllers
 
             // Raw materials for inventory module
             ViewBag.RawMaterials = _db.RawMaterials
-    .Where(r => !r.IsDeleted)
-    .Select(r => new RawMaterial
-    {
-        RawMaterialId = r.RawMaterialId,
-        Name = r.Name,
-        Category = r.Category,
-        MinQty = r.MinQty,
-        Price = r.Price,
-        Unit = r.Unit,
-        SKU = r.SKU,
-        ExpirationDate = r.ExpirationDate,
+                .Where(r => !r.IsDeleted)
+                .Select(r => new RawMaterial
+                {
+                    RawMaterialId = r.RawMaterialId,
+                    Name = r.Name,
+                    Category = r.Category,
+                    MinQty = r.MinQty,
+                    Price = r.Price,
+                    Unit = r.Unit,
+                    SKU = r.SKU,
+                    ExpirationDate = r.ExpirationDate,
+                    Stock = _db.RawMaterialBatches
+                        .Where(b => b.RawMaterialId == r.RawMaterialId)
+                        .Sum(b => (decimal?)b.QuantityRemaining) ?? 0
+                })
+                .ToList();
 
-        // 🔥 IMPORTANT: recompute stock from batches
-        Stock = _db.RawMaterialBatches
-            .Where(b => b.RawMaterialId == r.RawMaterialId)
-            .Sum(b => (decimal?)b.QuantityRemaining) ?? 0
-
-    })
-    .ToList();
             var products = await _db.Products
-        .Include(p => p.Sizes)
-        .Select(p => new ProductViewModel
-        {
-            ProductId = p.ProductId,
-            Name = p.Name,
-            SKU = p.SKU,
-            Category = p.Category,
-            Description = p.Description,
-            ImagePath = p.ImagePath,
-            Sizes = p.Sizes.Select(s => new ProductSizeViewModel
-            {
-                ProductSizeId = s.ProductSizeId,
-                SizeName = s.SizeName,
-                Price = s.Price,
-                IsAvailableInPOS = s.IsAvailableInPOS,
-                SKU = s.SKU
-            }).ToList()
-        })
-        .ToListAsync();
+                .Include(p => p.Sizes)
+                .Select(p => new ProductViewModel
+                {
+                    ProductId = p.ProductId,
+                    Name = p.Name,
+                    SKU = p.SKU,
+                    Category = p.Category,
+                    Description = p.Description,
+                    ImagePath = p.ImagePath,
+                    Sizes = p.Sizes.Select(s => new ProductSizeViewModel
+                    {
+                        ProductSizeId = s.ProductSizeId,
+                        SizeName = s.SizeName,
+                        Price = s.Price,
+                        IsAvailableInPOS = s.IsAvailableInPOS,
+                        SKU = s.SKU
+                    }).ToList()
+                })
+                .ToListAsync();
 
             var dashboardViewModel = new DashboardViewModel
             {
                 BestSellingProducts = bestSelling,
-                Products = products  // ← GAMITIN ANG products NA MAY SIZES
+                Products = products
             };
 
-
-            // ========== ENSURE ALL ViewBag PROPERTIES HAVE VALUES ==========
-            ViewBag.TotalRevenue = ViewBag.TotalRevenue ?? 0;
-            ViewBag.EstimatedProfit = ViewBag.EstimatedProfit ?? 0;
-            ViewBag.TotalWasteCost = ViewBag.TotalWasteCost ?? 0;
-            ViewBag.CriticalStockCount = ViewBag.CriticalStockCount ?? 0;
-            ViewBag.ExpiringCount = ViewBag.ExpiringCount ?? 0;
-            ViewBag.ExpiredCount = ViewBag.ExpiredCount ?? 0;
-            ViewBag.WasteCount = ViewBag.WasteCount ?? 0;
-            ViewBag.TotalOtherAlerts = ViewBag.TotalOtherAlerts ?? 0;
-            ViewBag.LowStockCount = ViewBag.LowStockCount ?? 0;
-
+            // ========== ENSURE ALL ViewBag PROPERTIES HAVE DEFAULT VALUES ==========
+            if (ViewBag.TotalRevenue == null) ViewBag.TotalRevenue = 0;
+            if (ViewBag.EstimatedProfit == null) ViewBag.EstimatedProfit = 0;
+            if (ViewBag.TotalWasteCost == null) ViewBag.TotalWasteCost = 0;
+            if (ViewBag.CriticalStockCount == null) ViewBag.CriticalStockCount = 0;
+            if (ViewBag.ExpiringCount == null) ViewBag.ExpiringCount = 0;
+            if (ViewBag.ExpiredCount == null) ViewBag.ExpiredCount = 0;
+            if (ViewBag.WasteCount == null) ViewBag.WasteCount = 0;
+            if (ViewBag.TotalOtherAlerts == null) ViewBag.TotalOtherAlerts = 0;
+            if (ViewBag.LowStockCount == null) ViewBag.LowStockCount = 0;
+            if (ViewBag.TodaysSales == null) ViewBag.TodaysSales = 0;
+            if (ViewBag.TotalOrdersToday == null) ViewBag.TotalOrdersToday = 0;
+            if (ViewBag.AllTimeRevenue == null) ViewBag.AllTimeRevenue = 0;
+            if (ViewBag.SalesLabels == null) ViewBag.SalesLabels = new List<string>();
+            if (ViewBag.SalesValues == null) ViewBag.SalesValues = new List<decimal>();
 
             return View(dashboardViewModel);
         }
-        
+
         public IActionResult LowStockRawMaterials()
         {
             var lowStockMaterials = _db.RawMaterials
@@ -1213,7 +1248,7 @@ namespace Infoman.Controllers
             var today = DateTime.Today;
             var queryDate = filterDate ?? today;
 
-            // ========== SALES PERFORMANCE ==========
+            // ========== SALES PERFORMANCE (EXCLUDE REFUNDED) ==========
             var last7Days = Enumerable.Range(0, 7).Select(i => today.AddDays(-6 + i)).ToList();
             var salesLabels = last7Days.Select(d => d.ToString("MMM dd")).ToList();
             var salesRevenue = new List<decimal>();
@@ -1222,20 +1257,25 @@ namespace Infoman.Controllers
             foreach (var day in last7Days)
             {
                 var dailyRevenue = await _db.Orders
-                    .Where(o => o.Date.Date == day && o.Status != "Cancelled")
+                    .Where(o => o.Date.Date == day && o.Status != "Cancelled" && o.Status != "REFUNDED")
                     .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
-                salesRevenue.Add(dailyRevenue);
+
+                var dailyRefunds = await _db.Refunds
+                    .Where(r => r.Timestamp.Date == day)
+                    .SumAsync(r => (decimal?)r.Amount) ?? 0;
+
+                salesRevenue.Add(dailyRevenue - dailyRefunds);
 
                 var dailyOrders = await _db.Orders
-                    .CountAsync(o => o.Date.Date == day && o.Status != "Cancelled");
+                    .CountAsync(o => o.Date.Date == day && o.Status != "Cancelled" && o.Status != "REFUNDED");
                 salesOrders.Add(dailyOrders);
             }
 
-            // ========== CATEGORY DISTRIBUTION ==========
+            // ========== CATEGORY DISTRIBUTION (EXCLUDE REFUNDED) ==========
             var categoryDistribution = await _db.OrderItems
                 .Include(oi => oi.Order)
                 .Include(oi => oi.Product)
-                .Where(oi => oi.Order.Status != "Cancelled")
+                .Where(oi => oi.Order.Status != "Cancelled" && oi.Order.Status != "REFUNDED")
                 .GroupBy(oi => oi.Product.Category ?? "Uncategorized")
                 .Select(g => new
                 {
@@ -1244,12 +1284,12 @@ namespace Infoman.Controllers
                 })
                 .ToListAsync();
 
-            // ========== TOP SELLING PRODUCTS ==========
+            // ========== TOP SELLING PRODUCTS (EXCLUDE REFUNDED) ==========
             var topSelling = await _db.OrderItems
                 .Include(oi => oi.Order)
                 .Include(oi => oi.Product)
                 .Include(oi => oi.ProductSize)
-                .Where(oi => oi.Order.Status != "Cancelled")
+                .Where(oi => oi.Order.Status != "Cancelled" && oi.Order.Status != "REFUNDED")
                 .GroupBy(oi => new {
                     oi.Product.Name,
                     SizeName = oi.ProductSize != null ? oi.ProductSize.SizeName : "Regular"
@@ -1261,30 +1301,30 @@ namespace Infoman.Controllers
                     UnitsSold = g.Sum(oi => oi.Quantity),
                     Revenue = g.Sum(oi => oi.Price * oi.Quantity)
                 })
-                .OrderByDescending(p => p.UnitsSold)// Revenue
+                .OrderByDescending(p => p.UnitsSold)
                 .Take(5)
                 .ToListAsync();
 
-            // ========== DISCOUNT RECORDS ==========
+            // ========== DISCOUNT RECORDS (EXCLUDE REFUNDED) ==========
             var discountRecords = await _db.Orders
                 .Include(o => o.Items)
                     .ThenInclude(oi => oi.Product)
-                .Where(o => o.Status == "Completed" && o.DiscountPercent > 0)
+                .Where(o => o.Status == "Completed" && o.DiscountPercent > 0 && o.Status != "REFUNDED")
                 .OrderByDescending(o => o.Date)
                 .Select(o => new
                 {
                     Date = o.Date,
                     OrderNumber = o.OrderNumber,
-                    ProductName = o.Items.FirstOrDefault().Product.Name, // Kunin ang unang product
+                    ProductName = o.Items.FirstOrDefault().Product.Name,
                     OriginalTotal = o.TotalAmount + o.DiscountAmount,
-                    DiscountPercent = o.DiscountPercent * 100, // Gawing percentage (e.g., 20)
+                    DiscountPercent = o.DiscountPercent * 100,
                     DiscountType = o.DiscountType ?? "None",
                     DiscountedTotal = o.TotalAmount,
                     Savings = o.DiscountAmount
                 })
                 .ToListAsync();
 
-            // ========== WASTE LOGS (FIXED - compute TotalCost in memory) ==========
+            // ========== WASTE LOGS ==========
             var wasteLogsRaw = await _db.WasteLogs
                 .Include(w => w.RawMaterial)
                 .OrderByDescending(w => w.Date)
@@ -1302,7 +1342,6 @@ namespace Infoman.Controllers
                 })
                 .ToListAsync();
 
-            // Compute TotalCost in memory
             var wasteLogs = wasteLogsRaw.Select(w => new
             {
                 w.WasteLogId,
@@ -1318,16 +1357,19 @@ namespace Infoman.Controllers
 
             var totalWasteCost = wasteLogs.Sum(w => w.TotalCost);
 
-            // ========== TOTAL REVENUE ==========
+            // ========== TOTAL REVENUE (EXCLUDE REFUNDED) ==========
             var totalRevenue = await _db.Orders
-                .Where(o => o.Status != "Cancelled")
+                .Where(o => o.Status != "Cancelled" && o.Status != "REFUNDED")
                 .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
 
-            // ========== REVENUE BY CATEGORY ==========
+            var allRefunds = await _db.Refunds.SumAsync(r => (decimal?)r.Amount) ?? 0;
+            var netRevenue = totalRevenue - allRefunds;
+
+            // ========== REVENUE BY CATEGORY (EXCLUDE REFUNDED) ==========
             var categoryRevenue = await _db.OrderItems
                 .Include(oi => oi.Order)
                 .Include(oi => oi.Product)
-                .Where(oi => oi.Order.Status != "Cancelled")
+                .Where(oi => oi.Order.Status != "Cancelled" && oi.Order.Status != "REFUNDED")
                 .GroupBy(oi => oi.Product.Category ?? "Uncategorized")
                 .Select(g => new
                 {
@@ -1336,11 +1378,12 @@ namespace Infoman.Controllers
                     Orders = g.Select(oi => oi.OrderId).Distinct().Count()
                 })
                 .ToListAsync();
+
             // ========== RECEIPT HISTORY ==========
             var receipts = await _db.Orders
-                .Include(o => o.Items)  // ← CHANGE: OrderItems -> Items
+                .Include(o => o.Items)
                     .ThenInclude(oi => oi.Product)
-                .Include(o => o.Items)  // ← CHANGE
+                .Include(o => o.Items)
                     .ThenInclude(oi => oi.ProductSize)
                 .Where(o => o.Status == "Completed")
                 .OrderByDescending(o => o.Date)
@@ -1349,8 +1392,8 @@ namespace Infoman.Controllers
                     orderId = o.OrderId,
                     receiptNumber = o.ReceiptNumber ?? $"ORD-{o.OrderId}",
                     date = o.Date.ToString("yyyy-MM-dd HH:mm:ss"),
-                    itemCount = o.Items.Sum(oi => oi.Quantity),  // ← CHANGE
-                    items = o.Items.Select(oi => new  // ← CHANGE
+                    itemCount = o.Items.Sum(oi => oi.Quantity),
+                    items = o.Items.Select(oi => new
                     {
                         name = oi.Product.Name,
                         size = oi.ProductSize.SizeName,
@@ -1358,7 +1401,7 @@ namespace Infoman.Controllers
                         price = oi.Price,
                         subtotal = oi.Price * oi.Quantity
                     }).ToList(),
-                    subtotal = o.Items.Sum(oi => oi.Price * oi.Quantity),  // ← CHANGE
+                    subtotal = o.Items.Sum(oi => oi.Price * oi.Quantity),
                     discountType = o.DiscountType ?? "None",
                     discountPercent = o.DiscountPercent,
                     discountAmount = o.DiscountAmount,
@@ -1367,9 +1410,8 @@ namespace Infoman.Controllers
                 })
                 .ToListAsync();
 
-            // ========== SET ViewBag VALUES ==========
-            ViewBag.TotalRevenue = totalRevenue;
-            ViewBag.EstimatedProfit = totalRevenue * 0.3m;
+            ViewBag.TotalRevenue = netRevenue;
+            ViewBag.EstimatedProfit = netRevenue * 0.3m;
             ViewBag.TotalWasteCost = totalWasteCost;
 
             return Json(new
@@ -1382,7 +1424,6 @@ namespace Infoman.Controllers
                 categoryRevenue = categoryRevenue,
                 receipts = receipts
             });
-
         }
         public async Task<ActionResult> Reports()
         {
@@ -1772,7 +1813,6 @@ namespace Infoman.Controllers
 
             return Json(receivings);
         }
-
         [HttpGet]
         public async Task<IActionResult> GetReturnDetails(int requestId)
         {
@@ -1785,14 +1825,27 @@ namespace Infoman.Controllers
             if (request == null)
                 return Json(new { success = false, message = "Request not found" });
 
+            decimal amount = 0;
+            if (request.RequestType == "REFUND")
+            {
+                // ✅ Kunin ang refund amount mula sa Refunds table
+                amount = await _db.Refunds
+                    .Where(r => r.TransactionId == request.OrderId)
+                    .SumAsync(r => r.Amount);
+            }
+            else
+            {
+                amount = request.Order?.TotalAmount ?? 0;
+            }
+
             return Json(new
             {
                 success = true,
-                requestId = request.Id,
+                id = request.Id,
                 orderNumber = request.Order?.OrderNumber,
                 requestType = request.RequestType,
                 reason = request.Reason,
-                amount = request.Order?.TotalAmount ?? 0,
+                amount = amount,  // ✅ Tamang amount na
                 status = request.Status,
                 requesterName = request.Requester?.Username,
                 requestedAt = request.RequestedAt,
@@ -1805,7 +1858,7 @@ namespace Infoman.Controllers
         [HttpGet]
         public async Task<IActionResult> GetReturns()
         {
-            // 1. GET APPROVED VOIDS from PendingRequests (yung galing sa COMPLETED orders)
+            // 1. GET APPROVED VOIDS
             var approvedVoids = await _db.PendingRequests
                 .Include(r => r.Order)
                 .Include(r => r.Requester)
@@ -1825,12 +1878,12 @@ namespace Infoman.Controllers
                 })
                 .ToListAsync();
 
-            // 2. GET DIRECT VOIDS from VoidLogs (yung galing sa PENDING_PAYMENT orders - no approval needed)
+            // 2. GET DIRECT VOIDS
             var directVoids = await _db.VoidLogs
                 .Include(v => v.Transaction)
                 .Include(v => v.User)
                 .Where(v => v.VoidType == "item" || v.VoidType == "transaction")
-                .Where(v => v.PreparedFlag == false) // Hindi prepared = PENDING_PAYMENT
+                .Where(v => v.PreparedFlag == false)
                 .Select(v => new
                 {
                     Id = v.VoidLogId,
@@ -1845,7 +1898,7 @@ namespace Infoman.Controllers
                 })
                 .ToListAsync();
 
-            // 3. GET APPROVED REFUNDS from PendingRequests
+            // 3. GET APPROVED REFUNDS - ✅ FIXED: Kunin ang tamang amount mula sa Refunds table
             var approvedRefunds = await _db.PendingRequests
                 .Include(r => r.Order)
                 .Include(r => r.Requester)
@@ -1857,7 +1910,7 @@ namespace Infoman.Controllers
                     OrderNumber = r.Order.OrderNumber,
                     RequestType = "REFUND",
                     Reason = r.Reason,
-                    Amount = r.Order.TotalAmount,
+                    Amount = _db.Refunds.Where(refund => refund.TransactionId == r.OrderId).Sum(refund => refund.Amount),
                     Status = "APPROVED",
                     RecordedAt = r.ApprovedAt,
                     RequesterName = r.Requester.Username,
@@ -2041,9 +2094,14 @@ namespace Infoman.Controllers
                         order.TotalAmount -= refundAmount;
                     }
 
+                    // ✅ UPDATE STATUS DEPENDE SA FULL O PARTIAL REFUND
                     if (order.Items.All(i => i.IsRefunded || i.IsVoided))
                     {
-                        order.Status = "REFUNDED";
+                        order.Status = "REFUNDED";  // Full refund
+                    }
+                    else
+                    {
+                        order.Status = "PARTIALLY_REFUNDED";  // Partial refund
                     }
                 }
 
@@ -2062,7 +2120,6 @@ namespace Infoman.Controllers
                 return Json(new { success = false, message = ex.Message });
             }
         }
-
         [HttpPost]
         public async Task<IActionResult> RejectRequest([FromBody] RejectRequestRequest request)
         {
@@ -2072,13 +2129,22 @@ namespace Infoman.Controllers
             if (user?.Role != "Owner")
                 return Json(new { success = false, message = "Only Owner can reject" });
 
-            var pendingRequest = await _db.PendingRequests.FindAsync(request.RequestId);
+            var pendingRequest = await _db.PendingRequests
+                .Include(r => r.Order)  // ✅ IDAGDAG ITO para makuha ang Order
+                .FirstOrDefaultAsync(r => r.Id == request.RequestId);
+
             if (pendingRequest == null)
                 return Json(new { success = false, message = "Request not found" });
 
             pendingRequest.Status = "REJECTED";
             pendingRequest.ApprovedBy = userId;
             pendingRequest.ApprovedAt = DateTime.Now;
+
+            // ✅ IDAGDAG ITO: I-BALIK ANG ORDER STATUS SA COMPLETED
+            if (pendingRequest.Order != null && pendingRequest.Order.Status == "PENDING_REFUND")
+            {
+                pendingRequest.Order.Status = "COMPLETED";
+            }
 
             await _db.SaveChangesAsync();
 
@@ -2122,50 +2188,29 @@ namespace Infoman.Controllers
         }
 
         [HttpPost]
-        //[ValidateAntiForgeryToken]
         public async Task<IActionResult> CreateSupplierReturn([FromBody] CreateSupplierReturnRequest request)
         {
             try
             {
-                if (request == null)
-                    return Json(new { success = false, message = "Invalid request data" });
-
                 var receivingItem = await _db.ReceivingItems
-    .Include(ri => ri.Receiving)
-        .ThenInclude(r => r.Supplier)   
-    .Include(ri => ri.RawMaterial)
-    .FirstOrDefaultAsync(ri => ri.ReceivingItemId == request.ReceivingItemId);
+                    .Include(ri => ri.Receiving)
+                    .Include(ri => ri.RawMaterial)
+                    .FirstOrDefaultAsync(ri => ri.ReceivingItemId == request.ReceivingItemId);
 
                 if (receivingItem == null)
                     return Json(new { success = false, message = "Item not found" });
 
-                if (receivingItem.Receiving == null)
-                    return Json(new { success = false, message = "Receiving record not found" });
-
-                if (receivingItem.RawMaterial == null)
-                    return Json(new { success = false, message = "Raw material not found" });
-
                 if (request.Quantity > receivingItem.RejectedQty)
                     return Json(new { success = false, message = "Cannot return more than rejected quantity" });
 
-                // Check if may existing return na
-                if (receivingItem.ReturnStatus == "PENDING" || receivingItem.ReturnStatus == "RETURNED")
-                    return Json(new { success = false, message = "Return already processed for this item" });
-
-                // Get supplier ID - handle potential null
-                int supplierId = receivingItem.Receiving.SupplierId;
-
-                // Create return record
                 var supplierReturn = new SupplierReturn
                 {
                     ReturnNumber = GenerateReturnNumber(),
                     ReceivingId = receivingItem.ReceivingId,
                     ReceivingItemId = request.ReceivingItemId,
-                    SupplierId = supplierId,
+                    SupplierId = receivingItem.Receiving.SupplierId,
                     RawMaterialId = receivingItem.RawMaterialId,
                     Quantity = request.Quantity,
-                    UnitPrice = receivingItem.UnitPrice,
-                    CreditAmount = request.Quantity * receivingItem.UnitPrice,
                     Reason = request.Reason ?? "No reason provided",
                     Status = "Pending Return",
                     ReturnDate = DateTime.Now,
@@ -2175,7 +2220,6 @@ namespace Infoman.Controllers
 
                 _db.SupplierReturns.Add(supplierReturn);
 
-                // Update receiving item
                 receivingItem.ReturnStatus = "PENDING";
                 receivingItem.ReturnId = supplierReturn.ReturnId;
 
@@ -2185,12 +2229,7 @@ namespace Infoman.Controllers
             }
             catch (Exception ex)
             {
-                string errorMessage = ex.Message;
-                if (ex.InnerException != null)
-                {
-                    errorMessage += " - Inner: " + ex.InnerException.Message;
-                }
-                return Json(new { success = false, message = errorMessage });
+                return Json(new { success = false, message = ex.Message });
             }
         }
 
@@ -2214,7 +2253,6 @@ namespace Infoman.Controllers
                     r.Quantity,
                     Unit = r.RawMaterial.Unit,
                     r.Reason,
-                    r.CreditAmount,
                     r.Status,
                     r.UnitPrice
                 })
@@ -2224,8 +2262,7 @@ namespace Infoman.Controllers
             {
                 pendingCount = returns.Count(r => r.Status == "Pending Return"),
                 completedCount = returns.Count(r => r.Status == "Returned"),
-                cancelledCount = returns.Count(r => r.Status == "Cancelled"),
-                totalCredit = returns.Sum(r => r.CreditAmount)
+                cancelledCount = returns.Count(r => r.Status == "Cancelled")
             };
 
             return Json(new { success = true, returns = returns, summary = summary });
@@ -2235,9 +2272,10 @@ namespace Infoman.Controllers
         public async Task<IActionResult> GetSupplierReturnDetail(int returnId)
         {
             var supplierReturn = await _db.SupplierReturns
-                .Include(r => r.Receiving)
-                .Include(r => r.Supplier)
-                .Include(r => r.RawMaterial)
+                .Include(r => r.ReceivingItem)
+                    .ThenInclude(i => i.Receiving)
+                        .ThenInclude(rec => rec.Supplier)
+                .Include(r => r.ReceivingItem.RawMaterial)
                 .FirstOrDefaultAsync(r => r.ReturnId == returnId);
 
             if (supplierReturn == null)
@@ -2250,19 +2288,13 @@ namespace Infoman.Controllers
                 {
                     supplierReturn.ReturnId,
                     supplierReturn.ReturnNumber,
-                    supplierReturn.ReceivingId,
-                    DRNumber = supplierReturn.Receiving?.DRNumber,
-                    SupplierName = supplierReturn.Supplier?.Name,
-                    ItemName = supplierReturn.RawMaterial?.Name,
+                    DRNumber = supplierReturn.ReceivingItem?.Receiving?.DRNumber,
+                    SupplierName = supplierReturn.ReceivingItem?.Receiving?.Supplier?.Name,
+                    ItemName = supplierReturn.ReceivingItem?.RawMaterial?.Name,
                     supplierReturn.Quantity,
-                    Unit = supplierReturn.RawMaterial?.Unit,
-                    supplierReturn.UnitPrice,
-                    supplierReturn.CreditAmount,
+                    Unit = supplierReturn.ReceivingItem?.RawMaterial?.Unit,
                     supplierReturn.Reason,
-                    supplierReturn.Status,
-                    supplierReturn.ReturnDate,
-                    supplierReturn.ActualReturnDate,
-                    supplierReturn.Notes
+                    supplierReturn.ReturnDate
                 }
             };
 
@@ -2346,7 +2378,7 @@ namespace Infoman.Controllers
         [HttpGet]
         public async Task<IActionResult> GetApprovedReturns()
         {
-            // Get approved voids from PendingRequests
+            // 1. GET APPROVED VOIDS from PendingRequests
             var approvedVoids = await _db.PendingRequests
                 .Include(r => r.Order)
                 .Include(r => r.Requester)
@@ -2358,7 +2390,7 @@ namespace Infoman.Controllers
                     OrderNumber = r.Order.OrderNumber,
                     RequestType = "VOID",
                     Reason = r.Reason,
-                    Amount = r.Order.TotalAmount,
+                    Amount = r.Order.TotalAmount,  // For void, gamitin ang order total
                     Status = r.Status,
                     RecordedAt = r.ApprovedAt,
                     RequesterName = r.Requester.Username,
@@ -2366,7 +2398,7 @@ namespace Infoman.Controllers
                 })
                 .ToListAsync();
 
-            // Get approved refunds
+            // 2. GET APPROVED REFUNDS - ✅ FIXED: Kunin ang tamang amount mula sa Refunds table
             var approvedRefunds = await _db.PendingRequests
                 .Include(r => r.Order)
                 .Include(r => r.Requester)
@@ -2378,7 +2410,10 @@ namespace Infoman.Controllers
                     OrderNumber = r.Order.OrderNumber,
                     RequestType = "REFUND",
                     Reason = r.Reason,
-                    Amount = r.Order.TotalAmount,
+                    // ✅ ITO ANG PROBLEMA - Kunin mula sa Refunds table
+                    Amount = _db.Refunds
+                        .Where(refund => refund.TransactionId == r.OrderId)
+                        .Sum(refund => refund.Amount),
                     Status = r.Status,
                     RecordedAt = r.ApprovedAt,
                     RequesterName = r.Requester.Username,
@@ -2386,7 +2421,7 @@ namespace Infoman.Controllers
                 })
                 .ToListAsync();
 
-            // ✅ ADD DIRECT VOIDS (no approval needed)
+            // 3. GET DIRECT VOIDS (no approval needed)
             var directVoids = await _db.VoidLogs
                 .Include(v => v.Transaction)
                 .Include(v => v.User)
@@ -2406,10 +2441,11 @@ namespace Infoman.Controllers
                 })
                 .ToListAsync();
 
+            // 4. COMBINE ALL
             var allReturns = new List<object>();
             allReturns.AddRange(approvedVoids);
             allReturns.AddRange(approvedRefunds);
-            allReturns.AddRange(directVoids);  // ✅ ADD DIRECT VOIDS
+            allReturns.AddRange(directVoids);
 
             var sortedReturns = allReturns
                 .OrderByDescending(r => ((dynamic)r).RecordedAt)
@@ -2477,6 +2513,68 @@ namespace Infoman.Controllers
             }
 
             return rounded;
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ReturnToSupplier([FromBody] CreateSupplierReturnRequest request)
+        {
+            try
+            {
+                if (request == null || request.ReceivingItemId == 0)
+                    return Json(new { success = false, message = "Invalid request" });
+
+                var receivingItem = await _db.ReceivingItems
+                    .Include(ri => ri.Receiving)
+                    .Include(ri => ri.RawMaterial)
+                    .FirstOrDefaultAsync(ri => ri.ReceivingItemId == request.ReceivingItemId);
+
+                if (receivingItem == null)
+                    return Json(new { success = false, message = "Receiving item not found" });
+
+                if (request.Quantity <= 0)
+                    return Json(new { success = false, message = "Quantity must be greater than 0" });
+
+                if (request.Quantity > receivingItem.RejectedQty)
+                    return Json(new { success = false, message = $"Cannot return more than {receivingItem.RejectedQty} {receivingItem.RawMaterial?.Unit}" });
+
+                // Check if may existing pending return
+                var existingReturn = await _db.SupplierReturns
+                    .FirstOrDefaultAsync(r => r.ReceivingItemId == request.ReceivingItemId && r.Status == "Pending Return");
+
+                if (existingReturn != null)
+                    return Json(new { success = false, message = "A return request is already pending for this item" });
+
+                var supplierReturn = new SupplierReturn
+                {
+                    ReturnNumber = GenerateReturnNumber(),
+                    ReceivingId = receivingItem.ReceivingId,
+                    ReceivingItemId = request.ReceivingItemId,
+                    SupplierId = receivingItem.Receiving.SupplierId,
+                    RawMaterialId = receivingItem.RawMaterialId,
+                    Quantity = request.Quantity,
+                    UnitPrice = receivingItem.UnitPrice,
+                    Reason = request.Reason ?? "No reason provided",
+                    Status = "Pending Return",
+                    ReturnDate = DateTime.Now,
+                    CreatedBy = GetCurrentUserId(),
+                    Notes = request.Notes ?? ""
+                };
+
+                _db.SupplierReturns.Add(supplierReturn);
+
+                // Update receiving item
+                receivingItem.ReturnStatus = "PENDING";
+                receivingItem.ReturnId = supplierReturn.ReturnId;
+
+                await _db.SaveChangesAsync();
+
+                return Json(new { success = true, message = $"Return #{supplierReturn.ReturnNumber} created successfully!" });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
         }
 
 

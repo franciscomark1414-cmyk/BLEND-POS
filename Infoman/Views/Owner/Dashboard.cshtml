@@ -776,7 +776,7 @@
         <div id="inventoryModule" class="module">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <h3>STOCK IN (Add Delivery Batch)</h3>
-                <button class="btn btn-primary" onclick="showAddDeliveryForm()" style="margin-left: 10px;">📦 ADD DELIVERY (BATCH)</button>
+                <button class="btn btn-primary" onclick="showAddDeliveryForm()" style="margin-left: 10px;"> ADD DELIVERY (BATCH)</button>
             </div>
 
             <div class="mb-3">
@@ -943,7 +943,7 @@
         <!-- ========== RAW MATERIALS MODULE (BAGO) ========== -->
         <div id="rawMaterialsModule" class="module">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h3>📦 Raw Materials</h3>
+                <h3> Raw Materials</h3>
                 <button class="btn btn-success" onclick="toggleRawMaterialForm()">
                     <i class="fas fa-plus"></i> ADD RAW MATERIAL
                 </button>
@@ -1059,7 +1059,7 @@
         <!-- Products Module -->
 <div id="productsModule" class="module">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="mb-0">🧋 PRODUCTS LISTING</h2>
+        <h2 class="mb-0"> PRODUCTS LISTING</h2>
         <button class="btn btn-primary" onclick="showAddProductModal()">
             <i class="fas fa-plus"></i> Add Product
         </button>
@@ -2277,6 +2277,26 @@
             </div>
         </div>
 
+        <!-- Receipt Modal for Supplier Return -->
+<div id="supplierReturnReceiptModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 10004;">
+    <div style="background: white; border-radius: 12px; width: 400px; max-width: 90%; padding: 25px;">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="mb-0">🧾 Supplier Return Receipt</h4>
+            <button onclick="closeSupplierReturnReceipt()" style="background: none; border: none; font-size: 24px;">&times;</button>
+        </div>
+        <div id="receiptContent" style="font-family: monospace; font-size: 14px;">
+            <!-- Dynamic receipt content -->
+        </div>
+        <hr>
+        <div class="text-center">
+            <button class="btn btn-primary" onclick="printSupplierReturnReceipt()">
+                <i class="fas fa-print"></i> Print
+            </button>
+            <button class="btn btn-secondary" onclick="closeSupplierReturnReceipt()">Close</button>
+        </div>
+    </div>
+</div>
+
         <!-- Receive Delivery Module -->
         <div id="receivingModule" class="module">
             <div class="d-flex justify-content-between align-items-center mb-4">
@@ -2417,17 +2437,17 @@
                             <ul class="nav nav-tabs mb-3">
                                 <li class="nav-item">
                                     <button class="nav-link active" onclick="switchReturnTab('pending', event)">
-                                        ⏳ Pending Approvals <span id="pendingTabBadge" class="badge bg-danger ms-1">0</span>
+                                         Pending Approvals <span id="pendingTabBadge" class="ms-1" style="color: black; font-weight: 600;">0</span>
                                     </button>
                                 </li>
                                 <li class="nav-item">
                                     <button class="nav-link" onclick="switchReturnTab('approved', event)">
-                                        ✅ Approved Voids/Refunds <span id="approvedTabBadge" class="badge bg-success ms-1">0</span>
+                                         Approved Voids/Refunds <span id="approvedTabBadge" class="ms-1" style="color: black; font-weight: 600;">0</span>
                                     </button>
                                 </li>
                                 <li class="nav-item">
                                     <button class="nav-link" onclick="switchReturnTab('supplier', event)">
-                                        🏭 Supplier Returns <span id="supplierTabBadge" class="badge bg-warning ms-1">0</span>
+                                          Supplier Returns <span id="supplierTabBadge" class="ms-1" style="color: black; font-weight: 600;">0</span>
                                     </button>
                                 </li>
                             </ul>
@@ -2550,7 +2570,6 @@
                                                         <th>Item</th>
                                                         <th>Quantity</th>
                                                         <th>Reason</th>
-                                                        <th>Credit Amount</th>
                                                         <th>Status</th>
                                                         <th>Actions</th>
                                                     </tr>
@@ -2696,6 +2715,8 @@ const unitCategories = {
     volume: ['L', 'mL'],
     count: ['pcs']
 };
+let currentReceiptData = null;
+let currentSupplierReceipt = null;
 
     // Chart
     var labels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.SalesLabels ?? new List<string>()));
@@ -2825,15 +2846,15 @@ async function approveRequest(requestId) {
         hideLoading();
         
         if (data.success) {
-            await showAlert('✅ ' + data.message, 'Success', '✅');
+            await showAlert('✅ ' + data.message, 'Success');
             loadPendingRequests();
-            location.reload();
+            saveAndReload();
         } else {
-            await showAlert('❌ Error: ' + data.message, 'Error', '❌');
+            await showAlert('❌ Error: ' + data.message, 'Error');
         }
     } catch (error) {
         hideLoading();
-        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+        await showAlert('❌ Error: ' + error.message, 'Error');
     }
 }
 
@@ -2869,8 +2890,6 @@ async function rejectRequest(requestId) {
 
 
                       function showModule(module) {
-    // ✅ SAVE current module to localStorage
-    localStorage.setItem('activeModule', module);
     
     // Hide all modules
     var modules = ['dashboard', 'rawMaterials', 'inventory', 'products', 'inventoryAlerts', 'reports', 'employees', 'settings', 'suppliers', 'receiving', 'receivingHistory', 'returns'];
@@ -3029,7 +3048,7 @@ if (!unitPrice || unitPrice <= 0) {
             if (result.success) {
                 alert('✅ ' + result.message);
                 closeAddDeliveryForm();
-                location.reload();
+                saveAndReload();
             } else {
                 alert('❌ Error: ' + result.message);
             }
@@ -3149,7 +3168,7 @@ if (!unitPrice || unitPrice <= 0) {
     .then(async data => {
         if (data.success) {
             await showAlert('✅ ' + data.message, 'Success', '✅');
-            location.reload();
+            saveAndReload();
         } else {
             if (data.hasAffectedProducts && data.affectedProducts) {
                 const productListHtml = data.affectedProducts.map(p => `
@@ -3213,7 +3232,7 @@ if (isNaN(category)) { await showAlert('Please select a valid category', 'Requir
         .then(data => {
             if (data.success) {
                 alert('✅ Raw material saved! Now add stock using "ADD DELIVERY (BATCH)".');
-                location.reload();
+                saveAndReload();
             }
             else { alert('Error: ' + (data.errors ? data.errors.join(', ') : (data.message || 'Unknown error'))); }
         })
@@ -3259,7 +3278,7 @@ if (isNaN(category)) { await showAlert('Please select a valid category', 'Requir
         
         if (result.success) {
             await showAlert('✅ Stock adjusted successfully', 'Success', '✅');
-            location.reload();
+            saveAndReload();
         } else {
             await showAlert('❌ Error: ' + result.message, 'Error', '❌');
         }
@@ -3289,7 +3308,7 @@ if (isNaN(category)) { await showAlert('Please select a valid category', 'Requir
         
         if (result.success) {
             await showAlert('✅ Batch marked as expired. Stock moved to waste.', 'Success', '✅');
-            location.reload();
+            saveAndReload();
         } else {
             await showAlert('❌ Error: ' + result.message, 'Error', '❌');
         }
@@ -3727,7 +3746,7 @@ function addSizeRow(predefinedName = null) {
         });
     }
 
-    function refreshProducts() { location.reload(); }
+    function refreshProducts() { saveAndReload(); }
     function editProduct(productId) { alert('Edit product feature - implement based on your needs'); }
    async function archiveProduct(productId) {
     const confirmed = await showConfirm('Are you sure you want to archive this product?', 'Archive Product');
@@ -3744,7 +3763,7 @@ function addSizeRow(predefinedName = null) {
         hideLoading();
         if (data.success) { 
             await showAlert('Product archived successfully', 'Success', '✅');
-            location.reload(); 
+            saveAndReload();
         } else { 
             await showAlert('Error archiving product', 'Error', '❌');
         } 
@@ -3932,44 +3951,51 @@ function addSizeRow(predefinedName = null) {
                 select.innerHTML = '<option value="">Error loading ingredients</option>';
             });
     }
-        function calculateIngredientTotal(element) {
-        const row = element.closest('tr');
-        const select = row.querySelector('.ingredient-select');
-        const selectedOption = select.options[select.selectedIndex];
-        let price = parseFloat(selectedOption.getAttribute('data-price') || 0);
-        const unit = selectedOption.getAttribute('data-unit') || '';
-        const quantity = parseFloat(row.querySelector('.quantity-input').value || 0);
+       function calculateIngredientTotal(element) {
+    const row = element.closest('tr');
+    const select = row.querySelector('.ingredient-select');
+    const selectedOption = select.options[select.selectedIndex];
+    let price = parseFloat(selectedOption.getAttribute('data-price') || 0);
+    const unit = selectedOption.getAttribute('data-unit') || '';
+    const quantity = parseFloat(row.querySelector('.quantity-input').value || 0);
 
-        // ✅ Convert quantity based on unit
-        let quantityForCost = quantity;
-        if (unit === 'g' || unit === 'kg') {
-            quantityForCost = quantity / 1000;
-        } else if (unit === 'mL' || unit === 'L') {
-            quantityForCost = quantity / 1000;
-        }
-
-        if (price === 0 && select.value) {
-            fetch(`/RawMaterial/GetPrice/${select.value}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.price > 0) {
-                        price = data.price;
-                        const total = price * quantityForCost;
-                        row.querySelector('.unit-display').innerText = unit;
-                        row.querySelector('.cost-per-unit').innerText = `₱${price.toFixed(2)}`;
-                        row.querySelector('.total-cost').innerText = `₱${total.toFixed(2)}`;
-                        updateTotals();
-                    }
-                });
-            return;
-        }
-
-        const total = price * quantityForCost;
-        row.querySelector('.unit-display').innerText = unit;
-        row.querySelector('.cost-per-unit').innerText = `₱${price.toFixed(2)}`;
-        row.querySelector('.total-cost').innerText = `₱${total.toFixed(2)}`;
-        updateTotals();
+    // ✅ Convert to KG/L for costing (price is per KG or per L)
+    let quantityForCost = quantity;
+    
+    if (unit === 'g') {
+        quantityForCost = quantity / 1000;   // 500g → 0.5 kg
+    } else if (unit === 'kg') {
+        quantityForCost = quantity;           // 1 kg → 1 kg ✅ TAMA NA
+    } else if (unit === 'mL') {
+        quantityForCost = quantity / 1000;   // 500mL → 0.5 L
+    } else if (unit === 'L') {
+        quantityForCost = quantity;           // 1 L → 1 L ✅ TAMA NA
+    } else if (unit === 'pcs') {
+        quantityForCost = quantity;           // pieces - no conversion
     }
+
+    if (price === 0 && select.value) {
+        fetch(`/RawMaterial/GetPrice/${select.value}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.price > 0) {
+                    price = data.price;
+                    const total = price * quantityForCost;
+                    row.querySelector('.unit-display').innerText = unit;
+                    row.querySelector('.cost-per-unit').innerText = `₱${price.toFixed(2)}`;
+                    row.querySelector('.total-cost').innerText = `₱${total.toFixed(2)}`;
+                    updateTotals();
+                }
+            });
+        return;
+    }
+
+    const total = price * quantityForCost;
+    row.querySelector('.unit-display').innerText = unit;
+    row.querySelector('.cost-per-unit').innerText = `₱${price.toFixed(2)}`;
+    row.querySelector('.total-cost').innerText = `₱${total.toFixed(2)}`;
+    updateTotals();
+}
     function removeIngredientRow(button) { button.closest('tr').remove(); updateTotals(); }
     function updateSellingPrice() {
         let totalCostText = document.getElementById('totalCostDisplay').innerText;
@@ -4019,7 +4045,7 @@ function addSizeRow(predefinedName = null) {
             headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value },
             body: JSON.stringify({ productSizeId: currentProductSizeId, margin: margin, ingredients: ingredients })
         }).then(response => response.json()).then(data => {
-            if (data.success) { alert('Recipe saved successfully!'); bootstrap.Modal.getInstance(document.getElementById('editRecipeModal')).hide(); location.reload(); }
+            if (data.success) { alert('Recipe saved successfully!'); bootstrap.Modal.getInstance(document.getElementById('editRecipeModal')).hide(); saveAndReload(); }
             else { alert('Error saving recipe: ' + data.message); }
         }).catch(err => { alert('An error occurred. Please try again.'); });
     }
@@ -4230,7 +4256,7 @@ function addSizeRow(predefinedName = null) {
             await showAlert('✅ ' + data.message, 'Success', '✅');
             bootstrap.Modal.getInstance(document.getElementById('restockModal')).hide();
             loadInventoryAlerts();
-            location.reload();
+            saveAndReload();
         } else {
             await showAlert('❌ Error: ' + data.message, 'Error', '❌');
         }
@@ -4320,7 +4346,7 @@ async function produceProduct(productSizeId, sizeName, currentStock) {
         
         if (data.success) {
             await showAlert( data.message, 'Success');
-            location.reload();
+            saveAndReload();
         } else {
             await showAlert(' Error: ' + data.message, 'Error');
             btn.innerHTML = originalText;
@@ -4460,7 +4486,7 @@ async function displayInPOS(productSizeId, productName, sizeName) {
             await showAlert(`✅ "${productName} - ${sizeName}" is now DISPLAYED in POS menu.`, 'Success', '✅');
             // ✅ Auto refresh after 1 second
             setTimeout(function() {
-                location.reload();
+                saveAndReload();
             }, 1000);
         } else {
             await showAlert('❌ Error: ' + data.message, 'Error', '❌');
@@ -4505,7 +4531,7 @@ async function displayInPOS(productSizeId, productName, sizeName) {
             await showAlert(`✅ "${productName} - ${sizeName}" is now HIDDEN from POS menu.`, 'Success', '✅');
             // ✅ Auto refresh after 1 second
             setTimeout(function() {
-                location.reload();
+                saveAndReload();
             }, 1000);
         } else {
             await showAlert('❌ Error: ' + data.message, 'Error', '❌');
@@ -5525,6 +5551,8 @@ function loadSuppliers() {
         });
 }
 
+
+
 function showSupplierModal(id) {
     if (id === 0) {
         document.getElementById('supplierModalTitle').innerText = 'Add Supplier';
@@ -5921,6 +5949,7 @@ document.getElementById('receivingForm')?.addEventListener('submit', async funct
     });
 });
 
+
 function loadDeliveryHistory() {
     fetch('/Owner/GetReceivingHistory')
         .then(r => r.json())
@@ -5960,7 +5989,7 @@ function viewDeliveryDetails(receivingId) {
         });
 }
 
-                  function showDeliveryDetailsModal(delivery) {
+               function showDeliveryDetailsModal(delivery) {
     console.log("Showing modal for delivery:", delivery);
     
     let itemsHtml = '';
@@ -6006,7 +6035,7 @@ function viewDeliveryDetails(receivingId) {
         existingModal.remove();
     }
     
-    // Create modal HTML
+    // Create modal HTML with proper z-index
     const modalHtml = `
         <div id="deliveryDetailsModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10001;">
             <div style="background: white; border-radius: 12px; width: 700px; max-width: 90%; max-height: 80vh; overflow-y: auto; padding: 20px;">
@@ -6027,7 +6056,7 @@ function viewDeliveryDetails(receivingId) {
                         </tbody>
                     </table>
                 </div>
-                <div class="text-end">
+                <div class="text-end mt-3">
                     <button class="btn btn-secondary" onclick="closeModal('deliveryDetailsModal')">Close</button>
                 </div>
             </div>
@@ -6047,52 +6076,68 @@ function createSupplierReturn(receivingItemId, maxQty, itemName, unitPrice) {
         unitPrice: unitPrice
     };
     
-    // Show modal
-    const modal = document.getElementById('supplierReturnModal');
-    const itemInfo = document.getElementById('supplierReturnItemInfo');
-    const qtyInput = document.getElementById('returnQuantity');
-    const maxHint = document.getElementById('returnMaxQtyHint');
-    const reasonSelect = document.getElementById('returnReason');
-    const otherReason = document.getElementById('returnOtherReason');
+    // ✅ CLOSE THE DELIVERY DETAILS MODAL FIRST
+    const deliveryModal = document.getElementById('deliveryDetailsModal');
+    if (deliveryModal) {
+        deliveryModal.remove();
+    }
     
-    // Reset form
-    qtyInput.value = maxQty;
-    qtyInput.max = maxQty;
-    reasonSelect.value = 'Damaged Packaging';
-    otherReason.style.display = 'none';
-    otherReason.value = '';
+    // ✅ CLOSE any existing supplier return modal
+    const existingModal = document.getElementById('supplierReturnModal');
+    if (existingModal) {
+        existingModal.style.display = 'none';
+    }
     
-    // Set item info
-    itemInfo.innerHTML = `
-        <strong>Item:</strong> ${escapeHtml(itemName)}<br>
-        <strong>Unit Price:</strong> ₱${unitPrice.toFixed(2)}<br>
-        <strong>Max Quantity:</strong> ${maxQty}
-    `;
-    maxHint.innerHTML = `Max: ${maxQty}`;
-    
-    // ✅ Gawing async ang onchange para magamit ang await showAlert
-    qtyInput.onchange = async function() {
-        let val = parseFloat(this.value);
-        if (isNaN(val)) val = 0;
-        if (val > maxQty) {
-            this.value = maxQty;
-            await showAlert(`Maximum quantity is ${maxQty}`, 'Limit Reached', '⚠️');
-        }
-        if (val < 0) this.value = 0;
-    };
-    
-    // ✅ Gawin ding async ang reasonSelect.onchange kung gusto mo
-    reasonSelect.onchange = function() {
-        const otherInput = document.getElementById('returnOtherReason');
-        if (this.value === 'Other') {
-            otherInput.style.display = 'block';
-        } else {
-            otherInput.style.display = 'none';
-            otherInput.value = '';
-        }
-    };
-    
-    modal.style.display = 'flex';
+    // ✅ SMALL DELAY para magsara muna ang delivery modal bago lumabas ang return modal
+    setTimeout(function() {
+        // Show modal
+        const modal = document.getElementById('supplierReturnModal');
+        const itemInfo = document.getElementById('supplierReturnItemInfo');
+        const qtyInput = document.getElementById('returnQuantity');
+        const maxHint = document.getElementById('returnMaxQtyHint');
+        const reasonSelect = document.getElementById('returnReason');
+        const otherReason = document.getElementById('returnOtherReason');
+        
+        // Reset form
+        qtyInput.value = maxQty;
+        qtyInput.max = maxQty;
+        reasonSelect.value = 'Damaged Packaging';
+        otherReason.style.display = 'none';
+        otherReason.value = '';
+        
+        // Set item info
+        itemInfo.innerHTML = `
+            <strong>Item:</strong> ${escapeHtml(itemName)}<br>
+            <strong>Unit Price:</strong> ₱${unitPrice.toFixed(2)}<br>
+            <strong>Max Quantity:</strong> ${maxQty}
+        `;
+        maxHint.innerHTML = `Max: ${maxQty}`;
+        
+        // Set onchange handlers
+        qtyInput.onchange = async function() {
+            let val = parseFloat(this.value);
+            if (isNaN(val)) val = 0;
+            if (val > maxQty) {
+                this.value = maxQty;
+                await showAlert(`Maximum quantity is ${maxQty}`, 'Limit Reached', '⚠️');
+            }
+            if (val < 0) this.value = 0;
+        };
+        
+        reasonSelect.onchange = function() {
+            const otherInput = document.getElementById('returnOtherReason');
+            if (this.value === 'Other') {
+                otherInput.style.display = 'block';
+            } else {
+                otherInput.style.display = 'none';
+                otherInput.value = '';
+            }
+        };
+        
+        // Make sure modal is on top
+        modal.style.display = 'flex';
+        modal.style.zIndex = '10006';
+    }, 100); // 100ms delay para magsara muna ang delivery modal
 }
 
 function closeSupplierReturnModal() {
@@ -6131,8 +6176,12 @@ async function confirmSupplierReturn() {
         return;
     }
     
+    // ✅ CLOSE THE SUPPLIER RETURN MODAL FIRST
+    closeSupplierReturnModal();
+    
+    // ✅ Use custom confirm (ito na mismo ang magpo-pop up sa unahan)
     const confirmed = await showConfirm(
-        `Return ${qty} ${currentReturnData.itemName} to supplier?\n\nThis will:\n1. Record the return\n2. Create a credit memo for supplier\n3. Track in return history`,
+        `Return ${qty} ${currentReturnData.itemName} to supplier?\n\nThis will record the return in the system.`,
         'Confirm Return'
     );
     
@@ -6156,24 +6205,20 @@ async function confirmSupplierReturn() {
         
         const result = await response.json();
         hideLoading();
-        closeSupplierReturnModal();
         
         if (result.success) {
-            await showAlert( result.message, 'Success');
-            // Isara ang delivery details modal kung bukas
-            const deliveryModal = document.getElementById('deliveryDetailsModal');
-            if (deliveryModal) deliveryModal.remove();
+            await showAlert(result.message, 'Success', '✅');
+            // Refresh the data
             loadDeliveryHistory();
             loadSupplierReturns();
         } else {
-            await showAlert(' Error: ' + result.message, 'Error');
+            await showAlert('Error: ' + result.message, 'Error', '❌');
         }
     } catch (error) {
         hideLoading();
-        await showAlert(' Error: ' + error.message, 'Error');
+        await showAlert('Error: ' + error.message, 'Error', '❌');
     }
 }
-
 function closeReceiptModalForReports() {
             const modal = document.getElementById('receiptModalForReports');
             if (modal) {
@@ -6513,6 +6558,7 @@ async function loadPendingRequests() {
                    // ========== APPROVED VOIDS/REFUNDS ==========
 // ========== APPROVED VOIDS/REFUNDS ==========
 // ========== APPROVED VOIDS/REFUNDS ==========
+// ========== APPROVED VOIDS/REFUNDS ==========
 async function loadApprovedReturns() {
     try {
         const response = await fetch('/Owner/GetApprovedReturns');
@@ -6521,7 +6567,6 @@ async function loadApprovedReturns() {
         const tbody = document.getElementById('approvedReturnsTableBody');
         const badge = document.getElementById('approvedTabBadge');
         
-        // Check if elements exist
         if (!tbody) {
             console.warn('approvedReturnsTableBody not found');
             return;
@@ -6535,16 +6580,16 @@ async function loadApprovedReturns() {
         if (badge) badge.innerText = returns.length;
         
         if (returns.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No approved records<\/td><\/tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No approved records</td></tr>';
             return;
         }
         
         let html = '';
-        returns.forEach(r => {
+        for (let i = 0; i < returns.length; i++) {
+            const r = returns[i];
             const date = new Date(r.recordedAt);
             const formattedDate = `${date.getMonth()+1}/${date.getDate()}/${date.getFullYear()}`;
             
-            // Show both VOID and REFUND
             let typeBadge = '';
             let displayType = '';
             if (r.requestType === 'VOID') {
@@ -6557,73 +6602,77 @@ async function loadApprovedReturns() {
             
             html += `
                 <tr>
-                    <td>${formattedDate}<\/td>
-                    <td><strong>${escapeHtml(r.orderNumber)}</strong><br>${typeBadge}<\/td>
-                    <td>${displayType}<\/td>
-                    <td>${escapeHtml(r.reason)}<\/td>
-                    <td class="text-danger fw-bold">₱${Math.abs(r.amount || 0).toFixed(2)}<\/td>
-                    <td>${escapeHtml(r.requesterName)}<\/td>
+                    <td>${formattedDate}</td>
+                    <td><strong>${escapeHtml(r.orderNumber)}</strong><br>${typeBadge}</td>
+                    <td>${displayType}</td>
+                    <td>${escapeHtml(r.reason)}</td>
+                    <td class="text-danger fw-bold">₱${Math.abs(r.amount || 0).toFixed(2)}</td>
+                    <td>${escapeHtml(r.requesterName)}</td>
                     <td>
                         <button class="btn btn-sm btn-info" onclick="viewReturnDetails(${r.id})">
                             <i class="fas fa-eye"></i> View
                         </button>
-                     <\/td>
-                 \</tr>
+                    </td>
+                </tr>
             `;
-        });
+        }
         tbody.innerHTML = html;
     } catch (error) {
         console.error('Error loading approved:', error);
         const tbody = document.getElementById('approvedReturnsTableBody');
         if (tbody) {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading records<\/td><\/tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading records</td></tr>';
         }
     }
 }
 
 async function loadSupplierReturns() {
-                    try {
-                    const response = await fetch('/Owner/GetSupplierReturns');
-                    const data = await response.json();
+    try {
+        const response = await fetch('/Owner/GetSupplierReturns');
+        const data = await response.json();
         
-                    const tbody = document.getElementById('supplierReturnsTableBody');
+        const tbody = document.getElementById('supplierReturnsTableBody');
         
-                    if (!data.returns || data.returns.length === 0) {
-                    if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">No supplier returns yet<\/td><\/tr>';
-                    updateSupplierSummary({ pendingCount: 0, completedCount: 0, cancelledCount: 0, totalCredit: 0 });
-                    return;
-                    }
+        if (!data.returns || data.returns.length === 0) {
+            if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No supplier returns yet<\/td><\/tr>';
+            updateSupplierSummary({ pendingCount: 0, completedCount: 0, cancelledCount: 0 });
+            return;
+        }
         
-                    updateSupplierSummary(data.summary);
+        updateSupplierSummary(data.summary);
         
-                    let html = '';
-                    data.returns.forEach(r => {
-                    let statusBadge = '';
-                    let statusActions = '';
+        let html = '';
+        data.returns.forEach(r => {
+            let statusBadge = '';
+            let statusActions = '';
             
-                    if (r.status === 'Pending Return') {
-                    statusBadge = '<span class="badge bg-warning">⏳ Pending Return</span>';
-                    statusActions = `
+            if (r.status === 'Pending Return') {
+                statusBadge = '<span class="badge bg-warning">⏳ Pending Return</span>';
+                statusActions = `
                     <button class="btn btn-sm btn-success me-1" onclick="markReturnCompleted(${r.returnId})">
-                    <i class="fas fa-check"></i> Mark Returned
+                        <i class="fas fa-check"></i> Mark Returned
                     </button>
                     <button class="btn btn-sm btn-danger" onclick="cancelSupplierReturn(${r.returnId})">
-                    <i class="fas fa-times"></i> Cancel
+                        <i class="fas fa-times"></i> Cancel
                     </button>
-                    `;
-                    } else if (r.status === 'Returned') {
-                    statusBadge = '<span class="badge bg-success">✅ Returned to Supplier</span>';
-                    statusActions = '<span class="text-muted">Completed</span>';
-                    } else {
-                    statusBadge = '<span class="badge bg-secondary">❌ Cancelled</span>';
-                    statusActions = '<span class="text-muted">Cancelled</span>';
-                    }
+                `;
+            } else if (r.status === 'Returned') {
+                statusBadge = '<span class="badge bg-success">✅ Returned to Supplier</span>';
+                statusActions = `
+                    <button class="btn btn-sm btn-info" onclick="viewSupplierReturnReceipt(${r.returnId})">
+                        <i class="fas fa-receipt"></i> View Receipt
+                    </button>
+                `;
+            } else {
+                statusBadge = '<span class="badge bg-secondary">❌ Cancelled</span>';
+                statusActions = '';
+            }
             
-                    const returnDate = new Date(r.returnDate);
-                    const formattedDate = `${returnDate.getMonth()+1}/${returnDate.getDate()}/${returnDate.getFullYear()}`;
+            const returnDate = new Date(r.returnDate);
+            const formattedDate = `${returnDate.getMonth()+1}/${returnDate.getDate()}/${returnDate.getFullYear()}`;
             
-                    html += `
-                    <tr>
+            html += `
+                <tr>
                     <td><code>${escapeHtml(r.returnNumber)}</code></td>
                     <td>${formattedDate}</td>
                     <td>${escapeHtml(r.drNumber)}<\/td>
@@ -6631,32 +6680,25 @@ async function loadSupplierReturns() {
                     <td>${escapeHtml(r.itemName)}<\/td>
                     <td class="text-danger">${r.quantity} ${r.unit}<\/td>
                     <td>${escapeHtml(r.reason)}<\/td>
-                    <td class="text-success fw-bold">₱${r.creditAmount.toFixed(2)}<\/td>
                     <td>${statusBadge}<\/td>
-                    <td>
-                    <button class="btn btn-sm btn-info me-1" onclick="viewSupplierReturnDetail(${r.returnId})">
-                    <i class="fas fa-eye"></i>
-                    </button>
-                    ${statusActions}
-                    <\/td>
-                    \</tr>
-                    `;
-                    });
-                    if (tbody) tbody.innerHTML = html;
+                    <td>${statusActions}<\/td>
+                 \</tr>
+            `;
+        });
+        if (tbody) tbody.innerHTML = html;
         
-                    // Update badge count - check if element exists
-                    const supplierBadge = document.getElementById('supplierTabBadge');
-                    if (supplierBadge && data.summary) {
-                    supplierBadge.innerText = data.summary.pendingCount;
-                    }
-                    } catch (error) {
-                    console.error('Error loading supplier returns:', error);
-                    const tbody = document.getElementById('supplierReturnsTableBody');
-                    if (tbody) {
-                    tbody.innerHTML = '<tr><td colspan="10" class="text-center text-danger">Error loading supplier returns<\/td><\/tr>';
-                    }
-                    }
-                    }
+        const supplierBadge = document.getElementById('supplierTabBadge');
+        if (supplierBadge && data.summary) {
+            supplierBadge.innerText = data.summary.pendingCount;
+        }
+    } catch (error) {
+        console.error('Error loading supplier returns:', error);
+        const tbody = document.getElementById('supplierReturnsTableBody');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-danger">Error loading supplier returns<\/td><\/tr>';
+        }
+    }
+}
 function updateSupplierSummary(summary) {
     const pendingEl = document.getElementById('pendingSupplierCount');
     const completedEl = document.getElementById('completedSupplierCount');
@@ -6700,6 +6742,76 @@ function updateSupplierSummary(summary) {
         await showAlert('❌ Error: ' + error.message, 'Error', '❌');
     }
 }
+
+async function viewSupplierReturnReceipt(returnId) {
+    showLoading('Loading receipt...');
+    
+    try {
+        const response = await fetch(`/Owner/GetSupplierReturnDetail?returnId=${returnId}`);
+        const data = await response.json();
+        hideLoading();
+        
+        if (data.success && data.return) {
+            displaySupplierReturnReceipt(data.return);
+        } else {
+            await showAlert('Error loading receipt: ' + (data.message || 'Unknown error'), 'Error', '❌');
+        }
+    } catch (error) {
+        hideLoading();
+        await showAlert('Error: ' + error.message, 'Error', '❌');
+    }
+}
+
+// Display supplier return receipt - SIMPLIFIED VERSION (walang credit amount)
+function displaySupplierReturnReceipt(returnData) {
+    const receiptDiv = document.getElementById('receiptContent');
+    const modal = document.getElementById('supplierReturnReceiptModal');
+    
+    if (!receiptDiv || !modal) return;
+    
+    const date = new Date(returnData.returnDate);
+    const formattedDate = `${date.getMonth()+1}/${date.getDate()}/${date.getFullYear()}`;
+    
+    receiptDiv.innerHTML = `
+        <div style="text-align: center; margin-bottom: 20px;">
+            <h3 style="margin: 5px 0;">Neldie's Mango & More</h3>
+            <small style="color: #666;">Supplier Return Receipt</small>
+            <hr style="margin: 10px 0;">
+        </div>
+        
+        <div style="margin-bottom: 12px;">
+            <div><strong>Return #:</strong> ${escapeHtml(returnData.returnNumber)}</div>
+            <div><strong>Date:</strong> ${formattedDate}</div>
+            <div><strong>DR #:</strong> ${escapeHtml(returnData.drNumber || 'N/A')}</div>
+            <div><strong>Supplier:</strong> ${escapeHtml(returnData.supplierName)}</div>
+        </div>
+        
+        <hr>
+        
+        <div style="margin-bottom: 12px;">
+            <div><strong>Item:</strong> ${escapeHtml(returnData.itemName)}</div>
+            <div><strong>Quantity:</strong> ${returnData.quantity} ${returnData.unit || ''}</div>
+            <div><strong>Reason:</strong> ${escapeHtml(returnData.reason)}</div>
+        </div>
+        
+        <hr>
+        
+        <div style="text-align: center; margin-top: 15px;">
+            <small style="color: #999;">Return processed successfully</small>
+        </div>
+    `;
+    
+    modal.style.display = 'flex';
+}
+
+
+function closeSupplierReturnReceipt() {
+    const modal = document.getElementById('supplierReturnReceiptModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
 
                    async function cancelSupplierReturn(returnId) {
     const confirmed = await showConfirm('Cancel this supplier return? This action cannot be undone.', 'Cancel Return');
@@ -7043,6 +7155,29 @@ function hideLoading() {
     if (loadingModal) loadingModal.style.display = 'none';
 }
 
+// TAMA - sessionStorage ONLY
+function saveAndReload() {
+    let currentModule = 'dashboard';
+    const modules = ['dashboard', 'rawMaterials', 'inventory', 'products', 
+                     'inventoryAlerts', 'reports', 'employees', 'settings', 
+                     'suppliers', 'receiving', 'receivingHistory', 'returns'];
+    
+    for (let i = 0; i < modules.length; i++) {
+        const moduleEl = document.getElementById(modules[i] + 'Module');
+        if (moduleEl && moduleEl.classList.contains('active')) {
+            currentModule = modules[i];
+            break;
+        }
+    }
+    
+    // sessionStorage ONLY — nawawala kapag nagsara ng tab o nag-logout
+    sessionStorage.setItem('activeModule', currentModule);
+    
+    location.reload();
+}
+
+
+
        
 // ========== HELPER FUNCTION ==========
 function escapeHtml(str) {
@@ -7055,27 +7190,24 @@ function escapeHtml(str) {
     });
 }
 
-// ✅ RESTORE active module on page load
 document.addEventListener('DOMContentLoaded', function() {
-    var savedModule = localStorage.getItem('activeModule');
+    // ✅ I-CLEAR muna ang localStorage (cleanup ng dati)
+    localStorage.removeItem('activeModule');
+    
     var urlParams = new URLSearchParams(window.location.search);
     var fromProductSave = urlParams.get('fromProductSave');
     
-    // ✅ I-CLEAR muna ang localStorage para hindi mag-stuck sa products
-    if (!fromProductSave) {
-        // Kung hindi galing sa product save, i-clear ang saved module
-        // para bumalik sa dashboard sa susunod na bukas
-        localStorage.removeItem('activeModule');
-    }
+    // sessionStorage ONLY
+    var savedModule = sessionStorage.getItem('activeModule');
+    sessionStorage.removeItem('activeModule'); // clear agad after reading
     
     if (fromProductSave === 'true') {
         showModule('products');
         window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (savedModule && savedModule !== 'null' && savedModule !== 'undefined' && fromProductSave) {
-        showModule(savedModule);
+    } else if (savedModule) {
+        showModule(savedModule); // reload lang ito within same session
     } else {
-        // ✅ Default to dashboard
-        showModule('dashboard');
+        showModule('dashboard'); // ✅ bagong login = laging dashboard
     }
 });
 

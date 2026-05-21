@@ -396,13 +396,21 @@ namespace Infoman.Service
             }
         }
         public async Task<(bool success, string message, bool needsOwner)> ProcessRefund(
-     int orderId, List<int> itemIds, string reason, int userId, string userRole)
+    int orderId, List<int> itemIds, string reason, int userId, string userRole)
         {
             var isOwner = userRole == "Owner";
 
             // Kapag Staff, i-save muna sa PendingRequests
             if (!isOwner)
             {
+                // ✅ IDAGDAG ITO: I-update ang order status to PENDING_REFUND
+                var order = await _db.Orders.FindAsync(orderId);
+                if (order != null && order.Status == "COMPLETED")
+                {
+                    order.Status = "PENDING_REFUND";
+                    await _db.SaveChangesAsync();
+                }
+
                 var pendingRequest = new PendingRequest
                 {
                     OrderId = orderId,
@@ -419,7 +427,7 @@ namespace Infoman.Service
                 return (false, "⚠️ Refund request sent to Owner for approval. Please wait for Owner to process.", true);
             }
 
-            // Kapag Owner, diretso process
+            // Kapag Owner, diretso process (same as before)
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {

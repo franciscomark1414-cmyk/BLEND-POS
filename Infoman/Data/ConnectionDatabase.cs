@@ -33,6 +33,7 @@ namespace Infoman.Data
         public DbSet<OrderAdjustment> OrderAdjustments { get; set; }
         public DbSet<ExchangeTransaction> ExchangeTransactions { get; set; }
         public DbSet<ExchangeItem> ExchangeItems { get; set; }
+        public DbSet<Payment> Payments { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

@@ -34,7 +34,7 @@ namespace Infoman.Models
         public decimal PartialRefund { get; set; }
 
         // Audit fields
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public DateTime CreatedAt { get; set; }
         public int CreatedBy { get; set; }
 
         // Navigation properties

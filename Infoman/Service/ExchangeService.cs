@@ -24,11 +24,11 @@ namespace Infoman.Service
         /// Process an exchange transaction (NO StoreCredit, NO InventoryConsumptionLog)
         /// </summary>
         public async Task<(bool success, string message, int exchangeId, bool requiresApproval)> ProcessExchangeAsync(
-            int originalOrderId,
-            int userId,  // ✅ CHANGED: from cashierId to userId
-            List<ExchangeItemRequest> itemsToReturn,
-            List<ExchangeItemRequest> itemsToReplace,
-            string reason)
+     int originalOrderId,
+     int userId,
+     List<ExchangeItemRequest> itemsToReturn,
+     List<ExchangeItemRequest> itemsToReplace,
+     string reason)
         {
             var originalOrder = await _db.Orders
                 .Include(o => o.Items)
@@ -48,12 +48,14 @@ namespace Infoman.Service
 
             decimal totalReturnedValue = 0;
             decimal totalReplacementValue = 0;
-            var processedReturnItems = new List<ExchangeItem>();
+            var exchangeItemsList = new List<ExchangeItem>();
 
-            using var transaction = await _db.Database.BeginTransactionAsync();
+            // ❌ REMOVE THIS LINE - NO MANUAL TRANSACTION
+            // using var transaction = await _db.Database.BeginTransactionAsync();
+
             try
             {
-                // STEP 1: Process RETURNED items
+                // ========== STEP 1: Process RETURNED items ==========
                 foreach (var returnItem in itemsToReturn)
                 {
                     var orderItem = await _db.OrderItems
@@ -64,11 +66,9 @@ namespace Infoman.Service
 
                     if (orderItem == null) continue;
 
-                    // Check if quantity is valid
                     if (returnItem.Quantity > orderItem.Quantity)
                         return (false, $"Cannot return more than ordered quantity", 0, false);
 
-                    // Check if item is already refunded or voided
                     if (orderItem.IsRefunded || orderItem.IsVoided)
                         return (false, $"Item already refunded or voided", 0, false);
 
@@ -78,24 +78,16 @@ namespace Infoman.Service
                     // Return ingredients to stock
                     await ReturnIngredientsToStock(orderItem, returnItem.Quantity, originalOrder.OrderNumber);
 
-                    // Mark item as exchanged (use IsRefunded flag for now)
+                    // Mark item as exchanged
                     orderItem.IsRefunded = true;
                     orderItem.RefundReason = $"EXCHANGE: {reason}";
                     orderItem.DispositionProcessedAt = DateTime.Now;
-                    orderItem.DispositionProcessedBy = userId;  // ✅ FIXED: userId instead of cashierId
-
-                    processedReturnItems.Add(new ExchangeItem
-                    {
-                        OriginalOrderItemId = returnItem.OrderItemId,
-                        QuantityReturned = returnItem.Quantity,
-                        OriginalPrice = orderItem.Price,
-                        ReplacementProductSizeId = 0,
-                        QuantityReplaced = 0,
-                        ReplacementPrice = 0
-                    });
+                    orderItem.DispositionProcessedBy = userId;
                 }
 
-                // STEP 2: Process REPLACEMENT items
+                // ========== STEP 2: Process REPLACEMENT items ==========
+                var replacementProductSizes = new List<(ProductSize productSize, int quantity)>();
+
                 foreach (var replaceItem in itemsToReplace)
                 {
                     var productSize = await _db.ProductSizes
@@ -122,7 +114,7 @@ namespace Infoman.Service
                             return (false, $"Insufficient stock for {productSize.Product.Name} - {productSize.SizeName}", 0, false);
                     }
 
-                    // Deduct raw materials
+                    // Deduct raw materials (FIFO has its own transaction)
                     foreach (var recipe in productSize.RecipeItems)
                     {
                         decimal neededQty = recipe.Quantity * replaceItem.Quantity;
@@ -130,31 +122,50 @@ namespace Infoman.Service
                         if (recipe.RawMaterial.BaseUnit == "g" || recipe.RawMaterial.BaseUnit == "mL")
                             neededQtyInKg = neededQty / 1000;
 
-                        bool success = _fifoService.DeductStock(
+                        _fifoService.DeductStock(
                             recipe.RawMaterialId,
                             neededQtyInKg,
                             productSize.ProductId,
                             $"EXCHANGE-{originalOrder.OrderNumber}"
                         );
-
-                        if (!success)
-                            return (false, $"Failed to deduct stock for {productSize.Product.Name}", 0, false);
                     }
 
                     decimal itemValue = productSize.Price * replaceItem.Quantity;
                     totalReplacementValue += itemValue;
+
+                    replacementProductSizes.Add((productSize, replaceItem.Quantity));
                 }
 
-                // STEP 3: Calculate price difference
+                // ========== STEP 3: Create Exchange Items ==========
+                for (int i = 0; i < Math.Min(itemsToReturn.Count, replacementProductSizes.Count); i++)
+                {
+                    var returnItem = itemsToReturn[i];
+                    var replacement = replacementProductSizes[i];
+
+                    var orderItem = await _db.OrderItems
+                        .FirstOrDefaultAsync(oi => oi.OrderItemId == returnItem.OrderItemId);
+
+                    if (orderItem != null)
+                    {
+                        exchangeItemsList.Add(new ExchangeItem
+                        {
+                            OriginalOrderItemId = returnItem.OrderItemId,
+                            QuantityReturned = returnItem.Quantity,
+                            OriginalPrice = orderItem.Price,
+                            ReplacementProductSizeId = replacement.productSize.ProductSizeId,
+                            QuantityReplaced = replacement.quantity,
+                            ReplacementPrice = replacement.productSize.Price
+                        });
+                    }
+                }
+
+                // ========== STEP 4: Calculate price difference ==========
                 decimal priceDifference = totalReplacementValue - totalReturnedValue;
                 decimal additionalPayment = priceDifference > 0 ? priceDifference : 0;
                 decimal partialRefund = priceDifference < 0 ? Math.Abs(priceDifference) : 0;
-
-                // STEP 4: Determine if approval is needed (customer gets money back)
                 bool requiresApproval = partialRefund > 0;
-                int? adjustmentId = null;
 
-                // STEP 5: Create adjustment records
+                // ========== STEP 5: Create adjustment records ==========
                 if (additionalPayment > 0)
                 {
                     var adjustment = new OrderAdjustment
@@ -166,11 +177,10 @@ namespace Infoman.Service
                         ReferenceNumber = $"EXCH-PAY-{DateTime.Now:yyyyMMddHHmmss}",
                         Status = "COMPLETED",
                         CreatedAt = DateTime.Now,
-                        CreatedBy = userId  // ✅ FIXED: userId instead of cashierId
+                        CreatedBy = userId
                     };
                     _db.OrderAdjustments.Add(adjustment);
                     await _db.SaveChangesAsync();
-                    adjustmentId = adjustment.AdjustmentId;
                 }
 
                 if (partialRefund > 0)
@@ -184,13 +194,11 @@ namespace Infoman.Service
                         ReferenceNumber = $"EXCH-REF-{DateTime.Now:yyyyMMddHHmmss}",
                         Status = requiresApproval ? "PENDING" : "COMPLETED",
                         CreatedAt = DateTime.Now,
-                        CreatedBy = userId  // ✅ FIXED: userId instead of cashierId
+                        CreatedBy = userId
                     };
                     _db.OrderAdjustments.Add(adjustment);
                     await _db.SaveChangesAsync();
-                    adjustmentId = adjustment.AdjustmentId;
 
-                    // If requires approval, create pending request
                     if (requiresApproval)
                     {
                         var pendingRequest = new PendingRequest
@@ -200,7 +208,7 @@ namespace Infoman.Service
                             Reason = $"Exchange requires refund of ₱{partialRefund}. Reason: {reason}",
                             ItemIds = string.Join(",", itemsToReturn.Select(x => x.OrderItemId)),
                             Status = "PENDING",
-                            RequestedBy = userId,  // ✅ FIXED: userId instead of cashierId
+                            RequestedBy = userId,
                             RequestedAt = DateTime.Now
                         };
                         _db.PendingRequests.Add(pendingRequest);
@@ -208,11 +216,10 @@ namespace Infoman.Service
                     }
                 }
 
-                // STEP 6: Create exchange transaction (NO CashierId field)
+                // ========== STEP 6: Create exchange transaction ==========
                 var exchange = new ExchangeTransaction
                 {
                     OriginalOrderId = originalOrderId,
-                    // CashierId = userId,  // ❌ REMOVED - wala na sa model
                     ExchangeDate = DateTime.Now,
                     Reason = reason,
                     TotalReturnedValue = totalReturnedValue,
@@ -221,22 +228,21 @@ namespace Infoman.Service
                     AdditionalPayment = additionalPayment,
                     PartialRefund = partialRefund,
                     CreatedAt = DateTime.Now,
-                    CreatedBy = userId  // ✅ This is the only user reference
+                    CreatedBy = userId
                 };
                 _db.ExchangeTransactions.Add(exchange);
                 await _db.SaveChangesAsync();
 
-                // STEP 7: Update exchange items with exchange ID
-                foreach (var item in processedReturnItems)
+                // ========== STEP 7: Add Exchange Items ==========
+                foreach (var item in exchangeItemsList)
                 {
                     item.ExchangeId = exchange.ExchangeId;
                     _db.ExchangeItems.Add(item);
                 }
                 await _db.SaveChangesAsync();
 
-                await transaction.CommitAsync();
+                // ❌ REMOVE transaction.CommitAsync();
 
-                // Build success message
                 string msg = "Exchange completed successfully. ";
                 if (additionalPayment > 0) msg += $"Customer paid additional ₱{additionalPayment}. ";
                 if (partialRefund > 0 && requiresApproval) msg += $"₱{partialRefund} refund requires Owner approval. ";
@@ -246,12 +252,15 @@ namespace Infoman.Service
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                return (false, $"Exchange failed: {ex.Message}", 0, false);
+                // ❌ REMOVE transaction.RollbackAsync();
+                var errorMsg = $"Exchange failed: {ex.Message}";
+                if (ex.InnerException != null)
+                    errorMsg += $" | INNER: {ex.InnerException.Message}";
+                return (false, errorMsg, 0, false);
             }
         }
 
-        /// <summary>
+        /// <summaryrenderReplacementItems()
         /// Approve exchange refund
         /// </summary>
         public async Task<(bool success, string message)> ApproveExchangeRefundAsync(

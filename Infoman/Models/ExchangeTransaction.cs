@@ -12,6 +12,9 @@ namespace Infoman.Models
 
         public int OriginalOrderId { get; set; }
 
+        // ✅ BAGONG PROPERTY: Link sa bagong order (replacement order)
+        public int? NewOrderId { get; set; }  // Nullable para sa backward compatibility
+
         public DateTime ExchangeDate { get; set; } = DateTime.Now;
 
         [Required]
@@ -33,6 +36,23 @@ namespace Infoman.Models
         [Column(TypeName = "decimal(18,2)")]
         public decimal PartialRefund { get; set; }
 
+        // ✅ BAGONG PROPERTIES para sa mas magandang tracking
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal OriginalAmount { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal ReplacementAmount { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal AdjustmentAmount { get; set; }
+
+        public string? AdjustmentType { get; set; }  // 'ADDITIONAL_PAYMENT', 'CHANGE'
+
+        public string? PaymentMethod { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal WasteCost { get; set; }
+
         // Audit fields
         public DateTime CreatedAt { get; set; }
         public int CreatedBy { get; set; }
@@ -40,6 +60,9 @@ namespace Infoman.Models
         // Navigation properties
         [ForeignKey("OriginalOrderId")]
         public virtual Order OriginalOrder { get; set; }
+
+        [ForeignKey("NewOrderId")]
+        public virtual Order NewOrder { get; set; }
 
         [ForeignKey("CreatedBy")]
         public virtual User CreatedByUser { get; set; }

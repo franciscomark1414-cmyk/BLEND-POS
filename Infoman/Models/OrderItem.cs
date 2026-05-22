@@ -18,6 +18,10 @@ namespace Infoman.Models
         [Column(TypeName = "decimal(18,2)")]
         public decimal ActualCost { get; set; }
 
+        public bool IsExchanged { get; set; } = false;
+        public int? QuantityExchanged { get; set; }
+        public int? ExchangeTransactionId { get; set; }
+
         // ✅ NEW PROPERTIES - REPLACE OLD IsVoided/IsRefunded
         public int DispositionStatusId { get; set; } = 1; // Default = AVAILABLE (1)
 

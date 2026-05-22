@@ -4,6 +4,7 @@ namespace Infoman.Constants
     public static class OrderStatus
     {
         public const string PENDING = "PENDING";
+        public const string PENDING_PAYMENT = "PENDING_PAYMENT";
         public const string PREPARING = "PREPARING";
         public const string COMPLETED = "COMPLETED";
         public const string VOIDED = "VOIDED";

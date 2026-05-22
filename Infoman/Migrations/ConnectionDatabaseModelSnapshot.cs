@@ -160,6 +160,12 @@ namespace Infoman.Migrations
                     b.Property<decimal>("AdditionalPayment")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<decimal>("AdjustmentAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("AdjustmentType")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -169,11 +175,20 @@ namespace Infoman.Migrations
                     b.Property<DateTime>("ExchangeDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("NewOrderId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("OriginalAmount")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<int>("OriginalOrderId")
                         .HasColumnType("int");
 
                     b.Property<decimal>("PartialRefund")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("PaymentMethod")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("PriceDifference")
                         .HasColumnType("decimal(18,2)");
@@ -183,15 +198,23 @@ namespace Infoman.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<decimal>("ReplacementAmount")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<decimal>("TotalReplacementValue")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("TotalReturnedValue")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<decimal>("WasteCost")
+                        .HasColumnType("decimal(18,2)");
+
                     b.HasKey("ExchangeId");
 
                     b.HasIndex("CreatedBy");
+
+                    b.HasIndex("NewOrderId");
 
                     b.HasIndex("OriginalOrderId");
 
@@ -270,6 +293,12 @@ namespace Infoman.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("OrderId"));
 
+                    b.Property<decimal>("AdjustmentAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("AdjustmentType")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -289,12 +318,24 @@ namespace Infoman.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime?>("ExchangeDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ExchangeReason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("ExchangeTransactionId")
+                        .HasColumnType("int");
+
                     b.Property<bool>("HasPendingRefund")
                         .HasColumnType("bit");
 
                     b.Property<string>("OrderNumber")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("OriginalOrderId")
+                        .HasColumnType("int");
 
                     b.Property<decimal>("OriginalTotalAmount")
                         .HasColumnType("decimal(18,2)");
@@ -307,9 +348,15 @@ namespace Infoman.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("ReturnStatus")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("StoreCreditApplied")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("TotalAmount")
                         .HasPrecision(10, 2)
@@ -331,6 +378,8 @@ namespace Infoman.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("OrderId");
+
+                    b.HasIndex("OriginalOrderId");
 
                     b.ToTable("Orders");
                 });
@@ -420,6 +469,12 @@ namespace Infoman.Migrations
                     b.Property<int>("DispositionStatusId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("ExchangeTransactionId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsExchanged")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsRefunded")
                         .HasColumnType("bit");
 
@@ -440,6 +495,9 @@ namespace Infoman.Migrations
                         .HasColumnType("int");
 
                     b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("QuantityExchanged")
                         .HasColumnType("int");
 
                     b.Property<string>("RefundReason")
@@ -1274,6 +1332,10 @@ namespace Infoman.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Infoman.Models.Order", "NewOrder")
+                        .WithMany()
+                        .HasForeignKey("NewOrderId");
+
                     b.HasOne("Infoman.Models.Order", "OriginalOrder")
                         .WithMany()
                         .HasForeignKey("OriginalOrderId")
@@ -1281,6 +1343,8 @@ namespace Infoman.Migrations
                         .IsRequired();
 
                     b.Navigation("CreatedByUser");
+
+                    b.Navigation("NewOrder");
 
                     b.Navigation("OriginalOrder");
                 });
@@ -1292,6 +1356,15 @@ namespace Infoman.Migrations
                         .HasForeignKey("RawMaterialId");
 
                     b.Navigation("RawMaterial");
+                });
+
+            modelBuilder.Entity("Infoman.Models.Order", b =>
+                {
+                    b.HasOne("Infoman.Models.Order", "OriginalOrder")
+                        .WithMany("ReplacementOrders")
+                        .HasForeignKey("OriginalOrderId");
+
+                    b.Navigation("OriginalOrder");
                 });
 
             modelBuilder.Entity("Infoman.Models.OrderAdjustment", b =>
@@ -1615,6 +1688,8 @@ namespace Infoman.Migrations
                     b.Navigation("Adjustments");
 
                     b.Navigation("Items");
+
+                    b.Navigation("ReplacementOrders");
                 });
 
             modelBuilder.Entity("Infoman.Models.Product", b =>

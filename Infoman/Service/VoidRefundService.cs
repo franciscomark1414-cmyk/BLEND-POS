@@ -445,10 +445,10 @@ namespace Infoman.Service
         public async Task<List<object>> GetPendingOrders()
         {
             return await _db.Orders
-                .Where(o => o.Status == OrderStatus.PENDING &&
-                            o.Status != OrderStatus.VOIDED &&
-                            o.Status != OrderStatus.REFUNDED &&
-                            o.Items.Any(i => i.DispositionStatusId == ItemDispositionConstants.AVAILABLE))
+                 .Where(o => o.Status == OrderStatus.PENDING_PAYMENT
+                    && o.Status != OrderStatus.VOIDED
+                    && o.Status != OrderStatus.REFUNDED
+                    && o.Items.Any(i => i.DispositionStatusId == ItemDispositionConstants.AVAILABLE))
                 .OrderByDescending(o => o.Date)
                 .Select(o => new
                 {
@@ -465,10 +465,10 @@ namespace Infoman.Service
         public async Task<List<object>> GetCompletedOrders()
         {
             return await _db.Orders
-                .Where(o => o.Status == OrderStatus.COMPLETED &&
-                            o.Status != OrderStatus.VOIDED &&
-                            o.Status != OrderStatus.REFUNDED &&
-                            o.Items.Any(i => i.DispositionStatusId == ItemDispositionConstants.AVAILABLE))
+                .Where(o => o.Status == "COMPLETED"  // ✅ ITO AY TAMA NA
+                            && o.Status != "VOIDED"
+                            && o.Status != "REFUNDED"
+                            && o.Items.Any(i => i.DispositionStatusId == ItemDispositionConstants.AVAILABLE))
                 .OrderByDescending(o => o.Date)
                 .Select(o => new
                 {

@@ -1,5 +1,4 @@
-﻿// Services/ExchangeService.cs - FIXED VERSION
-using Infoman.Data;
+﻿using Infoman.Data;
 using Infoman.Models;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -20,247 +19,215 @@ namespace Infoman.Service
             _fifoService = fifoService;
         }
 
-        /// <summary>
-        /// Process an exchange transaction (NO StoreCredit, NO InventoryConsumptionLog)
-        /// </summary>
-        public async Task<(bool success, string message, int exchangeId, bool requiresApproval)> ProcessExchangeAsync(
+        public async Task<(bool success, string message, int newOrderId)> ProcessExchangeAsync(
      int originalOrderId,
      int userId,
      List<ExchangeItemRequest> itemsToReturn,
      List<ExchangeItemRequest> itemsToReplace,
-     string reason)
+     string reason,
+     string? paymentMethodForDifference = null)
         {
             var originalOrder = await _db.Orders
                 .Include(o => o.Items)
                 .FirstOrDefaultAsync(o => o.OrderId == originalOrderId);
 
             if (originalOrder == null)
-                return (false, "Original order not found", 0, false);
+                return (false, "Original order not found", 0);
 
             if (originalOrder.Status != "COMPLETED")
-                return (false, "Only completed orders can be exchanged", 0, false);
+                return (false, "Only completed orders can be exchanged", 0);
 
-            // Ensure OriginalTotalAmount is set
-            if (originalOrder.OriginalTotalAmount == 0)
+            // Compute amounts
+            decimal originalAmount = 0;
+            decimal replacementAmount = 0;
+            decimal totalWasteCost = 0;
+
+            // STEP 1: Waste raw materials from original order (WITH DISCOUNT COMPUTATION)
+            foreach (var returnItem in itemsToReturn)
             {
-                originalOrder.OriginalTotalAmount = originalOrder.TotalAmount;
-            }
+                var orderItem = await _db.OrderItems
+                    .Include(oi => oi.ProductSize)
+                        .ThenInclude(ps => ps.RecipeItems)
+                            .ThenInclude(ri => ri.RawMaterial)
+                    .Include(oi => oi.Order)  // ✅ PARA MAKUHA ANG DISCOUNT
+                    .FirstOrDefaultAsync(oi => oi.OrderItemId == returnItem.OrderItemId);
 
-            decimal totalReturnedValue = 0;
-            decimal totalReplacementValue = 0;
-            var exchangeItemsList = new List<ExchangeItem>();
+                if (orderItem == null) continue;
 
-            // ❌ REMOVE THIS LINE - NO MANUAL TRANSACTION
-            // using var transaction = await _db.Database.BeginTransactionAsync();
-
-            try
-            {
-                // ========== STEP 1: Process RETURNED items ==========
-                foreach (var returnItem in itemsToReturn)
+                // ✅ Compute actual price paid (with discount)
+                decimal actualPricePerUnit = orderItem.Price;
+                if (orderItem.Order != null && orderItem.Order.DiscountPercent > 0)
                 {
-                    var orderItem = await _db.OrderItems
-                        .Include(oi => oi.ProductSize)
-                            .ThenInclude(ps => ps.RecipeItems)
-                                .ThenInclude(ri => ri.RawMaterial)
-                        .FirstOrDefaultAsync(oi => oi.OrderItemId == returnItem.OrderItemId);
-
-                    if (orderItem == null) continue;
-
-                    if (returnItem.Quantity > orderItem.Quantity)
-                        return (false, $"Cannot return more than ordered quantity", 0, false);
-
-                    if (orderItem.IsRefunded || orderItem.IsVoided)
-                        return (false, $"Item already refunded or voided", 0, false);
-
-                    decimal itemValue = orderItem.Price * returnItem.Quantity;
-                    totalReturnedValue += itemValue;
-
-                    // Return ingredients to stock
-                    await ReturnIngredientsToStock(orderItem, returnItem.Quantity, originalOrder.OrderNumber);
-
-                    // Mark item as exchanged
-                    orderItem.IsRefunded = true;
-                    orderItem.RefundReason = $"EXCHANGE: {reason}";
-                    orderItem.DispositionProcessedAt = DateTime.Now;
-                    orderItem.DispositionProcessedBy = userId;
+                    actualPricePerUnit = orderItem.Price * (1 - orderItem.Order.DiscountPercent);
                 }
 
-                // ========== STEP 2: Process REPLACEMENT items ==========
-                var replacementProductSizes = new List<(ProductSize productSize, int quantity)>();
+                originalAmount += actualPricePerUnit * returnItem.Quantity;
 
-                foreach (var replaceItem in itemsToReplace)
+                foreach (var recipe in orderItem.ProductSize.RecipeItems)
                 {
-                    var productSize = await _db.ProductSizes
-                        .Include(ps => ps.Product)
-                        .Include(ps => ps.RecipeItems)
-                            .ThenInclude(ri => ri.RawMaterial)
-                        .FirstOrDefaultAsync(ps => ps.ProductSizeId == replaceItem.ProductSizeId);
+                    decimal quantityWasted = recipe.Quantity * returnItem.Quantity;
 
-                    if (productSize == null) continue;
+                    if (recipe.RawMaterial.BaseUnit == "g" || recipe.RawMaterial.BaseUnit == "mL")
+                        quantityWasted = quantityWasted / 1000;
 
-                    // Check stock availability
+                    decimal costWasted = recipe.RawMaterial.Price * quantityWasted;
+                    totalWasteCost += costWasted;
+
+                    var waste = new WasteLog
+                    {
+                        RawMaterialId = recipe.RawMaterialId,
+                        Quantity = quantityWasted,
+                        Reason = WasteLog.WasteReason.CustomerCancel,
+                        Date = DateTime.Now,
+                        RecordedBy = userId.ToString(),
+                        Notes = $"Exchange from Order #{originalOrder.OrderNumber}: {reason}"
+                    };
+                    _db.WasteLogs.Add(waste);
+
+                    var material = await _db.RawMaterials.FindAsync(recipe.RawMaterialId);
+                    if (material != null)
+                        material.Stock -= quantityWasted;
+                }
+
+                orderItem.IsExchanged = true;
+                orderItem.QuantityExchanged = returnItem.Quantity;
+            }
+
+            // STEP 2: Mark original order as EXCHANGED
+            originalOrder.ReturnStatus = "EXCHANGED";
+            originalOrder.Status = "EXCHANGED";
+            originalOrder.ExchangeDate = DateTime.Now;
+            originalOrder.ExchangeReason = reason;
+
+            // STEP 3: Compute replacement amount
+            foreach (var replaceItem in itemsToReplace)
+            {
+                var productSize = await _db.ProductSizes
+                    .Include(ps => ps.Product)
+                    .FirstOrDefaultAsync(ps => ps.ProductSizeId == replaceItem.ProductSizeId);
+
+                if (productSize != null)
+                {
+                    replacementAmount += productSize.Price * replaceItem.Quantity;
+                }
+            }
+
+            // STEP 4: Compute adjustment
+            decimal adjustmentAmount = replacementAmount - originalAmount;
+            string adjustmentType = adjustmentAmount >= 0 ? "ADDITIONAL_PAYMENT" : "CHANGE";
+            decimal absoluteAdjustment = Math.Abs(adjustmentAmount);
+
+            // STEP 5: Create new order (customer pays only the difference)
+            decimal customerPayable = adjustmentAmount > 0 ? adjustmentAmount : 0;
+
+            var newOrder = new Order
+            {
+                OrderNumber = $"EX-{DateTime.Now:yyyyMMddHHmmss}",
+                Date = DateTime.Now,
+                TotalAmount = customerPayable,
+                OriginalTotalAmount = replacementAmount,
+                Status = "PENDING_PAYMENT",
+                PaymentMethod = (adjustmentAmount > 0 && !string.IsNullOrEmpty(paymentMethodForDifference))
+                    ? paymentMethodForDifference
+                    : "Store Credit",
+                DiscountType = "None",
+                DiscountPercent = 0,
+                DiscountAmount = 0,
+                ReceiptNumber = $"RC-{DateTime.Now:yyyyMMdd}-{new Random().Next(1000, 9999)}",
+                OriginalOrderId = originalOrderId,
+                StoreCreditApplied = originalAmount,
+                AdjustmentAmount = adjustmentAmount,
+                AdjustmentType = adjustmentType,
+                ReturnStatus = "ACTIVE",
+                CreatedAt = DateTime.Now,
+                CreatedBy = userId
+            };
+            _db.Orders.Add(newOrder);
+            await _db.SaveChangesAsync();
+
+            // STEP 6: Add items to new order
+            foreach (var replaceItem in itemsToReplace)
+            {
+                var productSize = await _db.ProductSizes
+                    .Include(ps => ps.Product)
+                    .FirstOrDefaultAsync(ps => ps.ProductSizeId == replaceItem.ProductSizeId);
+
+                if (productSize != null)
+                {
+                    var orderItem = new OrderItem
+                    {
+                        OrderId = newOrder.OrderId,
+                        ProductId = productSize.ProductId,
+                        ProductSizeId = replaceItem.ProductSizeId,
+                        Quantity = replaceItem.Quantity,
+                        Price = productSize.Price,
+                        ActualCost = 0
+                    };
+                    _db.OrderItems.Add(orderItem);
+                }
+            }
+            await _db.SaveChangesAsync();
+
+            // STEP 7: Deduct raw materials for new order (FIFO)
+            foreach (var replaceItem in itemsToReplace)
+            {
+                var productSize = await _db.ProductSizes
+                    .Include(ps => ps.RecipeItems)
+                        .ThenInclude(ri => ri.RawMaterial)
+                    .FirstOrDefaultAsync(ps => ps.ProductSizeId == replaceItem.ProductSizeId);
+
+                if (productSize != null)
+                {
                     foreach (var recipe in productSize.RecipeItems)
                     {
-                        decimal neededQty = recipe.Quantity * replaceItem.Quantity;
-                        decimal neededQtyInKg = neededQty;
+                        decimal quantityNeeded = recipe.Quantity * replaceItem.Quantity;
                         if (recipe.RawMaterial.BaseUnit == "g" || recipe.RawMaterial.BaseUnit == "mL")
-                            neededQtyInKg = neededQty / 1000;
+                            quantityNeeded = quantityNeeded / 1000;
 
-                        var availableQty = await _db.RawMaterialBatches
-                            .Where(b => b.RawMaterialId == recipe.RawMaterialId && b.QuantityRemaining > 0)
-                            .SumAsync(b => b.QuantityRemaining);
-
-                        if (availableQty < neededQtyInKg)
-                            return (false, $"Insufficient stock for {productSize.Product.Name} - {productSize.SizeName}", 0, false);
-                    }
-
-                    // Deduct raw materials (FIFO has its own transaction)
-                    foreach (var recipe in productSize.RecipeItems)
-                    {
-                        decimal neededQty = recipe.Quantity * replaceItem.Quantity;
-                        decimal neededQtyInKg = neededQty;
-                        if (recipe.RawMaterial.BaseUnit == "g" || recipe.RawMaterial.BaseUnit == "mL")
-                            neededQtyInKg = neededQty / 1000;
-
-                        _fifoService.DeductStock(
+                        await _fifoService.DeductStockWithCostAsync(
                             recipe.RawMaterialId,
-                            neededQtyInKg,
+                            quantityNeeded,
                             productSize.ProductId,
-                            $"EXCHANGE-{originalOrder.OrderNumber}"
+                            $"EXCHANGE-{newOrder.OrderNumber}"
                         );
                     }
-
-                    decimal itemValue = productSize.Price * replaceItem.Quantity;
-                    totalReplacementValue += itemValue;
-
-                    replacementProductSizes.Add((productSize, replaceItem.Quantity));
                 }
-
-                // ========== STEP 3: Create Exchange Items ==========
-                for (int i = 0; i < Math.Min(itemsToReturn.Count, replacementProductSizes.Count); i++)
-                {
-                    var returnItem = itemsToReturn[i];
-                    var replacement = replacementProductSizes[i];
-
-                    var orderItem = await _db.OrderItems
-                        .FirstOrDefaultAsync(oi => oi.OrderItemId == returnItem.OrderItemId);
-
-                    if (orderItem != null)
-                    {
-                        exchangeItemsList.Add(new ExchangeItem
-                        {
-                            OriginalOrderItemId = returnItem.OrderItemId,
-                            QuantityReturned = returnItem.Quantity,
-                            OriginalPrice = orderItem.Price,
-                            ReplacementProductSizeId = replacement.productSize.ProductSizeId,
-                            QuantityReplaced = replacement.quantity,
-                            ReplacementPrice = replacement.productSize.Price
-                        });
-                    }
-                }
-
-                // ========== STEP 4: Calculate price difference ==========
-                decimal priceDifference = totalReplacementValue - totalReturnedValue;
-                decimal additionalPayment = priceDifference > 0 ? priceDifference : 0;
-                decimal partialRefund = priceDifference < 0 ? Math.Abs(priceDifference) : 0;
-                bool requiresApproval = partialRefund > 0;
-
-                // ========== STEP 5: Create adjustment records ==========
-                if (additionalPayment > 0)
-                {
-                    var adjustment = new OrderAdjustment
-                    {
-                        OriginalOrderId = originalOrderId,
-                        AdjustmentType = "EXCHANGE_PAYMENT",
-                        Amount = additionalPayment,
-                        Reason = $"Exchange - Customer paid extra: {reason}",
-                        ReferenceNumber = $"EXCH-PAY-{DateTime.Now:yyyyMMddHHmmss}",
-                        Status = "COMPLETED",
-                        CreatedAt = DateTime.Now,
-                        CreatedBy = userId
-                    };
-                    _db.OrderAdjustments.Add(adjustment);
-                    await _db.SaveChangesAsync();
-                }
-
-                if (partialRefund > 0)
-                {
-                    var adjustment = new OrderAdjustment
-                    {
-                        OriginalOrderId = originalOrderId,
-                        AdjustmentType = "EXCHANGE_REFUND",
-                        Amount = partialRefund,
-                        Reason = $"Exchange - Refund to customer: {reason}",
-                        ReferenceNumber = $"EXCH-REF-{DateTime.Now:yyyyMMddHHmmss}",
-                        Status = requiresApproval ? "PENDING" : "COMPLETED",
-                        CreatedAt = DateTime.Now,
-                        CreatedBy = userId
-                    };
-                    _db.OrderAdjustments.Add(adjustment);
-                    await _db.SaveChangesAsync();
-
-                    if (requiresApproval)
-                    {
-                        var pendingRequest = new PendingRequest
-                        {
-                            OrderId = originalOrderId,
-                            RequestType = "EXCHANGE_REFUND",
-                            Reason = $"Exchange requires refund of ₱{partialRefund}. Reason: {reason}",
-                            ItemIds = string.Join(",", itemsToReturn.Select(x => x.OrderItemId)),
-                            Status = "PENDING",
-                            RequestedBy = userId,
-                            RequestedAt = DateTime.Now
-                        };
-                        _db.PendingRequests.Add(pendingRequest);
-                        await _db.SaveChangesAsync();
-                    }
-                }
-
-                // ========== STEP 6: Create exchange transaction ==========
-                var exchange = new ExchangeTransaction
-                {
-                    OriginalOrderId = originalOrderId,
-                    ExchangeDate = DateTime.Now,
-                    Reason = reason,
-                    TotalReturnedValue = totalReturnedValue,
-                    TotalReplacementValue = totalReplacementValue,
-                    PriceDifference = priceDifference,
-                    AdditionalPayment = additionalPayment,
-                    PartialRefund = partialRefund,
-                    CreatedAt = DateTime.Now,
-                    CreatedBy = userId
-                };
-                _db.ExchangeTransactions.Add(exchange);
-                await _db.SaveChangesAsync();
-
-                // ========== STEP 7: Add Exchange Items ==========
-                foreach (var item in exchangeItemsList)
-                {
-                    item.ExchangeId = exchange.ExchangeId;
-                    _db.ExchangeItems.Add(item);
-                }
-                await _db.SaveChangesAsync();
-
-                // ❌ REMOVE transaction.CommitAsync();
-
-                string msg = "Exchange completed successfully. ";
-                if (additionalPayment > 0) msg += $"Customer paid additional ₱{additionalPayment}. ";
-                if (partialRefund > 0 && requiresApproval) msg += $"₱{partialRefund} refund requires Owner approval. ";
-                else if (partialRefund > 0) msg += $"₱{partialRefund} refunded to customer. ";
-
-                return (true, msg, exchange.ExchangeId, requiresApproval);
             }
-            catch (Exception ex)
+
+            // STEP 8: Create exchange transaction record
+            var exchange = new ExchangeTransaction
             {
-                // ❌ REMOVE transaction.RollbackAsync();
-                var errorMsg = $"Exchange failed: {ex.Message}";
-                if (ex.InnerException != null)
-                    errorMsg += $" | INNER: {ex.InnerException.Message}";
-                return (false, errorMsg, 0, false);
-            }
+                OriginalOrderId = originalOrderId,
+                NewOrderId = newOrder.OrderId,
+                ExchangeDate = DateTime.Now,
+                Reason = reason,
+                OriginalAmount = originalAmount,
+                ReplacementAmount = replacementAmount,
+                AdjustmentAmount = adjustmentAmount,
+                AdjustmentType = adjustmentType,
+                PaymentMethod = adjustmentAmount > 0 ? paymentMethodForDifference : null,
+                WasteCost = totalWasteCost,
+                TotalReturnedValue = originalAmount,
+                TotalReplacementValue = replacementAmount,
+                PriceDifference = adjustmentAmount,
+                AdditionalPayment = adjustmentAmount > 0 ? adjustmentAmount : 0,
+                PartialRefund = adjustmentAmount < 0 ? Math.Abs(adjustmentAmount) : 0,
+                CreatedAt = DateTime.Now,
+                CreatedBy = userId
+            };
+            _db.ExchangeTransactions.Add(exchange);
+            await _db.SaveChangesAsync();
+
+            string message = adjustmentAmount > 0
+                ? $"Exchange completed. Customer paid additional ₱{absoluteAdjustment:F2}. New Order #{newOrder.OrderId} created."
+                : adjustmentAmount < 0
+                    ? $"Exchange completed. Store credit of ₱{absoluteAdjustment:F2} applied. New Order #{newOrder.OrderId} created."
+                    : $"Exchange completed. No additional payment. New Order #{newOrder.OrderId} created.";
+
+            return (true, message, newOrder.OrderId);
         }
 
-        /// <summaryrenderReplacementItems()
+        /// <summary>
         /// Approve exchange refund
         /// </summary>
         public async Task<(bool success, string message)> ApproveExchangeRefundAsync(

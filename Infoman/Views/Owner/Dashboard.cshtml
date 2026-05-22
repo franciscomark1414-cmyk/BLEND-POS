@@ -1298,7 +1298,7 @@
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">📝 Edit Recipe: <span id="recipeProductName"></span> - <span id="recipeSizeName"></span></h5>
+                        <h5 class="modal-title"> Edit Recipe: <span id="recipeProductName"></span> - <span id="recipeSizeName"></span></h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
@@ -1984,12 +1984,14 @@
                                                 <thead class="table-light">
                                                     <tr>
                                                         <th>Receipt #</th>
+                                                        <th>Order #</th>
                                                         <th>Date & Time</th>
                                                         <th>Items</th>
                                                         <th>Subtotal</th>
                                                         <th>Discount</th>
                                                         <th>Total</th>
                                                         <th>Payment</th>
+                                                        <th>Status</th>
                                                         <th>Actions</th>
                                                     </tr>
                                                 </thead>
@@ -2731,6 +2733,8 @@ let currentSupplierReceipt = null;
     }
 
  
+
+
 
 function getUnitCategory(unit) {
     if (unitCategories.weight.includes(unit)) return 'weight';
@@ -4673,149 +4677,196 @@ async function displayInPOS(productSizeId, productName, sizeName) {
             });
             }
 
-                // Load Receipt History
-    function loadReceiptHistory() {
-        const filterDate = document.getElementById('receiptFilterDate')?.value || '';
+             function loadReceiptHistory() {
+    const filterDate = document.getElementById('receiptFilterDate')?.value || '';
 
-        fetch(`/Owner/GetReceipts?date=${filterDate}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    displayReceiptHistory(data.receipts);
-                } else {
-                    document.getElementById('receiptHistoryBody').innerHTML =
-                        '<tr><td colspan="8" class="text-center text-danger">Failed to load receipts</td></tr>';
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                document.getElementById('receiptHistoryBody').innerHTML =
-                    '<tr><td colspan="8" class="text-center text-danger">Error loading receipts</td></tr>';
-            });
-    }
-
-    function displayReceiptHistory(receipts) {
-        const tbody = document.getElementById('receiptHistoryBody');
-
-             // ✅ I-check kung ang receipts ay valid
-        if (!receipts || receipts.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="8" class="text-center text-muted">
-                        📋 No receipts found yet.<br>
-                        <small>Make a sale in POS to generate receipts.</small>
-                    </td>
-                </tr>
-            `;
-            return;
-        }
-
-        if (!receipts || receipts.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No receipts found</td></tr>';
-            return;
-        }
-
-        let html = '';
-        receipts.forEach(receipt => {
-            html += `
-                <tr>
-                    <td><code>${receipt.receiptNumber}</code></td>
-                    <td>${receipt.date}</td>
-                    <td>${receipt.itemCount} item(s)</td>
-                    <td>₱${receipt.subtotal.toFixed(2)}</td>
-                        <td>
-        ${receipt.discountPercent > 0 ?
-            `<span style="color: #333;">${receipt.discountType} (${receipt.discountPercent * 100}%)<br>-₱${receipt.discountAmount.toFixed(2)}</span>` :
-            '<span class="text-muted">None</span>'}
-    </td>
-                    <td class="fw-bold text-primary">₱${receipt.total.toFixed(2)}</td>
-                    <td><span class="badge bg-success">${receipt.paymentMethod}</span></td>
-                    <td>
-                        <button class="btn btn-sm btn-info" onclick="viewReceiptDetail(${receipt.orderId})">
-                            <i class="fas fa-eye"></i> View
-                        </button>
-                        <button class="btn btn-sm btn-secondary" onclick="printReceipt(${receipt.orderId})">
-                            <i class="fas fa-print"></i>
-                        </button>
-                    </td>
-                </tr>
-            `;
+    fetch(`/Owner/GetReceipts?date=${filterDate}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.receipts) {
+                displayReceiptHistory(data.receipts);
+            } else {
+                document.getElementById('receiptHistoryBody').innerHTML = 
+                    '<tr><td colspan="10" class="text-center text-danger">Failed to load receipts</td></tr>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('receiptHistoryBody').innerHTML = 
+                '<tr><td colspan="10" class="text-center text-danger">Error loading receipts</td></tr>';
         });
-        tbody.innerHTML = html;
+}
+
+   function displayReceiptHistory(receipts) {
+    const tbody = document.getElementById('receiptHistoryBody');
+
+    if (!receipts || receipts.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="10" class="text-center text-muted">
+                    📋 No receipts found yet.<br>
+                    <small>Make a sale in POS to generate receipts.</small>
+                 </td>
+            </tr>
+        `;
+        return;
     }
 
-    // View Receipt Detail Modal
-        function viewReceiptDetail(orderId) {
-        console.log("Viewing receipt for orderId:", orderId);
-
-        fetch(`/Owner/GetReceiptDetail?orderId=${orderId}`)
-            .then(response => response.json())
-            .then(data => {
-                console.log("Receipt data received:", data);
-                if (data.success) {
-                    showReceiptModalFromData(data.receipt);
-                } else {
-                    alert('Error loading receipt details: ' + (data.message || 'Unknown error'));
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error loading receipt details: ' + error.message);
-            });
-    }
-              function showReceiptModalFromData(receipt) {
-        console.log("Showing receipt modal", receipt);
-
-        const receiptDiv = document.getElementById('receiptContentForReports');
-        if (!receiptDiv) {
-            console.error("receiptContentForReports element not found!");
-            return;
-        }
-
-        const now = new Date(receipt.date);
-
-        let itemsHtml = '';
-        if (receipt.items && receipt.items.length > 0) {
-            receipt.items.forEach(item => {
-                itemsHtml += `
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px dotted #eee;">
-                        <div>
-                            <strong>${escapeHtml(item.name)}</strong><br>
-                            <small>${item.size} × ${item.quantity}</small>
-                        </div>
-                        <div>₱${item.subtotal.toFixed(2)}</div>
-                    </div>
-                `;
-            });
+    let html = '';
+    receipts.forEach(receipt => {
+        // ✅ Determine status badge based on returnStatus
+        let statusBadge = '';
+        let isExchanged = false;
+        
+        if (receipt.returnStatus === 'EXCHANGED') {
+            statusBadge = '<span class="badge bg-warning text-dark">🔄 EXCHANGED</span>';
+            isExchanged = true;
+        } else if (receipt.returnStatus === 'RETURNED') {
+            statusBadge = '<span class="badge bg-danger">↩️ RETURNED</span>';
+        } else if (receipt.returnStatus === 'REFUNDED') {
+            statusBadge = '<span class="badge bg-info">💰 REFUNDED</span>';
         } else {
-            itemsHtml = '<div class="text-muted">No items found</div>';
+            statusBadge = '<span class="badge bg-success">✅ ACTIVE</span>';
         }
-
-        let discountHtml = '';
+        
+        // ✅ Get order number (use OrderId, not receipt number)
+        const orderDisplay = receipt.orderId ? `#${receipt.orderId}` : '#N/A';
+        
+        // ✅ Add exchange indicator if applicable
+        let exchangeIndicator = '';
+        if (isExchanged && receipt.originalOrderId) {
+            exchangeIndicator = `<small class="text-muted">(replaces #${receipt.originalOrderId})</small>`;
+        } else if (receipt.originalOrderId) {
+            exchangeIndicator = `<small class="text-muted">(exchange replacement)</small>`;
+        }
+        
+        // ✅ Format discount display
+        let discountDisplay = 'None';
         if (receipt.discountPercent > 0) {
-            discountHtml = `
-                <div style="display: flex; justify-content: space-between; font-size: 12px; color: #333; margin-top: 5px;">
-                    <span>${receipt.discountType} (${receipt.discountPercent * 100}% OFF)</span>
-                    <span>-₱${receipt.discountAmount.toFixed(2)}</span>
+            discountDisplay = `${receipt.discountType} (${receipt.discountPercent * 100}%)<br>-₱${receipt.discountAmount.toFixed(2)}`;
+        }
+        
+        html += `
+            <tr>
+                <td><code>${escapeHtml(receipt.receiptNumber)}</code></td>
+                <td class="fw-bold">${orderDisplay}<br>${exchangeIndicator}</td>
+                <td>${receipt.date}</td>
+                <td>${receipt.itemCount} item(s)</td>
+                <td>₱${receipt.subtotal.toFixed(2)}</td>
+                <td>${discountDisplay}</td>
+                <td class="fw-bold text-primary">₱${receipt.total.toFixed(2)}</td>
+                <td><span class="badge bg-success">${escapeHtml(receipt.paymentMethod)}</span></td>
+                <td>${statusBadge}</td>
+                <td>
+                    <button class="btn btn-sm btn-info" onclick="viewReceiptDetail(${receipt.orderId})">
+                        <i class="fas fa-eye"></i> View
+                    </button>
+                    <button class="btn btn-sm btn-secondary" onclick="printReceipt(${receipt.orderId})">
+                        <i class="fas fa-print"></i>
+                    </button>
+                 </td>
+            </tr>
+        `;
+    });
+    tbody.innerHTML = html;
+}
+
+function viewReceiptDetail(orderId) {
+    console.log("Viewing receipt for orderId:", orderId);
+
+    fetch(`/Owner/GetReceiptDetail?orderId=${orderId}`)
+        .then(response => response.json())
+        .then(data => {
+            console.log("Receipt data received:", data);
+            if (data.success) {
+                showReceiptModalFromData(data.receipt);
+            } else {
+                showAlert('Error loading receipt details: ' + (data.message || 'Unknown error'), 'Error', '❌');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('Error loading receipt details: ' + error.message, 'Error', '❌');
+        });
+}
+
+    function showReceiptModalFromData(receipt) {
+    const receiptDiv = document.getElementById('receiptContentForReports');
+    if (!receiptDiv) {
+        console.error("receiptContentForReports not found");
+        return;
+    }
+
+    const now = new Date(receipt.date);
+    
+    // Build items HTML
+    let itemsHtml = '';
+    if (receipt.items && receipt.items.length > 0) {
+        receipt.items.forEach(item => {
+            itemsHtml += `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px dotted #eee;">
+                    <div>
+                        <strong>${escapeHtml(item.name)}</strong><br>
+                        <small>${item.size} × ${item.quantity}</small>
+                    </div>
+                    <div>₱${item.subtotal.toFixed(2)}</div>
                 </div>
             `;
-        }
-
-           receiptDiv.innerHTML = `
-        <div style="text-align: center; margin-bottom: 20px;">
-            <h3 style="margin: 5px 0;">Neldie's Mango & More</h3>
-            <small style="color: #666;">Official Receipt</small>
-            <hr style="margin: 10px 0;">
-        </div>
+        });
+    }
+    
+    // Build discount HTML
+    let discountHtml = '';
+    if (receipt.discountPercent > 0) {
+        discountHtml = `
+            <div style="display: flex; justify-content: space-between; font-size: 12px; color: #dc3545; margin-top: 5px;">
+                <span>${receipt.discountType} (${receipt.discountPercent * 100}% OFF)</span>
+                <span>-₱${receipt.discountAmount.toFixed(2)}</span>
+            </div>
+        `;
+    }
+    
+    // ✅ BUILD EXCHANGE INFO
+    let exchangeInfoHtml = '';
+    if (receipt.returnStatus === 'EXCHANGED') {
+        exchangeInfoHtml = `
+            <div id="exchangeInfoContainer" style="background: #fff3cd; padding: 12px; border-radius: 8px; margin: 10px 0; font-size: 12px; border-left: 4px solid #ffc107;">
+                <div style="font-weight: bold; margin-bottom: 8px;">
+                    <i class="fas fa-exchange-alt"></i> EXCHANGED ORDER
+                </div>
+                <div id="exchangeDetailsContent" style="font-size: 11px;">
+                    <div class="spinner-border spinner-border-sm" role="status"></div> Loading exchange details...
+                </div>
+            </div>
+        `;
+    } else if (receipt.originalOrderId && receipt.originalOrderId > 0) {
+        exchangeInfoHtml = `
+            <div id="exchangeInfoContainer" style="background: #e8f5e9; padding: 12px; border-radius: 8px; margin: 10px 0; font-size: 12px; border-left: 4px solid #28a745;">
+                <div style="font-weight: bold; margin-bottom: 8px;">
+                    <i class="fas fa-exchange-alt"></i> REPLACEMENT ORDER
+                </div>
+                <div id="exchangeDetailsContent" style="font-size: 11px;">
+                    <div class="spinner-border spinner-border-sm" role="status"></div> Loading replacement details...
+                </div>
+            </div>
+        `;
+    }
+    
+    // ✅ SINGLE TITLE LANG
+    receiptDiv.innerHTML = `
         <div style="text-align: center; margin-bottom: 15px;">
             <div><strong>${now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</strong></div>
             <div>${now.toLocaleTimeString()}</div>
             <div><small>Receipt #: ${escapeHtml(receipt.receiptNumber)}</small></div>
+            <div><small class="fw-bold">Order #: ${receipt.orderId}</small></div>
         </div>
+        ${exchangeInfoHtml}
+        <hr>
         <div style="margin-bottom: 10px;">
             <strong>Order Summary</strong>
         </div>
         ${itemsHtml}
+        <hr>
         <div style="display: flex; justify-content: space-between; margin-top: 8px;">
             <span>Subtotal</span>
             <span>₱${receipt.subtotal.toFixed(2)}</span>
@@ -4827,20 +4878,79 @@ async function displayInPOS(productSizeId, productName, sizeName) {
         </div>
         <div style="margin-top: 15px; text-align: center; padding-top: 10px; border-top: 1px dashed #ccc;">
             <div>Payment: <strong>${escapeHtml(receipt.paymentMethod)}</strong></div>
-            <div style="margin-top: 5px;">✅ Order Completed</div>
+            <div style="margin-top: 5px;">✅ Order ${receipt.returnStatus === 'EXCHANGED' ? 'Exchanged' : 'Completed'}</div>
+        </div>
+        <hr>
+        <div style="text-align: center; font-size: 11px; color: #aaa;">
+            Thank you for your purchase!
         </div>
     `;
     
+    // ✅ Load exchange details kung meron
+    if (receipt.returnStatus === 'EXCHANGED' || (receipt.originalOrderId && receipt.originalOrderId > 0)) {
+        loadExchangeDetailsForReceipt(receipt.orderId, receipt.originalOrderId);
+    }
+    
+    const receiptModal = document.getElementById('receiptModalForReports');
+    if (receiptModal) {
+        receiptModal.style.display = 'flex';
+    }
+}
 
-        // ✅ I-set ang display sa 'flex' para lumitaw ang modal
-        const receiptModal = document.getElementById('receiptModalForReports');
-        if (receiptModal) {
-            receiptModal.style.display = 'flex';
-            console.log("Modal display set to flex");
+// ✅ BAGONG FUNCTION: Load exchange details
+async function loadExchangeDetailsForReceipt(orderId, originalOrderId) {
+    try {
+        const response = await fetch(`/Owner/GetExchangeDetails?orderId=${orderId}`);
+        const data = await response.json();
+        
+        const exchangeDiv = document.getElementById('exchangeDetailsContent');
+        if (!exchangeDiv) return;
+        
+        if (data.success && data.exchange) {
+            const ex = data.exchange;
+            let html = '';
+            
+            if (ex.originalOrderId) {
+                // ITO AY EXCHANGED ORDER (Order #23 ay pinalitan)
+                html = `
+                    <div>This order has been exchanged to <strong>Order #${ex.newOrderId}</strong></div>
+                    <div>Reason: <strong>${escapeHtml(ex.reason)}</strong></div>
+                    <div class="mt-2"><strong>Items returned:</strong></div>
+                    ${ex.returnedItems.map(i => `<div>• ${i.quantity}x ${escapeHtml(i.productName)} (${i.sizeName}) - ₱${(i.price * i.quantity).toFixed(2)}</div>`).join('')}
+                    <div class="mt-2"><strong>Replacement items:</strong></div>
+                    ${ex.replacementItems.map(i => `<div>• ${i.quantity}x ${escapeHtml(i.productName)} (${i.sizeName}) - ₱${(i.price * i.quantity).toFixed(2)}</div>`).join('')}
+                    <div class="mt-2 pt-2 border-top">
+                        <div>Return value: -₱${ex.originalAmount.toFixed(2)}</div>
+                        <div>Replacement value: +₱${ex.replacementAmount.toFixed(2)}</div>
+                        <div class="fw-bold">${ex.adjustmentAmount > 0 ? `Customer paid additional: +₱${ex.adjustmentAmount.toFixed(2)}` : (ex.adjustmentAmount < 0 ? `Store credit applied: -₱${Math.abs(ex.adjustmentAmount).toFixed(2)}` : 'No price difference')}</div>
+                    </div>
+                `;
+            } else if (ex.newOrderId === orderId) {
+                // ITO AY REPLACEMENT ORDER (Order #24 ay pumalit kay #23)
+                html = `
+                    <div>This order replaces <strong>Order #${ex.originalOrderId}</strong></div>
+                    <div>Reason: <strong>${escapeHtml(ex.reason)}</strong></div>
+                    <div class="mt-2"><strong>Replacement items:</strong></div>
+                    ${ex.replacementItems.map(i => `<div>• ${i.quantity}x ${escapeHtml(i.productName)} (${i.sizeName}) - ₱${(i.price * i.quantity).toFixed(2)}</div>`).join('')}
+                    <div class="mt-2 pt-2 border-top">
+                        <div>Store credit applied: -₱${ex.originalAmount.toFixed(2)}</div>
+                        <div>Additional payment: +₱${ex.adjustmentAmount > 0 ? ex.adjustmentAmount.toFixed(2) : '0'}</div>
+                    </div>
+                `;
+            }
+            
+            exchangeDiv.innerHTML = html;
         } else {
-            console.error("receiptModalForReports element not found!");
+            exchangeDiv.innerHTML = '<div class="text-muted">No exchange details available</div>';
+        }
+    } catch (error) {
+        console.error('Error loading exchange details:', error);
+        const exchangeDiv = document.getElementById('exchangeDetailsContent');
+        if (exchangeDiv) {
+            exchangeDiv.innerHTML = '<div class="text-danger">Error loading exchange details</div>';
         }
     }
+}
 
      function showReportsLoading() {
                 var topSelling = document.getElementById('topSellingList');
@@ -4877,64 +4987,59 @@ async function displayInPOS(productSizeId, productName, sizeName) {
                 container.innerHTML = html;
             }
 
-                       function updateWasteSummary(wasteLogs) {
-        var totalQty = 0, totalCost = 0;
-        if (wasteLogs) {
-            for (var i = 0; i < wasteLogs.length; i++) {
-                totalQty += wasteLogs[i].quantity || 0;
-                totalCost += wasteLogs[i].totalCost || 0;
-            }
+                      function updateWasteSummary(wasteLogs) {
+    let totalQty = 0, totalCost = 0;
+    if (wasteLogs) {
+        for (let i = 0; i < wasteLogs.length; i++) {
+            totalQty += wasteLogs[i].quantity || 0;
+            totalCost += wasteLogs[i].totalCost || 0;
         }
-
-        // Update total quantity sa Waste Tracking tab
-        var totalQtyEl = document.getElementById('totalWasteQty');
-        if (totalQtyEl) totalQtyEl.innerText = totalQty.toFixed(2);
-
-        // ✅ UPDATE ANG totalWasteCostDisplay2 (sa Waste Tracking tab)
-        var totalCostEl2 = document.getElementById('totalWasteCostDisplay2');
-        if (totalCostEl2) {
-            totalCostEl2.innerHTML = '₱' + totalCost.toFixed(2);
-        }
-
-        // ✅ UPDATE ANG totalWasteCostDisplay (sa taas na card)
-        var totalCostEl = document.getElementById('totalWasteCostDisplay');
-        if (totalCostEl) {
-            totalCostEl.innerHTML = '₱' + totalCost.toFixed(2);
-        } else {
-            // Kung walang ID, hanapin sa card
-            var cards = document.querySelectorAll('.card');
-            for (var i = 0; i < cards.length; i++) {
-                if (cards[i].innerText.includes('Total Waste Cost')) {
-                    var h2Elements = cards[i].querySelectorAll('h2');
-                    if (h2Elements.length > 0) {
-                        h2Elements[0].innerHTML = '₱' + totalCost.toFixed(2);
-                        break;
-                    }
-                }
-            }
-        }
-
-        // Update table
-        var body = document.getElementById('wasteSummaryBody');
-        if (!body) return;
-
-        if (!wasteLogs || wasteLogs.length === 0) {
-            body.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No waste records</td></tr>';
-            return;
-        }
-
-        var html = '';
-        for (var i = 0; i < Math.min(wasteLogs.length, 5); i++) {
-            var w = wasteLogs[i];
-            html += '<tr>' +
-                '<td><strong>' + escapeHtml(w.materialName) + '</strong></td>' +
-                '<td>' + (w.quantity || 0).toFixed(2) + ' ' + escapeHtml(w.unit || '') + '</td>' +
-                '<td><span class="badge bg-secondary">' + escapeHtml(w.reason || 'Other') + '</span></td>' +
-                '<td class="text-danger">₱' + (w.totalCost || 0).toFixed(2) + '</td>' +
-            '</tr>';
-        }
-        body.innerHTML = html;
     }
+    
+    // Update displays
+    const totalQtyEl = document.getElementById('totalWasteQty');
+    if (totalQtyEl) totalQtyEl.innerText = totalQty.toFixed(2);
+    
+    const totalCostEl2 = document.getElementById('totalWasteCostDisplay2');
+    if (totalCostEl2) totalCostEl2.innerHTML = '₱' + totalCost.toFixed(2);
+    
+    const totalCostEl = document.getElementById('totalWasteCostDisplay');
+    if (totalCostEl) totalCostEl.innerHTML = '₱' + totalCost.toFixed(2);
+    
+    // Update table
+    const body = document.getElementById('wasteSummaryBody');
+    if (!body) return;
+    
+    if (!wasteLogs || wasteLogs.length === 0) {
+        body.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No waste records</td></tr>';
+        return;
+    }
+    
+    let html = '';
+    for (let i = 0; i < wasteLogs.length; i++) {
+        const w = wasteLogs[i];
+        let reasonText = '';
+        switch(w.reason) {
+            case 0: reasonText = '🔄 Exchange'; break;
+            case 1: reasonText = '📦 Expired'; break;
+            case 2: reasonText = '💔 Damaged'; break;
+            case 3: reasonText = '💧 Spilled'; break;
+            case 4: reasonText = '🍳 Overprepared'; break;
+            case 5: reasonText = '⚠️ Quality Issue'; break;
+            case 6: reasonText = '❌ Customer Cancel'; break;
+            default: reasonText = w.reasonText || 'Other';
+        }
+        html += `
+            <tr>
+                <td><strong>${escapeHtml(w.materialName)}</strong></td>
+                <td>${(w.quantity || 0).toFixed(2)} ${escapeHtml(w.unit || '')}</td>
+                <td><span class="badge bg-secondary">${reasonText}</span></td>
+                <td class="text-danger">₱${(w.totalCost || 0).toFixed(2)}</td>
+            </tr>
+        `;
+    }
+    body.innerHTML = html;
+}
                   function updateDiscountRecords(records) {
         var body = document.getElementById('discountRecordsBody');
         if (!body) return;

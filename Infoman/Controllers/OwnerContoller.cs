@@ -564,31 +564,36 @@ namespace Infoman.Controllers
         [HttpGet]
         public async Task<IActionResult> GetReceipts(string date = null)
         {
-            DateTime? filterDate = null;
-            if (!string.IsNullOrEmpty(date))
-                filterDate = DateTime.Parse(date);
-
             var query = _db.Orders
-                .Include(o => o.Items)  // ← CHANGE: OrderItems -> Items
-                .Where(o => o.Status == "Completed");
+                .Include(o => o.Items)
+                .ThenInclude(oi => oi.Product)
+                .Include(o => o.Items)
+                .ThenInclude(oi => oi.ProductSize)
+                .Where(o => o.Status != "PENDING_PAYMENT" && o.Status != "VOIDED");
 
-            if (filterDate.HasValue)
-                query = query.Where(o => o.Date.Date == filterDate.Value.Date);
+            if (!string.IsNullOrEmpty(date))
+            {
+                var filterDate = DateTime.Parse(date);
+                query = query.Where(o => o.Date.Date == filterDate.Date);
+            }
 
             var receipts = await query
-                .OrderByDescending(o => o.Date)
+                .OrderByDescending(o => o.OrderId)
                 .Select(o => new
                 {
-                    orderId = o.OrderId,
-                    receiptNumber = o.ReceiptNumber ?? $"ORD-{o.OrderId}",
+                    orderId = o.OrderId,                                    // ✅ ADD THIS
+                    receiptNumber = o.ReceiptNumber,
                     date = o.Date.ToString("yyyy-MM-dd HH:mm:ss"),
-                    itemCount = o.Items.Sum(oi => oi.Quantity),  // ← CHANGE
-                    subtotal = o.Items.Sum(oi => oi.Price * oi.Quantity),  // ← CHANGE
-                    discountType = o.DiscountType ?? "None",
+                    itemCount = o.Items.Count(i => !i.IsVoided),
+                    subtotal = o.OriginalTotalAmount,
+                    discountType = o.DiscountType,
                     discountPercent = o.DiscountPercent,
                     discountAmount = o.DiscountAmount,
                     total = o.TotalAmount,
-                    paymentMethod = o.PaymentMethod ?? "Cash"
+                    paymentMethod = o.PaymentMethod,
+                    returnStatus = o.ReturnStatus ?? "ACTIVE",              // ✅ ADD THIS
+                    adjustmentAmount = o.AdjustmentAmount,                  // ✅ ADD THIS
+                    originalOrderId = o.OriginalOrderId                     // ✅ ADD THIS
                 })
                 .ToListAsync();
 
@@ -598,38 +603,47 @@ namespace Infoman.Controllers
         public async Task<IActionResult> GetReceiptDetail(int orderId)
         {
             var order = await _db.Orders
-                .Include(o => o.Items)  // ← CHANGE: OrderItems -> Items
+                .Include(o => o.Items)
                     .ThenInclude(oi => oi.Product)
-                .Include(o => o.Items)  // ← CHANGE
+                .Include(o => o.Items)
                     .ThenInclude(oi => oi.ProductSize)
                 .FirstOrDefaultAsync(o => o.OrderId == orderId);
 
             if (order == null)
-                return Json(new { success = false, message = "Receipt not found" });
+                return Json(new { success = false, message = "Order not found" });
 
-            return Json(new
+            var items = new List<object>();
+            foreach (var item in order.Items.Where(i => !i.IsVoided))
             {
-                success = true,
-                receipt = new
+                items.Add(new
                 {
-                    receiptNumber = order.ReceiptNumber ?? $"ORD-{order.OrderId}",
-                    date = order.Date,
-                    items = order.Items.Select(oi => new  // ← CHANGE
-                    {
-                        name = oi.Product.Name,
-                        size = oi.ProductSize.SizeName,
-                        quantity = oi.Quantity,
-                        price = oi.Price,
-                        subtotal = oi.Price * oi.Quantity
-                    }),
-                    subtotal = order.Items.Sum(oi => oi.Price * oi.Quantity),  // ← CHANGE
-                    discountType = order.DiscountType ?? "None",
-                    discountPercent = order.DiscountPercent,
-                    discountAmount = order.DiscountAmount,
-                    total = order.TotalAmount,
-                    paymentMethod = order.PaymentMethod ?? "Cash"
-                }
-            });
+                    name = item.Product?.Name ?? "Unknown",
+                    size = item.ProductSize?.SizeName ?? "Regular",
+                    quantity = item.Quantity,
+                    price = item.Price,
+                    subtotal = item.Price * item.Quantity
+                });
+            }
+
+            var receipt = new
+            {
+                orderId = order.OrderId,                                    // ✅ ADD THIS
+                receiptNumber = order.ReceiptNumber,
+                date = order.Date,
+                items = items,
+                subtotal = order.OriginalTotalAmount,
+                discountType = order.DiscountType,
+                discountPercent = order.DiscountPercent,
+                discountAmount = order.DiscountAmount,
+                total = order.TotalAmount,
+                paymentMethod = order.PaymentMethod,
+                returnStatus = order.ReturnStatus ?? "ACTIVE",              // ✅ ADD THIS
+                adjustmentAmount = order.AdjustmentAmount,                  // ✅ ADD THIS
+                storeCreditApplied = order.StoreCreditApplied,              // ✅ ADD THIS
+                originalOrderId = order.OriginalOrderId                     // ✅ ADD THIS
+            };
+
+            return Json(new { success = true, receipt = receipt });
         }
         // Helper method para kumuha ng FIFO unit price
         // Palitan ang GetFIFOUnitPrice ng ganito:
@@ -637,6 +651,98 @@ namespace Infoman.Controllers
         {
             return await _fifoService.GetActiveBatchPrice(rawMaterialId);
         }
+
+        [HttpGet]
+        public async Task<IActionResult> GetExchangeDetails(int orderId)
+        {
+            try
+            {
+                // Hanapin ang exchange transaction kung saan ito ay original order o replacement order
+                var exchange = await _db.ExchangeTransactions
+                    .FirstOrDefaultAsync(e => e.OriginalOrderId == orderId || e.NewOrderId == orderId);
+
+                if (exchange == null)
+                    return Json(new { success = false, message = "No exchange record found" });
+
+                // Kunin ang returned items (mula sa original order)
+                var returnedItems = new List<object>();
+
+                var originalOrderItems = await _db.OrderItems
+                    .Include(oi => oi.Product)
+                    .Include(oi => oi.ProductSize)
+                    .Where(oi => oi.OrderId == exchange.OriginalOrderId)
+                    .ToListAsync();
+
+                foreach (var item in originalOrderItems)
+                {
+                    returnedItems.Add(new
+                    {
+                        quantity = item.Quantity,
+                        productName = item.Product?.Name ?? "Unknown",
+                        sizeName = item.ProductSize?.SizeName ?? "Regular",
+                        price = item.Price
+                    });
+                }
+
+                // Kunin ang replacement items (mula sa bagong order)
+                var replacementItems = new List<object>();
+
+                if (exchange.NewOrderId.HasValue && exchange.NewOrderId.Value > 0)
+                {
+                    var newOrderItems = await _db.OrderItems
+                        .Include(oi => oi.Product)
+                        .Include(oi => oi.ProductSize)
+                        .Where(oi => oi.OrderId == exchange.NewOrderId.Value)
+                        .ToListAsync();
+
+                    foreach (var item in newOrderItems)
+                    {
+                        replacementItems.Add(new
+                        {
+                            quantity = item.Quantity,
+                            productName = item.Product?.Name ?? "Unknown",
+                            sizeName = item.ProductSize?.SizeName ?? "Regular",
+                            price = item.Price
+                        });
+                    }
+                }
+
+                // Gamitin ang mga values mula sa exchange transaction
+                decimal originalAmount = exchange.OriginalAmount > 0 ? exchange.OriginalAmount : exchange.TotalReturnedValue;
+                decimal replacementAmount = exchange.ReplacementAmount > 0 ? exchange.ReplacementAmount : exchange.TotalReplacementValue;
+                decimal adjustmentAmount = exchange.AdjustmentAmount != 0 ? exchange.AdjustmentAmount : exchange.PriceDifference;
+
+                // Determine kung ito ay original order o replacement order
+                bool isOriginalOrder = (exchange.OriginalOrderId == orderId);
+
+                var result = new
+                {
+                    success = true,
+                    exchange = new
+                    {
+                        exchange.OriginalOrderId,
+                        exchange.NewOrderId,
+                        exchange.Reason,
+                        OriginalAmount = originalAmount,
+                        ReplacementAmount = replacementAmount,
+                        AdjustmentAmount = adjustmentAmount,
+                        AdjustmentType = exchange.AdjustmentType ?? (adjustmentAmount >= 0 ? "ADDITIONAL_PAYMENT" : "CHANGE"),
+                        PaymentMethod = exchange.PaymentMethod,
+                        IsOriginalOrder = isOriginalOrder,
+                        ReturnedItems = returnedItems,
+                        ReplacementItems = replacementItems,
+                        exchange.WasteCost
+                    }
+                };
+
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
         [HttpGet]
         public async Task<IActionResult> GetRecipe(int id)
         {

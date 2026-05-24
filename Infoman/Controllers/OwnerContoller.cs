@@ -1057,7 +1057,7 @@ namespace Infoman.Controllers
 
             // ========== LOW STOCK ITEMS ==========
             var lowStockItems = allMaterials
-                .Where(r => r.Stock <= r.MinQty)
+                .Where(r => r.Stock <= r.MinQtyInBaseUnit)
                 .Select(r => new
                 {
                     r.RawMaterialId,
@@ -1066,7 +1066,8 @@ namespace Infoman.Controllers
                     r.Stock,
                     r.MinQty,
                     r.Unit,
-                    StockWithUnit = r.StockWithUnit
+                    StockWithUnit = r.StockWithUnit,
+                    MinQtyWithUnit = $"{r.MinQty:F2} {r.Unit}"
                 })
                 .ToList();
             int lowStockCount = lowStockItems.Count;
@@ -1184,13 +1185,15 @@ namespace Infoman.Controllers
                     Notes = model.Notes
                 };
 
-                // Reduce stock
                 _fifoService.DeductStock(
-                 model.RawMaterialId,
-                 model.Quantity,
-                 0, // no product
-                 "WASTE"
-                 );
+     model.RawMaterialId,
+     model.Quantity,
+     material.Unit,
+     0,
+     $"WASTE-{DateTime.Now:yyyyMMddHHmmss}",
+     orderId: null,
+     productSizeId: null
+ );
 
                 _db.WasteLogs.Add(wasteLog);
                 await _db.SaveChangesAsync();
@@ -1231,42 +1234,75 @@ namespace Infoman.Controllers
                 if (request.Quantity <= 0)
                     return Json(new { success = false, message = "Invalid quantity" });
 
-                // Check kung may sapat na raw materials
+                // Helper: convert quantity from one unit to the material's base unit
+                decimal ConvertToBaseUnit(decimal qty, string fromUnit, string toBaseUnit)
+                {
+                    if (fromUnit == toBaseUnit) return qty;
+                    return (fromUnit, toBaseUnit) switch
+                    {
+                        ("kg", "g") => qty * 1000,
+                        ("g", "kg") => qty / 1000,
+                        ("L", "mL") => qty * 1000,
+                        ("mL", "L") => qty / 1000,
+                        _ => qty
+                    };
+                }
+
+                // ===== STEP 1: CHECK AVAILABILITY =====
                 foreach (var recipeItem in productSize.RecipeItems)
                 {
-                    decimal neededQty = recipeItem.Quantity * request.Quantity;
                     var material = await _db.RawMaterials.FindAsync(recipeItem.RawMaterialId);
+                    if (material == null) continue;
 
-                    if (material.Stock < neededQty)
+                    // Total needed for this production run, converted to base unit
+                    decimal totalNeeded = recipeItem.Quantity * request.Quantity;
+                    decimal neededInBaseUnit = ConvertToBaseUnit(totalNeeded, recipeItem.UnitUsed, material.BaseUnit);
+
+                    decimal availableStock = await _db.RawMaterialBatches
+                        .Where(b => b.RawMaterialId == recipeItem.RawMaterialId
+                            && b.QuantityRemaining > 0
+                            && (!b.ExpiryDate.HasValue || b.ExpiryDate.Value >= DateTime.Today))
+                        .SumAsync(b => (decimal?)b.QuantityRemaining) ?? 0;
+
+                    System.Diagnostics.Debug.WriteLine($"[CHECK] {material.Name}: need {neededInBaseUnit} {material.BaseUnit}, available {availableStock} {material.BaseUnit}");
+
+                    if (availableStock < neededInBaseUnit)
                     {
                         return Json(new
                         {
                             success = false,
-                            message = $"Insufficient {material.Name}. Need {neededQty} {material.Unit}, only {material.Stock} available."
+                            message = $"Insufficient {material.Name}. Need {neededInBaseUnit:F2} {material.BaseUnit}, only {availableStock:F2} {material.BaseUnit} available."
                         });
                     }
                 }
 
+                // ===== STEP 2: DEDUCT RAW MATERIALS =====
                 string referenceNo = request.ReferenceNo ?? $"PROD-{DateTime.Now:yyyyMMddHHmmss}";
 
-                // Deduct raw materials gamit ang FIFO
                 foreach (var recipeItem in productSize.RecipeItems)
                 {
-                    decimal neededQty = recipeItem.Quantity * request.Quantity;
+                    var material = await _db.RawMaterials.FindAsync(recipeItem.RawMaterialId);
+                    if (material == null) continue;
+
+                    // Pass recipe unit and quantity directly — FIFOService.DeductStock handles conversion
+                    decimal totalNeeded = recipeItem.Quantity * request.Quantity;
 
                     bool success = _fifoService.DeductStock(
-                        recipeItem.RawMaterialId,
-                        neededQty,
-                        productSize.ProductId,
-                        $"{referenceNo}-{productSize.ProductSizeId}"
-                    );
+    recipeItem.RawMaterialId,
+    totalNeeded,
+    recipeItem.UnitUsed,
+    productSize.ProductId,
+    $"{referenceNo}-{productSize.ProductSizeId}",
+    orderId: null,             
+    productSizeId: productSize.ProductSizeId  
+);
 
                     if (!success)
                     {
                         return Json(new
                         {
                             success = false,
-                            message = $"Failed to deduct {recipeItem.RawMaterial?.Name ?? "raw material"}. Insufficient batch stock."
+                            message = $"Failed to deduct {material.Name}. Insufficient batch stock."
                         });
                     }
                 }
@@ -1277,7 +1313,6 @@ namespace Infoman.Controllers
                 {
                     success = true,
                     message = $"Successfully produced {request.Quantity} pcs of {productSize.Product.Name} - {productSize.SizeName}",
-
                     referenceNo = referenceNo
                 });
             }
@@ -1810,11 +1845,15 @@ namespace Infoman.Controllers
                     // ✅ CREATE STOCK BATCH for accepted quantity
                     if (item.AcceptedQty > 0)
                     {
+                        var rawMat = await _db.RawMaterials.FindAsync(item.RawMaterialId);
+
+                        // Ang batch quantity ay dapat nasa material.Unit (kg/L)
+                        // Huwag i-convert — diretso lang
                         var batch = new RawMaterialBatch
                         {
                             RawMaterialId = item.RawMaterialId,
-                            QuantityReceived = item.AcceptedQty,
-                            QuantityRemaining = item.AcceptedQty,
+                            QuantityReceived = item.AcceptedQty,     // ✅ Diretso (50 kg = 50)
+                            QuantityRemaining = item.AcceptedQty,    // ✅ Diretso
                             ReceivedDate = DateTime.Now,
                             ExpiryDate = item.ExpiryDate,
                             UnitPrice = item.UnitPrice

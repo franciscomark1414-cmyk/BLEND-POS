@@ -631,6 +631,8 @@ namespace Infoman.Controllers
         [HttpPost]
         public async Task<IActionResult> StartBlending([FromBody] StartBlendingRequest request)
         {
+
+            
             var order = await _db.Orders
                 .Include(o => o.Items)
                     .ThenInclude(oi => oi.ProductSize)
@@ -646,7 +648,6 @@ namespace Infoman.Controllers
 
             decimal totalActualCost = 0;
 
-            // ✅ DITO LANG MAGDA-DEDUCT NG INGREDIENTS (kapag nag-start na mag-blend)
             foreach (var orderItem in order.Items)
             {
                 var productSize = orderItem.ProductSize;
@@ -654,24 +655,50 @@ namespace Infoman.Controllers
 
                 foreach (var recipe in productSize.RecipeItems)
                 {
-                    decimal neededQty = recipe.Quantity * orderItem.Quantity;
+                    var material = await _db.RawMaterials.FindAsync(recipe.RawMaterialId);
+                    if (material == null) continue;
 
-                    decimal neededQtyInKg = neededQty;
-                    if (recipe.RawMaterial.BaseUnit == "g" || recipe.RawMaterial.BaseUnit == "mL")
-                    {
-                        neededQtyInKg = neededQty / 1000;
-                    }
+                    System.Diagnostics.Debug.WriteLine($"=== START BLENDING DEBUG ===");
+                    System.Diagnostics.Debug.WriteLine($"Material: {material.Name}");
+                    System.Diagnostics.Debug.WriteLine($"material.Unit: {material.Unit}");
+                    System.Diagnostics.Debug.WriteLine($"material.BaseUnit: {material.BaseUnit}");
+                    System.Diagnostics.Debug.WriteLine($"recipe.Quantity: {recipe.Quantity}");
+                    System.Diagnostics.Debug.WriteLine($"recipe.UnitUsed: {recipe.UnitUsed}");
+
+
+                    // recipe.Quantity is stored in BaseUnit (g or mL)
+                    // batches are stored in material.Unit (kg or L)
+                    decimal totalInBaseUnit = recipe.Quantity * orderItem.Quantity;
+                    decimal totalForBatch = totalInBaseUnit;
+
+                    System.Diagnostics.Debug.WriteLine($"totalInBaseUnit: {totalInBaseUnit}");
+                    System.Diagnostics.Debug.WriteLine($"totalForBatch: {totalForBatch}");
+
+                    // Convert from BaseUnit to Unit (how batches are stored)
+                    if (material.BaseUnit == "g" && material.Unit == "kg")
+                        totalForBatch = totalInBaseUnit / 1000;  // 180g → 0.18 kg
+                    else if (material.BaseUnit == "mL" && material.Unit == "L")
+                        totalForBatch = totalInBaseUnit / 1000;  // 60mL → 0.06 L
+                                                                 // else: pcs, or same unit — no conversion needed
+
+                    System.Diagnostics.Debug.WriteLine($"[BLEND] {material.Name}: {recipe.Quantity} {material.BaseUnit} → {totalForBatch} {material.Unit}");
 
                     var (success, cost, usedBatches) = await _fifoService.DeductStockWithCostAsync(
-                        recipe.RawMaterialId,
-                        neededQtyInKg,
-                        productSize.ProductId,
-                        order.OrderNumber
-                    );
+    recipe.RawMaterialId,
+    totalForBatch,
+    productSize.ProductId,
+    order.OrderNumber,
+    orderId: order.OrderId,                   
+    productSizeId: orderItem.ProductSizeId     
+);
 
                     if (!success)
                     {
-                        return Json(new { success = false, message = $"Failed to deduct {recipe.RawMaterial.Name}" });
+                        return Json(new
+                        {
+                            success = false,
+                            message = $"Failed to deduct {material.Name}. Need {totalForBatch:F4} {material.Unit}, check batch stock."
+                        });
                     }
 
                     itemCost += cost;
@@ -681,7 +708,6 @@ namespace Infoman.Controllers
                 totalActualCost += itemCost;
             }
 
-            // ✅ UPDATE STATUS TO COMPLETED
             order.Status = "COMPLETED";
             await _db.SaveChangesAsync();
 

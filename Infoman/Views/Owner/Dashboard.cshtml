@@ -16,7 +16,7 @@
         min-height: 100vh;
     }
 
-    /* ========== SIDEBAR - DARK BLUE DESIGN (gaya sa Employee) ========== */
+    /* ========== SIDEBAR ========== */
     .sidebar {
         width: 260px;
         background: #1e293b;
@@ -29,39 +29,39 @@
         z-index: 100;
     }
 
-        .sidebar .logo-area {
-            text-align: center;
-            padding: 20px;
-            border-bottom: 1px solid #334155;
-            margin-bottom: 20px;
-        }
+    .sidebar .logo-area {
+        text-align: center;
+        padding: 20px;
+        border-bottom: 1px solid #334155;
+        margin-bottom: 20px;
+    }
 
-            .sidebar .logo-area .logo-icon {
-                background: linear-gradient(135deg, #f59e0b, #d97706);
-                width: 50px;
-                height: 50px;
-                line-height: 50px;
-                border-radius: 12px;
-                font-size: 24px;
-                margin: 0 auto 10px;
-            }
+    .sidebar .logo-area .logo-icon {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        width: 50px;
+        height: 50px;
+        line-height: 50px;
+        border-radius: 12px;
+        font-size: 24px;
+        margin: 0 auto 10px;
+    }
 
-        .sidebar .nav-item {
-            padding: 12px 24px;
-            cursor: pointer;
-            transition: all 0.3s;
-            color: #94a3b8;
-        }
+    .sidebar .nav-item {
+        padding: 12px 24px;
+        cursor: pointer;
+        transition: all 0.3s;
+        color: #94a3b8;
+    }
 
-            .sidebar .nav-item:hover, .sidebar .nav-item.active {
-                background: #334155;
-                color: #f59e0b;
-            }
+    .sidebar .nav-item:hover, .sidebar .nav-item.active {
+        background: #334155;
+        color: #f59e0b;
+    }
 
-            .sidebar .nav-item i {
-                width: 24px;
-                margin-right: 12px;
-            }
+    .sidebar .nav-item i {
+        width: 24px;
+        margin-right: 12px;
+    }
 
     /* ========== MAIN CONTENT ========== */
     .main-content {
@@ -71,165 +71,104 @@
         min-height: 100vh;
     }
 
-    /* Header */
-    .header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 30px;
-        padding-bottom: 15px;
-        border-bottom: 1px solid #e2e8f0;
-    }
-
-    .user-info {
-        text-align: right;
-    }
-
-        .user-info .user-name {
-            font-weight: bold;
-            font-size: 16px;
-        }
-
-        .user-info .user-role {
-            font-size: 12px;
-            color: #f59e0b;
-        }
-
-    .logout-btn {
-        background: none;
-        border: none;
-        color: #ef4444;
-        cursor: pointer;
-        font-size: 14px;
-    }
-
     /* Module styles */
     .module {
         display: none;
     }
 
-        .module.active {
-            display: block;
-        }
-
-    /* Dashboard specific styles only */
-    .dashboard-container {
-        display: flex;
-        min-height: 90vh;
+    .module.active {
+        display: block;
     }
 
-    .main-content {
-        flex: 1;
-        padding: 20px;
-    }
-
-    .module {
-        display: none;
-    }
-
-        .module.active {
-            display: block;
-        }
-
-    #addRawMaterialBox {
-        background-color: #f9f9f9;
+    /* Cards and Stats */
+    .stat-card {
+        background: white;
+        border-radius: 12px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-
-        #addRawMaterialBox .text-muted {
-            font-size: 12px;
-        }
-
-    .border-left-warning {
-        border-left: 4px solid #ffc107 !important;
-    }
-
-    .border-left-info {
-        border-left: 4px solid #17a2b8 !important;
-    }
-
-    .border-left-danger {
-        border-left: 4px solid #dc3545 !important;
-    }
-
-    .border-left-secondary {
-        border-left: 4px solid #6c757d !important;
-    }
-
-    .tab-button {
-        border: none;
-        background: none;
-        padding: 10px 20px;
-        border-radius: 0;
-        color: #6c757d;
-        font-weight: 500;
-    }
-
-        .tab-button.active {
-            color: #ffc107;
-            border-bottom: 3px solid #ffc107;
-        }
-
-        .tab-button:hover {
-            color: #ffc107;
-        }
-
-    .alert-tab-content {
-        display: none;
-    }
-
-        .alert-tab-content.active {
-            display: block;
-        }
-
-    .border-left-critical {
-        border-left: 4px solid #dc3545 !important;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
+        cursor: pointer;
     }
 
-        .border-left-critical:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 20px rgba(220, 53, 69, 0.15);
-        }
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+    }
 
-    .card .badge {
-        font-size: 0.7rem;
+    .stat-card .card-body h5 {
+        font-size: 14px;
+        margin-bottom: 10px;
+        font-weight: 600;
+    }
+
+    .stat-card .card-body p {
+        font-size: 28px;
+        font-weight: bold;
+        margin-bottom: 0;
+    }
+
+    .critical-card {
+        border-left: 4px solid #ef4444;
+    }
+
+    .critical-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(239, 68, 68, 0.15);
+    }
+
+    /* Tables */
+    .table th {
+        background-color: #334155;
+        color: #f59e0b;
+        font-weight: 600;
     }
 
     .table-responsive {
         overflow-x: auto;
     }
 
-    .table {
-        width: 100%;
-        margin-bottom: 0;
-    }
-
-        .table th {
-            background-color: #334155;
-            color: #f59e0b;
-            font-weight: 600;
-        }
-
-    .card {
-        border-radius: 10px;
-        overflow: hidden;
-    }
-
+    /* Product Cards */
     .product-card {
         transition: transform 0.2s, box-shadow 0.2s;
     }
 
-        .product-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-
-    .table th {
-        background-color: #f8f9fa;
-        font-weight: 600;
+    .product-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
 
+    .product-item {
+        background: white;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        width: 200px;
+    }
+
+    .product-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        background: #f8f9fa;
+    }
+
+    /* Tabs */
+    .nav-tabs .nav-link {
+        border: none;
+        color: #6c757d;
+        font-weight: 500;
+        padding: 10px 20px;
+    }
+
+    .nav-tabs .nav-link:hover {
+        border: none;
+        color: #ffc107;
+    }
+
+    .nav-tabs .nav-link.active {
+        border-bottom: 3px solid #ffc107;
+        color: #ffc107;
+        background: transparent;
+    }
+
+    /* Size Row */
     .size-row {
         background-color: #f9f9f9;
         padding: 15px;
@@ -239,130 +178,69 @@
         position: relative;
     }
 
-    .remove-size-btn {
+    /* ========== INGREDIENT ROW STYLES (FIXED) ========== */
+    .ingredient-row {
+        background: #f9f9f9;
+        padding: 10px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        border: 1px solid #e9ecef;
+        transition: all 0.2s ease;
+    }
+
+    .ingredient-row:hover {
+        background: #fff8f0;
+        border-color: #ffc107;
+    }
+
+    /* Remove button (X) for ingredient */
+    .ingredient-row .btn-remove {
+        background: #dc3545;
+        border: none;
+        border-radius: 6px;
+        color: white;
+        font-size: 14px;
+        font-weight: bold;
+        padding: 4px 0;
+        width: 100%;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+
+    .ingredient-row .btn-remove:hover {
+        background: #c82333;
+        transform: scale(1.02);
+    }
+
+    /* Remove button for size row */
+    .size-row .btn-remove-size {
         position: absolute;
         top: 10px;
         right: 10px;
-    }
-
-    .ingredient-row {
-        margin-bottom: 10px;
-    }
-
-    .empty-state {
-        text-align: center;
-        padding: 60px 20px;
-        background: #f8f9fa;
-        border-radius: 12px;
-        margin: 20px 0;
-    }
-
-    .stat-card {
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-        cursor: pointer;
-    }
-
-        .stat-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
-        }
-
-        .stat-card:nth-child(1) .card-body h5 {
-            color: #3b82f6;
-        }
-
-        .stat-card:nth-child(1) .card-body p {
-            color: #3b82f6;
-        }
-
-        .stat-card:nth-child(2) .card-body h5 {
-            color: #10b981;
-        }
-
-        .stat-card:nth-child(2) .card-body p {
-            color: #10b981;
-        }
-
-        .stat-card:nth-child(3) .card-body h5 {
-            color: #8b5cf6;
-        }
-
-        .stat-card:nth-child(3) .card-body p {
-            color: #8b5cf6;
-        }
-
-        .stat-card:nth-child(4) .card-body h5 {
-            color: #ef4444;
-        }
-
-        .stat-card:nth-child(4) .card-body p {
-            color: #ef4444;
-        }
-
-        .stat-card .card-body h5 {
-            font-size: 14px;
-            margin-bottom: 10px;
-            font-weight: 600;
-        }
-
-        .stat-card .card-body p {
-            font-size: 28px;
-            font-weight: bold;
-            margin-bottom: 0;
-        }
-
-    .critical-card {
-        border-left: 4px solid #ef4444;
-    }
-
-        .critical-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 20px rgba(239, 68, 68, 0.15);
-        }
-
-    .product-item {
-        background: white;
-        transition: all 0.2s ease;
-        cursor: pointer;
-        width: 200px;
-    }
-
-        .product-item:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            background: #f8f9fa;
-        }
-
-    .nav-tabs .nav-link {
+        background: #dc3545;
         border: none;
-        color: #6c757d;
-        font-weight: 500;
-        padding: 10px 20px;
-    }
-
-        .nav-tabs .nav-link:hover {
-            border: none;
-            color: #ffc107;
-        }
-
-        .nav-tabs .nav-link.active {
-            border-bottom: 3px solid #ffc107;
-            color: #ffc107;
-            background: transparent;
-        }
-
-    .list-group-item {
+        border-radius: 6px;
+        color: white;
+        font-size: 14px;
+        font-weight: bold;
+        padding: 2px 8px;
+        cursor: pointer;
         transition: all 0.2s ease;
+        z-index: 10;
     }
 
-        .list-group-item:hover {
-            background-color: #fff8e7;
-            transform: translateX(5px);
-        }
+    .size-row .btn-remove-size:hover {
+        background: #c82333;
+        transform: scale(1.02);
+    }
 
+    /* Form controls inside ingredient row */
+    .ingredient-row .form-control-sm {
+        font-size: 13px;
+        padding: 6px 8px;
+    }
+
+    /* Employee Cards */
     .employee-card {
         background: white;
         border-radius: 12px;
@@ -419,25 +297,110 @@
         color: #991b1b;
     }
 
-    .sku-cell {
-        font-family: inherit; /* Parehas sa ibang cells */
-        font-size: inherit;
-        color: inherit;
-        font-weight: normal;
-        background: none;
-        padding: 8px;
+    /* Product card collapse animation */
+    .product-card .card-body {
+        transition: all 0.3s ease;
     }
 
-    .receipt-discount {
+    .product-card .card-header {
+        transition: background-color 0.2s ease;
+    }
+
+    .product-card .card-header:hover {
+        background-color: #f8f9fa;
+    }
+
+    .toggle-icon {
+        font-size: 14px;
+        color: #f59e0b;
+        transition: transform 0.2s ease;
+    }
+
+    /* Empty state */
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background: #f8f9fa;
+        border-radius: 12px;
+        margin: 20px 0;
+    }
+
+    /* Border utilities */
+    .border-left-warning { border-left: 4px solid #ffc107 !important; }
+    .border-left-info { border-left: 4px solid #17a2b8 !important; }
+    .border-left-danger { border-left: 4px solid #dc3545 !important; }
+    .border-left-secondary { border-left: 4px solid #6c757d !important; }
+
+    /* ========== MODAL STYLES ========== */
+    .modal-qty {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
         display: flex;
-        justify-content: space-between;
-        font-size: 12px;
-        color: #333; /* ← Palitan mula #dc3545 (red) para maging dark gray */
-        margin-top: 5px;
-        padding-top: 5px;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
     }
 
-    /* Receipt Modal - Popup Styles */
+    .modal-qty-content {
+        background: white;
+        border-radius: 16px;
+        padding: 25px;
+        width: 350px;
+        max-width: 90%;
+        text-align: center;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        animation: slideUp 0.3s ease forwards;
+    }
+
+    /* Custom Modal Styles */
+    #customConfirmModal, #customAlertModal {
+        z-index: 10000 !important;
+    }
+
+    #customConfirmModal .modal-qty-content,
+    #customAlertModal .modal-qty-content {
+        z-index: 10001 !important;
+        position: relative;
+        background: white;
+        border-radius: 16px !important;
+        padding: 25px !important;
+        width: 350px !important;
+        max-width: 90% !important;
+        text-align: center !important;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3) !important;
+    }
+
+    #confirmOkBtn, #confirmCancelBtn, #alertCloseBtn {
+        cursor: pointer !important;
+        padding: 10px 20px !important;
+        border-radius: 8px !important;
+        border: none !important;
+        font-weight: 600 !important;
+    }
+
+    #confirmOkBtn, #alertCloseBtn {
+        background: #ff6b35 !important;
+        color: white !important;
+    }
+
+    #confirmCancelBtn {
+        background: #f0f0f0 !important;
+        color: #333 !important;
+    }
+
+    #confirmOkBtn:hover, #alertCloseBtn:hover {
+        background: #e55a2b !important;
+    }
+
+    #confirmCancelBtn:hover {
+        background: #e0e0e0 !important;
+    }
+
+    /* Receipt Modal */
     #receiptModalForReports {
         position: fixed;
         top: 0;
@@ -451,154 +414,152 @@
         z-index: 10000;
     }
 
-        #receiptModalForReports .modal-qty-content {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            max-height: 80vh;
-            overflow-y: auto;
-            width: 380px;
-            max-width: 90%;
-            padding: 25px;
-            animation: slideUp 0.3s ease forwards;
-        }
+    #receiptModalForReports .modal-qty-content {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        max-height: 80vh;
+        overflow-y: auto;
+        width: 380px;
+        max-width: 90%;
+        padding: 25px;
+        animation: slideUp 0.3s ease forwards;
+    }
 
-        /* Idagdag sa loob ng <style> tag */
-.size-row {
-    position: relative;
-}
+    .receipt-discount {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: #333;
+        margin-top: 5px;
+        padding-top: 5px;
+    }
 
-.size-row .btn-danger {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    z-index: 10;
-}
+    /* Loading Modal */
+    #loadingModal {
+        z-index: 10002 !important;
+    }
 
+    .spinner-border {
+        display: inline-block;
+        width: 1rem;
+        height: 1rem;
+        vertical-align: text-bottom;
+        border: 0.2em solid currentColor;
+        border-right-color: transparent;
+        border-radius: 50%;
+        animation: spinner-border 0.75s linear infinite;
+    }
+
+    /* Standardize ingredient row height */
 .ingredient-row {
-    position: relative;
+    background: #f9f9f9;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 10px;
     margin-bottom: 10px;
+    min-height: 70px;  /* ← PARA PANTAY ANG LAHAT */
 }
 
-    /* Product card collapse animation */
-    .product-card .card-body {
-        transition: all 0.3s ease;
-    }
+/* Para pantay ang mga select at input */
+.ingredient-row .form-control,
+.ingredient-row .form-control-sm {
+    height: 38px;  /* ← FIXED HEIGHT */
+    font-size: 13px;
+}
 
-    .product-card .card-header {
-        transition: background-color 0.2s ease;
-    }
-
-        .product-card .card-header:hover {
-            background-color: #f8f9fa;
-        }
-
-    .toggle-icon {
-        font-size: 14px;
-        color: #f59e0b;
-        transition: transform 0.2s ease;
-    }
-
-    /* Base Modal Styles - KULANG ITO! */
-.modal-qty {
-    position: fixed;
-    top: 0;
-    left: 0;
+/* Para pantay ang X button */
+.ingredient-row .btn-remove {
+    background: #dc3545;
+    border: none;
+    border-radius: 6px;
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+    height: 38px;  /* ← SAME HEIGHT AS INPUTS */
     width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
+    transition: all 0.2s ease;
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
 }
 
-.modal-qty-content {
-    background: white;
-    border-radius: 16px;
-    padding: 25px;
-    width: 350px;
-    max-width: 90%;
-    text-align: center;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-    animation: slideUp 0.3s ease forwards;
+.ingredient-row .btn-remove:hover {
+    background: #c82333;
+    transform: scale(1.02);
 }
 
-    /* Custom Modal Styles */
-#customConfirmModal, #customAlertModal {
-    z-index: 10000 !important;
-}
-
-
-#customConfirmModal .modal-qty-content,
-#customAlertModal .modal-qty-content {
-    z-index: 10001 !important;
-    position: relative;
-    background: white;
-    border-radius: 16px !important;
-    padding: 25px !important;
-    width: 350px !important;
-    max-width: 90% !important;
-    text-align: center !important;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.3) !important;
-}
-
-#confirmOkBtn, #confirmCancelBtn, #alertCloseBtn {
-    cursor: pointer !important;
-    padding: 10px 20px !important;
-    border-radius: 8px !important;
-    border: none !important;
-    font-weight: 600 !important;
-}
-
-#confirmOkBtn, #alertCloseBtn {
-    background: #ff6b35 !important;
-    color: white !important;
-}
-
-#confirmCancelBtn {
-    background: #f0f0f0 !important;
-    color: #333 !important;
-}
-
-#confirmOkBtn:hover, #alertCloseBtn:hover {
-    background: #e55a2b !important;
-}
-
-#confirmCancelBtn:hover {
-    background: #e0e0e0 !important;
-}
-
-/* Loading Modal */
-#loadingModal {
-    z-index: 10002 !important;
-}
-
-.spinner-border {
-    display: inline-block;
-    width: 1rem;
-    height: 1rem;
-    vertical-align: text-bottom;
-    border: 0.2em solid currentColor;
-    border-right-color: transparent;
-    border-radius: 50%;
-    animation: spinner-border 0.75s linear infinite;
-}
-
-@@keyframes spinner-border {
-    to { transform: rotate(360deg); }
-}
+    @@keyframes spinner-border {
+        to { transform: rotate(360deg); }
+    }
 
     @@keyframes slideUp {
         from {
             transform: translateY(50px);
             opacity: 0;
         }
-
         to {
             transform: translateY(0);
             opacity: 1;
         }
+    }
+
+    /* Add Raw Material Box */
+    #addRawMaterialBox {
+        background-color: #f9f9f9;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    #addRawMaterialBox .text-muted {
+        font-size: 12px;
+    }
+
+    /* Tab buttons */
+    .tab-button {
+        border: none;
+        background: none;
+        padding: 10px 20px;
+        border-radius: 0;
+        color: #6c757d;
+        font-weight: 500;
+    }
+
+    .tab-button.active {
+        color: #ffc107;
+        border-bottom: 3px solid #ffc107;
+    }
+
+    .tab-button:hover {
+        color: #ffc107;
+    }
+
+    .alert-tab-content {
+        display: none;
+    }
+
+    .alert-tab-content.active {
+        display: block;
+    }
+
+    /* List group */
+    .list-group-item {
+        transition: all 0.2s ease;
+    }
+
+    .list-group-item:hover {
+        background-color: #fff8e7;
+        transform: translateX(5px);
+    }
+
+    /* SKU cell */
+    .sku-cell {
+        font-family: inherit;
+        font-size: inherit;
+        color: inherit;
+        font-weight: normal;
+        background: none;
+        padding: 8px;
     }
 </style>
 
@@ -904,40 +865,6 @@
                 </div>
             </form>
         </div>
-        <!-- Add this AFTER the addRawMaterialBox div, before closing inventoryModule -->
-        <!-- Replace the entire batchHistoryContainer div -->
-        <div id="batchHistoryContainer" style="margin-top: 20px; display: none;">
-            <div class="card">
-                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">📦 Batch History (FIFO) - <span id="batchMaterialName"></span></h5>
-                    <button type="button" class="btn-close btn-close-white" onclick="closeBatchHistory()"></button>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-hover">
-                            <thead class="table-light">
-                                <tr>
-                                    <th style="width: 20%">Batch Info</th>
-                                    <th style="width: 15%">Received Qty</th>
-                                    <th style="width: 15%">Remaining Qty</th>
-                                    <th style="width: 15%">Expiry Date</th>
-                                    <th style="width: 10%">Unit Price</th>
-                                    <th style="width: 15%">FIFO Status</th>
-                                    <th style="width: 10%">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="batchHistoryBody">
-                                <tr>
-                                    <td colspan="7" class="text-center text-muted">
-                                        Click "Batches" button to view history
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
 
         <!-- ========== RAW MATERIALS MODULE (BAGO) ========== -->
         <!-- ========== RAW MATERIALS MODULE (BAGO) ========== -->
@@ -990,69 +917,69 @@
 
                 <!-- RIGHT: Add Raw Material Box (katabi ng table, sa GILID) -->
                 <div id="addRawMaterialBox" style="flex: 1; display:none; border:1px solid #ccc; padding:15px; border-radius:8px; background:#f9f9f9; height: fit-content;">
-                    <h5 id="formHeader">
-                        <i class="fas fa-box"></i> Add Raw Material
-                    </h5>
-                    <p class="text-muted small mb-3">
-                        <i class="fas fa-info-circle"></i> This only creates a product record.
-                        To add stock, use <strong>"ADD DELIVERY (BATCH)"</strong> after saving.
-                    </p>
+    <h5 id="formHeader">
+        <i class="fas fa-box"></i> Add Raw Material
+    </h5>
+    <p class="text-muted small mb-3">
+        <i class="fas fa-info-circle"></i> This only creates a product record.
+        To add stock, use <strong>"ADD DELIVERY (BATCH)"</strong> after saving.
+    </p>
 
-                    <form id="addRawMaterialForm">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="RawMaterialId" id="RawMaterialId">
+    <form id="addRawMaterialForm">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="RawMaterialId" id="RawMaterialId">
 
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Name <span class="text-danger">*</span></label>
-                            <input type="text" name="Name" id="Name" class="form-control" required placeholder="e.g., Apple, Mango, Flour">
-                        </div>
+        <div class="mb-3">
+            <label class="form-label fw-bold">Name <span class="text-danger">*</span></label>
+            <input type="text" name="Name" id="Name" class="form-control" required placeholder="e.g., Apple, Mango, Flour">
+        </div>
 
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Category <span class="text-danger">*</span></label>
-                            <select name="Category" id="Category" class="form-control" required>
-                                @foreach (var cat in Enum.GetValues(typeof(Infoman.Models.RawMaterialCategory)))
-                                {
-                                    var intValue = (int)cat;
-                                    <option value="@intValue">@cat</option>
-                                }
-                            </select>
-                        </div>
+        <div class="mb-3">
+            <label class="form-label fw-bold">Category <span class="text-danger">*</span></label>
+            <select name="Category" id="Category" class="form-control" required>
+                @foreach (var cat in Enum.GetValues(typeof(Infoman.Models.RawMaterialCategory)))
+                {
+                    var intValue = (int)cat;
+                    <option value="@intValue">@cat</option>
+                }
+            </select>
+        </div>
 
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Unit <span class="text-danger">*</span></label>
-                            <select name="Unit" id="Unit" class="form-control" required>
-                                <option value="">-- Select Unit --</option>
-                                <option value="kg"> kilogram (kg)</option>
-                                <option value="g"> gram (g)</option>
-                                <option value="L"> liter (L)</option>
-                                <option value="mL"> milliliter (mL)</option>
-                                <option value="pcs"> pieces (pcs)</option>
-                            </select>
-                            <small class="text-muted">Select measurement unit for this raw material</small>
-                        </div>
+        <div class="mb-3">
+            <label class="form-label fw-bold">Unit <span class="text-danger">*</span></label>
+            <select name="Unit" id="Unit" class="form-control" required>
+                <option value="">-- Select Unit --</option>
+                <option value="kg"> kilogram (kg)</option>
+                <option value="g"> gram (g)</option>
+                <option value="L"> liter (L)</option>
+                <option value="mL"> milliliter (mL)</option>
+                <option value="pcs"> pieces (pcs)</option>
+            </select>
+            <small class="text-muted">Select measurement unit for this raw material</small>
+        </div>
 
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Minimum Quantity <span class="text-danger">*</span></label>
-                            <input type="number" name="MinQty" id="MinQty" class="form-control" required value="0" step="0.1">
-                            <small class="text-muted">Alert when stock falls below this level</small>
-                        </div>
+        <div class="mb-3">
+            <label class="form-label fw-bold">Critical Stock Level <span class="text-danger">*</span></label>
+            <input type="number" name="MinQty" id="MinQty" class="form-control" required value="0" step="0.1" min="0" oninput="validateMinQty(this)">
+            <small class="text-muted text-danger">⚠️ Must be 0 or positive (cannot be negative)</small>
+        </div>
 
-                        <hr>
-                        <div class="alert alert-info py-2 small">
-                            <i class="fas fa-truck"></i> <strong>Note:</strong> After saving this raw material,
-                            go to <strong>"ADD DELIVERY (BATCH)"</strong> to add stock with price and expiry date.
-                        </div>
+        <hr>
+        <div class="alert alert-info py-2 small">
+            <i class="fas fa-truck"></i> <strong>Note:</strong> After saving this raw material,
+            go to <strong>"ADD DELIVERY (BATCH)"</strong> to add stock with price and expiry date.
+        </div>
 
-                        <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-success" id="saveButton">
-                                <i class="fas fa-save"></i> Save Material
-                            </button>
-                            <button type="button" class="btn btn-secondary" onclick="toggleRawMaterialForm()">
-                                <i class="fas fa-times"></i> Cancel
-                            </button>
-                        </div>
-                    </form>
-                </div>
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-success" id="saveButton">
+                <i class="fas fa-save"></i> Save Material
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="toggleRawMaterialForm()">
+                <i class="fas fa-times"></i> Cancel
+            </button>
+        </div>
+    </form>
+</div>
             </div>
         </div>
 
@@ -2200,10 +2127,13 @@
                             </div>
 
                             <div class="mb-3" id="empPasswordField">
-                                <label class="form-label fw-bold">Password <span class="text-danger" id="passwordRequired">*</span></label>
-                                <input type="password" id="empPassword" class="form-control" placeholder="Enter password">
-                                <small class="text-muted" id="passwordHint">Leave blank to keep current password when editing</small>
-                            </div>
+    <label class="form-label fw-bold">Password <span class="text-danger" id="passwordRequired">*</span></label>
+    <input type="password" id="empPassword" class="form-control" placeholder="Enter password">
+    <small class="text-muted" id="passwordHint">
+        Leave blank to keep current password when editing<br>
+        <span class="text-info">Requirements: 8+ chars, 1 uppercase, 1 lowercase, 1 number, 1 special character (!@@#$%^&*)</span>
+    </small>
+</div>
 
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Full Name <span class="text-danger">*</span></label>
@@ -2216,9 +2146,10 @@
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label fw-bold">Phone</label>
-                                <input type="text" id="empPhone" class="form-control" placeholder="09xx xxx xxxx">
-                            </div>
+    <label class="form-label fw-bold">Phone</label>
+    <input type="tel" id="empPhone" class="form-control" placeholder="09123456789 (11 digits)">
+    <small class="text-muted">Must be exactly 11 digits starting with 09</small>
+</div>
 
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Status</label>
@@ -2692,6 +2623,78 @@
     </div>
 </div>
 
+<!-- Batch History Modal - CENTERED VERSION -->
+<div id="batchHistoryModal" class="modal fade" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-boxes me-2"></i> Batch History (FIFO) - <span id="modalBatchMaterialName"></span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-3" style="max-height: 550px; overflow-y: auto;">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover table-sm">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th style="width: 22%">Batch Info</th>
+                                <th style="width: 13%">Received Qty</th>
+                                <th style="width: 13%">Remaining Qty</th>
+                                <th style="width: 15%">Expiry Date</th>
+                                <th style="width: 10%">Unit Price</th>
+                                <th style="width: 15%">Status</th>
+                                <th style="width: 12%">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalBatchHistoryBody">
+                            <tr><td colspan="7" class="text-center text-muted py-4">Loading batch history...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i> Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="usageDetailsModal" class="modal fade" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-history"></i> Batch Usage History
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="max-height: 500px; overflow-y: auto;">
+                <!-- Walang table-responsive dito para isa lang ang scroll -->
+                <table class="table table-bordered table-hover text-center align-middle">
+                    <thead class="table-light sticky-top">
+                        <tr>
+                            <th style="width: 8%;">#</th>
+                            <th style="width: 35%;">Date & Time</th>
+                            <th style="width: 15%;">Quantity</th>
+                            <th style="width: 20%;">Order #</th>
+                            <th style="width: 22%;">Product</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usageDetailsTableBody">
+                        <!-- Dynamic content -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
     </div>
 </div>
@@ -3050,15 +3053,15 @@ if (!unitPrice || unitPrice <= 0) {
             console.log('Response:', result);
 
             if (result.success) {
-                alert('✅ ' + result.message);
+                 await showAlert(result.message, 'Success');
                 closeAddDeliveryForm();
                 saveAndReload();
             } else {
-                alert('❌ Error: ' + result.message);
+                 await showAlert(' Error: ' + result.message, 'Error');
             }
         } catch (error) {
             console.error('Error details:', error);
-            alert('❌ Error adding delivery: ' + error.message);
+            await showAlert(' Error adding delivery: ' + error.message);
         } finally {
             submitBtn.innerHTML = originalText;
             submitBtn.disabled = false;
@@ -3171,7 +3174,7 @@ if (!unitPrice || unitPrice <= 0) {
     .then(response => response.json())
     .then(async data => {
         if (data.success) {
-            await showAlert('✅ ' + data.message, 'Success', '✅');
+            await showAlert( data.message, 'Success');
             saveAndReload();
         } else {
             if (data.hasAffectedProducts && data.affectedProducts) {
@@ -3188,14 +3191,14 @@ if (!unitPrice || unitPrice <= 0) {
                 document.getElementById('affectedProductsList').innerHTML = productListHtml;
                 new bootstrap.Modal(document.getElementById('affectedProductsModal')).show();
             } else {
-                await showAlert('❌ ' + data.message, 'Error', '❌');
+                await showAlert( data.message, 'Error');
             }
             deleteButton.innerText = originalText;
             deleteButton.disabled = false;
         }
     })
     .catch(async err => {
-        await showAlert('❌ Error deleting material: ' + err.message, 'Error', '❌');
+        await showAlert(' Error deleting material: ' + err.message, 'Error');
         deleteButton.innerText = originalText;
         deleteButton.disabled = false;
     });
@@ -3233,14 +3236,14 @@ if (isNaN(category)) { await showAlert('Please select a valid category', 'Requir
             body: formData
         })
         .then(res => res.json())
-        .then(data => {
+        .then(async (data) => {
             if (data.success) {
-                alert('✅ Raw material saved! Now add stock using "ADD DELIVERY (BATCH)".');
+                await showAlert(' Raw material saved! Now add stock using "ADD DELIVERY (BATCH)".', 'Success');
                 saveAndReload();
             }
-            else { alert('Error: ' + (data.errors ? data.errors.join(', ') : (data.message || 'Unknown error'))); }
+            else { await showAlert('Error: ' + (data.errors ? data.errors.join(', ') : (data.message || 'Unknown error')), 'Error'); }
         })
-        .catch(err => { alert('An error occurred. Please try again.'); });
+        .catch(async (err) => { await showAlert('An error occurred. Please try again.', 'Error'); });
     });
 
         async function adjustBatchStock(batchId, currentRemaining, materialName) {
@@ -3250,12 +3253,12 @@ if (isNaN(category)) { await showAlert('Please select a valid category', 'Requir
     
     const newQty = parseFloat(newQuantity);
     if (isNaN(newQty) || newQty < 0) {
-        await showAlert('Please enter a valid quantity (0 or positive number)', 'Invalid', '⚠️');
+        await showAlert('Please enter a valid quantity (0 or positive number)', 'Invalid');
         return;
     }
     
     if (newQty === currentRemaining) {
-        await showAlert('No changes made', 'Notice', 'ℹ️');
+        await showAlert('No changes made', 'Notice');
         return;
     }
     
@@ -3281,13 +3284,13 @@ if (isNaN(category)) { await showAlert('Please select a valid category', 'Requir
         const result = await response.json();
         
         if (result.success) {
-            await showAlert('✅ Stock adjusted successfully', 'Success', '✅');
+            await showAlert(' Stock adjusted successfully', 'Success');
             saveAndReload();
         } else {
-            await showAlert('❌ Error: ' + result.message, 'Error', '❌');
+            await showAlert(' Error: ' + result.message, 'Error');
         }
     } catch (error) {
-        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+        await showAlert(' Error: ' + error.message, 'Error');
     }
 }
 
@@ -3311,13 +3314,13 @@ if (isNaN(category)) { await showAlert('Please select a valid category', 'Requir
         const result = await response.json();
         
         if (result.success) {
-            await showAlert('✅ Batch marked as expired. Stock moved to waste.', 'Success', '✅');
+            await showAlert(' Batch marked as expired. Stock moved to waste.', 'Success');
             saveAndReload();
         } else {
-            await showAlert('❌ Error: ' + result.message, 'Error', '❌');
+            await showAlert(' Error: ' + result.message, 'Error');
         }
     } catch (error) {
-        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+        await showAlert(' Error: ' + error.message, 'Error');
     }
 }
 
@@ -3366,7 +3369,7 @@ form.onsubmit = async function(e) {
         
         const sizeRows = document.querySelectorAll('#sizesContainer .size-row');
         if (sizeRows.length === 0) {
-            await showAlert('❌ Please add at least one size', 'Error');
+            await showAlert(' Please add at least one size', 'Error');
             submitBtn.innerHTML = originalText;
             submitBtn.disabled = false;
             return;
@@ -3417,7 +3420,7 @@ form.onsubmit = async function(e) {
             localStorage.setItem('activeModule', 'products');
             
             // ✅ Show success message
-            await showAlert('✅ ' + result.message, 'Success', '✅');
+            await showAlert( result.message, 'Success', '✅');
             
             // ✅ Close modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('addProductModal'));
@@ -3431,11 +3434,11 @@ form.onsubmit = async function(e) {
             if (result.errors && typeof result.errors === 'object') {
                 errorMsg = Object.values(result.errors).flat().join('\n');
             }
-            await showAlert('❌ Error:\n' + errorMsg, 'Error', '❌');
+            await showAlert(' Error:\n' + errorMsg, 'Error');
         }
     } catch (error) {
         console.error('Error:', error);
-        await showAlert('❌ An error occurred: ' + error.message, 'Error', '❌');
+        await showAlert(' An error occurred: ' + error.message, 'Error');
     } finally {
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
@@ -3500,7 +3503,7 @@ function addSizeRowPromise(predefinedName = null) {
                 
                 const sizeHtml = `
                     <div class="size-row border p-3 mb-3 rounded" data-size-id="${sizeId}" style="background: #fef9e6; position: relative;">
-                        <button type="button" class="btn btn-sm btn-danger position-absolute" style="top: 10px; right: 10px;" onclick="removeSizeRow(${sizeId})">✕</button>
+                     <button type="button" class="btn-remove-size" onclick="removeSizeRow(${sizeId})">✕</button>
                         <div class="row">
                             <div class="col-md-3 mb-2">
                                 <label class="form-label fw-bold">Size Name</label>
@@ -3577,8 +3580,6 @@ function addSizeRowPromise(predefinedName = null) {
     });
 }
 
- // Para sa "Add Size" button sa loob ng modal (synchronous na version)
-// Para sa "Add Size" button sa loob ng modal (synchronous na version)
 function addSizeRowSync(predefinedName = null) {
     const container = document.getElementById('sizesContainer');
     const sizeId = sizeCounter++;
@@ -3595,7 +3596,7 @@ function addSizeRowSync(predefinedName = null) {
             
             const sizeHtml = `
                 <div class="size-row border p-3 mb-3 rounded" data-size-id="${sizeId}" style="background: #fef9e6; position: relative;">
-                    <button type="button" class="btn btn-sm btn-danger position-absolute" style="top: 10px; right: 10px;" onclick="removeSizeRowAndReindex(${sizeId})">✕</button>
+                    <button type="button" class="btn-remove-size" onclick="removeSizeRow(${sizeId})">✕</button>
                     <div class="row">
                         <div class="col-md-3 mb-2">
                             <label class="form-label fw-bold">Size Name</label>
@@ -3685,7 +3686,7 @@ function addSizeRow(predefinedName = null) {
 }
 
     function removeSizeRow(sizeId) { document.querySelector(`.size-row[data-size-id="${sizeId}"]`).remove(); }
-      async function addRecipeItem(sizeId) {
+     async function addRecipeItem(sizeId) {
     const container = document.getElementById(`recipe-items-${sizeId}`);
     const itemCount = container.children.length;
     
@@ -3699,32 +3700,33 @@ function addSizeRow(predefinedName = null) {
             });
             
             const html = `
-                <div class="row mb-2 g-2 ingredient-row" data-ingredient-index="${itemCount}">
-                    <div class="col-md-5">
-                        <select name="Sizes[${sizeId}].RecipeItems[${itemCount}].RawMaterialId" class="form-control" required onchange="updateUnitDropdown(this)">
+                <div class="row g-2 mb-2 ingredient-row" style="background: #f9f9f9; padding: 8px; border-radius: 6px; margin-bottom: 8px;">
+                    <div class="col-5">
+                        <select name="Sizes[${sizeId}].RecipeItems[${itemCount}].RawMaterialId" class="form-control form-control-sm" required onchange="updateUnitDropdown(this)">
                             ${materialOptions}
                         </select>
                     </div>
-                    <div class="col-md-3">
-                        <input type="number" name="Sizes[${sizeId}].RecipeItems[${itemCount}].Quantity" class="form-control" placeholder="Qty" step="0.01" min="0.01" value="1" required>
+                    <div class="col-2">
+                        <input type="number" name="Sizes[${sizeId}].RecipeItems[${itemCount}].Quantity" class="form-control form-control-sm" placeholder="Qty" step="0.01" min="0.01" value="1" required>
                     </div>
-                    <div class="col-md-4">
-                        <select name="Sizes[${sizeId}].RecipeItems[${itemCount}].UnitUsed" class="form-control" required>
+                    <div class="col-4">
+                        <select name="Sizes[${sizeId}].RecipeItems[${itemCount}].UnitUsed" class="form-control form-control-sm" required>
                             <option value="kg"> kilogram (kg)</option>
-                            <option value="g"> gram (g)</option>
-                            <option value="L"> liter (L)</option>
-                            <option value="mL"> milliliter (mL)</option>
-                            <option value="pcs"> pieces (pcs)</option>
+<option value="g"> gram (g)</option>
+<option value="L"> liter (L)</option>
+<option value="mL"> milliliter (mL)</option>
+<option value="pcs"> pieces (pcs)</option>
                         </select>
-                        <button type="button" class="btn btn-sm btn-danger mt-1" onclick="this.closest('.ingredient-row').remove()">Remove</button>
+                    </div>
+                    <div class="col-1">
+                        <button type="button" class="btn-remove" onclick="this.closest('.ingredient-row').remove()">✕</button>
                     </div>
                 </div>
             `;
             container.insertAdjacentHTML('beforeend', html);
         })
-        .catch(err => {
+        .catch(async (err) => {
             console.error('Error loading materials for recipe item:', err);
-            // ✅ FIX: Remove await, use regular showAlert or just log
             showAlert('Error loading ingredients. Please refresh and try again.', 'Error');
         });
 }
@@ -3751,7 +3753,9 @@ function addSizeRow(predefinedName = null) {
     }
 
     function refreshProducts() { saveAndReload(); }
-    function editProduct(productId) { alert('Edit product feature - implement based on your needs'); }
+    async function editProduct(productId) { 
+    await showAlert('Edit product feature - coming soon!', 'Notice');
+}
    async function archiveProduct(productId) {
     const confirmed = await showConfirm('Are you sure you want to archive this product?', 'Archive Product');
     if (!confirmed) return;
@@ -3766,15 +3770,15 @@ function addSizeRow(predefinedName = null) {
     .then(async data => { 
         hideLoading();
         if (data.success) { 
-            await showAlert('Product archived successfully', 'Success', '✅');
+            await showAlert('Product archived successfully', 'Success');
             saveAndReload();
         } else { 
-            await showAlert('Error archiving product', 'Error', '❌');
+            await showAlert('Error archiving product', 'Error');
         } 
     })
     .catch(async error => {
         hideLoading();
-        await showAlert('Error: ' + error.message, 'Error', '❌');
+        await showAlert('Error: ' + error.message, 'Error');
     });
 }
     function addSize(productId) { showAddProductModal(); }
@@ -3791,7 +3795,7 @@ function addSizeRow(predefinedName = null) {
             const data = await response.json();
 
             if (data.error) {
-                alert(data.error);
+                await showAlert(data.message, 'Cannot Edit');
                 modal.hide();
                 return;
             }
@@ -3838,18 +3842,18 @@ function addSizeRow(predefinedName = null) {
         // Una, i-check kung pwedeng i-edit
         fetch(`/Owner/CanEditRecipe/${productSizeId}`)
             .then(response => response.json())
-            .then(data => {
+            .then(async (data) => {
                 if (!data.canEdit) {
-                    alert(data.message);
+                    await showAlert(data.message, 'Cannot Edit');
                     return;
                 }
 
                 // Kung pwede, i-load ang recipe para i-edit
                 fetch(`/Owner/EditRecipe/${productSizeId}`)
                     .then(response => response.json())
-                    .then(recipeData => {
+                    .then(async (recipeData) => {
                         if (!recipeData.success || recipeData.error) {
-                            alert(recipeData.error || 'Error loading recipe');
+                            await showAlert(recipeData.error || 'Error loading recipe');
                             return;
                         }
 
@@ -3888,14 +3892,14 @@ function addSizeRow(predefinedName = null) {
                         // Ipakita ang modal
                         new bootstrap.Modal(document.getElementById('editRecipeModal')).show();
                     })
-                    .catch(err => {
+                    .catch(async (err) => {
                         console.error('Error:', err);
-                        alert('Error loading recipe: ' + err.message);
+                        await showAlert('Error loading recipe: ' + err.message, 'Error', '❌');
                     });
             })
-            .catch(err => {
+            .catch(async (err) => {
                 console.error('Error checking edit permission:', err);
-                alert('Error: ' + err.message);
+                await showAlert('Error: ' + err.message);
             });
     }
 
@@ -3910,7 +3914,7 @@ function addSizeRow(predefinedName = null) {
                 <td class="unit-display">-</td>
                 <td class="cost-per-unit">₱0.00</td>
                 <td class="total-cost">₱0.00</td>
-                <td><button type="button" class="btn btn-sm btn-danger" onclick="removeIngredientRow(this)">✖</button></td>
+                <td><button type="button" class="btn btn-sm btn-danger" onclick="removeIngredientRow(this)" style="border-radius: 4px; padding: 4px 8px;">✕</button></td>
             </table>
         `);
         const row = tbody.lastElementChild;
@@ -3981,7 +3985,7 @@ function addSizeRow(predefinedName = null) {
     if (price === 0 && select.value) {
         fetch(`/RawMaterial/GetPrice/${select.value}`)
             .then(response => response.json())
-            .then(data => {
+            .then(async (data) => {
                 if (data.price > 0) {
                     price = data.price;
                     const total = price * quantityForCost;
@@ -4048,10 +4052,10 @@ function addSizeRow(predefinedName = null) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value },
             body: JSON.stringify({ productSizeId: currentProductSizeId, margin: margin, ingredients: ingredients })
-        }).then(response => response.json()).then(data => {
-            if (data.success) { alert('Recipe saved successfully!'); bootstrap.Modal.getInstance(document.getElementById('editRecipeModal')).hide(); saveAndReload(); }
-            else { alert('Error saving recipe: ' + data.message); }
-        }).catch(err => { alert('An error occurred. Please try again.'); });
+        }).then(response => response.json()).then(async (data) => {
+            if (data.success) {await showAlert('Recipe saved successfully!', 'Success'); bootstrap.Modal.getInstance(document.getElementById('editRecipeModal')).hide(); saveAndReload(); }
+            else {  await showAlert('Error saving recipe: ' + data.message, 'Error'); }
+        }).catch(async (err) => { await showAlert('An error occurred. Please try again.', 'Error'); });
     }
 
     // Alerts Functions
@@ -4192,7 +4196,7 @@ function addSizeRow(predefinedName = null) {
         // Alternative: Fetch material details from server
         fetch(`/RawMaterial/GetMaterialDetails/${materialId}`)
             .then(response => response.json())
-            .then(data => {
+            .then(async (data) => {
                 if (data.success) {
                     currentRestockMaterialId = materialId;
                     document.getElementById('restockMaterialId').value = materialId;
@@ -4291,7 +4295,7 @@ function addSizeRow(predefinedName = null) {
     const recordedBy = document.getElementById('wasteRecordedBy').value;
     
     if (!materialId || !quantity || !reason) {
-        await showAlert('Please fill in all required fields', 'Required', '⚠️');
+        await showAlert('Please fill in all required fields', 'Required');
         return;
     }
     
@@ -4308,12 +4312,12 @@ function addSizeRow(predefinedName = null) {
         if (data.success) {
             bootstrap.Modal.getInstance(document.getElementById('addWasteModal')).hide();
             loadInventoryAlerts();
-            await showAlert('Waste logged successfully!', 'Success', '✅');
+            await showAlert('Waste logged successfully!', 'Success');
         } else {
             await showAlert('Error: ' + data.message, 'Error', '❌');
         }
     } catch (error) {
-        await showAlert('An error occurred: ' + error.message, 'Error', '❌');
+        await showAlert('An error occurred: ' + error.message, 'Error');
     }
 }
 
@@ -4364,35 +4368,26 @@ async function produceProduct(productSizeId, sizeName, currentStock) {
 }
 
       async function viewBatchHistory(materialId, materialName) {
-    const container = document.getElementById('batchHistoryContainer');
-    const materialNameSpan = document.getElementById('batchMaterialName');
-    const tbody = document.getElementById('batchHistoryBody');
-
-    if (!container) {
-        console.error('Container not found');
-        return;
-    }
+    // Ipakita ang modal
+    const modal = new bootstrap.Modal(document.getElementById('batchHistoryModal'));
+    const materialNameSpan = document.getElementById('modalBatchMaterialName');
+    const tbody = document.getElementById('modalBatchHistoryBody');
 
     materialNameSpan.innerText = materialName;
-    container.style.display = 'block';
-    tbody.innerHTML = `<tr><td colspan="7" class="text-center"><div class="spinner-border text-primary spinner-border-sm"></div> Loading...<\/div><\/td><\/tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center"><div class="spinner-border text-primary spinner-border-sm"></div> Loading...</td></tr>`;
+    
+    modal.show();
 
     try {
         const response = await fetch(`/RawMaterial/BatchHistory?rawMaterialId=${materialId}`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const data = await response.json();
-        
-        // ✅ KUNIN ANG BATCHES ARRAY AT UNIT MULA SA RESPONSE OBJECT
         const batches = data.batches;
         const unit = data.unit || 'kg';
-        
-        // ✅ I-DISPLAY ANG UNIT SA HEADER (optional)
-        const unitHint = document.getElementById('quantityUnitHint');
-        if (unitHint) unitHint.innerText = `Quantity in ${unit}`;
 
         if (!batches || batches.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No batches found<\/td><\/tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No batches found</td></tr>`;
             return;
         }
 
@@ -4403,15 +4398,14 @@ async function produceProduct(productSizeId, sizeName, currentStock) {
             const quantityReceived = batch.quantityReceived;
             const quantityRemaining = batch.quantityRemaining;
             
-            // Determine status
             let status = '';
             let statusClass = '';
             if (quantityRemaining <= 0) {
                 status = '<span class="badge bg-secondary">❌ Depleted</span>';
                 statusClass = 'table-secondary';
             } else if (index === 0 && quantityRemaining > 0) {
-                status = '<span class="badge bg-success">✅ ACTIVE (Next to Use - FIFO)</span>';
-                statusClass = 'table-success fw-bold';
+                status = '<span class="badge bg-success">✅ ACTIVE (Next to Use)</span>';
+                statusClass = 'table-success';
             } else if (quantityRemaining > 0) {
                 status = '<span class="badge bg-info">📦 In Stock</span>';
                 statusClass = 'table-info';
@@ -4431,7 +4425,6 @@ async function produceProduct(productSizeId, sizeName, currentStock) {
                     <td>${quantityReceived.toFixed(2)} ${unit}</td>
                     <td class="${quantityRemaining === 0 ? 'text-danger' : 'text-success'} fw-bold">
                         ${quantityRemaining.toFixed(2)} ${unit}
-                        ${quantityRemaining > 0 && quantityRemaining < quantityReceived ? '<br/><small class="text-muted">(Partially used)</small>' : ''}
                     </td>
                     <td>${formattedExpiryDate}</td>
                     <td>₱${batch.unitPrice.toFixed(2)}</td>
@@ -4441,24 +4434,25 @@ async function produceProduct(productSizeId, sizeName, currentStock) {
                             `<button class="btn btn-sm btn-outline-info" onclick='showUsageDetails(${JSON.stringify(batch.usage)})'>
                                 📋 View Usage (${batch.usage.length})
                             </button>` : 
-                            '<span class="text-muted">No usage yet</span>'}
-                    </td>
-                </tr>
+                            '<span class="text-muted">No usage</span>'}
+                     </td>
+                 </tr>
             `;
         });
 
         tbody.innerHTML += `
             <tr class="table-dark fw-bold">
-                <td colspan="2" class="text-end">TOTAL REMAINING STOCK:<\/td>
-                <td colspan="5">${totalRemaining.toFixed(2)} ${unit}<\/td>
-            <\/tr>
+                <td colspan="2" class="text-end">TOTAL REMAINING STOCK:</td>
+                <td colspan="5">${totalRemaining.toFixed(2)} ${unit}</td>
+            </tr>
         `;
 
     } catch (error) {
         console.error('Error:', error);
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error loading batches: ${error.message}<\/td><\/tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error loading batches: ${error.message}</td></tr>`;
     }
 }
+
 
 async function displayInPOS(productSizeId, productName, sizeName) {
     const confirmed = await showConfirm(`Display "${productName} - ${sizeName}" in POS menu?`, 'Confirm');
@@ -4487,18 +4481,18 @@ async function displayInPOS(productSizeId, productName, sizeName) {
         const data = await response.json();
 
         if (data.success) {
-            await showAlert(`✅ "${productName} - ${sizeName}" is now DISPLAYED in POS menu.`, 'Success', '✅');
+            await showAlert(` "${productName} - ${sizeName}" is now DISPLAYED in POS menu.`, 'Success');
             // ✅ Auto refresh after 1 second
             setTimeout(function() {
                 saveAndReload();
             }, 1000);
         } else {
-            await showAlert('❌ Error: ' + data.message, 'Error', '❌');
+            await showAlert(' Error: ' + data.message, 'Error');
             btn.innerHTML = originalText;
             btn.disabled = false;
         }
     } catch (error) {
-        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+        await showAlert(' Error: ' + error.message, 'Error');
         btn.innerHTML = originalText;
         btn.disabled = false;
     }
@@ -4532,50 +4526,81 @@ async function displayInPOS(productSizeId, productName, sizeName) {
         const data = await response.json();
 
         if (data.success) {
-            await showAlert(`✅ "${productName} - ${sizeName}" is now HIDDEN from POS menu.`, 'Success', '✅');
+            await showAlert(`"${productName} - ${sizeName}" is now HIDDEN from POS menu.`, 'Success');
             // ✅ Auto refresh after 1 second
             setTimeout(function() {
                 saveAndReload();
             }, 1000);
         } else {
-            await showAlert('❌ Error: ' + data.message, 'Error', '❌');
+            await showAlert(' Error: ' + data.message, 'Error');
             btn.innerHTML = originalText;
             btn.disabled = false;
         }
     } catch (error) {
-        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+        await showAlert(' Error: ' + error.message, 'Error');
         btn.innerHTML = originalText;
         btn.disabled = false;
     }
 }
 
-    // Helper function to show usage details
-    async function showUsageDetails(usageList) {
+ function showUsageDetails(usageList) {
     if (!usageList || usageList.length === 0) {
-        await showAlert('No usage records found for this batch.', 'Notice');
+        showAlert('No usage records found for this batch.', 'Notice');
         return;
     }
     
-    let message = ' USAGE HISTORY:\n\n';
-    usageList.forEach((use, index) => {
+    const modal = new bootstrap.Modal(document.getElementById('usageDetailsModal'));
+    const tbody = document.getElementById('usageDetailsTableBody');
+    
+    // Sort by date (newest first)
+    const sorted = [...usageList].sort((a, b) => 
+        new Date(b.dateUsed) - new Date(a.dateUsed)
+    );
+    
+    // I-clear ang laman
+    tbody.innerHTML = '';
+    
+    sorted.forEach((use, index) => {
         const dateUsed = use.dateUsed ? new Date(use.dateUsed).toLocaleString() : 'Unknown date';
         const quantity = use.quantityUsed || 0;
-        const reference = use.referenceNo || 'N/A';
-        message += `${index + 1}. Date: ${dateUsed}\n`;
-        message += `   Quantity: ${quantity.toFixed(2)} kg\n`;
-        message += `   Reference: ${reference}\n\n`;
+        
+        let orderNumber = 'N/A';
+        let productName = '';
+        
+        if (use.referenceNo) {
+            if (use.referenceNo.startsWith('POS-')) {
+                orderNumber = use.orderNumber || `#${use.orderId || '?'}`;
+            } else {
+                orderNumber = use.referenceNo;
+            }
+        }
+        
+        if (use.productName) {
+            productName = use.productName;
+        } else if (use.productSizeName) {
+            productName = use.productSizeName;
+        }
+        
+        const row = document.createElement('tr');
+        row.className = 'text-center align-middle';
+        row.innerHTML = `
+            <td class="fw-bold">${index + 1}</td>
+            <td>${escapeHtml(dateUsed)}</td>
+            <td class="text-danger fw-bold">${quantity.toFixed(2)}</td>
+            <td><span class="badge bg-primary" style="font-size: 13px; padding: 6px 12px;">${escapeHtml(orderNumber)}</span></td>
+            <td>${escapeHtml(productName)}</td>
+        `;
+        tbody.appendChild(row);
     });
     
-    await showAlert(message, 'Usage History');
-}
-
-    // Make sure closeBatchHistory exists
-    function closeBatchHistory() {
-        const container = document.getElementById('batchHistoryContainer');
-        if (container) {
-            container.style.display = 'none';
-        }
+    // ✅ IDAGDAG ITO - I-update ang modal title na may count
+    const modalTitle = document.querySelector('#usageDetailsModal .modal-title');
+    if (modalTitle) {
+        modalTitle.innerHTML = `<i class="fas fa-history"></i> Batch Usage History (${usageList.length} records)`;
     }
+    
+    modal.show();
+}
 
                     // ========== REPORTS MODULE FUNCTIONS (UPDATED - COMPLETE) ==========
 
@@ -4585,9 +4610,9 @@ async function displayInPOS(productSizeId, productName, sizeName) {
                 window.print();
             }
 
-            function exportReport() {
-                alert('Export feature coming soon!');
-            }
+            async function exportReport() {
+    await showAlert('Export feature coming soon!', 'Notice');
+}
 
                               let reportsDataLoaded = false; // Add this at the top of your <script>
 
@@ -4776,17 +4801,17 @@ function viewReceiptDetail(orderId) {
 
     fetch(`/Owner/GetReceiptDetail?orderId=${orderId}`)
         .then(response => response.json())
-        .then(data => {
+        .then(async (data) => {
             console.log("Receipt data received:", data);
             if (data.success) {
                 showReceiptModalFromData(data.receipt);
             } else {
-                showAlert('Error loading receipt details: ' + (data.message || 'Unknown error'), 'Error', '❌');
+                showAlert('Error loading receipt details: ' + (data.message || 'Unknown error'), 'Error');
             }
         })
-        .catch(error => {
+        .catch(async (error) => {
             console.error('Error:', error);
-            showAlert('Error loading receipt details: ' + error.message, 'Error', '❌');
+            showAlert('Error loading receipt details: ' + error.message, 'Error');
         });
 }
 
@@ -5139,50 +5164,12 @@ async function loadExchangeDetailsForReceipt(orderId, originalOrderId) {
 // ========== EMPLOYEE MODULE FUNCTIONS ==========
 
 function loadEmployees() {
-    console.log("Loading employees...");
-    
     fetch('/Employee/GetAllEmployees')
-        .then(function(res) { 
-            console.log("Response status:", res.status);
-            return res.json(); 
-        })
-        .then(function(data) {
-            console.log("Raw data received:", data);
-            console.log("Data type:", typeof data);
-            console.log("Is array?", Array.isArray(data));
-            
+        .then(function(res) { return res.json(); })
+        .then(function(employees) {
             var container = document.getElementById('employeesContainer');
-            if (!container) {
-                console.error("Container not found!");
-                return;
-            }
-            
-            // ✅ Handle the data - it should be an array directly
-            var employees = data;
-            
-            // If it's not an array, try to extract it
-            if (!Array.isArray(employees)) {
-                if (employees && employees.$values) {
-                    employees = employees.$values;
-                } else if (employees && employees.data) {
-                    employees = employees.data;
-                } else if (employees && typeof employees === 'object') {
-                    // Check if it's a single object with employee properties
-                    if (employees.id !== undefined || employees.username !== undefined) {
-                        employees = [employees];
-                    } else {
-                        employees = [];
-                    }
-                } else {
-                    employees = [];
-                }
-            }
-            
-            console.log("Processed employees:", employees);
-            console.log("Employee count:", employees.length);
             
             if (!employees || employees.length === 0) {
-                console.log("No employees found");
                 container.innerHTML = '<div class="text-center py-5"><i class="fas fa-users fa-4x text-muted mb-3"></i><h5>No Employees Yet</h5><p class="text-muted">Click "Add Employee" to get started.</p></div>';
                 return;
             }
@@ -5190,16 +5177,6 @@ function loadEmployees() {
             var html = '';
             for (var i = 0; i < employees.length; i++) {
                 var emp = employees[i];
-                console.log("Employee " + i + ":", emp);
-                
-                // Get values with fallbacks
-                var empId = emp.id || emp.Id;
-                var empUsername = emp.username || emp.Username || '';
-                var empFullName = emp.fullName || emp.FullName || 'No Name';
-                var empEmail = emp.email || emp.Email || 'No email';
-                var empPhone = emp.phone || emp.Phone || 'No phone';
-                var empStatus = emp.status || emp.Status || 'Active';
-                var empDateJoined = emp.dateJoined || emp.DateJoined || 'Unknown';
                 
                 html += '<div class="employee-card">' +
                     '<div class="d-flex">' +
@@ -5209,29 +5186,34 @@ function loadEmployees() {
                     '<div class="flex-grow-1">' +
                     '<div class="d-flex justify-content-between align-items-start">' +
                     '<div>' +
-                    '<div class="employee-name">' + escapeHtml(empFullName) + '</div>' +
-                        '<div class="employee-username">\u0040' + escapeHtml(empUsername) + '</div>' +
+                    '<div class="employee-name">' + escapeHtml(emp.fullName) + '</div>' +
+                    '<div class="employee-username">\u0040' + escapeHtml(emp.username) + '</div>' +
                     '</div>' +
-                    '<button class="btn btn-sm btn-outline-warning" onclick="editEmployee(' + empId + ')">' +
+                    '<div>' +
+                    '<button class="btn btn-sm btn-outline-warning me-1" onclick="editEmployee(' + emp.id + ')">' +
                     '<i class="fas fa-edit"></i> Edit' +
                     '</button>' +
+                    '<button class="btn btn-sm btn-outline-danger" onclick="deleteEmployee(' + emp.id + ', \'' + escapeHtml(emp.fullName) + '\')">' +
+                    '<i class="fas fa-trash"></i> Delete' +
+                    '</button>' +
+                    '</div>' +
                     '</div>' +
                     '<div class="row mt-2">' +
                     '<div class="col-md-6">' +
                     '<div class="employee-detail">' +
-                    '<i class="fas fa-envelope"></i> ' + escapeHtml(empEmail) +
+                    '<i class="fas fa-envelope"></i> ' + escapeHtml(emp.email || 'No email') +
                     '</div>' +
                     '<div class="employee-detail">' +
-                    '<i class="fas fa-phone"></i> ' + escapeHtml(empPhone) +
+                    '<i class="fas fa-phone"></i> ' + escapeHtml(emp.phone || 'No phone') +
                     '</div>' +
                     '</div>' +
                     '<div class="col-md-6">' +
                     '<div class="employee-detail">' +
-                    '<i class="fas fa-calendar-alt"></i> Joined: ' + escapeHtml(empDateJoined) +
+                    '<i class="fas fa-calendar-alt"></i> Joined: ' + escapeHtml(emp.dateJoined) +
                     '</div>' +
                     '<div class="employee-detail">' +
-                    '<span class="status-badge ' + (empStatus === 'Active' ? 'status-active' : 'status-inactive') + '">' +
-                    escapeHtml(empStatus) +
+                    '<span class="status-badge ' + (emp.status === 'Active' ? 'status-active' : 'status-inactive') + '">' +
+                    escapeHtml(emp.status) +
                     '</span>' +
                     '</div>' +
                     '</div>' +
@@ -5241,14 +5223,10 @@ function loadEmployees() {
                     '</div>';
             }
             container.innerHTML = html;
-            console.log("HTML rendered successfully");
         })
         .catch(function(err) {
             console.error('Error loading employees:', err);
-            var container = document.getElementById('employeesContainer');
-            if (container) {
-                container.innerHTML = '<div class="alert alert-danger">Error loading employees: ' + err.message + '</div>';
-            }
+            document.getElementById('employeesContainer').innerHTML = '<div class="alert alert-danger">Error loading employees: ' + err.message + '</div>';
         });
 }
 
@@ -5324,7 +5302,41 @@ function loadEmployees() {
                 });
         }
     }
-    function showEmployeeAddModal() {
+
+    async function deleteEmployee(employeeId, employeeName) {
+    const confirmed = await showConfirm(
+        `Delete employee "${employeeName}"?\n\nThis action cannot be undone.`,
+        'Delete Employee'
+    );
+    
+    if (!confirmed) return;
+    
+    showLoading('Deleting employee...');
+    
+    try {
+        const response = await fetch(`/Employee/Delete?id=${employeeId}`, {
+            method: 'POST',
+            headers: {
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+            }
+        });
+        
+        const result = await response.json();
+        hideLoading();
+        
+        if (result.success) {
+            await showAlert( result.message, 'Success');
+            loadEmployees(); // Refresh the list
+        } else {
+            await showAlert('Error: ' + result.message, 'Error');
+        }
+    } catch (error) {
+        hideLoading();
+        await showAlert(' Error: ' + error.message, 'Error');
+    }
+}
+
+  async function showEmployeeAddModal() {
         console.log("Opening add employee modal");
         document.getElementById('employeeModalTitle').innerText = 'Add Employee';
         document.getElementById('employeeForm').reset();
@@ -5345,14 +5357,14 @@ function loadEmployees() {
             modal.show();
         } else {
             console.error("Modal element not found!");
-            alert("Error: Modal not found");
+            await showAlert("Error: Modal not found");
         }
     }
 
-function editEmployee(id) {
+function editEmployee(id) {  // Hindi na kailangan ng async dito
     fetch('/Employee/GetEmployee/' + id)
         .then(function(res) { return res.json(); })
-        .then(function(data) {
+        .then(async function(data) {
             if (data.success) {
                 document.getElementById('employeeModalTitle').innerText = 'Edit Employee';
                 document.getElementById('employeeId').value = data.id;
@@ -5368,79 +5380,123 @@ function editEmployee(id) {
                 var modal = new bootstrap.Modal(document.getElementById('employeeModal'));
                 modal.show();
             } else {
-                alert('Error loading employee');
+                await showAlert('Error loading employee', 'Error', '❌');
             }
         })
-        .catch(function(err) { alert('Error: ' + err.message); });
+        .catch(async (err) => {
+            await showAlert('Error: ' + err.message, 'Error', '❌');
+        });
 }
 
-    function saveEmployee() {
-        var id = parseInt(document.getElementById('employeeId').value);
-        var username = document.getElementById('empUsername').value.trim();
-        var password = document.getElementById('empPassword').value;
-        var fullName = document.getElementById('empFullName').value.trim();
-        var phone = document.getElementById('empPhone').value.trim();
-        var email = document.getElementById('empEmail').value.trim();
-        var status = document.getElementById('empStatus').value;
+   async function saveEmployee() {
+    var id = parseInt(document.getElementById('employeeId').value);
+    var username = document.getElementById('empUsername').value.trim();
+    var password = document.getElementById('empPassword').value;
+    var fullName = document.getElementById('empFullName').value.trim();
+    var phone = document.getElementById('empPhone').value.trim();
+    var email = document.getElementById('empEmail').value.trim();
+    var status = document.getElementById('empStatus').value;
 
-        console.log("Saving employee:", {id, username, fullName, phone, email, status});
-
-        if (!fullName) {
-            alert('Please enter full name');
-            return;
-        }
-
-        if (id === 0 && !username) {
-            alert('Please enter username');
-            return;
-        }
-
-        if (id === 0 && !password) {
-            alert('Please enter password');
-            return;
-        }
-
-        var url = id === 0 ? '/Employee/Create' : '/Employee/Edit';
-        var data = id === 0 ? {
-            username: username,
-            password: password,
-            fullName: fullName,
-            phone: phone,
-            email: email,
-            status: status
-        } : {
-            id: id,
-            fullName: fullName,
-            phone: phone,
-            email: email,
-            status: status,
-            password: password || null
-        };
-
-        fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
-        })
-        .then(function(res) { return res.json(); })
-        .then(function(result) {
-            console.log("Save result:", result);
-            if (result.success) {
-                alert(result.message);
-                var modal = bootstrap.Modal.getInstance(document.getElementById('employeeModal'));
-                if (modal) modal.hide();
-                loadEmployees(); // Refresh the list
-            } else {
-                alert('Error: ' + result.message);
-            }
-        })
-        .catch(function(err) {
-            console.error("Save error:", err);
-            alert('Error: ' + err.message);
-        });
+    // ========== VALIDATIONS ==========
+    
+    // 1. Full Name required
+    if (!fullName) {
+        await showAlert('Please enter full name', 'Required');
+        return;
     }
+
+    // 2. Username required for new employee
+    if (id === 0 && !username) {
+        await showAlert('Please enter username', 'Required');
+        return;
+    }
+
+    // 3. Password required for new employee
+    if (id === 0 && !password) {
+        await showAlert('Please enter password', 'Required');
+        return;
+    }
+
+   
+    if (email && email !== '') {
+        if (!email.toLowerCase().endsWith('@@gmail.com')) {
+            await showAlert('Email must be a valid Gmail address (@@gmail.com)', 'Invalid Email');
+            return;
+        }
+    }
+
+    // 5. PHONE NUMBER VALIDATION - dapat exactly 11 digits, starting with 09 (optional pero kung meron dapat valid)
+    if (phone && phone !== '') {
+        // Remove any spaces or special characters
+        const cleanPhone = phone.replace(/[^0-9]/g, '');
+        
+        if (cleanPhone.length !== 11) {
+            await showAlert('Phone number must be exactly 11 digits (e.g., 09123456789)', 'Invalid Phone');
+            return;
+        }
+        
+        if (!cleanPhone.startsWith('09')) {
+            await showAlert('Phone number must start with "09"', 'Invalid Phone');
+            return;
+        }
+        
+        var formattedPhone = cleanPhone;
+    } else {
+        var formattedPhone = phone;
+    }
+
+    // 6. PASSWORD VALIDATION (for new employee OR when password is changed/added)
+    if (id === 0 || (password && password !== '')) {
+        const passwordValidation = validatePassword(password);
+        if (!passwordValidation.isValid) {
+            await showAlert(passwordValidation.message, 'Invalid Password');
+            return;
+        }
+    }
+
+    // Proceed with save
+    var url = id === 0 ? '/Employee/Create' : '/Employee/Edit';
+    var data = id === 0 ? {
+        username: username,
+        password: password,
+        fullName: fullName,
+        phone: formattedPhone,
+        email: email,
+        status: status
+    } : {
+        id: id,
+        fullName: fullName,
+        phone: formattedPhone,
+        email: email,
+        status: status,
+        password: password || null
+    };
+
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(res => res.json())
+    .then(async (result) => {
+        if (result.success) {
+            await showAlert(result.message, 'Success');
+            var modal = bootstrap.Modal.getInstance(document.getElementById('employeeModal'));
+            if (modal) modal.hide();
+            loadEmployees();
+        } else {
+            await showAlert('Error: ' + result.message, 'Error');
+        }
+    })
+    .catch(async (err) => {
+        console.error("Save error:", err);
+        await showAlert('Error: ' + err.message, 'Error');
+    });
+}
+
+
 
     function loadSimpleAttendanceData() {
     const employeeSelect = document.getElementById('attEmployeeSelect');
@@ -5496,6 +5552,46 @@ function editEmployee(id) {
                 <tr><td colspan="5" class="text-center text-danger">Error loading attendance data</td></tr>
             `;
         });
+}
+
+function validatePassword(password) {
+    // Rules:
+    // - At least 8 characters long
+    // - At least 1 lowercase letter
+    // - At least 1 uppercase letter
+    // - At least 1 number
+    // - At least 1 special character
+    
+    if (!password || password.length === 0) {
+        return { isValid: false, message: 'Password is required' };
+    }
+    
+    if (password.length < 8) {
+        return { isValid: false, message: 'Password must be at least 8 characters long' };
+    }
+    
+    const hasLowercase = /[a-z]/.test(password);
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasSpecial = /[!@@#$%^&*(),.?":{}|<>]/.test(password);
+    
+    if (!hasLowercase) {
+        return { isValid: false, message: 'Password must contain at least 1 lowercase letter' };
+    }
+    
+    if (!hasUppercase) {
+        return { isValid: false, message: 'Password must contain at least 1 uppercase letter' };
+    }
+    
+    if (!hasNumber) {
+        return { isValid: false, message: 'Password must contain at least 1 number' };
+    }
+    
+    if (!hasSpecial) {
+        return { isValid: false, message: 'Password must contain at least 1 special character (!@@#$%^&* etc.)' };
+    }
+    
+    return { isValid: true, message: '' };
 }
 
  // ========== LOAD PERFORMANCE DATA FUNCTION ==========
@@ -5686,7 +5782,7 @@ function editSupplier(id) {
         });
 }
 
-function saveSupplier() {
+async function saveSupplier() {
     const id = parseInt(document.getElementById('editSupplierId').value);
     const data = {
         supplierId: id,
@@ -5709,14 +5805,15 @@ function saveSupplier() {
         body: JSON.stringify(data)
     })
     .then(r => r.json())
-    .then(result => {
-        if (result.success) {
-            bootstrap.Modal.getInstance(document.getElementById('supplierModal')).hide();
-            loadSuppliers();
-        } else {
-            alert('Error: ' + result.message);
-        }
-    });
+    .then(async result => {
+    if (result.success) {
+        bootstrap.Modal.getInstance(document.getElementById('supplierModal')).hide();
+        loadSuppliers();
+        await showAlert('Supplier saved successfully!', 'Success');
+    } else {
+        await showAlert('Error: ' + result.message, 'Error');
+    }
+});
 }
 
 async function deleteSupplier(id) {
@@ -5733,15 +5830,15 @@ async function deleteSupplier(id) {
     .then(async result => {
         hideLoading();
         if (result.success) {
-            await showAlert('Supplier deleted successfully', 'Success', '✅');
+            await showAlert('Supplier deleted successfully', 'Success');
             loadSuppliers();
         } else {
-            await showAlert(result.message, 'Error', '❌');
+            await showAlert(result.message, 'Error');
         }
     })
     .catch(async error => {
         hideLoading();
-        await showAlert('Error: ' + error.message, 'Error', '❌');
+        await showAlert('Error: ' + error.message, 'Error');
     });
 }
 
@@ -5790,10 +5887,10 @@ let rawMaterialsList = [];
                     addReceivingRow();
                     }
                     })
-                    .catch(error => {
-                    console.error('Error loading form data:', error);
-                    alert('Error loading form data: ' + error.message);
-                    });
+                    .catch(async error => {
+    console.error('Error loading form data:', error);
+    await showAlert('Error loading form data: ' + error.message, 'Error');
+});
                     }
 function generateDRNumber() {
         const today = new Date();
@@ -5999,9 +6096,9 @@ document.getElementById('receivingForm')?.addEventListener('submit', async funct
     }
 
     if (items.length === 0) {
-        alert('Please add at least one item');
-        return;
-    }
+    await showAlert('Please add at least one item', 'Required');
+    return;
+}
 
     const data = {
         supplierId: parseInt(document.getElementById('supplierId').value),
@@ -6013,9 +6110,9 @@ document.getElementById('receivingForm')?.addEventListener('submit', async funct
     };
 
     if (!data.supplierId || !data.drNumber) {
-        alert('Please select supplier and enter DR Number');
-        return;
-    }
+    await showAlert('Please select supplier and enter DR Number', 'Required');
+    return;
+}
 
     const submitBtn = this.querySelector('button[type="submit"]');
     const originalText = submitBtn.innerHTML;
@@ -6033,7 +6130,7 @@ document.getElementById('receivingForm')?.addEventListener('submit', async funct
     .then(r => r.json())
     .then(result => {
         if (result.success) {
-            alert('✅ ' + result.message);
+            showAlert( result.message, 'Success');
             document.getElementById('receivingForm').reset();
             document.getElementById('receivingItemsBody').innerHTML = '';
             receivingRowCount = 0;
@@ -6045,7 +6142,7 @@ document.getElementById('receivingForm')?.addEventListener('submit', async funct
             showModule('receivingHistory');
             loadDeliveryHistory();
         } else {
-            alert('❌ Error: ' + result.message);
+            showAlert(' Error: ' + result.message, 'Error');
         }
     })
     .finally(() => {
@@ -6053,6 +6150,13 @@ document.getElementById('receivingForm')?.addEventListener('submit', async funct
         submitBtn.disabled = false;
     });
 });
+
+function validateMinQty(input) {
+    if (input.value < 0) {
+        input.value = 0;
+        showAlert('⚠️ Minimum quantity cannot be negative. Value has been set to 0.', 'Invalid Input', '⚠️');
+    }
+}
 
 
 function loadDeliveryHistory() {
@@ -6516,15 +6620,15 @@ async function updateReturnStatus(id, status) {
     .then(async result => {
         hideLoading();
         if (result.success) {
-            await showAlert('✅ ' + result.message, 'Success', '✅');
+            await showAlert( result.message, 'Success', '✅');
             loadReturns();
         } else {
-            await showAlert('❌ Error: ' + result.message, 'Error', '❌');
+            await showAlert(' Error: ' + result.message, 'Error', '❌');
         }
     })
     .catch(async error => {
         hideLoading();
-        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+        await showAlert(' Error: ' + error.message, 'Error', '❌');
     });
 }
             async function deleteReturn(id) {
@@ -6956,10 +7060,10 @@ function closeSupplierReturnReceipt() {
                     if (data.success) {
                     showSupplierReturnModal(data.return);
                     } else {
-                    alert('Error loading details');
+                    await showAlert('Error loading details');
                     }
                     } catch (error) {
-                    alert('Error: ' + error.message);
+                    await showAlert('Error: ' + error.message);
                     }
                     }
 
@@ -6998,21 +7102,21 @@ function closeSupplierReturnReceipt() {
                     if (existing) existing.remove();
                     document.body.insertAdjacentHTML('beforeend', modalHtml);
                     }
-                    function viewReturnDetails(requestId) {
-                    fetch(`/Owner/GetReturnDetails?requestId=${requestId}`)
-                    .then(response => response.json())
-                    .then(data => {
-                    if (data.success) {
-                    showReturnDetailModal(data);
-                    } else {
-                    alert('Error loading details: ' + (data.message || 'Unknown error'));
-                    }
-                    })
-                    .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error loading return details');
-                    });
-                    }
+                    async function viewReturnDetails(requestId) {
+    try {
+        const response = await fetch(`/Owner/GetReturnDetails?requestId=${requestId}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            showReturnDetailModal(data);
+        } else {
+            await showAlert('Error loading details: ' + (data.message || 'Unknown error'), 'Error', '❌');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        await showAlert('Error loading return details: ' + error.message, 'Error', '❌');
+    }
+}
 
                     function showReturnDetailModal(data) {
                     const modalHtml = `
@@ -7056,9 +7160,9 @@ function closeSupplierReturnReceipt() {
                     window.print();
                     }
 
-                    function exportSupplierReturns() {
-                    alert('Export feature coming soon!');
-                    }
+                    async function exportSupplierReturns() {
+    await showAlert('Export feature coming soon!', 'Notice', 'ℹ️');
+}
 
 // Toggle product card expansion/collapse
 function toggleProductCard(headerElement) {

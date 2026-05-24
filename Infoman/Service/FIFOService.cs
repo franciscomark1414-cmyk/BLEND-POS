@@ -63,39 +63,71 @@ namespace Infoman.Service
 
 
         // ========== 2. DEDUCT STOCK (SYNCHRONOUS - PARA SA EXISTING CODE) ==========
-        public bool DeductStock(int rawMaterialId, decimal quantity, int productId, string referenceNo)
+        // ========== BAGONG METHOD (may unitUsed) ==========
+        // ========== 2. DEDUCT STOCK (SYNCHRONOUS - MAY UNIT CONVERSION) ==========
+        // ========== 2. DEDUCT STOCK (SYNCHRONOUS) ==========
+        public bool DeductStock(int rawMaterialId, decimal quantityNeededForRecipe, string unitUsed, int productId, string referenceNo, int? orderId = null, int? productSizeId = null)
         {
-            // Tawagin ang async version
-            return DeductStockAsync(rawMaterialId, quantity, productId, referenceNo).GetAwaiter().GetResult();
+            var rawMaterial = _context.RawMaterials.Find(rawMaterialId);
+            if (rawMaterial == null) return false;
+
+            // Convert recipe quantity to base unit
+            decimal quantityInBaseUnit = ConvertToBaseUnit(quantityNeededForRecipe, unitUsed, rawMaterial.BaseUnit);
+
+            System.Diagnostics.Debug.WriteLine($"=== DEDUCT STOCK ===");
+            System.Diagnostics.Debug.WriteLine($"Material: {rawMaterial.Name} | BaseUnit: {rawMaterial.BaseUnit}");
+            System.Diagnostics.Debug.WriteLine($"Recipe: {quantityNeededForRecipe} {unitUsed} → {quantityInBaseUnit} {rawMaterial.BaseUnit}");
+
+            return DeductStockAsync(rawMaterialId, quantityInBaseUnit, productId, referenceNo, orderId, productSizeId).GetAwaiter().GetResult();
+        }
+
+        // ========== HELPER: UNIT CONVERSION ==========
+        private decimal ConvertToBaseUnit(decimal quantity, string fromUnit, string toBaseUnit)
+        {
+            if (fromUnit == toBaseUnit) return quantity;
+
+            return (fromUnit, toBaseUnit) switch
+            {
+                ("kg", "g") => quantity * 1000,
+                ("g", "kg") => quantity / 1000,
+                ("L", "mL") => quantity * 1000,
+                ("mL", "L") => quantity / 1000,
+                _ => quantity  // pcs or same unit — no conversion
+            };
         }
 
         // ========== 3. DEDUCT STOCK (ASYNC - BAGONG VERSION) ==========
-        public async Task<bool> DeductStockAsync(int rawMaterialId, decimal quantity, int productId, string referenceNo)
+        // ========== 3. DEDUCT STOCK (ASYNC) ==========
+        // IMPORTANT: quantity must already be in the material's BaseUnit (g, mL, kg, L, pcs)
+        // No conversion is done here — caller is responsible.
+        public async Task<bool> DeductStockAsync(int rawMaterialId, decimal quantityInBaseUnit, int productId, string referenceNo, int? orderId = null, int? productSizeId = null)
         {
+            var rawMaterial = await _context.RawMaterials.FindAsync(rawMaterialId);
+            if (rawMaterial == null) return false;
+
+            System.Diagnostics.Debug.WriteLine($"=== DEDUCTSTOCKASYNC ===");
+            System.Diagnostics.Debug.WriteLine($"Material: {rawMaterial.Name} | Deducting: {quantityInBaseUnit} {rawMaterial.BaseUnit}");
+
             using var transaction = await _context.Database.BeginTransactionAsync();
 
             try
             {
-                // Una, i-process ang expired batches
                 await ProcessExpiredBatches();
 
-                // FEFO: Order by Expiry Date (nulls last), then by Received Date
-                // IMPORTANTE: I-SKIP ang mga expired batches
                 var batches = await _context.RawMaterialBatches
+                    .Include(b => b.RawMaterial)
                     .Where(b => b.RawMaterialId == rawMaterialId
                         && b.QuantityRemaining > 0
-                        && (!b.ExpiryDate.HasValue || b.ExpiryDate.Value >= DateTime.Today)) // Skip expired
-                    .OrderBy(b => b.ExpiryDate.HasValue ? b.ExpiryDate.Value : DateTime.MaxValue) // Primary: Expiry
-                    .ThenBy(b => b.ReceivedDate) // Secondary: Received date
+                        && (!b.ExpiryDate.HasValue || b.ExpiryDate.Value >= DateTime.Today))
+                    .OrderBy(b => b.ExpiryDate.HasValue ? b.ExpiryDate.Value : DateTime.MaxValue)
+                    .ThenBy(b => b.ReceivedDate)
                     .ToListAsync();
 
-               
+                System.Diagnostics.Debug.WriteLine($"Batches available: {batches.Count}");
 
+                if (!batches.Any()) return false;
 
-                if (!batches.Any())
-                    return false;
-
-                decimal remainingToDeduct = quantity;
+                decimal remainingToDeduct = quantityInBaseUnit;
                 var usedBatches = new List<(RawMaterialBatch batch, decimal usedQty)>();
 
                 foreach (var batch in batches)
@@ -103,70 +135,58 @@ namespace Infoman.Service
                     if (remainingToDeduct <= 0) break;
 
                     decimal deductFromBatch = Math.Min(remainingToDeduct, batch.QuantityRemaining);
-
                     usedBatches.Add((batch, deductFromBatch));
                     batch.QuantityRemaining -= deductFromBatch;
                     remainingToDeduct -= deductFromBatch;
+
+                    System.Diagnostics.Debug.WriteLine($"Batch {batch.BatchId}: deducted {deductFromBatch}, remaining in batch: {batch.QuantityRemaining}");
                 }
 
-                if (remainingToDeduct > 0)
+                // Small tolerance for floating point errors (e.g. 0.0000001)
+                if (remainingToDeduct > 0.001m)
+                {
+                    System.Diagnostics.Debug.WriteLine($"FAILED: Still need {remainingToDeduct} but no more batches");
                     return false;
+                }
 
-                // Mag-record ng bawat deduction per batch
                 foreach (var (batch, usedQty) in usedBatches)
                 {
-                    var usage = new ProductionUsage
+                    _context.ProductionUsages.Add(new ProductionUsage
                     {
                         BatchId = batch.BatchId,
                         QuantityUsed = usedQty,
                         DateUsed = DateTime.Now,
                         ReferenceNo = referenceNo,
-                        ProductId = productId
-                    };
-                    _context.ProductionUsages.Add(usage);
+                        ProductId = productId,
+                        OrderId = orderId,           
+                        ProductSizeId = productSizeId
+                    });
                 }
 
-                // I-update ang main stock
                 await UpdateMainStockColumn(rawMaterialId);
-
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
+                System.Diagnostics.Debug.WriteLine($"SUCCESS: Deducted {quantityInBaseUnit} {rawMaterial.BaseUnit}");
                 return true;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"Exception: {ex.Message}");
                 await transaction.RollbackAsync();
                 throw;
             }
         }
-        // ========== BAGONG METHOD (may unitUsed) ==========
-        public bool DeductStock(int rawMaterialId, decimal quantityNeededForRecipe, string unitUsed, int productId, string referenceNo)
-        {
-            var rawMaterial = _context.RawMaterials.Find(rawMaterialId);
-            if (rawMaterial == null) return false;
 
-            // ✅ CONVERT recipe quantity to base unit
-            decimal neededInBaseUnit = quantityNeededForRecipe;
-
-            if (unitUsed != rawMaterial.BaseUnit)
-            {
-                if (unitUsed == "kg" && rawMaterial.BaseUnit == "g")
-                    neededInBaseUnit = quantityNeededForRecipe * 1000;
-                else if (unitUsed == "L" && rawMaterial.BaseUnit == "mL")
-                    neededInBaseUnit = quantityNeededForRecipe * 1000;
-            }
-
-            // ✅ Tawagin ang EXISTING async method gamit ang converted quantity
-            return DeductStockAsync(rawMaterialId, neededInBaseUnit, productId, referenceNo).GetAwaiter().GetResult();
-        }
 
         // ========== 4. DEDUCT STOCK WITH COST TRACKING ==========
         public async Task<(bool success, decimal totalCost, List<BatchUsageDetail> usedBatches)> DeductStockWithCostAsync(
-            int rawMaterialId,
-            decimal quantity,
-            int productId,
-            string referenceNo)
+     int rawMaterialId,
+     decimal quantity,
+     int productId,
+     string referenceNo,
+     int? orderId = null,
+     int? productSizeId = null)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
 
@@ -181,9 +201,6 @@ namespace Infoman.Service
                     .OrderBy(b => b.ExpiryDate.HasValue ? b.ExpiryDate.Value : DateTime.MaxValue)
                     .ThenBy(b => b.ReceivedDate)
                     .ToListAsync();
-
-                System.Diagnostics.Debug.WriteLine($"RawMaterialId: {rawMaterialId}, Quantity needed: {quantity}");
-                System.Diagnostics.Debug.WriteLine($"Batches found: {batches?.Count ?? 0}");
 
                 if (!batches.Any())
                     return (false, 0, null);
@@ -212,20 +229,21 @@ namespace Infoman.Service
                     totalCost += batchCost;
                 }
 
-                if (remainingToDeduct > 0)
+                if (remainingToDeduct > 0.001m)
                     return (false, 0, null);
 
                 foreach (var usage in usedBatches)
                 {
-                    var productionUsage = new ProductionUsage
+                    _context.ProductionUsages.Add(new ProductionUsage
                     {
                         BatchId = usage.BatchId,
                         QuantityUsed = usage.QuantityUsed,
                         DateUsed = DateTime.Now,
                         ReferenceNo = referenceNo,
-                        ProductId = productId
-                    };
-                    _context.ProductionUsages.Add(productionUsage);
+                        ProductId = productId,
+                        OrderId = orderId,           // ✅ IDAGDAG ITO
+                        ProductSizeId = productSizeId  // ✅ IDAGDAG ITO
+                    });
                 }
 
                 await UpdateMainStockColumn(rawMaterialId);
@@ -234,7 +252,7 @@ namespace Infoman.Service
 
                 return (true, totalCost, usedBatches);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 await transaction.RollbackAsync();
                 throw;

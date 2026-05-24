@@ -30,6 +30,8 @@ namespace Infoman.Models
         public decimal Price { get; set; }
         public string? SKU { get; set; }
 
+        public decimal MinQtyInBaseUnit { get; set; }  // For internal comparison (g, mL)
+
         [DataType(DataType.Date)]
         [Display(Name = "Expiration Date")]
         public DateTime? ExpirationDate { get; set; } // nullable kung walang expiration

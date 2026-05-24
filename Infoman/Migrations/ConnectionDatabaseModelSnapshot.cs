@@ -700,7 +700,13 @@ namespace Infoman.Migrations
                     b.Property<DateTime>("DateUsed")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("OrderId")
+                        .HasColumnType("int");
+
                     b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ProductSizeId")
                         .HasColumnType("int");
 
                     b.Property<decimal>("QuantityUsed")
@@ -715,6 +721,10 @@ namespace Infoman.Migrations
                     b.HasKey("UsageId");
 
                     b.HasIndex("BatchId");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("ProductSizeId");
 
                     b.ToTable("ProductionUsages", (string)null);
                 });
@@ -745,6 +755,9 @@ namespace Infoman.Migrations
 
                     b.Property<int>("MinQty")
                         .HasColumnType("int");
+
+                    b.Property<decimal>("MinQtyInBaseUnit")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -1488,7 +1501,19 @@ namespace Infoman.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Infoman.Models.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId");
+
+                    b.HasOne("Infoman.Models.ProductSize", "ProductSize")
+                        .WithMany()
+                        .HasForeignKey("ProductSizeId");
+
                     b.Navigation("Batch");
+
+                    b.Navigation("Order");
+
+                    b.Navigation("ProductSize");
                 });
 
             modelBuilder.Entity("Infoman.Models.RawMaterialBatch", b =>

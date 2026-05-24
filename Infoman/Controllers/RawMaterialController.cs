@@ -3,6 +3,7 @@ using Infoman.Models;
 using Infoman.Service;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -48,10 +49,17 @@ namespace Infoman.Controllers
         {
             ModelState.Remove("ExpirationDate");
 
+            if (material.MinQty < 0)
+            {
+                return Json(new { success = false, message = "Minimum quantity cannot be negative. Please enter 0 or a positive number." });
+            }
+
             if (ModelState.IsValid)
             {
-                // ✅ AUTO-SET base_unit at conversion_factor base sa napiling unit
                 SetConversionFields(material);
+
+                // ✅ I-CONVERT ANG MINQTY SA BASE UNIT
+               material.MinQtyInBaseUnit = ConvertToBaseUnit(material.MinQty, material.Unit, material.BaseUnit);
 
                 if (material.ExpirationDate == DateTime.MinValue)
                     material.ExpirationDate = null;
@@ -121,6 +129,11 @@ namespace Infoman.Controllers
             if (rawMaterial == null)
                 return Json(new { success = false, message = "Raw material not found" });
 
+            if (model.MinQty < 0)
+            {
+                return Json(new { success = false, message = "Minimum quantity cannot be negative. Please enter 0 or a positive number." });
+            }
+
             rawMaterial.Name = model.Name;
             rawMaterial.Category = model.Category;
             rawMaterial.MinQty = model.MinQty;
@@ -128,8 +141,10 @@ namespace Infoman.Controllers
             rawMaterial.Price = model.Price;
             rawMaterial.ExpirationDate = model.ExpirationDate;
 
-            // ✅ UPDATE CONVERSION FIELDS
             SetConversionFields(rawMaterial);
+
+            // ✅ I-CONVERT ANG MINQTY SA BASE UNIT
+            rawMaterial.MinQtyInBaseUnit = ConvertToBaseUnit(model.MinQty, model.Unit, rawMaterial.BaseUnit);
 
             var totalFromBatches = await _context.RawMaterialBatches
                 .Where(b => b.RawMaterialId == id)
@@ -316,15 +331,15 @@ namespace Infoman.Controllers
             return Json(new { price = material.Price });
         }
         [HttpPost]
-        public JsonResult DeductStockForProduction(int rawMaterialId, decimal quantity, int productId, string referenceNo)
+        public async Task<IActionResult> DeductStockForProduction(int rawMaterialId, decimal quantity, string unitUsed, int productId, string referenceNo)
         {
             try
             {
-                bool success = _fifoService.DeductStock(rawMaterialId, quantity, productId, referenceNo);
+                bool success = _fifoService.DeductStock(rawMaterialId, quantity, unitUsed, productId, referenceNo);
 
                 if (success)
                 {
-                    return Json(new { success = true, message = "Stock deducted using FIFO" });
+                    return Json(new { success = true, message = "Stock deducted successfully" });
                 }
                 else
                 {
@@ -336,7 +351,7 @@ namespace Infoman.Controllers
                 return Json(new { success = false, message = ex.Message });
             }
         }
-        // In RawMaterialController.cs - Update BatchHistory action
+
         [HttpGet]
         public async Task<IActionResult> BatchHistory(int rawMaterialId)
         {
@@ -351,15 +366,25 @@ namespace Infoman.Controllers
                 {
                     b.BatchId,
                     b.ReceivedDate,
-                    QuantityReceived = b.QuantityReceived,  // Naka-base unit (g or mL)
+                    QuantityReceived = b.QuantityReceived,
                     QuantityRemaining = b.QuantityRemaining,
                     b.ExpiryDate,
                     b.UnitPrice,
-                    Usage = b.ProductionUsages.Select(u => new { u.QuantityUsed, u.DateUsed, u.ReferenceNo })
+                    Usage = b.ProductionUsages.Select(u => new
+                    {
+                        u.QuantityUsed,
+                        u.DateUsed,
+                        u.ReferenceNo,
+                        // ✅ IDAGDAG ITO - Kunin ang Order Number mula sa Order
+                        OrderNumber = u.Order != null ? $"#{u.Order.OrderId}" :
+                                    (u.ReferenceNo != null && u.ReferenceNo.StartsWith("POS-") ? u.ReferenceNo : null),
+                        OrderId = u.OrderId,
+                        // ✅ IDAGDAG ITO - Kunin ang Product Name mula sa ProductSize
+                        ProductName = u.ProductSize != null ? $"{u.ProductSize.Product.Name} - {u.ProductSize.SizeName}" : null
+                    })
                 })
                 .ToListAsync();
 
-            // ✅ PARA SA DISPLAY, GAMITIN ANG rawMaterial.Unit
             return Json(new { batches, unit = rawMaterial.Unit });
         }
 
@@ -590,6 +615,20 @@ namespace Infoman.Controllers
                 .ToListAsync();
 
             return Json(materials);
+        }
+
+        private decimal ConvertToBaseUnit(decimal quantity, string fromUnit, string toBaseUnit)
+        {
+            if (fromUnit == toBaseUnit) return quantity;
+
+            return (fromUnit, toBaseUnit) switch
+            {
+                ("kg", "g") => quantity * 1000,
+                ("g", "kg") => quantity / 1000,
+                ("L", "mL") => quantity * 1000,
+                ("mL", "L") => quantity / 1000,
+                _ => quantity
+            };
         }
 
     }

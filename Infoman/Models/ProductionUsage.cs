@@ -25,8 +25,22 @@ namespace Infoman.Models
         [StringLength(200)]
         public string ReferenceNo { get; set; }  // Order # or Production #
 
-        // Navigation property
+        // ✅ IDAGDAG ITO - For Order relationship
+        public int? OrderId { get; set; }
+
+        // ✅ IDAGDAG ITO - For Product Size relationship
+        public int? ProductSizeId { get; set; }
+
+        // Navigation properties
         [ForeignKey("BatchId")]
         public virtual RawMaterialBatch Batch { get; set; }
+
+        // ✅ IDAGDAG ITO - Navigation property for Order
+        [ForeignKey("OrderId")]
+        public virtual Order Order { get; set; }
+
+        // ✅ IDAGDAG ITO - Navigation property for ProductSize
+        [ForeignKey("ProductSizeId")]
+        public virtual ProductSize ProductSize { get; set; }
     }
 }

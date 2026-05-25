@@ -1037,6 +1037,48 @@ namespace Infoman.Migrations
                     b.ToTable("RejectedForReturn");
                 });
 
+            modelBuilder.Entity("Infoman.Models.StockAdjustmentLog", b =>
+                {
+                    b.Property<int>("AdjustmentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AdjustmentId"));
+
+                    b.Property<DateTime>("AdjustedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("AdjustedBy")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BatchId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("NewQuantity")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<decimal>("OldQuantity")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("AdjustmentId");
+
+                    b.HasIndex("AdjustedBy");
+
+                    b.HasIndex("BatchId");
+
+                    b.ToTable("StockAdjustmentLogs");
+                });
+
             modelBuilder.Entity("Infoman.Models.Supplier", b =>
                 {
                     b.Property<int>("SupplierId")
@@ -1620,6 +1662,25 @@ namespace Infoman.Migrations
                     b.Navigation("RawMaterial");
 
                     b.Navigation("Receiving");
+                });
+
+            modelBuilder.Entity("Infoman.Models.StockAdjustmentLog", b =>
+                {
+                    b.HasOne("Infoman.Models.User", "AdjustedByUser")
+                        .WithMany()
+                        .HasForeignKey("AdjustedBy")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Infoman.Models.RawMaterialBatch", "Batch")
+                        .WithMany()
+                        .HasForeignKey("BatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AdjustedByUser");
+
+                    b.Navigation("Batch");
                 });
 
             modelBuilder.Entity("Infoman.Models.SupplierReturn", b =>

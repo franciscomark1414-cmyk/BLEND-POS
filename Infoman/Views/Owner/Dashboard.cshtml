@@ -8,9 +8,11 @@
     body {
         background: linear-gradient(to bottom, #f5f1e6, #e8dcc7);
         font-family: 'Segoe UI', sans-serif;
+        margin: 0;
+        padding: 0;
     }
 
-    /* Dashboard Container */
+    /* ========== DASHBOARD CONTAINER ========== */
     .dashboard-container {
         display: flex;
         min-height: 100vh;
@@ -53,7 +55,8 @@
         color: #94a3b8;
     }
 
-    .sidebar .nav-item:hover, .sidebar .nav-item.active {
+    .sidebar .nav-item:hover, 
+    .sidebar .nav-item.active {
         background: #334155;
         color: #f59e0b;
     }
@@ -67,11 +70,11 @@
     .main-content {
         flex: 1;
         margin-left: 260px;
-        padding: 20px 30px;
+        padding: 15px 25px;
         min-height: 100vh;
     }
 
-    /* Module styles */
+    /* ========== MODULE STYLES ========== */
     .module {
         display: none;
     }
@@ -80,53 +83,115 @@
         display: block;
     }
 
-    /* Cards and Stats */
+    /* ========== DASHBOARD SPECIFIC ========== */
+    #dashboardModule {
+        overflow-y: visible;
+    }
+
+    #dashboardModule .row {
+        margin-bottom: 20px;
+    }
+
+    #dashboardModule .card {
+        border-radius: 16px;
+        border: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        overflow: hidden;
+    }
+
+    #dashboardModule .card-header {
+        border-bottom: 1px solid #f0f0f0;
+        padding: 15px 20px;
+        background: white;
+    }
+
+    #dashboardModule .card-body {
+        padding: 20px;
+    }
+
+    /* Stats Cards */
     .stat-card {
         background: white;
-        border-radius: 12px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border-radius: 16px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        transition: all 0.2s ease;
         cursor: pointer;
+        height: 100%;
     }
 
     .stat-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.1);
     }
 
-    .stat-card .card-body h5 {
-        font-size: 14px;
-        margin-bottom: 10px;
+    .stat-card .card-body {
+        padding: 15px;
+    }
+
+    .stat-card h5 {
+        font-size: 13px;
+        color: #6c757d;
+        margin-bottom: 8px;
         font-weight: 600;
     }
 
-    .stat-card .card-body p {
+    .stat-card p {
         font-size: 28px;
         font-weight: bold;
-        margin-bottom: 0;
+        margin-bottom: 5px;
+        color: #333;
+    }
+
+    .stat-card small {
+        font-size: 11px;
+        color: #6c757d;
     }
 
     .critical-card {
-        border-left: 4px solid #ef4444;
+        border-left: 4px solid #dc3545;
     }
 
-    .critical-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 20px rgba(239, 68, 68, 0.15);
+    .critical-card .display-4 {
+        font-size: 32px;
+        font-weight: bold;
     }
 
-    /* Tables */
+    /* Best Selling List Group */
+    .list-group-item {
+        padding: 12px 16px;
+        border-left: none;
+        border-right: none;
+        transition: all 0.2s ease;
+    }
+
+    .list-group-item:hover {
+        background-color: #f8f9fa;
+        transform: translateX(5px);
+    }
+
+    .list-group-item .badge {
+        font-size: 12px;
+        padding: 5px 10px;
+    }
+
+    /* ========== TABLES ========== */
     .table th {
         background-color: #334155;
         color: #f59e0b;
         font-weight: 600;
+        padding: 12px;
+    }
+
+    .table td {
+        padding: 10px 12px;
+        vertical-align: middle;
     }
 
     .table-responsive {
         overflow-x: auto;
     }
 
-    /* Product Cards */
+    /* ========== PRODUCT CARDS ========== */
     .product-card {
         transition: transform 0.2s, box-shadow 0.2s;
     }
@@ -149,7 +214,7 @@
         background: #f8f9fa;
     }
 
-    /* Tabs */
+    /* ========== TABS ========== */
     .nav-tabs .nav-link {
         border: none;
         color: #6c757d;
@@ -168,7 +233,7 @@
         background: transparent;
     }
 
-    /* Size Row */
+    /* ========== SIZE ROW ========== */
     .size-row {
         background-color: #f9f9f9;
         padding: 15px;
@@ -178,41 +243,6 @@
         position: relative;
     }
 
-    /* ========== INGREDIENT ROW STYLES (FIXED) ========== */
-    .ingredient-row {
-        background: #f9f9f9;
-        padding: 10px;
-        border-radius: 8px;
-        margin-bottom: 10px;
-        border: 1px solid #e9ecef;
-        transition: all 0.2s ease;
-    }
-
-    .ingredient-row:hover {
-        background: #fff8f0;
-        border-color: #ffc107;
-    }
-
-    /* Remove button (X) for ingredient */
-    .ingredient-row .btn-remove {
-        background: #dc3545;
-        border: none;
-        border-radius: 6px;
-        color: white;
-        font-size: 14px;
-        font-weight: bold;
-        padding: 4px 0;
-        width: 100%;
-        transition: all 0.2s ease;
-        cursor: pointer;
-    }
-
-    .ingredient-row .btn-remove:hover {
-        background: #c82333;
-        transform: scale(1.02);
-    }
-
-    /* Remove button for size row */
     .size-row .btn-remove-size {
         position: absolute;
         top: 10px;
@@ -234,13 +264,117 @@
         transform: scale(1.02);
     }
 
-    /* Form controls inside ingredient row */
-    .ingredient-row .form-control-sm {
-        font-size: 13px;
-        padding: 6px 8px;
+    /* ========== INGREDIENT ROW ========== */
+    .ingredient-row {
+        background: #f9f9f9;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 10px;
+        min-height: 70px;
     }
 
-    /* Employee Cards */
+    .ingredient-row:hover {
+        background: #fff8f0;
+        border-color: #ffc107;
+    }
+
+    .ingredient-row .form-control,
+    .ingredient-row .form-control-sm {
+        height: 38px;
+        font-size: 13px;
+    }
+
+    .ingredient-row .btn-remove {
+        background: #dc3545;
+        border: none;
+        border-radius: 6px;
+        color: white;
+        font-size: 14px;
+        font-weight: bold;
+        height: 38px;
+        width: 100%;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .ingredient-row .btn-remove:hover {
+        background: #c82333;
+        transform: scale(1.02);
+    }
+
+    /* ========== ADD DELIVERY PANEL ========== */
+    #addDeliveryPanel {
+        flex: 1;
+        display: none;
+        border: none;
+        padding: 0;
+        border-radius: 20px;
+        background: white;
+        height: fit-content;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    #addDeliveryPanel h5 {
+        margin: 0;
+        padding: 18px 20px;
+        background: linear-gradient(135deg, #28a745, #1e7e34);
+        color: white;
+        font-size: 16px;
+        font-weight: 600;
+    }
+
+    #addDeliveryPanel h5 i {
+        margin-right: 8px;
+    }
+
+    #addDeliveryPanel .text-muted {
+        margin: 0;
+        padding: 12px 20px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+        font-size: 12px;
+    }
+
+    #addDeliveryPanel form {
+        padding: 20px;
+    }
+
+    #addDeliveryPanel .alert {
+        margin: 20px 0 0 0;
+    }
+
+    #addDeliveryPanel .d-flex.gap-2 {
+        margin-top: 20px;
+        gap: 12px !important;
+    }
+
+    #addDeliveryPanel .form-label {
+        font-weight: 600;
+        margin-bottom: 8px;
+        font-size: 13px;
+    }
+
+    #addDeliveryPanel .form-control,
+    #addDeliveryPanel select {
+        border-radius: 10px;
+        padding: 10px 12px;
+        border: 1px solid #ddd;
+    }
+
+    /* ========== ADD RAW MATERIAL BOX ========== */
+    #addRawMaterialBox {
+        background-color: #f9f9f9;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        border-radius: 12px;
+        padding: 20px;
+    }
+
+    /* ========== EMPLOYEE CARDS ========== */
     .employee-card {
         background: white;
         border-radius: 12px;
@@ -297,26 +431,14 @@
         color: #991b1b;
     }
 
-    /* Product card collapse animation */
-    .product-card .card-body {
-        transition: all 0.3s ease;
-    }
-
-    .product-card .card-header {
-        transition: background-color 0.2s ease;
-    }
-
-    .product-card .card-header:hover {
-        background-color: #f8f9fa;
-    }
-
+    /* ========== TOGGLE ICON ========== */
     .toggle-icon {
         font-size: 14px;
         color: #f59e0b;
         transition: transform 0.2s ease;
     }
 
-    /* Empty state */
+    /* ========== EMPTY STATE ========== */
     .empty-state {
         text-align: center;
         padding: 60px 20px;
@@ -325,7 +447,7 @@
         margin: 20px 0;
     }
 
-    /* Border utilities */
+    /* ========== BORDER UTILITIES ========== */
     .border-left-warning { border-left: 4px solid #ffc107 !important; }
     .border-left-info { border-left: 4px solid #17a2b8 !important; }
     .border-left-danger { border-left: 4px solid #dc3545 !important; }
@@ -338,7 +460,7 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.5);
+        background: rgba(0,0,0,0.5);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -364,7 +486,6 @@
     #customConfirmModal .modal-qty-content,
     #customAlertModal .modal-qty-content {
         z-index: 10001 !important;
-        position: relative;
         background: white;
         border-radius: 16px !important;
         padding: 25px !important;
@@ -407,7 +528,7 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.5);
+        background: rgba(0,0,0,0.5);
         display: none;
         align-items: center;
         justify-content: center;
@@ -451,45 +572,7 @@
         animation: spinner-border 0.75s linear infinite;
     }
 
-    /* Standardize ingredient row height */
-.ingredient-row {
-    background: #f9f9f9;
-    border: 1px solid #e9ecef;
-    border-radius: 8px;
-    padding: 10px;
-    margin-bottom: 10px;
-    min-height: 70px;  /* ← PARA PANTAY ANG LAHAT */
-}
-
-/* Para pantay ang mga select at input */
-.ingredient-row .form-control,
-.ingredient-row .form-control-sm {
-    height: 38px;  /* ← FIXED HEIGHT */
-    font-size: 13px;
-}
-
-/* Para pantay ang X button */
-.ingredient-row .btn-remove {
-    background: #dc3545;
-    border: none;
-    border-radius: 6px;
-    color: white;
-    font-size: 14px;
-    font-weight: bold;
-    height: 38px;  /* ← SAME HEIGHT AS INPUTS */
-    width: 100%;
-    transition: all 0.2s ease;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.ingredient-row .btn-remove:hover {
-    background: #c82333;
-    transform: scale(1.02);
-}
-
+    /* Animations */
     @@keyframes spinner-border {
         to { transform: rotate(360deg); }
     }
@@ -505,61 +588,41 @@
         }
     }
 
-    /* Add Raw Material Box */
-    #addRawMaterialBox {
-        background-color: #f9f9f9;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    /* ========== RESPONSIVE ========== */
+    @@media (max-width: 992px) {
+        #dashboardModule .row .col-md-3,
+        #dashboardModule .row .col-md-7,
+        #dashboardModule .row .col-md-5 {
+            margin-bottom: 15px;
+        }
+        
+        .stat-card p {
+            font-size: 24px;
+        }
+        
+        .critical-card .display-4 {
+            font-size: 28px;
+        }
     }
 
-    #addRawMaterialBox .text-muted {
-        font-size: 12px;
-    }
-
-    /* Tab buttons */
-    .tab-button {
-        border: none;
-        background: none;
-        padding: 10px 20px;
-        border-radius: 0;
-        color: #6c757d;
-        font-weight: 500;
-    }
-
-    .tab-button.active {
-        color: #ffc107;
-        border-bottom: 3px solid #ffc107;
-    }
-
-    .tab-button:hover {
-        color: #ffc107;
-    }
-
-    .alert-tab-content {
-        display: none;
-    }
-
-    .alert-tab-content.active {
-        display: block;
-    }
-
-    /* List group */
-    .list-group-item {
-        transition: all 0.2s ease;
-    }
-
-    .list-group-item:hover {
-        background-color: #fff8e7;
-        transform: translateX(5px);
-    }
-
-    /* SKU cell */
-    .sku-cell {
-        font-family: inherit;
-        font-size: inherit;
-        color: inherit;
-        font-weight: normal;
-        background: none;
-        padding: 8px;
+    @@media (max-width: 768px) {
+        .main-content {
+            margin-left: 0;
+            padding: 15px;
+        }
+        
+        .sidebar {
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+        
+        .sidebar.open {
+            transform: translateX(0);
+        }
+        
+        .stat-card {
+            margin-bottom: 15px;
+        }
     }
 </style>
 
@@ -614,259 +677,245 @@
     <div class="main-content">
 
 
-        <!-- Dashboard Module -->
-        <div id="dashboardModule" class="module active">
-            <div class="row g-4">
-                <!-- Today's Sales Card -->
-                <div class="col-md-3">
-                    <div class="stat-card">
-                        <div class="card-body text-center">
-                            <h5>Today's Sales</h5>
-                            <p>₱@ViewBag.TodaysSales.ToString("N2")</p>
-                            <small>@ViewBag.TotalOrdersToday order(s) today</small>
-                        </div>
-                    </div>
+<!-- Dashboard Module - REDESIGNED -->
+<div id="dashboardModule" class="module active">
+    <!-- STATS CARDS ROW - mas maganda ang spacing -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="card-body text-center">
+                    <h5>Today's Sales</h5>
+                    <p class="mb-0">₱@ViewBag.TodaysSales.ToString("N2")</p>
+                    <small>@ViewBag.TotalOrdersToday order(s) today</small>
                 </div>
-                <!-- Total Orders Today -->
-                <div class="col-md-3">
-                    <div class="stat-card">
-                        <div class="card-body text-center">
-                            <h5>Total Orders Today</h5>
-                            <p>@ViewBag.TotalOrdersToday</p>
-                        </div>
-                    </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="card-body text-center">
+                    <h5>Total Orders Today</h5>
+                    <p class="mb-0">@ViewBag.TotalOrdersToday</p>
                 </div>
-                <!-- Total Revenue -->
-                <div class="col-md-3">
-                    <div class="stat-card">
-                        <div class="card-body text-center">
-                            <h5>Total Revenue</h5>
-                            <p>₱@ViewBag.AllTimeRevenue.ToString("N2")</p>
-                            <small>All time sales</small>
-                        </div>
-                    </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="card-body text-center">
+                    <h5>Total Revenue</h5>
+                    <p class="mb-0">₱@ViewBag.AllTimeRevenue.ToString("N2")</p>
+                    <small>All time sales</small>
                 </div>
-                <!-- Critical Stock Alert (with +2 more) -->
-                <div class="col-md-3">
-                    <a href="#" onclick="showModule('inventoryAlerts'); return false;" style="text-decoration:none;">
-                        <div class="stat-card critical-card">
-                            <div class="card-body text-center">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <h5 class="text-danger mb-0 fw-bold">
-                                        <i class="fas fa-exclamation-triangle"></i> CRITICAL STOCK
-                                    </h5>
-                                    @if (ViewBag.TotalOtherAlerts > 0)
-                                    {
-                                        <span class="badge bg-warning text-dark rounded-pill">
-                                            +@ViewBag.TotalOtherAlerts more
-                                        </span>
-                                    }
-                                </div>
-                                <p class="display-4 fw-bold text-danger mb-0 mt-2">@ViewBag.CriticalStockCount</p>
-                                <small class="text-muted">item@(ViewBag.CriticalStockCount != 1 ? "s" : "") critical</small>
-
-                                @if (ViewBag.TotalOtherAlerts > 0)
+            </div>
+        </div>
+        <div class="col-md-3">
+            <a href="#" onclick="showModule('inventoryAlerts'); return false;" style="text-decoration:none;">
+                <div class="stat-card critical-card">
+                    <div class="card-body text-center">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <h5 class="text-danger mb-0">⚠️ CRITICAL STOCK</h5>
+                            @if (ViewBag.TotalOtherAlerts > 0)
+                            {
+                                <span class="badge bg-warning text-dark rounded-pill">+@ViewBag.TotalOtherAlerts</span>
+                            }
+                        </div>
+                        <p class="display-4 fw-bold text-danger mb-0">@ViewBag.CriticalStockCount</p>
+                        <small>item@(ViewBag.CriticalStockCount != 1 ? "s" : "") critical</small>
+                        @if (ViewBag.TotalOtherAlerts > 0)
+                        {
+                            <div class="mt-2">
+                                @if (ViewBag.ExpiringCount > 0)
                                 {
-                                    <hr class="my-2">
-                                    <div class="small">
-                                        @if (ViewBag.ExpiringCount > 0)
-                                        {
-                                            <span class="badge bg-info me-1">⏰ @ViewBag.ExpiringCount expiring</span>
-                                        }
-                                        @if (ViewBag.ExpiredCount > 0)
-                                        {
-                                            <span class="badge bg-danger me-1">❌ @ViewBag.ExpiredCount expired</span>
-                                        }
-                                        @if (ViewBag.WasteCount > 0)
-                                        {
-                                            <span class="badge bg-secondary">🗑️ @ViewBag.WasteCount waste</span>
-                                        }
+                                    <span class="badge bg-info me-1">⏰ @ViewBag.ExpiringCount</span>
+                                }
+                                @if (ViewBag.ExpiredCount > 0)
+                                {
+                                    <span class="badge bg-danger me-1">❌ @ViewBag.ExpiredCount</span>
+                                }
+                                @if (ViewBag.WasteCount > 0)
+                                {
+                                    <span class="badge bg-secondary">🗑️ @ViewBag.WasteCount</span>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- TWO COLUMN LAYOUT: Sales Trend (Left) + Best Selling (Right) -->
+    <div class="row g-4">
+        <!-- LEFT: Sales Trend Chart -->
+        <div class="col-md-7">
+            <div class="card h-100">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">📈 Sales Trend (Last 7 Days)</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="salesChart" style="max-height: 300px; width: 100%;"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Best Selling Products -->
+        <div class="col-md-5">
+            <div class="card h-100">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">🏆 Best Selling Products</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        @if (Model.BestSellingProducts.Any())
+                        {
+                            foreach (var item in Model.BestSellingProducts)
+                            {
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <span class="badge @(item.Rank == 1 ? "bg-warning" : "bg-secondary") rounded-pill me-2">#@item.Rank</span>
+                                        <strong>@item.Name</strong>
+                                        <br />
+                                        <small class="text-muted">@item.SizeName</small>
                                     </div>
-                                }
-                            </div>
-                        </div>
-                    </a>
-                </div>
-            </div>
-
-            <!-- Sales Trend -->
-            <div class="row mt-4">
-                <div class="col-md-12">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5>Sales Trend (Last 7 Days)</h5>
-                            <canvas id="salesChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Best Selling Products -->
-            <div class="row mt-4">
-                <div class="col-md-12">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5>Best Selling Products</h5>
-                            <div class="d-flex flex-wrap gap-3">
-                                @if (Model.BestSellingProducts.Any())
-                                {
-                                    foreach (var item in Model.BestSellingProducts)
-                                    {
-                                        <div class="product-item border p-3 rounded" style="min-width: 180px;">
-                                            <div style="font-size:24px;">🥤</div>
-                                            <strong>#@item.Rank @item.Name</strong>
-                                            <br />
-                                            <span class="badge bg-info">@item.SizeName</span>  <!-- ← SIZE BADGE -->
-                                            <br />
-                                            <strong>@item.TotalSold sold</strong>
-                                        </div>
-                                    }
-                                }
-                                else
-                                {
-                                    <p>No data yet.</p>
-                                }
-                            </div>
-                        </div>
+                                    <div class="text-end">
+                                        <span class="fw-bold text-primary">@item.TotalSold sold</span>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="list-group-item text-center text-muted">No sales data yet</div>
+                        }
                     </div>
                 </div>
             </div>
         </div>
+    </div>
+</div>
 
-        <!-- Inventory Module -->
-        <div id="inventoryModule" class="module">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <h3>STOCK IN (Add Delivery Batch)</h3>
-                <button class="btn btn-primary" onclick="showAddDeliveryForm()" style="margin-left: 10px;"> ADD DELIVERY (BATCH)</button>
-            </div>
+       
+<!-- Inventory Module -->
+<div id="inventoryModule" class="module">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h3>STOCK IN (Add Delivery Batch)</h3>
+        <button class="btn btn-primary" onclick="toggleAddDeliveryPanel()" style="margin-left: 10px;">
+            <i class="fas fa-plus"></i> ADD DELIVERY (BATCH)
+        </button>
+    </div>
 
-            <div class="mb-3">
-                <input type="text" id="searchRawMaterial" class="form-control" placeholder="Search raw materials..." onkeyup="filterTable()">
-            </div>
+    <div class="mb-3">
+        <input type="text" id="searchRawMaterial" class="form-control" placeholder="Search raw materials..." onkeyup="filterTable()">
+    </div>
 
-            <div class="d-flex gap-3">
-                <!-- LEFT: Raw Material Table -->
-                <div style="flex: 2;">
-                    <table class="table table-bordered" id="rawMaterialTable">
-                        <thead>
-                            <tr>
-                                <th>SKU</th>
-                                <th>Name</th>
-                                <th>Category</th>
-                                <th>Stock</th>
-                                <th>Min Qty</th>
-                                <th>Status</th>
-                                <th>Actions</th>
+    <!-- TWO COLUMN LAYOUT - gaya ng Raw Materials module -->
+    <div class="d-flex gap-3">
+        <!-- LEFT: Raw Material Table -->
+        <div style="flex: 2;">
+            <table class="table table-bordered" id="rawMaterialTable">
+                <thead>
+                    <tr>
+                        <th>SKU</th>
+                        <th>Name</th>
+                        <th>Category</th>
+                        <th>Stock</th>
+                        <th>Min Qty</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (ViewBag.RawMaterials != null)
+                    {
+                        foreach (var item in ViewBag.RawMaterials)
+                        {
+                            <tr data-id="@item.RawMaterialId">
+                                <td class="sku-column">@(string.IsNullOrEmpty(item.SKU) ? "—" : item.SKU)</td>
+                                <td>@item.Name</td>
+                                <td data-value="@((int)item.Category)">@item.Category</td>
+                                <td data-stock="@item.Stock" data-unit="@item.Unit">@item.StockWithUnit</td>
+                                <td data-minqty="@item.MinQty" data-unit="@item.Unit">@item.MinQtyWithUnit</td>
+                                <td>@item.Status</td>
+                                <td>
+                                    <button class="btn btn-sm btn-info" onclick="viewBatchHistory(@item.RawMaterialId, '@item.Name')"> Batches</button>
+                                    <button class="btn btn-sm btn-primary" onclick="editMaterialFromInventory(@item.RawMaterialId, '@item.Name')"> Edit</button>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteMaterialFromInventory(@item.RawMaterialId, '@item.Name')"> Delete</button>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            @if (ViewBag.RawMaterials != null)
-                            {
-                                foreach (var item in ViewBag.RawMaterials)
-                                {
-                                    <tr data-id="@item.RawMaterialId">
-                                        <td class="sku-column">@(string.IsNullOrEmpty(item.SKU) ? "—" : item.SKU)</td>
-                                        <td>@item.Name</td>
-                                        <td data-value="@((int)item.Category)">@item.Category</td>
-                                        <td data-stock="@item.Stock" data-unit="@item.Unit">@item.StockWithUnit</td>
-                                        <td data-minqty="@item.MinQty" data-unit="@item.Unit">@item.MinQtyWithUnit</td>
-                                        <td>@item.Status</td>
-                                        <td>
-                                            <button class="btn btn-sm btn-info" onclick="viewBatchHistory(@item.RawMaterialId, '@item.Name')"> Batches</button>
-                                             <button class="btn btn-sm btn-primary" onclick="editMaterialFromInventory(@item.RawMaterialId, '@item.Name')"> Edit</button>
-                                             <button class="btn btn-sm btn-danger" onclick="deleteMaterialFromInventory(@item.RawMaterialId, '@item.Name')"> Delete</button>
-                                        </td>
-                                    </tr>
-                                }
-                            }
-                            else
-                            {
-                                <tr><td colspan="9">No raw materials yet.</td></tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-
-               
-            </div>
+                        }
+                    }
+                    else
+                    {
+                        <tr><td colspan="9" class="text-center">No raw materials yet.</td></tr>
+                    }
+                </tbody>
+            </table>
         </div>
-        <!-- Add Delivery Box (for FIFO batches) -->
-        <!-- Add Delivery Box (FIFO/FEFO Batch) - IMPROVED VERSION -->
-        <div id="addDeliveryBox" style="display: none; margin-top: 20px; border: 2px solid #28a745; padding: 20px; border-radius: 10px; background-color: #f0fff0;">
+
+        <!-- RIGHT: Add Delivery Panel (inline, hindi overlay) -->
+        <div id="addDeliveryPanel" style="flex: 1; display: none; border: 2px solid #28a745; padding: 15px; border-radius: 10px; background-color: #f0fff0; height: fit-content;">
             <h5 style="color: #28a745;">
                 <i class="fas fa-truck-loading"></i> Add New Delivery (Stock Batch)
             </h5>
             <p class="text-muted small mb-3">
-                <i class="fas fa-info-circle"></i> Each delivery creates a separate batch for FEFO tracking
-                (First Expiry, First Out). Stock will be deducted based on expiry date.
+                <i class="fas fa-info-circle"></i> Each delivery creates a separate batch for FEFO tracking.
             </p>
 
             <form id="addDeliveryForm">
                 @Html.AntiForgeryToken()
 
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label fw-bold">Raw Material <span class="text-danger">*</span></label>
-                        <select id="deliveryMaterialSelect" name="RawMaterialId" class="form-control" required>
-                            <option value="">-- Select Raw Material --</option>
-                            @if (ViewBag.RawMaterials != null)
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Raw Material <span class="text-danger">*</span></label>
+                    <select id="deliveryMaterialSelect" name="RawMaterialId" class="form-control" required>
+                        <option value="">-- Select Raw Material --</option>
+                        @if (ViewBag.RawMaterials != null)
+                        {
+                            foreach (var item in ViewBag.RawMaterials)
                             {
-                                foreach (var item in ViewBag.RawMaterials)
-                                {
-                                    <option value="@item.RawMaterialId">
-                                        @item.Name (@item.Unit) - Current Stock: @item.StockWithUnit
-                                    </option>
-                                }
+                                <option value="@item.RawMaterialId" data-unit="@item.Unit">
+                                    @item.Name (@item.Unit) - Current Stock: @item.StockWithUnit
+                                </option>
                             }
-                        </select>
-                        <small class="text-muted">Select the raw material you're receiving</small>
-                    </div>
-
-                    <div class="col-md-3 mb-3">
-                        <label class="form-label fw-bold">Quantity <span class="text-danger">*</span></label>
-                        <input type="number" id="deliveryQuantity" name="Quantity" class="form-control" step="0.01" min="0.01" required placeholder="0.00">
-                        <small class="text-muted" id="quantityUnitHint">Enter quantity</small>
-                    </div>
-
-                    <div class="col-md-3 mb-3">
-                        <label class="form-label fw-bold">Unit Price (₱) <span class="text-danger">*</span></label>
-                        <input type="number" id="deliveryUnitPrice" name="UnitPrice" class="form-control" step="0.01" min="0" required placeholder="0.00">
-                        <small class="text-muted">Price per unit</small>
-                    </div>
+                        }
+                    </select>
+                    <small class="text-muted">Select the raw material you're receiving</small>
                 </div>
 
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label fw-bold">Expiry Date <span class="text-muted">(Optional)</span></label>
-                        <input type="date" id="deliveryExpiryDate" name="ExpiryDate" class="form-control">
-                        <small class="text-muted">
-                            <i class="fas fa-calendar-alt"></i> FEFO: Earliest expiry will be used first.
-                            Leave blank if no expiry.
-                        </small>
-                    </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Quantity <span class="text-danger">*</span></label>
+                    <input type="number" id="deliveryQuantity" name="Quantity" class="form-control" step="0.01" min="0.01" required placeholder="0.00">
+                    <small class="text-muted">Enter quantity</small>
+                </div>
 
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label fw-bold">&nbsp;</label>
-                        <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-success">
-                                <i class="fas fa-check-circle"></i> Save Delivery
-                            </button>
-                            <button type="button" class="btn btn-secondary" onclick="closeAddDeliveryForm()">
-                                <i class="fas fa-times"></i> Cancel
-                            </button>
-                        </div>
-                    </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Unit Price (₱) <span class="text-danger">*</span></label>
+                    <input type="number" id="deliveryUnitPrice" name="UnitPrice" class="form-control" step="0.01" min="0" required placeholder="0.00">
+                    <small class="text-muted">Price per unit</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Expiry Date <span class="text-muted">(Optional)</span></label>
+                    <input type="date" id="deliveryExpiryDate" name="ExpiryDate" class="form-control">
+                    <small class="text-muted">
+                        <i class="fas fa-calendar-alt"></i> FEFO: Earliest expiry will be used first.
+                    </small>
                 </div>
 
                 <div class="alert alert-warning py-2 small">
-                    <i class="fas fa-lightbulb"></i> <strong>FEFO Note:</strong> When producing products,
-                    batches with the earliest expiry date will be consumed first. Batches without expiry
-                    will be used last.
+                    <i class="fas fa-lightbulb"></i> <strong>FEFO Note:</strong> Batches with the earliest expiry date will be consumed first.
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-success flex-grow-1">
+                        <i class="fas fa-check-circle"></i> Save Delivery
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="toggleAddDeliveryPanel()">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
                 </div>
             </form>
         </div>
-
-        <!-- ========== RAW MATERIALS MODULE (BAGO) ========== -->
+    </div>
+</div>
         <!-- ========== RAW MATERIALS MODULE (BAGO) ========== -->
         <div id="rawMaterialsModule" class="module">
             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -1153,7 +1202,7 @@
         </div>
 
         <!-- Add Product Modal -->
-        <div class="modal fade" id="addProductModal" tabindex="-1">
+        <div class="modal fade" id="addProductModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -1221,7 +1270,7 @@
         </div>
 
         <!-- Edit Recipe Modal -->
-        <div class="modal fade" id="editRecipeModal" tabindex="-1">
+        <div class="modal fade" id="editRecipeModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -1270,35 +1319,35 @@
 
                         <div class="table-responsive">
                             <table class="table table-bordered" id="ingredientsTable">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Ingredient</th>
-                                        <th>Quantity</th>
-                                        <th>Unit</th>
-                                        <th>Cost/Unit</th>
-                                        <th>Total</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="ingredientsBody">
-                                </tbody>
-                                <tfoot>
-                                    <tr class="table-warning">
-                                        <td colspan="4" class="text-end fw-bold">TOTAL COST:</td>
-                                        <td id="totalCostDisplay" class="fw-bold">₱0.00</td>
-                                        <td></td>
-                                    </tr>
-                                    <tr class="table-info">
-                                        <td colspan="4" class="text-end fw-bold">SELLING PRICE:</td>
-                                        <td id="sellingPriceDisplay" class="fw-bold">₱0.00</td>
-                                        <td></td>
-                                    </tr>
-                                    <tr id="profitLossRow">
-                                        <td colspan="4" class="text-end fw-bold">PROFIT/LOSS:</td>
-                                        <td id="profitLossDisplay" class="fw-bold"></td>
-                                        <td></td>
-                                    </tr>
-                                </tfoot>
+                                 <thead class="table-light">
+        <tr>
+            <th>Ingredient</th>
+            <th>Quantity</th>
+            <th>Unit</th>
+            <th>Cost/Unit</th>
+            <th>Total</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody id="ingredientsBody">
+    </tbody>
+    <tfoot>
+        <tr class="table-warning">
+            <td colspan="4" class="text-end fw-bold">TOTAL COST:</td>
+            <td id="totalCostDisplay" class="fw-bold">₱0.00</td>
+            <td></td>
+        </tr>
+        <tr class="table-info">
+            <td colspan="4" class="text-end fw-bold">SELLING PRICE:</td>
+            <td id="sellingPriceDisplay" class="fw-bold">₱0.00</td>
+            <td></td>
+        </tr>
+        <tr id="profitLossRow">
+            <td colspan="4" class="text-end fw-bold">PROFIT/LOSS:</td>
+            <td id="profitLossDisplay" class="fw-bold"></td>
+            <td></td>
+        </tr>
+    </tfoot>
                             </table>
                         </div>
                     </div>
@@ -1311,7 +1360,7 @@
         </div>
 
         <!-- View Recipe Modal -->
-        <div class="modal fade" id="viewRecipeModal" tabindex="-1">
+        <div class="modal fade" id="viewRecipeModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <div class="modal-header bg-info text-white">
@@ -1710,6 +1759,11 @@
                             <i class="fas fa-receipt me-1"></i> Receipt History
                         </button>
                     </li>
+                    <li class="nav-item">
+                        <button class="nav-link" onclick="switchReportTab('adjustments', event)">
+                            <i class="fas fa-clipboard-list me-1"></i> Stock Adjustments
+                        </button>
+                    </li>
                 </ul>
 
                 <!-- Tab Content Container -->
@@ -1932,6 +1986,51 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Stock Adjustments Tab -->
+<div id="adjustmentsTab" class="tab-pane fade">
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-clipboard-list text-warning me-2"></i> Stock Adjustment History</h5>
+                    <div class="d-flex gap-2">
+                        <input type="date" id="adjustmentFilterDate" class="form-control form-control-sm w-auto" onchange="loadAdjustmentHistory()">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="printAdjustmentHistory()">
+                            <i class="fas fa-print"></i> Print
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="exportAdjustmentHistory()">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date & Time</th>
+                                    <th>Batch #</th>
+                                    <th>Material</th>
+                                    <th>Old Qty</th>
+                                    <th>New Qty</th>
+                                    <th>Difference</th>
+                                    <th>Reason</th>
+                                    <th>Adjusted By</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adjustmentHistoryBody">
+                                <tr><td colspan="9" class="text-center text-muted">Loading...<\/td><\/tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
                 </div>
             </div>
         </div>
@@ -2107,7 +2206,7 @@
 </div>
 
         <!-- Employee Add/Edit Modal -->
-        <div class="modal fade" id="employeeModal" tabindex="-1">
+        <div class="modal fade" id="employeeModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header bg-warning">
@@ -2517,7 +2616,7 @@
                             </div>
                         </div>
         <!-- Supplier Modal -->
-        <div class="modal fade" id="supplierModal" tabindex="-1">
+        <div class="modal fade" id="supplierModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header bg-primary text-white">
@@ -2624,6 +2723,7 @@
 </div>
 
 <!-- Batch History Modal - CENTERED VERSION -->
+<!-- Batch History Modal - with Edit Stock button -->
 <div id="batchHistoryModal" class="modal fade" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
@@ -2648,7 +2748,7 @@
                             </tr>
                         </thead>
                         <tbody id="modalBatchHistoryBody">
-                            <tr><td colspan="7" class="text-center text-muted py-4">Loading batch history...</td></tr>
+                            <tr><td colspan="7" class="text-center text-muted py-4">Loading batch history...<\/td><\/tr>
                         </tbody>
                     </table>
                 </div>
@@ -2695,6 +2795,90 @@
     </div>
 </div>
 
+<!-- Edit Stock Modal - Professional Design like Receipt -->
+<div id="editStockModal" class="modal fade" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px; overflow: hidden;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #ff6b35, #f7931e); color: white; border: none;">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i> Edit Batch Stock
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="padding: 25px;">
+                <!-- Batch Info Card -->
+                <div style="background: #f8f9fa; border-radius: 12px; padding: 15px; margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: #666;">Batch #</span>
+                        <strong id="editBatchId" style="color: #ff6b35;">-</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: #666;">Material</span>
+                        <strong id="editMaterialName">-</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: #666;">Current Stock</span>
+                        <strong id="editCurrentStock" class="text-danger">-</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #666;">Unit</span>
+                        <strong id="editUnit">-</strong>
+                    </div>
+                </div>
+
+                <!-- New Quantity Input -->
+                <div class="mb-4">
+                    <label class="form-label fw-bold">New Stock Quantity</label>
+                    <input type="number" id="editNewQuantity" class="form-control" step="0.01" min="0" style="border-radius: 10px; padding: 12px; font-size: 16px;">
+                    <small class="text-muted" id="editStockHint">Enter the new remaining stock quantity</small>
+                </div>
+
+                <!-- Reason for Adjustment -->
+                <div class="mb-4">
+                    <label class="form-label fw-bold">Reason for Adjustment <span class="text-danger">*</span></label>
+                    <select id="editReason" class="form-control" style="border-radius: 10px; padding: 10px;" onchange="toggleOtherReason()">
+                        <option value="">-- Select Reason --</option>
+                        <option value="Typo Error - Correction">✏️ Typo Error (Correction only - no waste log)</option>
+                        <option value="Spoilage">🍂 Spoilage (will create waste log)</option>
+                        <option value="Damage">💔 Damage (will create waste log)</option>
+                        <option value="Quality Issue">⚠️ Quality Issue (will create waste log)</option>
+                        <option value="Overripe">🍌 Overripe (will create waste log)</option>
+                        <option value="Physical Count - Missing">📊 Physical Count - Missing (will create waste log)</option>
+                        <option value="Physical Count - Excess">📊 Physical Count - Excess (increase stock)</option>
+                        <option value="Theft/Loss">🔒 Theft/Loss (will create waste log)</option>
+                        <option value="Other">📝 Other</option>
+                    </select>
+                    <input type="text" id="editOtherReason" class="form-control mt-2" placeholder="Please specify reason..." style="display: none; border-radius: 10px;">
+                </div>
+
+                <!-- Additional Notes -->
+                <div class="mb-4">
+                    <label class="form-label fw-bold">Additional Notes <span class="text-muted">(Optional)</span></label>
+                    <textarea id="editNotes" class="form-control" rows="3" placeholder="e.g., Found during inventory count, etc." style="border-radius: 10px;"></textarea>
+                </div>
+
+                <!-- Warning Message -->
+                <div id="wasteWarning" class="alert alert-warning" style="border-radius: 10px; display: none;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Note:</strong> This adjustment will create a <strong>WASTE LOG</strong> because the reason indicates actual loss/spoilage.
+                </div>
+                <div id="correctionWarning" class="alert alert-info" style="border-radius: 10px; display: none;">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Note:</strong> This is a correction only. <strong>NO waste log</strong> will be created since this is just fixing a typo or error.
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top: none; padding: 20px;">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="border-radius: 10px; padding: 10px 25px;">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button type="button" class="btn btn-primary" onclick="confirmStockAdjustment()" style="border-radius: 10px; padding: 10px 25px; background: linear-gradient(135deg, #ff6b35, #f7931e); border: none;">
+                    <i class="fas fa-save"></i> Apply Adjustment
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
     </div>
 </div>
@@ -2722,27 +2906,69 @@ const unitCategories = {
 };
 let currentReceiptData = null;
 let currentSupplierReceipt = null;
+let currentEditBatchId = null;
+let currentEditBatchRemaining = null;
+let currentEditMaterialName = null;
+let currentEditUnit = null;
 
     // Chart
     var labels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.SalesLabels ?? new List<string>()));
     var data = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.SalesValues ?? new List<decimal>()));
-    var ctx = document.getElementById('salesChart')?.getContext('2d');
-    if (ctx) {
-        new Chart(ctx, {
-            type: 'line',
-            data: { labels: labels, datasets: [{ label: 'Sales (₱)', data: data, borderWidth: 2, fill: false, tension: 0.3 }] },
-            options: { responsive: true }
-        });
-    }
-
+    // I-update ang sales chart creation para mas maganda ang size
+var ctx = document.getElementById('salesChart')?.getContext('2d');
+if (ctx) {
+    new Chart(ctx, {
+        type: 'line',
+        data: { 
+            labels: labels, 
+            datasets: [{ 
+                label: 'Sales (₱)', 
+                data: data, 
+                borderWidth: 3,
+                fill: true,
+                backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                borderColor: '#3b82f6',
+                tension: 0.3,
+                pointRadius: 4,
+                pointBackgroundColor: '#3b82f6'
+            }] 
+        },
+        options: { 
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: '#e9ecef'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+}
  
 
 
 
 function getUnitCategory(unit) {
-    if (unitCategories.weight.includes(unit)) return 'weight';
-    if (unitCategories.volume.includes(unit)) return 'volume';
-    if (unitCategories.count.includes(unit)) return 'count';
+    const weightUnits = ['kg', 'g'];
+    const volumeUnits = ['L', 'mL'];
+    const countUnits = ['pcs'];
+    
+    if (weightUnits.includes(unit)) return 'weight';
+    if (volumeUnits.includes(unit)) return 'volume';
+    if (countUnits.includes(unit)) return 'count';
     return null;
 }
 
@@ -2756,10 +2982,10 @@ function isUnitCompatible(materialUnit, recipeUnit) {
 
 // I-update ang unit dropdown options based sa napiling raw material
 function updateUnitDropdown(selectElement) {
-    const row = selectElement.closest('.ingredient-row');
+    const row = selectElement.closest('tr');
     if (!row) return;
     
-    const unitSelect = row.querySelector('select[name*="UnitUsed"]');
+    const unitSelect = row.querySelector('.unit-select');
     if (!unitSelect) return;
     
     const selectedOption = selectElement.options[selectElement.selectedIndex];
@@ -2767,9 +2993,9 @@ function updateUnitDropdown(selectElement) {
     
     if (!materialUnit) return;
     
-    // I-disable/enable options based on material unit category
     const materialCategory = getUnitCategory(materialUnit);
     
+    // Enable/disable options based on compatibility
     for (let i = 0; i < unitSelect.options.length; i++) {
         const opt = unitSelect.options[i];
         const optCategory = getUnitCategory(opt.value);
@@ -2785,7 +3011,7 @@ function updateUnitDropdown(selectElement) {
         }
     }
     
-    // Kung disabled ang kasalukuyang napili, pumili ng enabled option
+    // If currently selected unit is disabled, change to first enabled option
     if (unitSelect.options[unitSelect.selectedIndex].disabled) {
         for (let i = 0; i < unitSelect.options.length; i++) {
             if (!unitSelect.options[i].disabled) {
@@ -2794,16 +3020,19 @@ function updateUnitDropdown(selectElement) {
             }
         }
     }
+    
+    // Recalculate total after unit change
+    calculateIngredientTotal(unitSelect);
 }
 
 // Validation bago mag-save
 async function validateIngredientsUnits() {
-    const ingredientRows = document.querySelectorAll('.ingredient-row');
+    const ingredientRows = document.querySelectorAll('#ingredientsBody tr');
     let errors = [];
     
     ingredientRows.forEach(row => {
-        const materialSelect = row.querySelector('select:first-child');
-        const unitSelect = row.querySelector('select[name*="UnitUsed"]');
+        const materialSelect = row.querySelector('.ingredient-select');
+        const unitSelect = row.querySelector('.unit-select');
         
         if (!materialSelect || !materialSelect.value) return;
         
@@ -2814,22 +3043,23 @@ async function validateIngredientsUnits() {
         
         if (!materialUnit) return;
         
-        // Check compatibility
-        if (!isUnitCompatible(materialUnit, selectedUnit)) {
+        const materialCategory = getUnitCategory(materialUnit);
+        const selectedCategory = getUnitCategory(selectedUnit);
+        
+        if (materialCategory !== selectedCategory) {
             let expectedUnits = '';
-            const category = getUnitCategory(materialUnit);
-            if (category === 'weight') expectedUnits = 'kg or g';
-            else if (category === 'volume') expectedUnits = 'L or mL';
-            else if (category === 'count') expectedUnits = 'pcs';
+            if (materialCategory === 'weight') expectedUnits = 'kg or g';
+            else if (materialCategory === 'volume') expectedUnits = 'L or mL';
+            else if (materialCategory === 'count') expectedUnits = 'pcs';
             
             errors.push(`❌ "${materialName}" uses ${materialUnit}.\n   You cannot use "${selectedUnit}" in recipe. Please use ${expectedUnits}.`);
         }
     });
     
     if (errors.length > 0) {
-    await showAlert(' UNIT COMPATIBILITY ERRORS:\n\n' + errors.join('\n\n'), 'Error');
-    return false;
-}
+        await showAlert('⚠️ UNIT COMPATIBILITY ERRORS:\n\n' + errors.join('\n\n'), 'Error', '⚠️');
+        return false;
+    }
     return true;
 }
 
@@ -2962,17 +3192,26 @@ async function rejectRequest(requestId) {
         loadSupplierReturns();
     }
 }
-    // Add Delivery Form Functions
-    function showAddDeliveryForm() {
-        document.getElementById('addDeliveryBox').style.display = 'block';
-        document.getElementById('addDeliveryForm').reset();
-        // Scroll to the form
-        document.getElementById('addDeliveryBox').scrollIntoView({ behavior: 'smooth', block: 'start' });
+   // Toggle Add Delivery Panel (gaya ng toggleRawMaterialForm)
+function toggleAddDeliveryPanel() {
+    var panel = document.getElementById('addDeliveryPanel');
+    if (panel) {
+        if (panel.style.display === 'none' || panel.style.display === '') {
+            panel.style.display = 'block';
+            document.getElementById('addDeliveryForm').reset();
+            // Scroll sa panel
+            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+            panel.style.display = 'none';
+        }
     }
+}
 
-    function closeAddDeliveryForm() {
-        document.getElementById('addDeliveryBox').style.display = 'none';
-    }
+// I-update ang showAddDeliveryForm function
+function showAddDeliveryForm() {
+    toggleAddDeliveryPanel();
+}
+
 
         function updateDeliveryMaterialId() {
         const select = document.getElementById('deliveryMaterialSelect');
@@ -2990,83 +3229,76 @@ async function rejectRequest(requestId) {
     // Submit delivery form
         // Submit delivery form - FIXED VERSION
     document.getElementById('addDeliveryForm')?.addEventListener('submit', async function(e) {
-        e.preventDefault();
+    e.preventDefault();
 
-        // Kunin ang values diretso mula sa select, hindi sa hidden field
-        const selectElement = document.getElementById('deliveryMaterialSelect');
-        const rawMaterialId = selectElement.value;
-        const quantity = document.getElementById('deliveryQuantity').value;
-        const unitPrice = document.getElementById('deliveryUnitPrice').value;
-        const expiryDate = document.getElementById('deliveryExpiryDate').value;
+    const selectElement = document.getElementById('deliveryMaterialSelect');
+    const rawMaterialId = selectElement.value;
+    const quantity = document.getElementById('deliveryQuantity').value;
+    const unitPrice = document.getElementById('deliveryUnitPrice').value;
+    const expiryDate = document.getElementById('deliveryExpiryDate').value;
     const selectedOption = selectElement.options[selectElement.selectedIndex];
     const unit = selectedOption ? selectedOption.getAttribute('data-unit') : null;
 
-        // Debug: I-print ang values
-        console.log('Raw Material ID:', rawMaterialId);
-        console.log('Quantity:', quantity);
-        console.log('Unit Price:', unitPrice);
-        console.log('Expiry Date:', expiryDate);
+    if (!rawMaterialId || rawMaterialId === '') {
+        await showAlert('Please select a raw material', 'Required', '⚠️');
+        return;
+    }
 
-       if (!rawMaterialId || rawMaterialId === '') {
-    await showAlert('Please select a raw material', 'Required', '⚠️');
-    return;
-}
+    if (!quantity || quantity <= 0) {
+        await showAlert('Please enter a valid quantity', 'Required', '⚠️');
+        return;
+    }
 
-if (!quantity || quantity <= 0) {
-    await showAlert('Please enter a valid quantity', 'Required', '⚠️');
-    return;
-}
+    if (!unitPrice || unitPrice <= 0) {
+        await showAlert('Please enter a valid unit price', 'Required', '⚠️');
+        return;
+    }
 
-if (!unitPrice || unitPrice <= 0) {
-    await showAlert('Please enter a valid unit price', 'Required', '⚠️');
-    return;
-}
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    submitBtn.disabled = true;
 
-        const submitBtn = this.querySelector('button[type="submit"]');
-        const originalText = submitBtn.innerHTML;
-        submitBtn.innerHTML = 'Saving...';
-        submitBtn.disabled = true;
+    try {
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
 
-        try {
-            const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+        const requestBody = {
+            rawMaterialId: parseInt(rawMaterialId),
+            quantity: parseFloat(quantity),
+            unit: unit,
+            unitPrice: parseFloat(unitPrice),
+            expiryDate: expiryDate || null
+        };
 
-            const requestBody = {
-                rawMaterialId: parseInt(rawMaterialId),
-                quantity: parseFloat(quantity),
-                unit: unit, 
-                unitPrice: parseFloat(unitPrice),
-                expiryDate: expiryDate || null
-            };
+        const response = await fetch('/RawMaterial/AddDelivery', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': token
+            },
+            body: JSON.stringify(requestBody)
+        });
 
-            console.log('Sending request:', requestBody);
+        const result = await response.json();
 
-            const response = await fetch('/RawMaterial/AddDelivery', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': token
-                },
-                body: JSON.stringify(requestBody)
-            });
-
-            const result = await response.json();
-            console.log('Response:', result);
-
-            if (result.success) {
-                 await showAlert(result.message, 'Success');
-                closeAddDeliveryForm();
-                saveAndReload();
-            } else {
-                 await showAlert(' Error: ' + result.message, 'Error');
-            }
-        } catch (error) {
-            console.error('Error details:', error);
-            await showAlert(' Error adding delivery: ' + error.message);
-        } finally {
-            submitBtn.innerHTML = originalText;
-            submitBtn.disabled = false;
+        if (result.success) {
+            await showAlert(result.message, 'Success', '✅');
+            
+            // ✅ I-HIDE ANG PANEL
+            document.getElementById('addDeliveryPanel').style.display = 'none';
+            
+            saveAndReload();
+        } else {
+            await showAlert(' Error: ' + result.message, 'Error', '❌');
         }
-    });
+    } catch (error) {
+        console.error('Error details:', error);
+        await showAlert(' Error adding delivery: ' + error.message);
+    } finally {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    }
+});
 
     // Inventory Functions
     function toggleAddForm() {
@@ -3905,91 +4137,115 @@ function addSizeRow(predefinedName = null) {
 
     function addIngredientRow() { addIngredientRowToTable(null, ingredientCounter++); }
 
-         function addIngredientRowToTable(ingredient, index) {
-        const tbody = document.getElementById('ingredientsBody');
-        tbody.insertAdjacentHTML('beforeend', `
-            <tr data-ingredient-index="${index}">
-                <td><select class="form-control ingredient-select" onchange="calculateIngredientTotal(this)"></select></td>
-                <td><input type="number" class="form-control quantity-input" onchange="calculateIngredientTotal(this)" placeholder="Quantity" step="0.01" min="0.01"></td>
-                <td class="unit-display">-</td>
-                <td class="cost-per-unit">₱0.00</td>
-                <td class="total-cost">₱0.00</td>
-                <td><button type="button" class="btn btn-sm btn-danger" onclick="removeIngredientRow(this)" style="border-radius: 4px; padding: 4px 8px;">✕</button></td>
-            </table>
-        `);
-        const row = tbody.lastElementChild;
-        const select = row.querySelector('.ingredient-select');
-
-        fetch('/RawMaterial/GetAllWithLatestPrice')
-            .then(response => response.json())
-            .then(materials => {
-                let newOptions = '<option value="">Select Ingredient</option>';
-                materials.forEach(m => {
-                    const price = m.latestBatchPrice > 0 ? m.latestBatchPrice : m.defaultPrice;
-                    // ✅ IMPORTANT: Ang value ay rawMaterialId, hindi unit
-                    newOptions += `<option value="${m.id}" data-price="${price}" data-unit="${m.unit}">${m.name} (${m.unit} - ₱${price})</option>`;
-                });
-                select.innerHTML = newOptions;
-
-                   if (ingredient) {
-        select.value = ingredient.rawMaterialId;
-        row.querySelector('.quantity-input').value = ingredient.quantity;
-
-        // ✅ Hanapin by value (rawMaterialId) tapos override ang data-unit
-        for (let i = 0; i < select.options.length; i++) {
-            if (select.options[i].value == ingredient.rawMaterialId) {
-                select.options[i].setAttribute('data-unit', ingredient.unitUsed);  // "g" or "mL"
-                select.selectedIndex = i;
-                break;
-            }
-        }
-
-        if (ingredient.price > 0) {
-            const selectedOption = select.options[select.selectedIndex];
-            if (selectedOption) {
-                selectedOption.setAttribute('data-price', ingredient.price);
-            }
-        }
-
-        calculateIngredientTotal(select);
-    }
-            })
-            .catch(err => {
-                console.error('Error loading materials:', err);
-                select.innerHTML = '<option value="">Error loading ingredients</option>';
+     function addIngredientRowToTable(ingredient, index) {
+    const tbody = document.getElementById('ingredientsBody');
+    
+    const unitOptions = `
+        <option value="kg">📦 kilogram (kg)</option>
+        <option value="g">⚖️ gram (g)</option>
+        <option value="L">💧 liter (L)</option>
+        <option value="mL">🧪 milliliter (mL)</option>
+        <option value="pcs">🔢 pieces (pcs)</option>
+    `;
+    
+    const rowHtml = `
+        <tr data-ingredient-index="${index}">
+            <td>
+                <select class="form-control ingredient-select" onchange="updateUnitDropdown(this)">
+                    <option value="">-- Select Ingredient --</option>
+                </select>
+            </td>
+            <td>
+                <input type="number" class="form-control quantity-input" 
+                       onchange="calculateIngredientTotal(this)" 
+                       placeholder="Quantity" step="0.01" min="0.01" value="1">
+            </td>
+            <td>
+                <select class="form-control unit-select" onchange="calculateIngredientTotal(this)">
+                    ${unitOptions}
+                </select>
+            </td>
+            <td class="cost-per-unit">₱0.00</td>
+            <td class="total-cost">₱0.00</td>
+            <td>
+                <button type="button" class="btn btn-sm btn-danger" 
+                        onclick="removeIngredientRow(this)">✕</button>
+            </td>
+        </tr>
+    `;
+    
+    tbody.insertAdjacentHTML('beforeend', rowHtml);
+    const row = tbody.lastElementChild;
+    const select = row.querySelector('.ingredient-select');
+    
+    fetch('/RawMaterial/GetAllWithLatestPrice')
+        .then(response => response.json())
+        .then(materials => {
+            let newOptions = '<option value="">Select Ingredient</option>';
+            materials.forEach(m => {
+                const price = m.latestBatchPrice > 0 ? m.latestBatchPrice : m.defaultPrice;
+                newOptions += `<option value="${m.id}" data-price="${price}" data-unit="${m.unit}">${m.name} (${m.unit} - ₱${price})</option>`;
             });
-    }
-       function calculateIngredientTotal(element) {
+            select.innerHTML = newOptions;
+            
+            if (ingredient) {
+                select.value = ingredient.rawMaterialId;
+                row.querySelector('.quantity-input').value = ingredient.quantity;
+                
+                const unitSelect = row.querySelector('.unit-select');
+                for (let i = 0; i < unitSelect.options.length; i++) {
+                    if (unitSelect.options[i].value === ingredient.unitUsed) {
+                        unitSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+                
+                if (ingredient.price > 0) {
+                    const selectedOption = select.options[select.selectedIndex];
+                    if (selectedOption) selectedOption.setAttribute('data-price', ingredient.price);
+                }
+                
+                // Trigger unit compatibility check
+                updateUnitDropdown(select);
+                calculateIngredientTotal(select);
+            }
+        })
+        .catch(err => {
+            console.error('Error loading materials:', err);
+            select.innerHTML = '<option value="">Error loading ingredients</option>';
+        });
+}
+  function calculateIngredientTotal(element) {
     const row = element.closest('tr');
     const select = row.querySelector('.ingredient-select');
     const selectedOption = select.options[select.selectedIndex];
-    let price = parseFloat(selectedOption.getAttribute('data-price') || 0);
-    const unit = selectedOption.getAttribute('data-unit') || '';
+    let price = parseFloat(selectedOption?.getAttribute('data-price') || 0);
+    
+    // Get selected unit from dropdown (HINDI galing sa material)
+    const unitSelect = row.querySelector('.unit-select');
+    const selectedUnit = unitSelect ? unitSelect.value : 'g';
+    
     const quantity = parseFloat(row.querySelector('.quantity-input').value || 0);
-
-    // ✅ Convert to KG/L for costing (price is per KG or per L)
+    
+    // Convert to base unit (kg or L) for costing
     let quantityForCost = quantity;
     
-    if (unit === 'g') {
-        quantityForCost = quantity / 1000;   // 500g → 0.5 kg
-    } else if (unit === 'kg') {
-        quantityForCost = quantity;           // 1 kg → 1 kg ✅ TAMA NA
-    } else if (unit === 'mL') {
-        quantityForCost = quantity / 1000;   // 500mL → 0.5 L
-    } else if (unit === 'L') {
-        quantityForCost = quantity;           // 1 L → 1 L ✅ TAMA NA
-    } else if (unit === 'pcs') {
-        quantityForCost = quantity;           // pieces - no conversion
+    switch(selectedUnit) {
+        case 'g': quantityForCost = quantity / 1000; break;
+        case 'kg': quantityForCost = quantity; break;
+        case 'mL': quantityForCost = quantity / 1000; break;
+        case 'L': quantityForCost = quantity; break;
+        case 'pcs': quantityForCost = quantity; break;
+        default: quantityForCost = quantity;
     }
-
+    
     if (price === 0 && select.value) {
         fetch(`/RawMaterial/GetPrice/${select.value}`)
             .then(response => response.json())
-            .then(async (data) => {
+            .then(data => {
                 if (data.price > 0) {
                     price = data.price;
                     const total = price * quantityForCost;
-                    row.querySelector('.unit-display').innerText = unit;
                     row.querySelector('.cost-per-unit').innerText = `₱${price.toFixed(2)}`;
                     row.querySelector('.total-cost').innerText = `₱${total.toFixed(2)}`;
                     updateTotals();
@@ -3997,9 +4253,8 @@ function addSizeRow(predefinedName = null) {
             });
         return;
     }
-
+    
     const total = price * quantityForCost;
-    row.querySelector('.unit-display').innerText = unit;
     row.querySelector('.cost-per-unit').innerText = `₱${price.toFixed(2)}`;
     row.querySelector('.total-cost').innerText = `₱${total.toFixed(2)}`;
     updateTotals();
@@ -4039,24 +4294,49 @@ function addSizeRow(predefinedName = null) {
     }
 
     function saveRecipe() {
-        const ingredients = [];
-        document.querySelectorAll('#ingredientsBody tr').forEach(row => {
-            const select = row.querySelector('.ingredient-select');
-            const quantity = row.querySelector('.quantity-input').value;
-            const selectedOption = select.options[select.selectedIndex];
-            const unit = selectedOption.getAttribute('data-unit') || 'g';  // ✅ GET THE UNIT
-                if (select.value && quantity) ingredients.push({ rawMaterialId: parseInt(select.value), quantity: parseFloat(quantity), unitUsed: unit  });
-        });
-        const margin = parseFloat(document.getElementById('marginSelect').value);
-        fetch('/Owner/SaveRecipe', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value },
-            body: JSON.stringify({ productSizeId: currentProductSizeId, margin: margin, ingredients: ingredients })
-        }).then(response => response.json()).then(async (data) => {
-            if (data.success) {await showAlert('Recipe saved successfully!', 'Success'); bootstrap.Modal.getInstance(document.getElementById('editRecipeModal')).hide(); saveAndReload(); }
-            else {  await showAlert('Error saving recipe: ' + data.message, 'Error'); }
-        }).catch(async (err) => { await showAlert('An error occurred. Please try again.', 'Error'); });
-    }
+    const ingredients = [];
+    document.querySelectorAll('#ingredientsBody tr').forEach(row => {
+        const select = row.querySelector('.ingredient-select');
+        const unitSelect = row.querySelector('.unit-select');
+        const quantity = row.querySelector('.quantity-input').value;
+        
+        if (select.value && quantity) {
+            ingredients.push({
+                rawMaterialId: parseInt(select.value),
+                quantity: parseFloat(quantity),
+                unitUsed: unitSelect ? unitSelect.value : 'g'  // ← Kunin ang napiling unit
+            });
+        }
+    });
+    
+    const margin = parseFloat(document.getElementById('marginSelect').value);
+    
+    fetch('/Owner/SaveRecipe', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+        },
+        body: JSON.stringify({
+            productSizeId: currentProductSizeId,
+            margin: margin,
+            ingredients: ingredients
+        })
+    })
+    .then(response => response.json())
+    .then(async (data) => {
+        if (data.success) {
+            await showAlert('Recipe saved successfully!', 'Success');
+            bootstrap.Modal.getInstance(document.getElementById('editRecipeModal')).hide();
+            saveAndReload();
+        } else {
+            await showAlert('Error saving recipe: ' + data.message, 'Error');
+        }
+    })
+    .catch(async (err) => {
+        await showAlert('An error occurred. Please try again.', 'Error');
+    });
+}
 
     // Alerts Functions
     function loadInventoryAlerts() {
@@ -4367,14 +4647,13 @@ async function produceProduct(productSizeId, sizeName, currentStock) {
     }
 }
 
-      async function viewBatchHistory(materialId, materialName) {
-    // Ipakita ang modal
+    async function viewBatchHistory(materialId, materialName) {
     const modal = new bootstrap.Modal(document.getElementById('batchHistoryModal'));
     const materialNameSpan = document.getElementById('modalBatchMaterialName');
     const tbody = document.getElementById('modalBatchHistoryBody');
 
     materialNameSpan.innerText = materialName;
-    tbody.innerHTML = `<tr><td colspan="7" class="text-center"><div class="spinner-border text-primary spinner-border-sm"></div> Loading...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center"><div class="spinner-border text-primary spinner-border-sm"></div> Loading...<\/td><\/tr>`;
     
     modal.show();
 
@@ -4387,7 +4666,7 @@ async function produceProduct(productSizeId, sizeName, currentStock) {
         const unit = data.unit || 'kg';
 
         if (!batches || batches.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No batches found</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No batches found<\/td><\/tr>`;
             return;
         }
 
@@ -4430,13 +4709,19 @@ async function produceProduct(productSizeId, sizeName, currentStock) {
                     <td>₱${batch.unitPrice.toFixed(2)}</td>
                     <td>${status}</td>
                     <td>
-                        ${batch.usage?.length > 0 ? 
-                            `<button class="btn btn-sm btn-outline-info" onclick='showUsageDetails(${JSON.stringify(batch.usage)})'>
-                                📋 View Usage (${batch.usage.length})
-                            </button>` : 
-                            '<span class="text-muted">No usage</span>'}
-                     </td>
-                 </tr>
+                        <div class="d-flex gap-1">
+                            ${batch.usage?.length > 0 ? 
+                                `<button class="btn btn-sm btn-outline-info" onclick='showUsageDetails(${JSON.stringify(batch.usage)})'>
+                                    📋 View Usage (${batch.usage.length})
+                                </button>` : 
+                                '<span class="text-muted">No usage</span>'}
+                            <!-- ✅ ADD EDIT STOCK BUTTON HERE -->
+                            <button class="btn btn-sm btn-outline-warning" onclick="showEditStockModal(${batch.batchId}, ${quantityRemaining}, '${materialName}', '${unit}')">
+                                ✏️ Edit Stock
+                            </button>
+                        </div>
+                    </td>
+                </tr>
             `;
         });
 
@@ -4449,7 +4734,7 @@ async function produceProduct(productSizeId, sizeName, currentStock) {
 
     } catch (error) {
         console.error('Error:', error);
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error loading batches: ${error.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error loading batches: ${error.message}<\/td><\/tr>`;
     }
 }
 
@@ -4634,7 +4919,8 @@ async function displayInPOS(productSizeId, productName, sizeName) {
             'bestselling': 'bestSellingTab',
             'discounts': 'discountsTab',
             'waste': 'wasteTrackingTab' ,  // <-- BAGONG IDAGDAG
-                'receipts': 'receiptsTab'
+                'receipts': 'receiptsTab',
+                'adjustments': 'adjustmentsTab' 
         };
 
         var targetId = tabIdMap[tabName];
@@ -4643,6 +4929,9 @@ async function displayInPOS(productSizeId, productName, sizeName) {
             if (tabName === 'receipts') {
             loadReceiptHistory();
         }
+          if (tabName === 'adjustments') {  
+        loadAdjustmentHistory();
+    }
 
         // Re-render charts only (no fetch)
         if (tabName === 'sales' && lastReportsData) {
@@ -7383,6 +7672,217 @@ function saveAndReload() {
     sessionStorage.setItem('activeModule', currentModule);
     
     location.reload();
+}
+
+
+
+function showEditStockModal(batchId, currentRemaining, materialName, unit) {
+    // Store for later use
+    currentEditBatchId = batchId;
+    currentEditBatchRemaining = currentRemaining;
+    currentEditMaterialName = materialName;
+    currentEditUnit = unit;
+    
+    // Set values in modal
+    document.getElementById('editBatchId').innerText = batchId;
+    document.getElementById('editMaterialName').innerText = materialName;
+    document.getElementById('editCurrentStock').innerText = `${currentRemaining.toFixed(2)} ${unit}`;
+    document.getElementById('editUnit').innerText = unit;
+    document.getElementById('editNewQuantity').value = currentRemaining;
+    document.getElementById('editNewQuantity').placeholder = `Current: ${currentRemaining} ${unit}`;
+    
+    // Reset form
+    document.getElementById('editReason').value = '';
+    document.getElementById('editOtherReason').style.display = 'none';
+    document.getElementById('editOtherReason').value = '';
+    document.getElementById('editNotes').value = '';
+    document.getElementById('wasteWarning').style.display = 'none';
+    document.getElementById('correctionWarning').style.display = 'none';
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('editStockModal'));
+    modal.show();
+}
+
+function toggleOtherReason() {
+    const reasonSelect = document.getElementById('editReason');
+    const otherInput = document.getElementById('editOtherReason');
+    const wasteWarning = document.getElementById('wasteWarning');
+    const correctionWarning = document.getElementById('correctionWarning');
+    const selectedReason = reasonSelect.value;
+    
+    // Show/hide other reason input
+    if (selectedReason === 'Other') {
+        otherInput.style.display = 'block';
+    } else {
+        otherInput.style.display = 'none';
+    }
+    
+    // Show appropriate warning based on reason
+    const wasteReasons = ['Spoilage', 'Damage', 'Quality Issue', 'Overripe', 'Physical Count - Missing', 'Theft/Loss'];
+    const correctionReasons = ['Typo Error - Correction', 'Physical Count - Excess'];
+    
+    if (wasteReasons.some(r => selectedReason.includes(r))) {
+        wasteWarning.style.display = 'block';
+        correctionWarning.style.display = 'none';
+    } else if (correctionReasons.some(r => selectedReason.includes(r))) {
+        wasteWarning.style.display = 'none';
+        correctionWarning.style.display = 'block';
+    } else {
+        wasteWarning.style.display = 'none';
+        correctionWarning.style.display = 'none';
+    }
+}
+
+async function confirmStockAdjustment() {
+    const newQuantity = parseFloat(document.getElementById('editNewQuantity').value);
+    let reason = document.getElementById('editReason').value;
+    const otherReason = document.getElementById('editOtherReason').value;
+    const notes = document.getElementById('editNotes').value;
+    
+    // Validation
+    if (isNaN(newQuantity) || newQuantity < 0) {
+        await showAlert('Please enter a valid quantity (0 or positive number)', 'Invalid Input', '⚠️');
+        return;
+    }
+    
+    if (!reason) {
+        await showAlert('Please select a reason for adjustment', 'Required', '⚠️');
+        return;
+    }
+    
+    if (reason === 'Other' && !otherReason) {
+        await showAlert('Please specify the reason', 'Required', '⚠️');
+        return;
+    }
+    
+    if (reason === 'Other') {
+        reason = otherReason;
+    }
+    
+    if (newQuantity === currentEditBatchRemaining) {
+        await showAlert('No changes made. Quantity is the same as current stock.', 'Notice', 'ℹ️');
+        return;
+    }
+    
+    const adjustment = Math.abs(newQuantity - currentEditBatchRemaining);
+    const isDecrease = newQuantity < currentEditBatchRemaining;
+    const action = isDecrease ? 'decrease' : 'increase';
+    
+    const confirmed = await showConfirm(
+        `Confirm Stock Adjustment\n\n` +
+        `Batch #${currentEditBatchId}\n` +
+        `Material: ${currentEditMaterialName}\n` +
+        `Current: ${currentEditBatchRemaining.toFixed(2)} ${currentEditUnit}\n` +
+        `New: ${newQuantity.toFixed(2)} ${currentEditUnit}\n` +
+        `${isDecrease ? `Reduction: ${adjustment.toFixed(2)} ${currentEditUnit}` : `Increase: ${adjustment.toFixed(2)} ${currentEditUnit}`}\n\n` +
+        `Reason: ${reason}\n` +
+        `Notes: ${notes || 'None'}\n\n` +
+        `This action will be logged for audit purposes.`,
+        'Confirm Adjustment'
+    );
+    
+    if (!confirmed) return;
+    
+    showLoading('Processing stock adjustment...');
+    
+    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    
+    try {
+        const response = await fetch('/RawMaterial/AdjustBatchStock', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': token
+            },
+            body: JSON.stringify({
+                batchId: currentEditBatchId,
+                newQuantity: newQuantity,
+                reason: reason,
+                notes: notes
+            })
+        });
+        
+        const result = await response.json();
+        hideLoading();
+        
+        if (result.success) {
+            await showAlert(result.message, 'Success', '✅');
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editStockModal'));
+            if (modal) modal.hide();
+            
+            // Refresh batch history
+            const materialName = document.getElementById('modalBatchMaterialName').innerText;
+            const materialId = currentEditBatchId; // Need to get actual materialId
+            
+            // Refresh the page to show updated data
+            saveAndReload();
+        } else {
+            await showAlert('Error: ' + result.message, 'Error', '❌');
+        }
+    } catch (error) {
+        hideLoading();
+        console.error('Error:', error);
+        await showAlert('Error: ' + error.message, 'Error', '❌');
+    }
+}
+
+async function loadAdjustmentHistory() {
+    const filterDate = document.getElementById('adjustmentFilterDate')?.value || '';
+    
+    showLoading('Loading adjustment history...');
+    
+    try {
+        const response = await fetch(`/RawMaterial/GetAdjustmentHistory?date=${filterDate}`);
+        const data = await response.json();
+        hideLoading();
+        
+        const tbody = document.getElementById('adjustmentHistoryBody');
+        
+        if (!data.adjustments || data.adjustments.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No adjustment records found</td></tr>';
+            return;
+        }
+        
+        let html = '';
+        data.adjustments.forEach(adj => {
+            const date = new Date(adj.adjustedAt);
+            const formattedDate = date.toLocaleString();
+            const diff = adj.newQuantity - adj.oldQuantity;
+            const diffClass = diff > 0 ? 'text-success' : (diff < 0 ? 'text-danger' : 'text-muted');
+            const diffSign = diff > 0 ? '+' : '';
+            
+            html += `
+                <tr>
+                    <td>${formattedDate}</td>
+                    <td><code>#${adj.batchId}</code></td>
+                    <td><strong>${escapeHtml(adj.materialName)}</strong></td>
+                    <td>${adj.oldQuantity.toFixed(2)} ${adj.unit}</td>
+                    <td class="${adj.newQuantity < adj.oldQuantity ? 'text-danger' : 'text-success'}">${adj.newQuantity.toFixed(2)} ${adj.unit}</td>
+                    <td class="${diffClass}">${diffSign}${diff.toFixed(2)} ${adj.unit}</td>
+                    <td><span class="badge ${adj.reason.includes('Typo') ? 'bg-info' : (adj.reason.includes('Spoilage') || adj.reason.includes('Damage') ? 'bg-warning' : 'bg-secondary')}">${escapeHtml(adj.reason)}</span></td>
+                    <td>${escapeHtml(adj.adjustedByName || 'System')}</td>
+                    <td>${escapeHtml(adj.notes || '-')}</td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+        
+    } catch (error) {
+        hideLoading();
+        console.error('Error loading adjustment history:', error);
+        document.getElementById('adjustmentHistoryBody').innerHTML = '<tr><td colspan="9" class="text-center text-danger">Error loading adjustment history</td></tr>';
+    }
+}
+
+function printAdjustmentHistory() {
+    window.print();
+}
+
+async function exportAdjustmentHistory() {
+    await showAlert('Export feature coming soon!', 'Notice', 'ℹ️');
 }
 
 

@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
 using System.Linq;
 using System.Threading.Tasks;
+using static Infoman.Models.WasteLog;
 
 namespace Infoman.Controllers
 {
@@ -617,6 +618,141 @@ namespace Infoman.Controllers
             return Json(materials);
         }
 
+        // GET: RawMaterial/GetAdjustmentHistory
+        [HttpGet]
+        public async Task<IActionResult> GetAdjustmentHistory(string date = null)
+        {
+            var query = _context.StockAdjustmentLogs
+                .Include(l => l.Batch)
+                    .ThenInclude(b => b.RawMaterial)
+                .Include(l => l.AdjustedByUser)
+                .OrderByDescending(l => l.AdjustedAt)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(date))
+            {
+                var filterDate = DateTime.Parse(date);
+                query = query.Where(l => l.AdjustedAt.Date == filterDate.Date);
+            }
+
+            var adjustments = await query.Select(l => new
+            {
+                l.AdjustmentId,
+                l.BatchId,
+                MaterialName = l.Batch.RawMaterial.Name,
+                l.OldQuantity,
+                l.NewQuantity,
+                Unit = l.Batch.RawMaterial.Unit,
+                l.Reason,
+                l.Notes,
+                AdjustedByName = l.AdjustedByUser != null ? l.AdjustedByUser.Username : "System",
+                l.AdjustedAt
+            }).ToListAsync();
+
+            return Json(new { success = true, adjustments = adjustments });
+        }
+
+        // POST: RawMaterial/AdjustBatchStock
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AdjustBatchStock([FromBody] AdjustBatchRequest request)
+        {
+            try
+            {
+                // ✅ CHECK KUNG OWNER LANG
+                var userRole = HttpContext.Session.GetString("UserRole");
+                if (userRole != "Owner")
+                    return Json(new { success = false, message = "Only Owner can adjust batch stock" });
+
+                var userId = GetCurrentUserId();
+
+                var batch = await _context.RawMaterialBatches
+                    .Include(b => b.RawMaterial)
+                    .FirstOrDefaultAsync(b => b.BatchId == request.BatchId);
+
+                if (batch == null)
+                    return Json(new { success = false, message = "Batch not found" });
+
+                decimal oldQuantity = batch.QuantityRemaining;
+                decimal newQuantity = request.NewQuantity;
+
+                // ✅ CREATE ADJUSTMENT LOG
+                var adjustmentLog = new StockAdjustmentLog
+                {
+                    BatchId = request.BatchId,
+                    OldQuantity = oldQuantity,
+                    NewQuantity = newQuantity,
+                    Reason = request.Reason,
+                    AdjustedBy = userId,
+                    AdjustedAt = DateTime.Now,
+                    Notes = request.Notes ?? ""
+                };
+                _context.StockAdjustmentLogs.Add(adjustmentLog);
+
+                // ✅ CREATE WASTE LOG KUNG NABAWASAN AT HINDI TYPO/CORRECTION
+                if (newQuantity < oldQuantity)
+                {
+                    bool shouldCreateWasteLog = !request.Reason.Contains("Typo") &&
+                                                !request.Reason.Contains("Correction") &&
+                                                !request.Reason.Contains("Excess");
+
+                    if (shouldCreateWasteLog)
+                    {
+                        decimal wastedQty = oldQuantity - newQuantity;
+                        var wasteLog = new WasteLog
+                        {
+                            RawMaterialId = batch.RawMaterialId,
+                            Quantity = wastedQty,
+                            Reason = GetWasteReasonFromAdjustment(request.Reason),
+                            Date = DateTime.Today,
+                            RecordedBy = "Owner",
+                            Notes = $"Manual adjustment from batch #{batch.BatchId}: {request.Reason}"
+                        };
+                        _context.WasteLogs.Add(wasteLog);
+                    }
+                }
+
+                batch.QuantityRemaining = newQuantity;
+                await UpdateMainStockColumn(batch.RawMaterialId);
+                await _context.SaveChangesAsync();
+
+                string message = (newQuantity < oldQuantity && !request.Reason.Contains("Typo")) ?
+                    $"Stock adjusted. {Math.Abs(oldQuantity - newQuantity)} {batch.RawMaterial.Unit} logged as waste." :
+                    "Stock adjusted successfully.";
+
+                return Json(new { success = true, message = message });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        private WasteReason GetWasteReasonFromAdjustment(string reason)
+        {
+            if (reason.Contains("Expired")) return WasteReason.Expired;
+            if (reason.Contains("Spoilage")) return WasteReason.Other;
+            if (reason.Contains("Damage")) return WasteReason.Damaged;
+            if (reason.Contains("Quality")) return WasteReason.QualityIssue;
+            if (reason.Contains("Overripe")) return WasteReason.Overprepared;
+            if (reason.Contains("Theft")) return WasteReason.Other;
+            return WasteReason.Other;
+        }
+
+        private int GetCurrentUserId()
+        {
+            return HttpContext.Session.GetInt32("UserId") ?? 0;
+        }
+
+        // Request Model
+        public class AdjustBatchRequest
+        {
+            public int BatchId { get; set; }
+            public decimal NewQuantity { get; set; }
+            public string Reason { get; set; }
+            public string Notes { get; set; }
+        }
+
         private decimal ConvertToBaseUnit(decimal quantity, string fromUnit, string toBaseUnit)
         {
             if (fromUnit == toBaseUnit) return quantity;
@@ -632,4 +768,4 @@ namespace Infoman.Controllers
         }
 
     }
-}
+} 

@@ -16,6 +16,7 @@ namespace Infoman.Controllers
 
         public IActionResult Login()
         {
+            ViewBag.Layout = "_LoginLayout";
             return View();
         }
 

@@ -34,6 +34,7 @@ namespace Infoman.Data
         public DbSet<ExchangeTransaction> ExchangeTransactions { get; set; }
         public DbSet<ExchangeItem> ExchangeItems { get; set; }
         public DbSet<Payment> Payments { get; set; }
+        public DbSet<StockAdjustmentLog> StockAdjustmentLogs { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

@@ -25,6 +25,9 @@ namespace Infoman.Models
         public string Status { get; set; } = "Active";
 
         public DateTime DateJoined { get; set; } = DateTime.Now;
+        public bool IsLoggedIn { get; set; } = false;  // ✅ CURRENT LOGIN STATUS
+        public DateTime? LastLoginTime { get; set; }   // ✅ Last login time
+        public DateTime? LastLogoutTime { get; set; }
 
         // ========== PERFORMANCE & ATTENDANCE FIELDS ==========
         public virtual ICollection<EmployeePerformance>? Performances { get; set; }

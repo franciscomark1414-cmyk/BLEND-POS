@@ -48,6 +48,12 @@ namespace Infoman.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(RawMaterial material)
         {
+            System.Diagnostics.Debug.WriteLine($"=== CREATE RAW MATERIAL ===");
+            System.Diagnostics.Debug.WriteLine($"MinQty from form: {material.MinQty}");
+            System.Diagnostics.Debug.WriteLine($"MinQty type: {material.MinQty.GetType()}");
+            System.Diagnostics.Debug.WriteLine($"Unit: {material.Unit}");
+            System.Diagnostics.Debug.WriteLine($"BaseUnit: {material.BaseUnit}");
+
             ModelState.Remove("ExpirationDate");
 
             if (material.MinQty < 0)
@@ -59,8 +65,12 @@ namespace Infoman.Controllers
             {
                 SetConversionFields(material);
 
-                // ✅ I-CONVERT ANG MINQTY SA BASE UNIT
-               material.MinQtyInBaseUnit = ConvertToBaseUnit(material.MinQty, material.Unit, material.BaseUnit);
+                // ✅ I-SAVE ANG MINQTY SA BASE UNIT (grams/mL)
+                decimal minQtyInBaseUnit = ConvertToBaseUnit(material.MinQty, material.Unit, material.BaseUnit);
+                material.MinQty = minQtyInBaseUnit;              // ← ITO ANG KULANG!
+                material.MinQtyInBaseUnit = minQtyInBaseUnit;
+
+                System.Diagnostics.Debug.WriteLine($"Converted MinQty: {material.MinQty} {material.BaseUnit}");
 
                 if (material.ExpirationDate == DateTime.MinValue)
                     material.ExpirationDate = null;
@@ -69,6 +79,8 @@ namespace Infoman.Controllers
                     material.SKU = GenerateRawMaterialSKU(material.Name);
 
                 material.IsDeleted = false;
+                material.Stock = 0;  // ✅ INITIAL STOCK = 0
+
                 _context.Add(material);
                 await _context.SaveChangesAsync();
                 return Json(new { success = true, material });
@@ -376,17 +388,38 @@ namespace Infoman.Controllers
                         u.QuantityUsed,
                         u.DateUsed,
                         u.ReferenceNo,
-                        // ✅ IDAGDAG ITO - Kunin ang Order Number mula sa Order
                         OrderNumber = u.Order != null ? $"#{u.Order.OrderId}" :
                                     (u.ReferenceNo != null && u.ReferenceNo.StartsWith("POS-") ? u.ReferenceNo : null),
                         OrderId = u.OrderId,
-                        // ✅ IDAGDAG ITO - Kunin ang Product Name mula sa ProductSize
                         ProductName = u.ProductSize != null ? $"{u.ProductSize.Product.Name} - {u.ProductSize.SizeName}" : null
                     })
                 })
                 .ToListAsync();
 
-            return Json(new { batches, unit = rawMaterial.Unit });
+            // ✅ I-CONVERT ang mga quantity para sa display
+            decimal conversionFactor = 1;
+            if (rawMaterial.BaseUnit == "g" && rawMaterial.Unit == "kg")
+            {
+                conversionFactor = 1000;  // 100,000 g → 100 kg
+            }
+            else if (rawMaterial.BaseUnit == "mL" && rawMaterial.Unit == "L")
+            {
+                conversionFactor = 1000;  // 100,000 mL → 100 L
+            }
+
+            // I-convert ang bawat batch
+            var convertedBatches = batches.Select(b => new
+            {
+                b.BatchId,
+                b.ReceivedDate,
+                QuantityReceived = b.QuantityReceived / conversionFactor,
+                QuantityRemaining = b.QuantityRemaining / conversionFactor,
+                b.ExpiryDate,
+                b.UnitPrice,
+                b.Usage
+            }).ToList();
+
+            return Json(new { batches = convertedBatches, unit = rawMaterial.Unit });
         }
 
         // BAGONG ACTION: Magdagdag ng bagong delivery
@@ -400,7 +433,6 @@ namespace Infoman.Controllers
             public DateTime? ExpiryDate { get; set; }
         }
 
-        // Then update your AddDelivery method:
         [HttpPost]
         public async Task<JsonResult> AddDelivery([FromBody] AddDeliveryRequest request)
         {
@@ -408,19 +440,47 @@ namespace Infoman.Controllers
             if (rawMaterial == null)
                 return Json(new { success = false, message = "Raw material not found" });
 
-            // ✅ I-store AS-IS sa base unit (walang division)
+            // ✅ CHECK IF EXPIRY DATE IS EXPIRED
+            bool isExpired = false;
+            string warningMessage = null;
+
+            if (request.ExpiryDate.HasValue)
+            {
+                if (request.ExpiryDate.Value.Date < DateTime.Today)
+                {
+                    isExpired = true;
+                    warningMessage = $"WARNING: The expiry date ({request.ExpiryDate.Value:yyyy-MM-dd}) is already EXPIRED!";
+                }
+                else if (request.ExpiryDate.Value.Date <= DateTime.Today.AddDays(7))
+                {
+                    warningMessage = $"NOTE: The expiry date ({request.ExpiryDate.Value:yyyy-MM-dd}) is within 7 days. This material will expire soon.";
+                }
+            }
+
+            // ✅ I-DEBUG ITO (ilagay sa simula)
+            System.Diagnostics.Debug.WriteLine($"=== ADD DELIVERY DEBUG ===");
+            System.Diagnostics.Debug.WriteLine($"RawMaterial: {rawMaterial?.Name}");
+            System.Diagnostics.Debug.WriteLine($"RawMaterial.Unit: {rawMaterial?.Unit}");
+            System.Diagnostics.Debug.WriteLine($"RawMaterial.BaseUnit: {rawMaterial?.BaseUnit}");
+            System.Diagnostics.Debug.WriteLine($"Request.Quantity: {request.Quantity}");
+            System.Diagnostics.Debug.WriteLine($"Request.Unit: {request.Unit}");
+            System.Diagnostics.Debug.WriteLine($"ExpiryDate: {request.ExpiryDate}");
+            System.Diagnostics.Debug.WriteLine($"IsExpired: {isExpired}");
+            System.Diagnostics.Debug.WriteLine($"WarningMessage: {warningMessage}");
+
             decimal quantityInBaseUnit = request.Quantity;
 
-            // CONVERSION LANG KUNG MAGKAIBA ANG UNIT
+            // Conversion
             if (rawMaterial.BaseUnit == "g" && request.Unit == "kg")
             {
-                quantityInBaseUnit = request.Quantity * 1000;  // kg → g
+                quantityInBaseUnit = request.Quantity * 1000;
+                System.Diagnostics.Debug.WriteLine($"Converted: {request.Quantity} kg → {quantityInBaseUnit} g");
             }
             else if (rawMaterial.BaseUnit == "mL" && request.Unit == "L")
             {
-                quantityInBaseUnit = request.Quantity * 1000;  // L → mL
+                quantityInBaseUnit = request.Quantity * 1000;
+                System.Diagnostics.Debug.WriteLine($"Converted: {request.Quantity} L → {quantityInBaseUnit} mL");
             }
-            // Kung pareho ang unit, walang conversion (mL→mL, g→g, pcs→pcs)
 
             var batch = new RawMaterialBatch
             {
@@ -435,23 +495,56 @@ namespace Infoman.Controllers
             _context.RawMaterialBatches.Add(batch);
             await _context.SaveChangesAsync();
 
+            // ✅ IF EXPIRED, AUTO-CREATE WASTE LOG
+            // ✅ IF EXPIRED, AUTO-CREATE WASTE LOG
+            if (isExpired)
+            {
+                // Compute total cost first
+                decimal totalCost = request.Quantity * request.UnitPrice;
+
+                var wasteLog = new WasteLog
+                {
+                    RawMaterialId = request.RawMaterialId,
+                    Quantity = request.Quantity,
+                    Reason = WasteReason.Expired,
+                    Date = DateTime.Now,
+                    RecordedBy = "System",
+                    Notes = $"Auto-generated from expired batch received on {DateTime.Now:yyyy-MM-dd HH:mm}",
+                    TotalCost = totalCost,
+                    ExpiryDate = request.ExpiryDate,
+                    BatchId = batch.BatchId
+                };
+                _context.WasteLogs.Add(wasteLog);
+
+                // Set remaining to 0 since it's expired
+                batch.QuantityRemaining = 0;
+
+                await _context.SaveChangesAsync();
+            }
+
+            // I-update ang main Stock column
             await UpdateMainStockColumn(request.RawMaterialId);
             await UpdateProductPricesForRawMaterial(request.RawMaterialId);
 
-            return Json(new { success = true, message = "Delivery added successfully!" });
-        } // Helper method para mag-update ng main stock column
+            string successMessage = isExpired
+                ? $"Delivery added but marked as EXPIRED and logged as waste. {warningMessage}"
+                : (warningMessage != null ? $"Delivery added successfully. {warningMessage}" : "Delivery added successfully!");
+
+            return Json(new { success = true, message = successMessage, isExpired = isExpired, warning = warningMessage });
+        }
+
         private async Task UpdateMainStockColumn(int rawMaterialId)
         {
-            var totalRemaining = await _context.RawMaterialBatches
+            var totalStock = await _context.RawMaterialBatches
                 .Where(b => b.RawMaterialId == rawMaterialId)
                 .SumAsync(b => (decimal?)b.QuantityRemaining) ?? 0;
 
-            var rawMaterial = await _context.RawMaterials.FindAsync(rawMaterialId);
-            if (rawMaterial != null)
+            var material = await _context.RawMaterials.FindAsync(rawMaterialId);
+            if (material != null)
             {
-                rawMaterial.Stock = totalRemaining;
+                material.Stock = totalStock;
+                await _context.SaveChangesAsync();
             }
-            await _context.SaveChangesAsync();
         }
 
         // Helper method para mag-update ng product prices
@@ -609,7 +702,8 @@ namespace Infoman.Controllers
                     defaultPrice = r.Price,
                     latestBatchPrice = _context.RawMaterialBatches
                         .Where(b => b.RawMaterialId == r.RawMaterialId && b.QuantityRemaining > 0)
-                        .OrderByDescending(b => b.ReceivedDate)
+                        .OrderBy(b => b.ExpiryDate)      // ✅ FEFO
+                        .ThenBy(b => b.ReceivedDate)     // ✅ FIFO
                         .Select(b => b.UnitPrice)
                         .FirstOrDefault()
                 })

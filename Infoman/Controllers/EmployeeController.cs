@@ -184,11 +184,12 @@ namespace Infoman.Controllers
         // ========== PERFORMANCE METHODS ==========
 
         // GET: Employee/GetPerformance/{userId}
+        // GET: Employee/GetPerformance/{userId}
         [HttpGet]
         public async Task<IActionResult> GetPerformance(int userId, DateTime? startDate, DateTime? endDate)
         {
             var end = endDate ?? DateTime.Today;
-            var start = startDate ?? end.AddDays(-30);  // Last 30 days default
+            var start = startDate ?? end.AddDays(-30);
 
             var performances = await _db.EmployeePerformances
                 .Where(p => p.UserId == userId && p.Date >= start && p.Date <= end)
@@ -198,7 +199,7 @@ namespace Infoman.Controllers
             var employee = await _db.Users.FindAsync(userId);
             var totalSales = performances.Sum(p => p.TotalSales);
             var totalOrders = performances.Sum(p => p.OrdersProcessed);
-            var avgRating = performances.Any() ? performances.Average(p => p.Rating) : 0;
+            // var avgRating = performances.Any() ? performances.Average(p => p.Rating) : 0; // ← TANGGALIN
 
             return Json(new
             {
@@ -209,14 +210,14 @@ namespace Infoman.Controllers
                     p.Date,
                     p.TotalSales,
                     p.OrdersProcessed,
-                    p.Rating,
+                    // p.Rating,  // ← TANGGALIN
                     p.Notes
                 }),
                 summary = new
                 {
                     totalSales,
                     totalOrders,
-                    averageRating = Math.Round(avgRating, 1),
+                    // averageRating = Math.Round(avgRating, 1),  // ← TANGGALIN
                     periodStart = start,
                     periodEnd = end
                 }

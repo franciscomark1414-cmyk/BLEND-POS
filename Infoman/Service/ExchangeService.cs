@@ -161,7 +161,8 @@ namespace Infoman.Service
                         ProductSizeId = replaceItem.ProductSizeId,
                         Quantity = replaceItem.Quantity,
                         Price = productSize.Price,
-                        ActualCost = 0
+                        ActualCost = 0,
+                        DispositionStatusId = 1
                     };
                     _db.OrderItems.Add(orderItem);
                 }

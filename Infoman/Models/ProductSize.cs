@@ -37,5 +37,6 @@ namespace Infoman.Models
 
         [NotMapped]
         public bool RecipeComplete => RecipeItems != null && RecipeItems.Count > 0;
+        public bool IsDeleted { get; set; } = false;
     }
 }

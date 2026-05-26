@@ -6,14 +6,14 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Infoman.Migrations
 {
     /// <inheritdoc />
-    public partial class UpdateUserTable : Migration
+    public partial class AddExpiryDateToWasteLog : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<DateTime>(
-                name: "UpdatedAt",
-                table: "Users",
+                name: "ExpiryDate",
+                table: "WasteLogs",
                 type: "datetime2",
                 nullable: true);
         }
@@ -22,8 +22,8 @@ namespace Infoman.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "UpdatedAt",
-                table: "Users");
+                name: "ExpiryDate",
+                table: "WasteLogs");
         }
     }
 }

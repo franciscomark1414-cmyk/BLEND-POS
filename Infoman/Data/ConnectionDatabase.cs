@@ -89,7 +89,9 @@ namespace Infoman.Data
             modelBuilder.Entity<ProductionUsage>()
                 .ToTable("ProductionUsages");
 
-            
+            modelBuilder.Ignore<ItemDispositionStatus>();
+
+
         }
 
     }

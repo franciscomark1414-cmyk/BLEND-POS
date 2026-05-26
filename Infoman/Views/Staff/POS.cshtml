@@ -51,6 +51,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Neldie's Mango & More - POS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -976,6 +979,25 @@
     font-weight: bold;
     color: #f59e0b;
 }
+/* Logout Button - Aesthetic Design */
+.logout-btn {
+    background: linear-gradient(135deg, #6b7280, #4b5563);
+    color: white;
+    box-shadow: 0 2px 8px rgba(107, 114, 128, 0.3);
+}
+
+.logout-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(107, 114, 128, 0.4);
+    background: linear-gradient(135deg, #4b5563, #374151);
+}
+
+.attendance-buttons {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
 
 /* Time Buttons - Aesthetic Design */
 .time-btn {
@@ -1022,8 +1044,7 @@
 
     <div style="display: flex; flex-direction: column; height: 100vh; overflow: hidden;">
 
-        <!-- ATTENDANCE BAR -->
-        <!-- ATTENDANCE BAR - REDESIGNED -->
+       <!-- ATTENDANCE BAR - REDESIGNED WITH LOGOUT -->
 <div class="attendance-bar">
     <div class="attendance-info">
         <div class="staff-info">
@@ -1036,12 +1057,18 @@
             <span id="todayHoursDisplay">0.0</span> <span>hrs today</span>
         </div>
     </div>
-    <button id="timeInBtn" class="time-btn time-in-btn" onclick="timeIn()">
-        <i class="fas fa-fingerprint"></i> TIME IN
-    </button>
-    <button id="timeOutBtn" class="time-btn time-out-btn" style="display:none;" onclick="timeOut()">
-        <i class="fas fa-sign-out-alt"></i> TIME OUT
-    </button>
+    <div class="attendance-buttons">
+        <button id="timeInBtn" class="time-btn time-in-btn" onclick="timeIn()">
+            <i class="fas fa-fingerprint"></i> TIME IN
+        </button>
+        <button id="timeOutBtn" class="time-btn time-out-btn" style="display:none;" onclick="timeOut()">
+            <i class="fas fa-sign-out-alt"></i> TIME OUT
+        </button>
+        <!-- ✅ LOGOUT BUTTON - nasa tabi ng Time In/Out buttons -->
+        <button id="logoutBtn" class="time-btn logout-btn" onclick="showLogoutConfirm()">
+            <i class="fas fa-power-off"></i> LOGOUT
+        </button>
+    </div>
 </div>
 
         <!-- POS LAYOUT -->
@@ -1636,23 +1663,30 @@
         const countSpan = document.getElementById('queueCount');
         if (!container) return;
         
-        // PENDING PAYMENT LANG ang ipapakita (hindi pa na-start ang blending)
+        // ✅ Only show PENDING_PAYMENT orders with active items
         const pendingOrders = orders.filter(o => o.status === 'PENDING_PAYMENT');
         
-        if (countSpan) countSpan.innerText = pendingOrders.length;
+        // ✅ Filter out orders with no active items
+        const activeOrders = pendingOrders.filter(o => o.items && o.items.length > 0);
         
-        if (pendingOrders.length === 0) {
+        if (countSpan) countSpan.innerText = activeOrders.length;
+        
+        if (activeOrders.length === 0) {
             container.innerHTML = '<div class="text-center text-muted small">No pending orders to blend</div>';
             return;
         }
         
         let html = '';
-        pendingOrders.forEach(order => {
+        for (const order of activeOrders) {
             let itemsHtml = '';
+            let totalAmount = 0;
+            
             order.items.forEach(item => {
-                itemsHtml += `<div>• ${item.quantity}x ${item.productName} (${item.sizeName})</div>`;
+                const itemTotal = item.price * item.quantity;
+                totalAmount += itemTotal;
+                itemsHtml += `<div>• ${item.quantity}x ${item.productName} (${item.sizeName}) - ₱${itemTotal.toFixed(2)}</div>`;
             });
-            // Kunin ang huling 6 na character ng order number
+            
             const shortOrderNum = order.orderNumber.substring(order.orderNumber.length - 6);
             html += `
                 <div class="queue-item" data-order-id="${order.orderId}" style="border-left: 3px solid #ffc107; margin-bottom: 8px; background: white; border-radius: 8px; padding: 8px;">
@@ -1662,7 +1696,7 @@
                     </div>
                     <div class="queue-items" style="font-size: 11px; color: #666; margin: 5px 0;">${itemsHtml}</div>
                     <div class="d-flex justify-content-between align-items-center mt-1">
-                        <span class="queue-total" style="font-size: 12px; font-weight: bold; color: #28a745;">₱${order.totalAmount.toFixed(2)}</span>
+                        <span class="queue-total" style="font-size: 12px; font-weight: bold; color: #28a745;">₱${totalAmount.toFixed(2)}</span>
                         <div class="d-flex gap-1">
                             <button class="btn btn-sm btn-outline-info" style="font-size: 10px; padding: 2px 8px;" onclick="event.stopPropagation(); showReceiptPopup(${order.orderId})">
                                 👁️ View
@@ -1673,7 +1707,7 @@
                         </div>
                     </div>
                 </div>`;
-        });
+        }
         container.innerHTML = html;
     } catch (error) {
         const container = document.getElementById('orderQueueList');
@@ -1682,7 +1716,6 @@
 }
 
       async function startBlendingFromQueue(orderId) {
-    // Isara muna ang receipt modal kung bukas
     const receiptModal = document.getElementById('receiptModal');
     if (receiptModal && receiptModal.style.display === 'flex') {
         receiptModal.style.display = 'none';
@@ -1698,10 +1731,6 @@
     if (!confirmed) return;
     
     showLoading('Starting blending process...');
-    const btn = event.target.closest('button');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-    btn.disabled = true;
     
     try {
         const response = await fetch('/Staff/StartBlending', {
@@ -1714,17 +1743,30 @@
         
         if (data.success) {
             await showAlert('✅ ' + data.message, 'Success', '✅');
+            
+            // ✅ Refresh order queue
             await loadOrderQueue();
+            
+            // ✅ Clear edit mode if active
+            if (window.isEditingMode) {
+                const banner = document.getElementById('editModeBanner');
+                if (banner) banner.remove();
+                window.isEditingMode = false;
+                window.originalOrderId = null;
+                
+                const checkoutBtn = document.getElementById('checkoutBtn');
+                checkoutBtn.innerHTML = '💳 Confirm Order';
+                checkoutBtn.style.background = '#28a745';
+                cart = [];
+                updateCartDisplay();
+            }
+            
         } else {
             await showAlert('❌ Error: ' + data.message, 'Error', '❌');
-            btn.innerHTML = originalText;
-            btn.disabled = false;
         }
     } catch (error) {
         hideLoading();
         await showAlert('❌ Error: ' + error.message, 'Error', '❌');
-        btn.innerHTML = originalText;
-        btn.disabled = false;
     }
 }
         function refreshQueue() { loadOrderQueue(); }
@@ -1804,6 +1846,10 @@
 
         async function confirmAddToCart() {
            if (!tempSelectedSize) return;
+
+            const timeInCheck = await checkTimeInBeforeOrder();
+    if (!timeInCheck) return;
+
     const response = await fetch(`/Staff/CheckAvailability?productSizeId=${tempSelectedSize.productSizeId}&quantity=${modalQuantity}`);
     const data = await response.json();
     if (!data.available) { 
@@ -1948,16 +1994,63 @@
         // ============================================================
         // CHECKOUT FLOW
         // ============================================================
-        async function confirmOrder() {
+       async function confirmOrder() {
+    console.log('confirmOrder called, isEditingMode:', window.isEditingMode);
+    
     if (cart.length === 0) { 
         await showAlert('Cart is empty!', 'Cannot Confirm');
         return; 
     }
+    
     if (!pendingPaymentMethod) { 
-        await showAlert('Please select a payment method (Cash or GCash).', 'Payment Required');
+        await showAlert('Please select a payment method', 'Payment Required');
         return; 
     }
-    showReviewModal();
+
+    const timeInCheck = await checkTimeInBeforeOrder();
+    if (!timeInCheck) return;
+
+    if (window.isEditingMode === true) {
+        // ✅ UPDATE EXISTING ORDER - HINDI GUMAWA NG BAGO
+        await updateExistingOrder();
+    } else {
+        showReviewModal();
+    }
+}
+
+async function checkTimeInBeforeOrder() {
+    try {
+        const response = await fetch('/Staff/CheckTimeInStatus');
+        const data = await response.json();
+        
+        if (!data.isClockedIn) {
+            const confirmTimeIn = await showConfirm(
+                '⚠️ You are not clocked in yet!\n\nYou must TIME IN before you can take orders.\n\nWould you like to TIME IN now?',
+                'Time In Required'
+            );
+            
+            if (confirmTimeIn) {
+                await timeIn();
+                // Wait a bit then check again
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                const secondCheck = await fetch('/Staff/CheckTimeInStatus');
+                const secondData = await secondCheck.json();
+                if (secondData.isClockedIn) {
+                    await showAlert('✅ Time in successful! You can now take orders.', 'Success', '✅');
+                    return true;
+                } else {
+                    await showAlert('❌ Time in failed. Please try again.', 'Error', '❌');
+                    return false;
+                }
+            }
+            return false;
+        }
+        return true;
+    } catch (error) {
+        console.error('Error checking time in status:', error);
+        await showAlert('Error checking attendance status.', 'Error', '❌');
+        return false;
+    }
 }
 
      async function prepareCheckout(btn) {
@@ -1983,14 +2076,12 @@
         document.getElementById('checkoutBtn').style.display = 'block';
     }
 }
-        // ============================================================
-// PROCESS FINAL ORDER (Supports both New Order and Edit Mode)
-// ============================================================
+    
 async function processFinalOrder() {
     const paymentMethod = pendingPaymentMethod;
     
     if (!paymentMethod) {
-        await showAlert('Please select a payment method (Cash or GCash)', 'Payment Required');
+        await showAlert('Please select a payment method', 'Payment Required');
         return;
     }
     
@@ -2001,14 +2092,13 @@ async function processFinalOrder() {
     checkoutBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
     checkoutBtn.disabled = true;
 
-    const token = getToken();
-    
     try {
-        if (paymentMethod === 'GCash') {
-            // For GCash, create order first without marking as paid
+        if (window.isEditingMode === true) {
+            // ✅ UPDATE EXISTING ORDER
+            await updateExistingOrder();
+        } else if (paymentMethod === 'GCash') {
             await createOrderForGCash();
         } else if (paymentMethod === 'Cash') {
-            // Normal order creation for Cash
             await createNewOrder();
         }
     } catch (error) {
@@ -2026,7 +2116,10 @@ async function createNewOrder() {
     let orderDetails = [];
     let lastOrderId = null;
     let allSuccessful = true;
-
+    
+    // ✅ GUMAGAWA NG IISANG ORDER NUMBER PARA SA LAHAT NG ITEMS
+    const sharedOrderNumber = `POS-${Date.now()}`;
+    
     for (const item of cart) {
         const response = await fetch('/Staff/PlaceOrder', {
             method: 'POST',
@@ -2037,7 +2130,7 @@ async function createNewOrder() {
             body: JSON.stringify({
                 productSizeId: item.productSizeId,
                 quantity: item.quantity,
-                orderNumber: `POS-${Date.now()}`,
+                orderNumber: sharedOrderNumber,  // ✅ SAME ORDER NUMBER FOR ALL ITEMS
                 paymentMethod: paymentMethod,
                 discountType: currentDiscountType,
                 discountPercent: currentDiscountPercent
@@ -2233,8 +2326,11 @@ async function createNewOrder() {
 
 
         function closeReceiptModal() {
-            document.getElementById('receiptModal').style.display = 'none';
-        }
+    const modal = document.getElementById('receiptModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
 
        async function showReceiptPopup(orderId) {
     if (!orderId) {
@@ -2254,21 +2350,29 @@ async function createNewOrder() {
             return;
         }
         
+        // ✅ Filter out voided and refunded items
+        const activeItems = data.order.items.filter(item => !item.isVoided && !item.isRefunded);
+        
+        if (activeItems.length === 0) {
+            await showAlert('This order has no active items left.', 'Notice', '⚠️');
+            closeReceiptModal();
+            await loadOrderQueue();
+            return;
+        }
+        
         const orderDetails = [];
         let subtotal = 0;
         
-        data.order.items.forEach(item => {
-            if (!item.isVoided && !item.isRefunded) {
-                const itemSubtotal = item.price * item.quantity;
-                orderDetails.push({
-                    name: item.productName,
-                    size: item.sizeName,
-                    quantity: item.quantity,
-                    price: item.price,
-                    subtotal: itemSubtotal
-                });
-                subtotal += itemSubtotal;
-            }
+        activeItems.forEach(item => {
+            const itemSubtotal = item.price * item.quantity;
+            orderDetails.push({
+                name: item.productName,
+                size: item.sizeName,
+                quantity: item.quantity,
+                price: item.price,
+                subtotal: itemSubtotal
+            });
+            subtotal += itemSubtotal;
         });
         
         const discountPercent = data.order.discountPercent || 0;
@@ -2277,18 +2381,14 @@ async function createNewOrder() {
         
         window.currentOrderId = orderId;
         
-        // ✅ Use the order's TotalAmount (which should be customer payable)
-        // Get customer payable from order (this is the correct amount)
-        const customerPayable = data.order.totalAmount;  // This should be ₱19, not ₱57
-        
         showReceiptModalWithValues(
             orderDetails, 
             data.order.paymentMethod || 'Cash', 
             data.order.discountType || 'None', 
             discountPercent, 
             discountSavings, 
-            customerPayable,  // ✅ TAMANG TOTAL
-            subtotal,          // ✅ ORIGINAL SUBTOTAL FOR REFERENCE
+            discountedTotal,
+            subtotal,
             orderId, 
             data.order.status
         );
@@ -2387,22 +2487,19 @@ function showReceiptModalWithValues(orderDetails, paymentMethod, discountType, d
     document.getElementById('receiptModal').style.display = 'flex';
 }
 
-       async function startBlending(orderId) {
+      async function startBlending(orderId) {
     if (!orderId) {
         await showAlert('No order found.', 'Error', '❌');
         return;
     }
     
-    // Isara muna ang receipt modal kung bukas
     const receiptModal = document.getElementById('receiptModal');
     if (receiptModal && receiptModal.style.display === 'flex') {
         receiptModal.style.display = 'none';
     }
     
-    // Maghintay ng konti para magsara ang modal
     await new Promise(resolve => setTimeout(resolve, 100));
     
-    // Gamitin ang custom confirm
     const confirmed = await showConfirm(
         '⚠️ START BLENDING?\n\nOnce you click OK:\n• Ingredients will be DEDUCTED from inventory\n• This action cannot be undone without Owner approval\n\nContinue?',
         'Start Blending Confirmation'
@@ -2422,8 +2519,26 @@ function showReceiptModalWithValues(orderDetails, paymentMethod, discountType, d
         hideLoading();
 
         if (data.success) {
-            await showAlert('✅ Blending started successfully!', 'Success', '✅');
+            await showAlert('✅ ' + data.message, 'Success', '✅');
+            
+            // ✅ Refresh order queue
             await loadOrderQueue();
+            
+            // ✅ Close any open receipt modal
+            closeReceiptModal();
+            
+            // ✅ Clear edit mode if active
+            if (window.isEditingMode) {
+                const banner = document.getElementById('editModeBanner');
+                if (banner) banner.remove();
+                window.isEditingMode = false;
+                window.originalOrderId = null;
+                
+                const checkoutBtn = document.getElementById('checkoutBtn');
+                checkoutBtn.innerHTML = '💳 Confirm Order';
+                checkoutBtn.style.background = '#28a745';
+            }
+            
         } else {
             await showAlert('❌ Error: ' + data.message, 'Error', '❌');
         }
@@ -2510,11 +2625,15 @@ async function voidItemFromReceipt() {
             return;
         }
         
+        console.log('All items from server:', data.order.items);
+        
         closeReceiptModal();
         cart = [];
         let hasItems = false;
         
         for (const item of data.order.items) {
+            console.log(`Item: ${item.productName}, isVoided=${item.isVoided}, isRefunded=${item.isRefunded}`);
+            
             if (!item.isVoided && !item.isRefunded) {
                 cart.push({
                     productSizeId: item.productSizeId,
@@ -2524,11 +2643,14 @@ async function voidItemFromReceipt() {
                     quantity: item.quantity
                 });
                 hasItems = true;
+                console.log(`✅ Added to edit list: ${item.productName}`);
+            } else {
+                console.log(`❌ Skipped: ${item.productName} (already voided/refunded)`);
             }
         }
         
         if (!hasItems) {
-            await showAlert('No active items to edit.', 'Error', '❌');
+            await showAlert('No active items to edit or void.', 'Error', '❌');
             return;
         }
         
@@ -2559,10 +2681,10 @@ async function voidItemFromReceipt() {
         checkoutBtn.innerHTML = '✏️ UPDATE ORDER';
         checkoutBtn.style.background = '#17a2b8';
         
-        await showAlert('✏️ EDIT MODE: You can now add/remove items, change quantities, or modify discount.\nClick "UPDATE ORDER" when done.', 'Edit Mode', '✏️');
+        await showAlert('✏️ EDIT MODE: You can now remove items from this order.\n\nClick "UPDATE ORDER" when done.', 'Edit Mode', '✏️');
         
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error in voidItemFromReceipt:', error);
         await showAlert('❌ Error loading order for editing: ' + error.message, 'Error', '❌');
     }
 }
@@ -2706,18 +2828,23 @@ async function loadOrderForEditing(orderId) {
 async function cancelEditMode() {
     const confirmed = await showConfirm('Cancel editing? Changes will be discarded.', 'Cancel Edit');
     if (confirmed) {
+        // ✅ CLEAR CART
         cart = [];
         updateCartDisplay();
         
+        // ✅ REMOVE BANNER
         const banner = document.getElementById('editModeBanner');
         if (banner) banner.remove();
         
+        // ✅ RESET CHECKOUT BUTTON
         const checkoutBtn = document.getElementById('checkoutBtn');
         checkoutBtn.innerHTML = '💳 Confirm Order';
         checkoutBtn.style.background = '#28a745';
         
+        // ✅ RESET PAYMENT BUTTON HIGHLIGHTS
         document.querySelectorAll('.payment-btn').forEach(b => b.classList.remove('active'));
         
+        // ✅ RESET ALL FLAGS
         window.isEditingMode = false;
         window.originalOrderId = null;
         window.originalOrderTotal = null;
@@ -2727,8 +2854,11 @@ async function cancelEditMode() {
         
         updateDiscountBtnHighlight();
         
+        // ✅ CLOSE RECEIPT MODAL KUNG BUKAS
         if (window.lastClosedOrderId) {
             loadOrderReceipt(window.lastClosedOrderId);
+        } else {
+            closeReceiptModal();
         }
     }
 }
@@ -2790,182 +2920,175 @@ async function updateExistingOrder() {
         return false;
     }
     
-    const confirmed = await showConfirm('Update this order? The original order will be voided and replaced with your changes.', 'Confirm Update');
+    const confirmed = await showConfirm(
+        'Update this order?\n\n' +
+        'Items removed will be VOIDED.\n' +
+        'Items added will be ADDED to this order.\n\n' +
+        'This will UPDATE the existing order.',
+        'Confirm Update'
+    );
+    
     if (!confirmed) return false;
     
     showLoading('Updating order...');
     
-    const updateBtn = document.getElementById('checkoutBtn');
-    const originalText = updateBtn.innerHTML;
-    updateBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Updating Order...';
-    updateBtn.disabled = true;
-    
     try {
-        // STEP 1: Get original order details to mark as voided
+        // ✅ STEP 1: Get current items from server
         const getOrderResponse = await fetch(`/VoidRefund/GetOrderDetails?orderId=${orderId}`);
         const orderData = await getOrderResponse.json();
-        
-        console.log('Original order data:', orderData);
         
         if (!orderData.success) {
             throw new Error('Cannot load original order details');
         }
         
-        // STEP 2: Void all original items (mark as voided, not delete)
-        if (orderData.success && orderData.order && orderData.order.items) {
-            for (const oldItem of orderData.order.items) {
-                if (!oldItem.isVoided && !oldItem.isRefunded) {
-                    console.log('Voiding old item:', oldItem.orderItemId);
-                    const voidResponse = await fetch('/VoidRefund/VoidItem', {
+        const serverItems = orderData.order.items || [];
+        
+        // ✅ STEP 2: VOID items that are in server but NOT in cart
+        for (const serverItem of serverItems) {
+            if (!serverItem.isVoided && !serverItem.isRefunded) {
+                const stillInCart = cart.some(cartItem => 
+                    cartItem.productSizeId === serverItem.productSizeId && 
+                    cartItem.sizeName === serverItem.sizeName
+                );
+                
+                if (!stillInCart) {
+                    console.log(`Voiding item: ${serverItem.productName}`);
+                    await fetch('/VoidRefund/VoidItem', {
                         method: 'POST',
                         headers: { 
                             'Content-Type': 'application/json', 
                             'RequestVerificationToken': getToken() 
                         },
                         body: JSON.stringify({ 
-                            orderItemId: oldItem.orderItemId, 
-                            reason: 'Order modification - replaced with updated order' 
+                            orderItemId: serverItem.orderItemId, 
+                            reason: 'Removed from order' 
                         })
                     });
-                    const voidData = await voidResponse.json();
-                    console.log('Void response:', voidData);
                 }
             }
         }
         
-        // STEP 3: Create a NEW order for the updated items
-        const newOrderNumber = `POS-${Date.now()}`;
-        let newOrderIds = [];
-        let allSuccessful = true;
-        let errorMessage = '';
-        
-        for (const item of cart) {
-            if (!item.productSizeId || item.productSizeId === 0) {
-                errorMessage = `Invalid product ID for ${item.productName}`;
-                allSuccessful = false;
-                break;
-            }
+        // ✅ STEP 3: UPDATE quantities for items that changed
+        for (const cartItem of cart) {
+            const serverItem = serverItems.find(s => 
+                s.productSizeId === cartItem.productSizeId && 
+                s.sizeName === cartItem.sizeName &&
+                !s.isVoided
+            );
             
-            console.log('Creating order item:', {
-                productSizeId: item.productSizeId,
-                quantity: item.quantity,
-                productName: item.productName,
-                sizeName: item.sizeName
-            });
-            
-            const response = await fetch('/Staff/PlaceOrder', {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json', 
-                    'RequestVerificationToken': getToken() 
-                },
-                body: JSON.stringify({
-                    productSizeId: item.productSizeId,
-                    quantity: item.quantity,
-                    orderNumber: newOrderNumber,
-                    paymentMethod: paymentMethod,
-                    discountType: currentDiscountType,
-                    discountPercent: currentDiscountPercent
-                })
-            });
-            
-            const responseData = await response.json();
-            
-            console.log('PlaceOrder response:', responseData);
-            
-            if (!responseData.success) {
-                allSuccessful = false;
-                errorMessage = responseData.message;
-                break;
-            }
-            
-            if (responseData.orderId) {
-                newOrderIds.push(responseData.orderId);
+            if (serverItem && serverItem.quantity !== cartItem.quantity) {
+                console.log(`Updating quantity for: ${cartItem.productName} from ${serverItem.quantity} to ${cartItem.quantity}`);
+                await fetch('/Staff/UpdateOrderItemQuantity', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'RequestVerificationToken': getToken() 
+                    },
+                    body: JSON.stringify({
+                        orderItemId: serverItem.orderItemId,
+                        quantity: cartItem.quantity
+                    })
+                });
             }
         }
         
-        if (!allSuccessful) {
-            throw new Error(errorMessage || 'Failed to create updated order');
+        // ✅ STEP 4: ADD new items that are in cart but NOT in server
+        for (const cartItem of cart) {
+            const existsInServer = serverItems.some(serverItem => 
+                serverItem.productSizeId === cartItem.productSizeId && 
+                serverItem.sizeName === cartItem.sizeName &&
+                !serverItem.isVoided
+            );
+            
+            if (!existsInServer) {
+                console.log(`Adding new item: ${cartItem.productName}`);
+                await fetch('/Staff/AddItemToExistingOrder', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'RequestVerificationToken': getToken() 
+                    },
+                    body: JSON.stringify({
+                        orderId: orderId,
+                        productSizeId: cartItem.productSizeId,
+                        quantity: cartItem.quantity,
+                        paymentMethod: paymentMethod,
+                        discountType: currentDiscountType,
+                        discountPercent: currentDiscountPercent
+                    })
+                });
+            }
         }
         
-        // STEP 4: Mark original order as completed/voided
-        if (orderId) {
-            await fetch('/Staff/CloseOrder', {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json', 
-                    'RequestVerificationToken': getToken() 
-                },
-                body: JSON.stringify({ orderId: orderId })
-            });
-        }
+        // ✅ STEP 5: Update order totals
+        await fetch('/Staff/UpdateOrderTotals', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'RequestVerificationToken': getToken() 
+            },
+            body: JSON.stringify({
+                orderId: orderId,
+                paymentMethod: paymentMethod,
+                discountType: currentDiscountType,
+                discountPercent: currentDiscountPercent
+            })
+        });
         
         hideLoading();
+        await showAlert('✅ Order updated successfully!', 'Success', '✅');
         
-        // STEP 5: Show receipt for the new order
-        const newOrderId = newOrderIds[0];
-        const discountSavings = currentCartTotal - currentDiscountedTotal;
+        // ✅ STEP 6: Refresh order queue
+        await loadOrderQueue();
         
-        const orderDetails = cart.map(item => ({
-            name: item.productName,
-            size: item.sizeName,
-            quantity: item.quantity,
-            price: item.price,
-            subtotal: item.price * item.quantity
-        }));
+        // ✅ STEP 7: Show UPDATED receipt
+        await showReceiptPopup(orderId);
         
-        showReceiptModal(
-            orderDetails,
-            paymentMethod,
-            currentDiscountType,
-            currentDiscountPercent,
-            discountSavings,
-            currentDiscountedTotal,
-            newOrderId,
-            'PENDING_PAYMENT'
-        );
-        
-        await showAlert('✅ Order updated successfully! New order #' + newOrderId, 'Success', '✅');
-        
-        // Clean up edit mode UI
+        // ✅ STEP 8: Clean up edit mode
         const banner = document.getElementById('editModeBanner');
         if (banner) banner.remove();
         
-        // Reset checkout button
         const checkoutBtn = document.getElementById('checkoutBtn');
         checkoutBtn.innerHTML = '💳 Confirm Order';
         checkoutBtn.style.background = '#28a745';
         
-        // Clear cart and reset all flags
         cart = [];
         currentDiscountType = 'None';
         currentDiscountPercent = 0;
         pendingPaymentMethod = null;
         window.isEditingMode = false;
         window.originalOrderId = null;
-        window.originalOrderTotal = null;
         
-        // Clear payment button highlights
         document.querySelectorAll('.payment-btn').forEach(b => b.classList.remove('active'));
-        
-        // Update displays
         updateCartDisplay();
         updateDiscountBtnHighlight();
-        
-        // Refresh the order queue
-        await loadOrderQueue();
         
         return true;
         
     } catch (error) {
         hideLoading();
-        console.error('Update error details:', error);
+        console.error('Update error:', error);
         await showAlert('❌ Error updating order: ' + error.message, 'Error', '❌');
         return false;
-    } finally {
-        updateBtn.innerHTML = originalText;
-        updateBtn.disabled = false;
     }
+}
+
+// ✅ NEW FUNCTION: Update order totals
+async function updateOrderTotals(orderId, paymentMethod, discountType, discountPercent) {
+    const response = await fetch('/Staff/UpdateOrderTotals', {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json', 
+            'RequestVerificationToken': getToken() 
+        },
+        body: JSON.stringify({
+            orderId: orderId,
+            paymentMethod: paymentMethod,
+            discountType: discountType,
+            discountPercent: discountPercent
+        })
+    });
+    return await response.json();
 }
 
 // ============================================================
@@ -3068,9 +3191,16 @@ if (data.success) {
         // VOID / REFUND PANEL (Return/Refund button — for after blending)
         // ============================================================
         function showVoidRefundPanel() {
-            document.getElementById('voidRefundModal').style.display = 'flex';
-            loadPendingOrdersForVoid();
-        }
+    console.log('Opening Void/Refund panel...');
+    const modal = document.getElementById('voidRefundModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        // Load default tab (Void)
+        switchVoidTab('void');
+    } else {
+        console.error('voidRefundModal element not found');
+    }
+}
         function closeVoidRefundModal() {
             document.getElementById('voidRefundModal').style.display = 'none';
             document.getElementById('ownerApprovalModal').style.display = 'none';
@@ -3122,20 +3252,52 @@ if (data.success) {
 }
 
         document.addEventListener('DOMContentLoaded', function() {
-            const voidReason = document.getElementById('voidReason');
-            if (voidReason) {
-                voidReason.addEventListener('change', function() {
-                    document.getElementById('voidOtherReason').style.display = this.value === 'Other' ? 'block' : 'none';
-                });
+    // ========== VOID/REFUND REASON HANDLERS ==========
+    const voidReason = document.getElementById('voidReason');
+    if (voidReason) {
+        voidReason.addEventListener('change', function() {
+            const otherInput = document.getElementById('voidOtherReason');
+            if (otherInput) {
+                otherInput.style.display = this.value === 'Other' ? 'block' : 'none';
             }
-            const refundReason = document.getElementById('refundReason');
-            if (refundReason) {
-                refundReason.addEventListener('change', function() {
-                    document.getElementById('refundOtherReason').style.display = this.value === 'Other' ? 'block' : 'none';
-                });
-            }
-            checkAttendanceStatus();
         });
+    }
+    
+    const refundReason = document.getElementById('refundReason');
+    if (refundReason) {
+        refundReason.addEventListener('change', function() {
+            const otherInput = document.getElementById('refundOtherReason');
+            if (otherInput) {
+                otherInput.style.display = this.value === 'Other' ? 'block' : 'none';
+            }
+        });
+    }
+    
+    const exchangeReason = document.getElementById('exchangeReason');
+    if (exchangeReason) {
+        exchangeReason.addEventListener('change', function() {
+            const otherInput = document.getElementById('exchangeOtherReason');
+            if (otherInput) {
+                otherInput.style.display = this.value === 'Other' ? 'block' : 'none';
+            }
+        });
+    }
+    
+    // ========== ATTENDANCE & POS INITIALIZATION ==========
+    // Check attendance status first (this will enable/disable POS accordingly)
+    checkAttendanceStatus();
+    
+    // Initialize other POS functions
+    updateDateTime();
+    loadOrderQueue();
+    
+    // Set intervals for real-time updates
+    setInterval(loadOrderQueue, 5000);      // Refresh order queue every 5 seconds
+    setInterval(updateDateTime, 1000);      // Update clock every second
+    
+    // Check attendance status every 30 seconds (para mag-update ang UI kung may nag-time out sa ibang device)
+    setInterval(checkAttendanceStatus, 30000);
+});
 
         function getToken() {
             return document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
@@ -3143,110 +3305,134 @@ if (data.success) {
 
        async function loadPendingOrdersForVoid() {
     try {
-        const response = await fetch('/VoidRefund/GetPendingOrders');
+        console.log('Loading pending orders for void...');
+        const today = new Date().toLocaleDateString('en-CA');  // YYYY-MM-DD format
+        const response = await fetch(`/VoidRefund/GetPendingOrders?date=${today}`);
         const orders = await response.json();
+        
         const select = document.getElementById('voidOrderSelect');
-        select.innerHTML = '<option value="">-- Select Order --</option>';
-        
-        // I-filter lang ang mga PENDING_PAYMENT orders (hindi pa nabe-blend)
-        const pendingOrders = orders.filter(o => o.status === 'PENDING_PAYMENT' || o.status === 'PENDING');
-        
-        if (pendingOrders.length === 0) {
-            select.innerHTML = '<option value="">-- No pending orders to void --</option>';
+        if (!select) {
+            console.error('voidOrderSelect element not found');
             return;
         }
         
-        for (const order of pendingOrders) {
-            try {
-                const orderDetailsResponse = await fetch(`/VoidRefund/GetOrderDetails?orderId=${order.orderId}`);
-                const orderDetails = await orderDetailsResponse.json();
-                
-                let productNames = '';
-                if (orderDetails.success && orderDetails.order && orderDetails.order.items) {
-                    const items = orderDetails.order.items.map(item => `${item.quantity}x ${item.productName} (${item.sizeName})`);
-                    productNames = items.join(', ');
-                }
-                
-                const shortOrderNum = order.orderNumber.substring(order.orderNumber.length - 8);
-                const displayText = productNames.length > 35 ? productNames.substring(0, 32) + '...' : productNames;
-                
-                select.innerHTML += `<option value="${order.orderId}">
-                    #${shortOrderNum} - ${displayText} - ₱${order.totalAmount.toFixed(2)}
-                </option>`;
-            } catch (err) {
-                console.error('Error loading order details:', err);
-                const shortOrderNum = order.orderNumber.substring(order.orderNumber.length - 8);
-                select.innerHTML += `<option value="${order.orderId}">
-                    #${shortOrderNum} - ₱${order.totalAmount.toFixed(2)}
-                </option>`;
-            }
+        // ✅ SAVE CURRENT SELECTION PARA MA-RESTORE KUNG SAME ORDER
+        const currentSelection = select.value;
+        
+        select.innerHTML = '<option value="">-- Select Order --</option>';
+        
+        if (!orders || orders.length === 0) {
+            select.innerHTML = '<option value="">-- No pending orders today --</option>';
+            // ✅ CLEAR ITEMS CONTAINER
+            const container = document.getElementById('voidOrderItems');
+            if (container) container.innerHTML = '';
+            return;
         }
+        
+        for (const order of orders) {
+            const shortOrderNum = order.orderNumber ? order.orderNumber.substring(order.orderNumber.length - 8) : order.orderId;
+            const orderTotal = order.totalAmount || 0;
+            select.innerHTML += `<option value="${order.orderId}">
+                #${shortOrderNum} - ₱${orderTotal.toFixed(2)} - ${new Date(order.date).toLocaleTimeString()}
+            </option>`;
+        }
+        
+        // ✅ RESTORE PREVIOUS SELECTION KUNG EXIST PA
+        if (currentSelection && Array.from(select.options).some(opt => opt.value === currentSelection)) {
+            select.value = currentSelection;
+            await loadVoidOrderItems();
+        } else {
+            // ✅ CLEAR ITEMS CONTAINER KUNG WALANG SELECTION
+            const container = document.getElementById('voidOrderItems');
+            if (container) container.innerHTML = '';
+        }
+        
     } catch (error) { 
-        console.error('Error:', error); 
+        console.error('Error loading pending orders:', error); 
         const select = document.getElementById('voidOrderSelect');
         if (select) select.innerHTML = '<option value="">-- Error loading orders --</option>';
     }
 }
 
-        async function loadCompletedOrdersForRefund() {
+  async function loadCompletedOrdersForRefund() {
     try {
+        console.log('Loading completed orders for refund...');
         const response = await fetch('/VoidRefund/GetCompletedOrders');
         const orders = await response.json();
+        console.log('Completed orders response:', orders);
+        
         const select = document.getElementById('refundOrderSelect');
-        select.innerHTML = '<option value="">-- Select Order --</option>';
-        
-        // I-filter lang ang mga COMPLETED orders
-        const completedOrders = orders.filter(o => o.status === 'COMPLETED');
-        
-        if (completedOrders.length === 0) {
-            select.innerHTML = '<option value="">-- No completed orders to refund --</option>';
+        if (!select) {
+            console.error('refundOrderSelect element not found');
             return;
         }
         
-        for (const order of completedOrders) {
-            try {
-                const orderDetailsResponse = await fetch(`/VoidRefund/GetOrderDetails?orderId=${order.orderId}`);
-                const orderDetails = await orderDetailsResponse.json();
-                
-                let productNames = '';
-                if (orderDetails.success && orderDetails.order && orderDetails.order.items) {
-                    const items = orderDetails.order.items.map(item => `${item.quantity}x ${item.productName} (${item.sizeName})`);
-                    productNames = items.join(', ');
-                }
-                
-                const shortOrderNum = order.orderNumber.substring(order.orderNumber.length - 8);
-                const displayText = productNames.length > 35 ? productNames.substring(0, 32) + '...' : productNames;
-                
-                select.innerHTML += `<option value="${order.orderId}">
-                    #${shortOrderNum} - ${displayText} - ₱${order.totalAmount.toFixed(2)}
-                </option>`;
-            } catch (err) {
-                console.error('Error loading order details:', err);
-                const shortOrderNum = order.orderNumber.substring(order.orderNumber.length - 8);
-                select.innerHTML += `<option value="${order.orderId}">
-                    #${shortOrderNum} - ₱${order.totalAmount.toFixed(2)}
-                </option>`;
-            }
+        select.innerHTML = '<option value="">-- Select Order --</option>';
+        
+        if (!orders || orders.length === 0) {
+            select.innerHTML = '<option value="">-- No completed orders today --</option>';
+            // ✅ CLEAR THE ORDER ITEMS DISPLAY
+            const container = document.getElementById('refundOrderItems');
+            if (container) container.innerHTML = '';
+            return;
         }
+        
+        // ✅ TANGGALIN ANG FILTER - dapat ang backend na ang bahala
+        // Ang backend ay dapat mag-return lang ng orders na may AVAILABLE items
+        
+        orders.forEach(order => {
+            const shortOrderNum = order.orderNumber ? order.orderNumber.substring(order.orderNumber.length - 8) : order.orderId;
+            select.innerHTML += `<option value="${order.orderId}">
+                #${shortOrderNum} - ₱${order.totalAmount.toFixed(2)} - ${new Date(order.date).toLocaleTimeString()}
+            </option>`;
+        });
+        
+        // ✅ AUTO-CLEAR ANG SELECTION KUNG WALANG ORDERS
+        if (orders.length === 0) {
+            select.value = '';
+            const container = document.getElementById('refundOrderItems');
+            if (container) container.innerHTML = '';
+        }
+        
     } catch (error) { 
-        console.error('Error:', error); 
+        console.error('Error loading completed orders:', error); 
         const select = document.getElementById('refundOrderSelect');
         if (select) select.innerHTML = '<option value="">-- Error loading orders --</option>';
     }
 }
 
-      async function loadVoidOrderItems() {
+     async function loadVoidOrderItems() {
     const orderId = document.getElementById('voidOrderSelect').value;
-    if (!orderId) return;
+    if (!orderId) {
+        // ✅ CLEAR THE CONTAINER KUNG WALANG ORDER
+        const container = document.getElementById('voidOrderItems');
+        if (container) {
+            container.innerHTML = '';
+        }
+        return;
+    }
+    
     currentVoidOrderId = parseInt(orderId);
+    
     try {
         const response = await fetch(`/VoidRefund/GetOrderDetails?orderId=${orderId}`);
         const data = await response.json();
+        
         if (!data.success) { 
             await showAlert(data.message, 'Error', '❌');
             return; 
         }
+        
         const container = document.getElementById('voidOrderItems');
+        
+        // ✅ FILTER OUT ALREADY VOIDED/REFUNDED ITEMS
+        const activeItems = data.order.items.filter(item => !item.isVoided && !item.isRefunded);
+        
+        if (activeItems.length === 0) {
+            container.innerHTML = '<div class="text-muted text-center p-3">No active items to void</div>';
+            return;
+        }
+        
         let html = `
             <table class="void-table">
                 <thead>
@@ -3255,31 +3441,39 @@ if (data.success) {
                         <th>Product</th>
                         <th style="width: 60px;">Qty</th>
                         <th style="width: 80px;">Price</th>
-                        <th style="width: 100px;">Status</th>
+                        <th style="width: 100px;">Subtotal</th>
                     </tr>
                 </thead>
                 <tbody>`;
         
-        data.order.items.forEach(item => {
-            if (!item.isVoided && !item.isRefunded) {
-                let statusText = data.order.status === 'PREPARING' ? 'PREPARING' : (data.order.status === 'COMPLETED' ? 'COMPLETED' : 'PENDING');
-                let statusClass = data.order.status === 'PREPARING' ? '#ffc107' : (data.order.status === 'COMPLETED' ? '#28a745' : '#17a2b8');
-                html += `
-                    <tr>
-                        <td style="text-align: center;"><input type="checkbox" class="void-item-checkbox" value="${item.orderItemId}"></td>
-                        <td>
-                            <strong>${escapeHtml(item.productName)}</strong><br>
-                            <small style="color: #888;">${item.sizeName}</small>
-                        </td>
-                        <td>${item.quantity}</td>
-                        <td>₱${item.price.toFixed(2)}</td>
-                        <td><span style="background: ${statusClass}; color: white; padding: 2px 8px; border-radius: 20px; font-size: 10px;">${statusText}</span></td>
-                    </tr>`;
-            }
+        activeItems.forEach(item => {
+            const subtotal = item.price * item.quantity;
+            html += `
+                <tr>
+                    <td style="text-align: center;">
+                        <input type="checkbox" class="void-item-checkbox" value="${item.orderItemId}">
+                    </td>
+                    <td>
+                        <strong>${escapeHtml(item.productName)}</strong><br>
+                        <small style="color: #888;">${item.sizeName}</small>
+                    </td>
+                    <td>${item.quantity}</td>
+                    <td>₱${item.price.toFixed(2)}</td>
+                    <td>₱${subtotal.toFixed(2)}</td>
+                </tr>
+            `;
         });
+        
         html += '</tbody></table>';
         container.innerHTML = html;
-    } catch (error) { console.error('Error:', error); }
+        
+    } catch (error) { 
+        console.error('Error:', error); 
+        const container = document.getElementById('voidOrderItems');
+        if (container) {
+            container.innerHTML = '<div class="text-danger">Error loading items</div>';
+        }
+    }
 }
 
 // Helper function para sa Select All
@@ -3337,110 +3531,269 @@ function toggleSelectAllVoid() {
         }
 
         async function processVoidItem() {
+    // ✅ CHECK MUNA KUNG MAY NAPILING ORDER
+    const orderSelect = document.getElementById('voidOrderSelect');
+    const selectedOrderId = orderSelect ? orderSelect.value : null;
+    
+    if (!selectedOrderId || selectedOrderId === '') {
+        await showAlert('Please select an order first.', 'No Order Selected', '⚠️');
+        return;
+    }
+    
+    currentVoidOrderId = parseInt(selectedOrderId);
+    
+    // ✅ CHECK KUNG MAY NAPILING ITEMS
     const selectedItems = document.querySelectorAll('.void-item-checkbox:checked');
     if (selectedItems.length === 0) { 
-        await showAlert('Please select an item to void', 'No Selection', '⚠️');
+        await showAlert('Please select at least one item to void', 'No Selection', '⚠️');
         return; 
     }
+    
     const reason = getSelectedVoidReason();
     if (!reason) { 
         await showAlert('Please select a reason', 'Required', '⚠️');
         return; 
     }
+    
+    // ✅ CONFIRMATION DIALOG
+    const confirmed = await showConfirm(
+        `⚠️ VOID SELECTED ITEMS\n\n` +
+        `You selected ${selectedItems.length} item(s) to void.\n\n` +
+        `This action cannot be undone.\n\n` +
+        `Continue?`,
+        'Confirm Void Items'
+    );
+    
+    if (!confirmed) return;
     
     showLoading('Processing void request...');
     
-    for (let checkbox of selectedItems) {
-        const response = await fetch('/VoidRefund/VoidItem', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() },
-            body: JSON.stringify({ orderItemId: parseInt(checkbox.value), reason: reason })
-        });
-        const data = await response.json();
-        if (data.requiresOwner) { 
-            hideLoading();
-            showOwnerApprovalModal(data.message); 
-            return; 
+    const token = getToken();
+    
+    try {
+        for (let checkbox of selectedItems) {
+            const response = await fetch('/VoidRefund/VoidItem', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'RequestVerificationToken': token 
+                },
+                body: JSON.stringify({ 
+                    orderItemId: parseInt(checkbox.value), 
+                    reason: reason 
+                })
+            });
+            const data = await response.json();
+            
+            if (data.requiresOwner) { 
+                hideLoading();
+                await showAlert(data.message, 'Owner Approval Required', '⚠️');
+                return; 
+            }
+            
+            if (!data.success) { 
+                hideLoading();
+                await showAlert(data.message, 'Error', '❌');
+                return; 
+            }
         }
-        if (!data.success) { 
-            hideLoading();
-            await showAlert(data.message, 'Error', '❌');
-            return; 
-        }
+        
+        hideLoading();
+        await showAlert('✅ Item(s) voided successfully', 'Success', '✅');
+        
+        // ✅ RELOAD THE ORDER ITEMS (para ma-refresh ang listahan)
+        await loadVoidOrderItems();
+        
+        // ✅ REFRESH PENDING ORDERS
+        await loadPendingOrdersForVoid();
+        
+        // ✅ REFRESH ORDER QUEUE SA POS
+        await loadOrderQueue();
+        
+    } catch (error) {
+        hideLoading();
+        console.error('Error voiding items:', error);
+        await showAlert('Error: ' + error.message, 'Error', '❌');
     }
-    hideLoading();
-    await showAlert('✅ Item(s) voided successfully', 'Success', '✅');
-    loadVoidOrderItems();
-    loadPendingOrdersForVoid();
 }
        async function processVoidTransaction() {
+    // ✅ CHECK MUNA KUNG MAY NAPILING ORDER
+    const orderSelect = document.getElementById('voidOrderSelect');
+    const selectedOrderId = orderSelect ? orderSelect.value : null;
+    
+    if (!selectedOrderId || selectedOrderId === '') {
+        await showAlert('Please select an order first before voiding.', 'No Order Selected', '⚠️');
+        return;
+    }
+    
+    currentVoidOrderId = parseInt(selectedOrderId);
+    
     if (!currentVoidOrderId) { 
-        await showAlert('Please select an order', 'No Selection', '⚠️');
+        await showAlert('Please select a valid order', 'No Selection', '⚠️');
         return; 
     }
+    
     const reason = getSelectedVoidReason();
     if (!reason) { 
         await showAlert('Please select a reason', 'Required', '⚠️');
         return; 
     }
     
+    // ✅ CONFIRMATION DIALOG
+    const confirmed = await showConfirm(
+        `⚠️ VOID ENTIRE TRANSACTION\n\n` +
+        `Order #${currentVoidOrderId}\n\n` +
+        `This will void ALL items in this order.\n` +
+        `This action cannot be undone.\n\n` +
+        `Continue?`,
+        'Confirm Void Transaction'
+    );
+    
+    if (!confirmed) return;
+    
     showLoading('Voiding transaction...');
     
-    const response = await fetch('/VoidRefund/VoidTransaction', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() },
-        body: JSON.stringify({ orderId: currentVoidOrderId, reason: reason })
-    });
-    const data = await response.json();
-    hideLoading();
+    const token = getToken();
     
-    if (data.requiresOwner) { 
-        showOwnerApprovalModal(data.message); 
-        return; 
-    }
-    if (data.success) {
-        await showAlert(data.message, 'Success', '✅');
-        loadPendingOrdersForVoid();
-        document.getElementById('voidOrderSelect').value = '';
-        document.getElementById('voidOrderItems').innerHTML = '';
-    } else {
-        await showAlert(data.message, 'Error', '❌');
+    try {
+        const response = await fetch('/VoidRefund/VoidTransaction', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'RequestVerificationToken': token 
+            },
+            body: JSON.stringify({ 
+                orderId: currentVoidOrderId, 
+                reason: reason 
+            })
+        });
+        
+        const data = await response.json();
+        hideLoading();
+        
+        if (data.requiresOwner) { 
+            await showAlert(data.message, 'Owner Approval Required', '⚠️');
+            return;
+        }
+        
+        if (data.success) {
+            await showAlert(data.message, 'Success', '✅');
+            
+            // ✅ RESET THE SELECT DROPDOWN
+            if (orderSelect) {
+                orderSelect.value = '';
+            }
+            
+            // ✅ CLEAR THE ORDER ITEMS DISPLAY
+            const orderItemsContainer = document.getElementById('voidOrderItems');
+            if (orderItemsContainer) {
+                orderItemsContainer.innerHTML = '';
+            }
+            
+            // ✅ RELOAD PENDING ORDERS
+            await loadPendingOrdersForVoid();
+            
+            // ✅ REFRESH ORDER QUEUE SA POS
+            await loadOrderQueue();
+            
+        } else {
+            await showAlert('Error: ' + data.message, 'Error', '❌');
+        }
+    } catch (error) {
+        hideLoading();
+        console.error('Error voiding transaction:', error);
+        await showAlert('Error: ' + error.message, 'Error', '❌');
     }
 }
- async function processRefund() {
+
+async function processRefund() {
+    // ✅ PREVENT DUPLICATE SUBMISSION
+    if (window.isProcessingRefund) {
+        await showAlert('Please wait, still processing previous request...', 'Processing', '⏳');
+        return;
+    }
+    
     const selectedItems = document.querySelectorAll('.refund-item-checkbox:checked');
     if (selectedItems.length === 0) { 
         await showAlert('Please select items to refund', 'No Selection', '⚠️');
         return; 
     }
+    
     const reason = getSelectedRefundReason();
     if (!reason) { 
         await showAlert('Please select a reason', 'Required', '⚠️');
         return; 
     }
     
+    // ✅ DISABLE BUTTON PARA IWAS DUPLICATE
+    const refundBtn = document.querySelector('#refundTabContent .btn-refund');
+    const originalText = refundBtn.innerHTML;
+    refundBtn.disabled = true;
+    refundBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+    
+    // ✅ SET PROCESSING FLAG
+    window.isProcessingRefund = true;
+    
     showLoading('Processing refund...');
     
     const itemIds = Array.from(selectedItems).map(cb => parseInt(cb.value));
-    const response = await fetch('/VoidRefund/ProcessRefund', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() },
-        body: JSON.stringify({ orderId: currentRefundOrderId, itemIds: itemIds, reason: reason })
-    });
-    const data = await response.json();
-    hideLoading();
     
-    if (data.requiresOwner) { 
-        showOwnerApprovalModal(data.message); 
-        return; 
-    }
-    if (data.success) {
-        await showAlert(data.message, 'Success', '✅');
-        loadCompletedOrdersForRefund();
-        document.getElementById('refundOrderSelect').value = '';
-        document.getElementById('refundOrderItems').innerHTML = '';
-    } else {
-        await showAlert(data.message, 'Error', '❌');
+    try {
+        const response = await fetch('/VoidRefund/ProcessRefund', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'RequestVerificationToken': getToken() 
+            },
+            body: JSON.stringify({ 
+                orderId: currentRefundOrderId, 
+                itemIds: itemIds, 
+                reason: reason 
+            })
+        });
+        
+        const data = await response.json();
+        hideLoading();
+        
+        if (data.requiresOwner) { 
+            await showAlert(data.message, 'Owner Approval Required', '⚠️');
+            // ✅ CLEAR SELECTION PARA HINDI NA MA-REFUND ULIT
+            document.querySelectorAll('.refund-item-checkbox').forEach(cb => cb.checked = false);
+            // ✅ RESET SELECT DROPDOWN
+            document.getElementById('refundOrderSelect').value = '';
+            document.getElementById('refundOrderItems').innerHTML = '';
+        } else if (data.success) {
+            await showAlert(data.message, 'Success', '✅');
+            // ✅ REFRESH ORDERS LIST
+            await loadCompletedOrdersForRefund();
+            // ✅ CLEAR SELECTION AND DISPLAY
+            document.getElementById('refundOrderSelect').value = '';
+            document.getElementById('refundOrderItems').innerHTML = '';
+        } else {    
+            await showAlert('❌ ' + data.message, 'Error', '❌');
+        }
+    } catch (error) {
+        hideLoading();
+        console.error('Refund error:', error);
+        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+    } finally {
+        // ✅ RE-ENABLE BUTTON
+        refundBtn.disabled = false;
+        refundBtn.innerHTML = originalText;
+        // ✅ RESET PROCESSING FLAG
+        window.isProcessingRefund = false;
+        
+        // ✅ REMOVE CHECKED ITEMS PARA IWAS DUPLICATE SA SUSUNOD
+        document.querySelectorAll('.refund-item-checkbox:checked').forEach(cb => cb.checked = false);
+        
+        // ✅ RESET REASON SELECTORS
+        const reasonSelect = document.getElementById('refundReason');
+        if (reasonSelect) reasonSelect.value = '';
+        const otherReason = document.getElementById('refundOtherReason');
+        if (otherReason) {
+            otherReason.style.display = 'none';
+            otherReason.value = '';
+        }
     }
 }
 
@@ -3448,27 +3801,131 @@ function toggleSelectAllVoid() {
         // ATTENDANCE
         // ============================================================
         function checkAttendanceStatus() {
-            fetch('/Staff/GetTodayAttendance').then(res => res.json()).then(data => {
-                const timeInBtn = document.getElementById('timeInBtn');
-                const timeOutBtn = document.getElementById('timeOutBtn');
-                const statusBadge = document.getElementById('attendanceStatusBadge');
-                const hoursDisplay = document.getElementById('todayHoursDisplay');
-                if (data.isClockedIn) {
-                    timeInBtn.style.display = 'none'; timeOutBtn.style.display = 'inline-block';
-                    statusBadge.className = 'badge bg-success ms-2'; statusBadge.innerText = '🟢 Clocked In';
-                    if (hoursDisplay) hoursDisplay.innerText = data.hoursToday;
-                } else if (data.hasClockedOut) {
-                    timeInBtn.style.display = 'none'; timeOutBtn.style.display = 'none';
-                    statusBadge.className = 'badge bg-secondary ms-2'; statusBadge.innerText = '🔴 Completed';
-                    if (hoursDisplay) hoursDisplay.innerText = data.hoursToday;
-                } else {
-                    timeInBtn.style.display = 'inline-block'; timeOutBtn.style.display = 'none';
-                    statusBadge.className = 'badge bg-secondary ms-2'; statusBadge.innerText = '⭕ Not Clocked In';
-                    if (hoursDisplay) hoursDisplay.innerText = '0.0';
-                    showAttendanceReminder();
+    fetch('/Staff/GetTodayAttendance')
+        .then(res => res.json())
+        .then(data => {
+            const timeInBtn = document.getElementById('timeInBtn');
+            const timeOutBtn = document.getElementById('timeOutBtn');
+            const statusBadge = document.getElementById('attendanceStatusBadge');
+            const hoursDisplay = document.getElementById('todayHoursDisplay');
+            
+            console.log('Attendance data:', data); // For debugging
+            
+            // ✅ FIX: Check both isClockedIn and hasClockedOut properly
+            if (data.isClockedIn === true) {
+                // Currently clocked in
+                timeInBtn.style.display = 'none';
+                timeOutBtn.style.display = 'inline-block';
+                if (statusBadge) {
+                    statusBadge.innerHTML = '🟢 Clocked In';
+                    statusBadge.style.background = '#10b981';
+                    statusBadge.style.color = 'white';
                 }
-            });
-        }
+                if (hoursDisplay) hoursDisplay.innerText = data.hoursToday || '0';
+                
+                // Enable POS
+                enablePOSPage();
+                
+            } else if (data.hasClockedOut === true) {
+                // Already clocked out for the day
+                timeInBtn.style.display = 'none';
+                timeOutBtn.style.display = 'none';
+                if (statusBadge) {
+                    statusBadge.innerHTML = '🔴 Shift Ended';
+                    statusBadge.style.background = '#6b7280';
+                    statusBadge.style.color = 'white';
+                }
+                if (hoursDisplay) hoursDisplay.innerText = data.hoursToday || '0';
+                
+                // Disable POS
+                disablePOSPage();
+                
+            } else {
+                // Not clocked in yet
+                timeInBtn.style.display = 'inline-block';
+                timeOutBtn.style.display = 'none';
+                if (statusBadge) {
+                    statusBadge.innerHTML = '⭕ Not Clocked In';
+                    statusBadge.style.background = '#6b7280';
+                    statusBadge.style.color = 'white';
+                }
+                if (hoursDisplay) hoursDisplay.innerText = '0.0';
+                
+                // Disable POS
+                disablePOSPage();
+                
+                // Show reminder (optional)
+                // showAttendanceReminder();
+            }
+        })
+        .catch(error => console.error('Error checking attendance:', error));
+}
+
+function enablePOSPage() {
+    // Enable product cards
+    const productCards = document.querySelectorAll('.product-card');
+    productCards.forEach(card => {
+        card.style.pointerEvents = 'auto';
+        card.style.opacity = '1';
+        card.style.cursor = 'pointer';
+    });
+    
+    // Enable cart items
+    const cartItems = document.getElementById('cartItems');
+    if (cartItems) {
+        cartItems.style.pointerEvents = 'auto';
+        cartItems.style.opacity = '1';
+    }
+    
+    // Enable checkout button
+    const checkoutBtn = document.getElementById('checkoutBtn');
+    if (checkoutBtn) checkoutBtn.disabled = false;
+    
+    // Enable clear cart button
+    const clearCartBtn = document.querySelector('.clear-cart');
+    if (clearCartBtn) clearCartBtn.disabled = false;
+    
+    // Enable payment buttons
+    const paymentBtns = document.querySelectorAll('.payment-btn');
+    paymentBtns.forEach(btn => btn.disabled = false);
+    
+    // Enable discount buttons
+    const discountBtns = document.querySelectorAll('.discount-btn-pill');
+    discountBtns.forEach(btn => btn.disabled = false);
+}
+
+function disablePOSPage() {
+    // Disable product cards
+    const productCards = document.querySelectorAll('.product-card');
+    productCards.forEach(card => {
+        card.style.pointerEvents = 'none';
+        card.style.opacity = '0.5';
+        card.style.cursor = 'not-allowed';
+    });
+    
+    // Disable cart items
+    const cartItems = document.getElementById('cartItems');
+    if (cartItems) {
+        cartItems.style.pointerEvents = 'none';
+        cartItems.style.opacity = '0.5';
+    }
+    
+    // Disable checkout button
+    const checkoutBtn = document.getElementById('checkoutBtn');
+    if (checkoutBtn) checkoutBtn.disabled = true;
+    
+    // Disable clear cart button
+    const clearCartBtn = document.querySelector('.clear-cart');
+    if (clearCartBtn) clearCartBtn.disabled = true;
+    
+    // Disable payment buttons
+    const paymentBtns = document.querySelectorAll('.payment-btn');
+    paymentBtns.forEach(btn => btn.disabled = true);
+    
+    // Disable discount buttons
+    const discountBtns = document.querySelectorAll('.discount-btn-pill');
+    discountBtns.forEach(btn => btn.disabled = true);
+}
 
         let reminderShown = false;
         function showAttendanceReminder() {
@@ -3647,26 +4104,43 @@ function hideLoading() {
         updateDateTime();
 
 
-
-        async function loadCompletedOrdersForExchange() {
+      async function loadCompletedOrdersForExchange() {
     try {
-        const response = await fetch('/VoidRefund/GetCompletedOrders');
+        console.log('Loading completed orders for exchange...');
+        const today = new Date().toLocaleDateString('en-CA');  // YYYY-MM-DD format
+        const response = await fetch(`/VoidRefund/GetCompletedOrders?date=${today}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const orders = await response.json();
+        console.log('Exchange orders response:', orders);
+        
         const select = document.getElementById('exchangeOrderSelect');
+        if (!select) {
+            console.error('exchangeOrderSelect element not found');
+            return;
+        }
+        
         select.innerHTML = '<option value="">-- Select Order --</option>';
         
-        if (orders.length === 0) {
-            select.innerHTML = '<option value="">-- No completed orders available --</option>';
+        if (!orders || orders.length === 0) {
+            select.innerHTML = '<option value="">-- No completed orders today --</option>';
             return;
         }
         
         orders.forEach(order => {
-            const shortOrderNum = order.orderNumber.substring(order.orderNumber.length - 8);
-            select.innerHTML += `<option value="${order.orderId}">#${shortOrderNum} - ₱${order.totalAmount.toFixed(2)} - ${new Date(order.date).toLocaleDateString()}</option>`;
+            const shortOrderNum = order.orderNumber ? order.orderNumber.substring(order.orderNumber.length - 8) : order.orderId;
+            select.innerHTML += `<option value="${order.orderId}">
+                #${shortOrderNum} - ₱${order.totalAmount.toFixed(2)} - ${new Date(order.date).toLocaleTimeString()}
+            </option>`;
         });
     } catch (error) {
-        console.error('Error loading orders:', error);
-        await showAlert('Error loading orders', 'Error', '❌');
+        console.error('Error loading exchange orders:', error);
+        await showAlert('Error loading orders: ' + error.message, 'Error', '❌');
+        const select = document.getElementById('exchangeOrderSelect');
+        if (select) select.innerHTML = '<option value="">-- Error loading orders --</option>';
     }
 }
 
@@ -4771,6 +5245,52 @@ function toggleExchangeOtherReason() {
     const otherInput = document.getElementById('exchangeOtherReason');
     if (otherInput) {
         otherInput.style.display = reasonSelect.value === 'Other' ? 'block' : 'none';
+    }
+}
+
+// ============================================================
+// LOGOUT FUNCTION WITH CONFIRMATION
+// ============================================================
+
+function showLogoutConfirm() {
+    // Use custom confirm modal
+    showConfirm(
+        'Are you sure you want to logout?',
+        'Logout Confirmation'
+    ).then((confirmed) => {
+        if (confirmed) {
+            processLogout();
+        }
+    });
+}
+
+async function processLogout() {
+    showLoading('Logging out...');
+    
+    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    
+    try {
+        const response = await fetch('/Account/Logout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': token
+            }
+        });
+        
+        const data = await response.json();
+        hideLoading();
+        
+        if (data.success) {
+            await showAlert('You have been successfully logged out.', 'Logged Out', '👋');
+            window.location.href = '/Account/Login';
+        } else {
+            await showAlert('Error: ' + data.message, 'Logout Failed', '❌');
+        }
+    } catch (error) {
+        hideLoading();
+        console.error('Logout error:', error);
+        await showAlert('Error logging out. Please try again.', 'Error', '❌');
     }
 }
 

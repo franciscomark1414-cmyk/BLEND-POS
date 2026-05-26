@@ -3,9 +3,11 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Infoman.Models
 {
+    [Table("WasteLogs")]
     public class WasteLog
     {
-        public enum WasteReason {
+        public enum WasteReason
+        {
             Expired,
             Damaged,
             Spilled,
@@ -15,15 +17,19 @@ namespace Infoman.Models
             BlendedButCancelled,
             Other
         }
+
         [Key]
         public int WasteLogId { get; set; }
+
         [Required]
         public int RawMaterialId { get; set; }
         [ForeignKey("RawMaterialId")]
         public virtual RawMaterial RawMaterial { get; set; }
-        public int? ProductId { get; set; } // For product waste (blended mango shake)
+
+        public int? ProductId { get; set; }
         [ForeignKey("ProductId")]
         public virtual Product Product { get; set; }
+
         [Required]
         public decimal Quantity { get; set; }
 
@@ -38,9 +44,13 @@ namespace Infoman.Models
 
         public string? Notes { get; set; }
 
-        // Computed property for total cost wasted
-        public decimal TotalCost => Quantity * (RawMaterial?.Price ?? 0);
+        // ✅ REGULAR PROPERTY - pwede i-set manually
+        public decimal TotalCost { get; set; }
+        public DateTime? ExpiryDate { get; set; }
 
+        public int? BatchId { get; set; }
 
+        [ForeignKey("BatchId")]
+        public virtual RawMaterialBatch Batch { get; set; }
     }
 }

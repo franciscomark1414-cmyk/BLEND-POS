@@ -1,4 +1,5 @@
 ﻿using Infoman.Data;
+using Infoman.Filters;
 using Infoman.Models;
 using Infoman.Service;
 using Microsoft.AspNetCore.Authorization;
@@ -8,6 +9,7 @@ using static Infoman.Models.WasteLog;
 
 namespace Infoman.Controllers
 {
+   
     public class OwnerController : Controller
     {
         private readonly ConnectionDatabase _db;
@@ -28,32 +30,42 @@ namespace Infoman.Controllers
 
             foreach (var productSize in allProductSizes)
             {
+                // ✅ Check kung manual price (Price ay hindi 0 at hindi match sa computed)
                 decimal totalCost = 0;
                 foreach (var ri in productSize.RecipeItems)
                 {
                     decimal activePrice = await GetFIFOUnitPrice(ri.RawMaterialId);
-
                     decimal quantityForCost = ri.Quantity;
                     if (ri.RawMaterial?.BaseUnit == "g" || ri.RawMaterial?.BaseUnit == "mL")
                     {
                         quantityForCost = ri.Quantity / 1000;
                     }
-
                     totalCost += quantityForCost * activePrice;
                 }
 
                 if (productSize.Margin > 0 && productSize.Margin < 1)
                 {
                     decimal computedPrice = totalCost / (1 - productSize.Margin);
-                    // ✅ Fixed ending 9 lang
                     decimal newPrice = RoundToPriceEnding(computedPrice);
-                    productSize.Price = newPrice;
+
+                    // ✅ ONLY UPDATE if the current price is ZERO or MATCHES the computed price
+                    // ✅ DO NOT override if user set a manual price
+                    if (productSize.Price == 0 || productSize.Price == newPrice)
+                    {
+                        productSize.Price = newPrice;
+                    }
+                    // If price is different from computed, keep user's manual price
                 }
             }
 
             await _db.SaveChangesAsync();
         }
 
+        private bool IsOwnerLoggedIn()
+        {
+            var userId = HttpContext.Session.GetInt32("Owner_UserId");
+            return userId.HasValue && userId.Value > 0;
+        }
         private bool IsUserLoggedIn()
         {
             var userId = HttpContext.Session.GetInt32("UserId");
@@ -62,16 +74,18 @@ namespace Infoman.Controllers
 
         public async Task<ActionResult> Dashboard()
         {
-            // ✅ I-check kung naka-login
-            if (!IsUserLoggedIn())
+
+            if (!IsOwnerLoggedIn())
             {
                 return RedirectToAction("Login", "Account");
             }
 
-            // ✅ I-check kung Owner ang role
-            var userRole = HttpContext.Session.GetString("UserRole");
-            if (userRole != "Owner")
+            // Optional: Verify with database
+            var userId = GetCurrentUserId();
+            var user = await _db.Users.FindAsync(userId);
+            if (user == null || user.Role != "Owner")
             {
+                HttpContext.Session.Clear();
                 return RedirectToAction("Login", "Account");
             }
 
@@ -250,6 +264,7 @@ namespace Infoman.Controllers
                 .ToListAsync();
 
             var products = await _db.Products
+                 .Where(p => !p.IsDeleted)
                 .Include(p => p.Sizes)
                 .Select(p => new ProductViewModel
                 {
@@ -312,7 +327,9 @@ namespace Infoman.Controllers
         [HttpGet]
         public async Task<IActionResult> GetProducts()
         {
+
             var products = await _db.Products
+                 .Where(p => !p.IsDeleted)
                 .Include(p => p.Sizes)
                 .Select(p => new
                 {
@@ -508,7 +525,7 @@ namespace Infoman.Controllers
 
                     if (sizeVM.Price > 0)
                     {
-                        productSize.Price = RoundToPriceEnding(sizeVM.Price);
+                        productSize.Price = sizeVM.Price;
                     }
                     else
                     {
@@ -1036,14 +1053,33 @@ namespace Infoman.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ArchiveProduct(int id)
         {
-            var product = await _db.Products.FindAsync(id);
-            if (product == null)
-                return Json(new { success = false });
+            var product = await _db.Products
+                .Include(p => p.Sizes)
+                    .ThenInclude(s => s.RecipeItems)
+                .FirstOrDefaultAsync(p => p.ProductId == id);
 
-            _db.Products.Remove(product);
+            if (product == null)
+                return Json(new { success = false, message = "Product not found" });
+
+            // ✅ Soft delete ang product
+            product.IsDeleted = true;
+
+            // ✅ Soft delete ang lahat ng sizes
+            foreach (var size in product.Sizes)
+            {
+                size.IsAvailableInPOS = false;
+                size.IsDeleted = true;  // Kailangan mag-add ng IsDeleted sa ProductSize model
+
+                // ✅ Soft delete ang mga RecipeItems
+                foreach (var recipe in size.RecipeItems)
+                {
+                    recipe.IsDeleted = true;  // Kailangan mag-add ng IsDeleted sa RecipeItem model
+                }
+            }
+
             await _db.SaveChangesAsync();
 
-            return Json(new { success = true });
+            return Json(new { success = true, message = "Product archived successfully" });
         }
 
         [HttpGet]
@@ -1067,7 +1103,7 @@ namespace Infoman.Controllers
                     r.MinQty,
                     r.Unit,
                     StockWithUnit = r.StockWithUnit,
-                    MinQtyWithUnit = $"{r.MinQty:F2} {r.Unit}"
+                    MinQtyWithUnit = r.MinQtyWithUnit  // ✅ GAMITIN ANG PROPERTY
                 })
                 .ToList();
             int lowStockCount = lowStockItems.Count;
@@ -1129,6 +1165,7 @@ namespace Infoman.Controllers
             int expiredCount = expiredItems.Count;
 
             // ========== WASTE LOGS ==========
+            // ========== WASTE LOGS ==========
             var wasteLogs = await _db.WasteLogs
                 .Include(w => w.RawMaterial)
                 .OrderByDescending(w => w.Date)
@@ -1142,7 +1179,12 @@ namespace Infoman.Controllers
                     Reason = w.Reason.ToString(),
                     TotalCost = w.TotalCost,
                     w.RecordedBy,
-                    w.Notes
+                    w.Notes,
+                    // ✅ SAFELY GET EXPIRY DATE FROM BATCH
+                    ExpiryDate = w.BatchId != null ? _db.RawMaterialBatches
+                        .Where(b => b.BatchId == w.BatchId)
+                        .Select(b => b.ExpiryDate.ToString())
+                        .FirstOrDefault() : null
                 })
                 .ToListAsync();
             int wasteCount = wasteLogs.Count;
@@ -1170,40 +1212,81 @@ namespace Infoman.Controllers
                 if (material == null)
                     return Json(new { success = false, message = "Material not found" });
 
-                // Check if enough stock
                 if (material.Stock < model.Quantity)
                     return Json(new { success = false, message = $"Insufficient stock. Only {material.Stock} {material.Unit} available." });
 
-                // Create waste log
+                // ✅ KUNIN ANG MGA BATCHES NA MAAPEKTUHAN (FIFO/FEFO)
+                var batches = await _db.RawMaterialBatches
+                    .Where(b => b.RawMaterialId == model.RawMaterialId && b.QuantityRemaining> 0)
+                    .OrderBy(b => b.ExpiryDate ?? DateTime.MaxValue) // Expiring soonest first
+                    .ThenBy(b => b.ReceivedDate)
+                    .ToListAsync();
+
+                decimal totalCost = 0;
+                decimal remainingToDeduct = model.Quantity;
+                DateTime? expiryDate = null;
+                int? batchId = null;
+
+                foreach (var batch in batches)
+                {
+                    if (remainingToDeduct <= 0) break;
+
+                    decimal deductQty = Math.Min(remainingToDeduct, batch.QuantityRemaining);
+                    decimal batchCost = deductQty * batch.UnitPrice;
+                    totalCost += batchCost;
+                    remainingToDeduct -= deductQty;
+
+                    // ✅ KUHAIN ANG EXPIRY DATE AT BATCH ID
+                    if (expiryDate == null && batch.ExpiryDate != null)
+                    {
+                        expiryDate = batch.ExpiryDate;
+                        batchId = batch.BatchId;
+                    }
+
+                    // Deduct from batch
+                    batch.QuantityRemaining -= deductQty;
+                }
+
+                if (remainingToDeduct > 0)
+                {
+                    return Json(new { success = false, message = "Insufficient stock" });
+                }
+
+                // ✅ I-UPDATE ANG MATERIAL STOCK
+                material.Stock -= model.Quantity;
+
+                // ✅ CREATE WASTE LOG NA MAY EXPIRY DATE
                 var wasteLog = new WasteLog
                 {
                     RawMaterialId = model.RawMaterialId,
                     Quantity = model.Quantity,
                     Reason = Enum.Parse<WasteReason>(model.Reason),
-                    Date = DateTime.Today,
+                    Date = DateTime.Now,
                     RecordedBy = model.RecordedBy ?? "Owner",
-                    Notes = model.Notes
+                    Notes = model.Notes,
+                    TotalCost = totalCost,
+                    BatchId = batchId,           // ✅ I-SAVE ANG BATCH ID
+                    ExpiryDate = expiryDate      // ✅ I-SAVE ANG EXPIRY DATE
                 };
-
-                _fifoService.DeductStock(
-     model.RawMaterialId,
-     model.Quantity,
-     material.Unit,
-     0,
-     $"WASTE-{DateTime.Now:yyyyMMddHHmmss}",
-     orderId: null,
-     productSizeId: null
- );
 
                 _db.WasteLogs.Add(wasteLog);
                 await _db.SaveChangesAsync();
 
-                return Json(new { success = true, message = "Waste logged successfully" });
+                return Json(new { success = true, message = "Waste logged successfully", totalCost = totalCost });
             }
             catch (Exception ex)
             {
                 return Json(new { success = false, message = ex.Message });
             }
+        }
+
+        // Helper class
+        public class BatchDeduction
+        {
+            public int BatchId { get; set; }
+            public decimal Quantity { get; set; }
+            public decimal UnitPrice { get; set; }
+            public decimal Cost { get; set; }
         }
 
         // ViewModel for WasteLog
@@ -1408,8 +1491,8 @@ namespace Infoman.Controllers
                     .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
 
                 var dailyRefunds = await _db.RefundTransactions
-    .Where(r => r.CreatedAt.Date == day)
-    .SumAsync(r => (decimal?)r.Amount) ?? 0;
+                    .Where(r => r.CreatedAt.Date == day)
+                    .SumAsync(r => (decimal?)r.Amount) ?? 0;
 
                 salesRevenue.Add(dailyRevenue - dailyRefunds);
 
@@ -1471,8 +1554,8 @@ namespace Infoman.Controllers
                 })
                 .ToListAsync();
 
-            // ========== WASTE LOGS ==========
-            var wasteLogsRaw = await _db.WasteLogs
+            // ========== WASTE LOGS - CORRECTED (ISANG BESES LANG) ==========
+            var wasteLogs = await _db.WasteLogs
                 .Include(w => w.RawMaterial)
                 .OrderByDescending(w => w.Date)
                 .Select(w => new
@@ -1482,25 +1565,12 @@ namespace Infoman.Controllers
                     w.Quantity,
                     Unit = w.RawMaterial.Unit,
                     Reason = w.Reason.ToString(),
-                    RawMaterialPrice = w.RawMaterial.Price,
+                    TotalCost = w.TotalCost,     // ✅ GAMITIN ANG STORED TOTALCOST
                     Date = w.Date.ToString("yyyy-MM-dd"),
                     w.RecordedBy,
                     w.Notes
                 })
                 .ToListAsync();
-
-            var wasteLogs = wasteLogsRaw.Select(w => new
-            {
-                w.WasteLogId,
-                w.MaterialName,
-                w.Quantity,
-                w.Unit,
-                w.Reason,
-                TotalCost = w.Quantity * w.RawMaterialPrice,
-                w.Date,
-                w.RecordedBy,
-                w.Notes
-            }).ToList();
 
             var totalWasteCost = wasteLogs.Sum(w => w.TotalCost);
 
@@ -1800,7 +1870,6 @@ namespace Infoman.Controllers
                         return Json(new { success = false, message = $"Quantities cannot be negative" });
                     }
 
-                    // ✅ NEW VALIDATION: If rejected > 0, dapat may disposition
                     if (item.RejectedQty > 0 && string.IsNullOrEmpty(item.Disposition))
                     {
                         return Json(new { success = false, message = $"For {item.RawMaterialName}: Please select disposition (Return or Waste) for rejected items" });
@@ -1836,24 +1905,34 @@ namespace Infoman.Controllers
                         RejectionReason = item.RejectedQty > 0 ? item.RejectionReason : null,
                         UnitPrice = item.UnitPrice,
                         ExpiryDate = item.ExpiryDate,
-                        ReturnStatus = null,  
+                        ReturnStatus = null,
                         ReturnId = null
                     };
                     _db.ReceivingItems.Add(receivingItem);
                     await _db.SaveChangesAsync();
 
-                    // ✅ CREATE STOCK BATCH for accepted quantity
+                    // ✅ CREATE STOCK BATCH for accepted quantity WITH CONVERSION
                     if (item.AcceptedQty > 0)
                     {
                         var rawMat = await _db.RawMaterials.FindAsync(item.RawMaterialId);
 
-                        // Ang batch quantity ay dapat nasa material.Unit (kg/L)
-                        // Huwag i-convert — diretso lang
+                        // ✅ TAMANG CONVERSION - gaya sa AddDelivery
+                        decimal quantityInBaseUnit = item.AcceptedQty;
+
+                        if (rawMat.BaseUnit == "g" && rawMat.Unit == "kg")
+                        {
+                            quantityInBaseUnit = item.AcceptedQty * 1000;  // 20 kg → 20,000 g
+                        }
+                        else if (rawMat.BaseUnit == "mL" && rawMat.Unit == "L")
+                        {
+                            quantityInBaseUnit = item.AcceptedQty * 1000;  // 20 L → 20,000 mL
+                        }
+
                         var batch = new RawMaterialBatch
                         {
                             RawMaterialId = item.RawMaterialId,
-                            QuantityReceived = item.AcceptedQty,     // ✅ Diretso (50 kg = 50)
-                            QuantityRemaining = item.AcceptedQty,    // ✅ Diretso
+                            QuantityReceived = quantityInBaseUnit,     // ✅ Naka-base unit na
+                            QuantityRemaining = quantityInBaseUnit,    // ✅ Naka-base unit na
                             ReceivedDate = DateTime.Now,
                             ExpiryDate = item.ExpiryDate,
                             UnitPrice = item.UnitPrice
@@ -1861,25 +1940,29 @@ namespace Infoman.Controllers
                         _db.RawMaterialBatches.Add(batch);
                     }
 
-                    // ✅ LOG REJECTED ITEMS based on Disposition
                     if (item.RejectedQty > 0)
                     {
                         if (item.Disposition == "Waste")
                         {
+                            // ✅ I-DECLARE MUNA ANG totalCost VARIABLE
+                            decimal totalCost = item.RejectedQty * item.UnitPrice;
+
                             var wasteLog = new WasteLog
                             {
                                 RawMaterialId = item.RawMaterialId,
                                 Quantity = item.RejectedQty,
                                 Reason = WasteLog.WasteReason.QualityIssue,
-                                Date = DateTime.Today,
+                                Date = DateTime.Now,
                                 RecordedBy = "Receiving",
-                                Notes = $"Rejected from DR#{model.DRNumber}: {item.RejectionReason}"
+                                Notes = $"Rejected from DR#{model.DRNumber}: {item.RejectionReason}",
+                                TotalCost = totalCost,           // ✅ NGAYON PUEDE NA
+                                ExpiryDate = item.ExpiryDate,    // ✅ PUEDE NA RIN
+                                BatchId = null
                             };
                             _db.WasteLogs.Add(wasteLog);
                         }
                         else if (item.Disposition == "Return")
                         {
-                            // Store for later return processing
                             var rejectedForReturn = new RejectedForReturn
                             {
                                 ReceivingId = receiving.ReceivingId,
@@ -1918,7 +2001,7 @@ namespace Infoman.Controllers
                 }
                 return Json(new { success = false, message = errorMessage });
             }
-        }// Helper method to update main stock
+        }
         private async Task UpdateStockFromBatches(int rawMaterialId)
         {
             var totalStock = await _db.RawMaterialBatches
@@ -2139,16 +2222,22 @@ namespace Infoman.Controllers
                     r.Id,
                     r.OrderId,
                     OrderNumber = r.Order.OrderNumber,
-                    OrderTotal = r.Order.TotalAmount,
+                    OrderTotal = r.Order.TotalAmount,  // ← Amount column
                     r.RequestType,
                     r.Reason,
-                    RequesterName = r.Requester.Username,
-                    r.RequestedAt,
-                    ItemCount = r.Order.Items.Count(i => !i.IsRefunded && !i.IsVoided)
+                    RequesterName = r.Requester.Username,  // ← Requested By column
+                    RequestedAt = r.RequestedAt.ToString("yyyy-MM-dd, h:mm:ss tt")  // ← Date column
+                                                                                    // ✅ ALISIN ANG ItemCount - hindi ginagamit sa table
                 })
                 .ToListAsync();
 
-            return Json(pendingRequests);
+            // ✅ GROUP BY OrderId para iwas duplicate
+            var uniqueRequests = pendingRequests
+                .GroupBy(r => r.OrderId)
+                .Select(g => g.OrderByDescending(r => r.RequestedAt).First())
+                .ToList();
+
+            return Json(uniqueRequests);
         }
 
         [HttpPost]
@@ -2361,7 +2450,9 @@ namespace Infoman.Controllers
                     receivingItemId = ri.ReceivingItemId,
                     name = ri.RawMaterial?.Name,
                     acceptedQty = ri.AcceptedQty,
+                    acceptedQtyWithUnit = $"{ri.AcceptedQty} {ri.RawMaterial?.Unit}",
                     rejectedQty = ri.RejectedQty,
+                    rejectedQtyWithUnit = $"{ri.RejectedQty} {ri.RawMaterial?.Unit}",
                     unit = ri.RawMaterial?.Unit,
                     unitPrice = ri.UnitPrice,
                     returnStatus = ri.ReturnStatus,
@@ -2575,38 +2666,16 @@ namespace Infoman.Controllers
                     OrderNumber = r.Order.OrderNumber,
                     RequestType = "VOID",
                     Reason = r.Reason,
-                    Amount = r.Order.TotalAmount,  // For void, gamitin ang order total
+                    Amount = r.Order.TotalAmount,
                     Status = r.Status,
                     RecordedAt = r.ApprovedAt,
                     RequesterName = r.Requester.Username,
-                    Source = "APPROVED"
+                    Source = "APPROVED",
+                    IsPendingRequest = true  // ✅ Flag para malaman kung saan hahanapin
                 })
                 .ToListAsync();
 
-            // 2. GET APPROVED REFUNDS - ✅ FIXED: Kunin ang tamang amount mula sa Refunds table
-            var approvedRefunds = await _db.PendingRequests
-                .Include(r => r.Order)
-                .Include(r => r.Requester)
-                .Include(r => r.Approver)
-                .Where(r => r.RequestType == "REFUND" && r.Status == "APPROVED")
-                .Select(r => new
-                {
-                    Id = r.Id,
-                    OrderNumber = r.Order.OrderNumber,
-                    RequestType = "REFUND",
-                    Reason = r.Reason,
-                    // ✅ ITO ANG PROBLEMA - Kunin mula sa Refunds table
-                    Amount = _db.RefundTransactions
-    .Where(refund => refund.OriginalOrderId == r.OrderId)
-    .Sum(refund => refund.Amount),
-                    Status = r.Status,
-                    RecordedAt = r.ApprovedAt,
-                    RequesterName = r.Requester.Username,
-                    Source = "APPROVED"
-                })
-                .ToListAsync();
-
-            // 3. GET DIRECT VOIDS (no approval needed)
+            // 2. GET DIRECT VOIDS - ✅ FIX: HUWAG isama sa listahan na nagre-require ng PendingRequest
             var directVoids = await _db.VoidLogs
                 .Include(v => v.Transaction)
                 .Include(v => v.User)
@@ -2622,15 +2691,37 @@ namespace Infoman.Controllers
                     Status = "COMPLETED",
                     RecordedAt = v.Timestamp,
                     RequesterName = v.User.Username,
-                    Source = "DIRECT"
+                    Source = "DIRECT",
+                    IsPendingRequest = false  // ✅ Direct void - hindi ito PendingRequest
+                })
+                .ToListAsync();
+
+            // 3. GET APPROVED REFUNDS from PendingRequests
+            var approvedRefunds = await _db.PendingRequests
+                .Include(r => r.Order)
+                .Include(r => r.Requester)
+                .Include(r => r.Approver)
+                .Where(r => r.RequestType == "REFUND" && r.Status == "APPROVED")
+                .Select(r => new
+                {
+                    Id = r.Id,
+                    OrderNumber = r.Order.OrderNumber,
+                    RequestType = "REFUND",
+                    Reason = r.Reason,
+                    Amount = _db.RefundTransactions.Where(refund => refund.OriginalOrderId == r.OrderId).Sum(refund => refund.Amount),
+                    Status = r.Status,
+                    RecordedAt = r.ApprovedAt,
+                    RequesterName = r.Requester.Username,
+                    Source = "APPROVED",
+                    IsPendingRequest = true
                 })
                 .ToListAsync();
 
             // 4. COMBINE ALL
             var allReturns = new List<object>();
             allReturns.AddRange(approvedVoids);
-            allReturns.AddRange(approvedRefunds);
             allReturns.AddRange(directVoids);
+            allReturns.AddRange(approvedRefunds);
 
             var sortedReturns = allReturns
                 .OrderByDescending(r => ((dynamic)r).RecordedAt)
@@ -2659,9 +2750,11 @@ namespace Infoman.Controllers
                     name = r.Name,
                     unit = r.Unit,
                     price = r.Price,
+                    // ✅ TAMA: OrderBy (ascending) - PINAKAMATANDANG BATCH
                     latestBatchPrice = _db.RawMaterialBatches
                         .Where(b => b.RawMaterialId == r.RawMaterialId && b.QuantityRemaining > 0)
-                        .OrderByDescending(b => b.ReceivedDate)
+                        .OrderBy(b => b.ExpiryDate)      // ✅ UNAHIN ANG MAAGANG EXPIRY (FEFO)
+                        .ThenBy(b => b.ReceivedDate)     // ✅ PAG SAME EXPIRY, UNAHIN ANG MATANDA (FIFO)
                         .Select(b => b.UnitPrice)
                         .FirstOrDefault()
                 })
@@ -2669,6 +2762,7 @@ namespace Infoman.Controllers
 
             return Json(rawMaterials);
         }
+
         // Price rounding helper methods - FIXED ENDING 9 ONLY
         private decimal RoundToPriceEnding(decimal price)
         {
@@ -2698,6 +2792,351 @@ namespace Infoman.Controllers
             }
 
             return rounded;
+        }
+
+        // ========== EMPLOYEE ATTENDANCE & PERFORMANCE FOR OWNER ==========
+
+        // GET: Owner/GetAllAttendance (for Owner dashboard - today's attendance)
+        [HttpGet]
+        public async Task<IActionResult> GetAllAttendance(DateTime? date)
+        {
+            try
+            {
+                var targetDate = date ?? DateTime.Today;
+
+                var attendances = await _db.EmployeeAttendances
+                    .Include(a => a.Employee)
+                    .Where(a => a.Date == targetDate)
+                    .Select(a => new
+                    {
+                        id = a.Id,
+                        employeeId = a.UserId,
+                        employeeName = a.Employee != null ? a.Employee.FullName : "Unknown",
+                        date = a.Date,
+                        checkInTime = a.CheckInTime.HasValue ? a.CheckInTime.Value.ToString(@"hh\:mm tt") : null,
+                        checkOutTime = a.CheckOutTime.HasValue ? a.CheckOutTime.Value.ToString(@"hh\:mm tt") : null,
+                        hoursWorked = a.HoursWorked,
+                        status = a.Status.ToString(),
+                        isPresent = a.Status == AttendanceStatus.Present,
+                        isLate = a.Status == AttendanceStatus.Late,
+                        isAbsent = a.Status == AttendanceStatus.Absent
+                    })
+                    .ToListAsync();
+
+                // Get all active employees
+                var allEmployees = await _db.Users
+                    .Where(u => u.Role.ToLower() == "employee" && u.Status == "Active")
+                    .Select(u => new { u.Id, u.FullName })
+                    .ToListAsync();
+
+                // Find employees who don't have attendance for today
+                var presentEmployeeIds = attendances.Select(a => a.employeeId).ToList();
+                var missingEmployees = allEmployees
+                    .Where(e => !presentEmployeeIds.Contains(e.Id))
+                    .Select(e => new
+                    {
+                        employeeId = e.Id,
+                        employeeName = e.FullName ?? e.Id.ToString(),
+                        status = "Absent",
+                        isAbsent = true
+                    })
+                    .ToList();
+
+                return Json(new
+                {
+                    success = true,
+                    date = targetDate,
+                    attendances = attendances,
+                    missingEmployees = missingEmployees,
+                    summary = new
+                    {
+                        totalEmployees = allEmployees.Count,
+                        present = attendances.Count(a => a.status.ToLower() == "present"),
+                        absent = attendances.Count(a => a.status.ToLower() == "absent") + missingEmployees.Count,
+                        late = attendances.Count(a => a.status.ToLower() == "late")
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        // GET: Owner/GetEmployeePerformance (for Owner dashboard - monthly summary)
+        [HttpGet]
+        public async Task<IActionResult> GetEmployeePerformance(int? year, int? month)
+        {
+            try
+            {
+                var targetYear = year ?? DateTime.Today.Year;
+                var targetMonth = month ?? DateTime.Today.Month;
+
+                var startDate = new DateTime(targetYear, targetMonth, 1);
+                var endDate = startDate.AddMonths(1).AddDays(-1);
+
+                var performances = await _db.EmployeePerformances
+                    .Include(p => p.Employee)
+                    .Where(p => p.Date >= startDate && p.Date <= endDate)
+                    .GroupBy(p => p.UserId)
+                    .Select(g => new
+                    {
+                        employeeId = g.Key,
+                        employeeName = g.First().Employee != null ? g.First().Employee.FullName : "Unknown",
+                        totalSales = g.Sum(p => p.TotalSales),
+                        ordersProcessed = g.Sum(p => p.OrdersProcessed),
+                        averageRating = g.Average(p => p.Rating),
+                        daysWorked = g.Count()
+                    })
+                    .OrderByDescending(p => p.totalSales)
+                    .ToListAsync();
+
+                // Get attendance data for the month
+                var attendances = await _db.EmployeeAttendances
+                    .Where(a => a.Date >= startDate && a.Date <= endDate)
+                    .GroupBy(a => a.UserId)
+                    .Select(g => new
+                    {
+                        employeeId = g.Key,
+                        totalHours = g.Sum(a => a.HoursWorked),
+                        daysPresent = g.Count(a => a.Status == AttendanceStatus.Present),
+                        daysLate = g.Count(a => a.Status == AttendanceStatus.Late),
+                        daysAbsent = g.Count(a => a.Status == AttendanceStatus.Absent)
+                    })
+                    .ToListAsync();
+
+                // ✅ FIXED: Use a dictionary for faster lookup
+                var attendanceDict = attendances.ToDictionary(a => a.employeeId, a => a);
+
+                var result = performances.Select(p => new
+                {
+                    p.employeeId,
+                    p.employeeName,
+                    p.totalSales,
+                    p.ordersProcessed,
+                    p.averageRating,
+                    attendance = attendanceDict.ContainsKey(p.employeeId)
+                        ? attendanceDict[p.employeeId]
+                        : new { employeeId = 0, totalHours = 0m, daysPresent = 0, daysLate = 0, daysAbsent = 0 }
+                });
+
+                return Json(new
+                {
+                    success = true,
+                    year = targetYear,
+                    month = targetMonth,
+                    performances = result,
+                    summary = new
+                    {
+                        totalSales = performances.Sum(p => p.totalSales),
+                        totalOrders = performances.Sum(p => p.ordersProcessed),
+                        totalEmployees = performances.Count
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        // GET: Owner/GetEmployeeAttendanceHistory (for specific employee)
+        [HttpGet]
+        public async Task<IActionResult> GetEmployeeAttendanceHistory(int employeeId, int? year, int? month)
+        {
+            try
+            {
+                var targetYear = year ?? DateTime.Today.Year;
+                var targetMonth = month ?? DateTime.Today.Month;
+
+                var startDate = new DateTime(targetYear, targetMonth, 1);
+                var endDate = startDate.AddMonths(1).AddDays(-1);
+
+                var employee = await _db.Users.FindAsync(employeeId);
+
+                var attendances = await _db.EmployeeAttendances
+                    .Where(a => a.UserId == employeeId && a.Date >= startDate && a.Date <= endDate)
+                    .OrderBy(a => a.Date)
+                    .Select(a => new
+                    {
+                        a.Date,
+                        checkInTime = a.CheckInTime.HasValue ? a.CheckInTime.Value.ToString(@"hh\:mm tt") : null,
+                        checkOutTime = a.CheckOutTime.HasValue ? a.CheckOutTime.Value.ToString(@"hh\:mm tt") : null,
+                        a.HoursWorked,
+                        status = a.Status.ToString()
+                    })
+                    .ToListAsync();
+
+                var summary = new
+                {
+                    present = attendances.Count(a => a.status.ToLower() == "present"),
+                    absent = attendances.Count(a => a.status.ToLower() == "absent"),
+                    late = attendances.Count(a => a.status.ToLower() == "late"),
+                    totalHours = attendances.Sum(a => a.HoursWorked)
+                };
+
+                return Json(new
+                {
+                    success = true,
+                    employeeName = employee?.FullName,
+                    year = targetYear,
+                    month = targetMonth,
+                    attendances = attendances,
+                    summary = summary
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        // GET: Owner/GetEmployeePerformanceDetails (for specific employee)
+        [HttpGet]
+        public async Task<IActionResult> GetEmployeePerformanceDetails(int employeeId, int? year, int? month)
+        {
+            try
+            {
+                var targetYear = year ?? DateTime.Today.Year;
+                var targetMonth = month ?? DateTime.Today.Month;
+
+                var startDate = new DateTime(targetYear, targetMonth, 1);
+                var endDate = startDate.AddMonths(1).AddDays(-1);
+
+                var employee = await _db.Users.FindAsync(employeeId);
+
+                var performances = await _db.EmployeePerformances
+                    .Where(p => p.UserId == employeeId && p.Date >= startDate && p.Date <= endDate)
+                    .OrderBy(p => p.Date)
+                    .Select(p => new
+                    {
+                        p.Date,
+                        p.TotalSales,
+                        p.OrdersProcessed,
+                        p.Rating,
+                        p.Notes
+                    })
+                    .ToListAsync();
+
+                var summary = new
+                {
+                    totalSales = performances.Sum(p => p.TotalSales),
+                    totalOrders = performances.Sum(p => p.OrdersProcessed),
+                    averageRating = performances.Any() ? performances.Average(p => p.Rating) : 0,
+                    daysWorked = performances.Count
+                };
+
+                return Json(new
+                {
+                    success = true,
+                    employeeName = employee?.FullName,
+                    year = targetYear,
+                    month = targetMonth,
+                    performances = performances,
+                    summary = summary
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetEmployeeOnlineStatus()
+        {
+            var today = DateTime.Today;
+
+            // Get all employees
+            var employees = await _db.Users
+                .Where(u => u.Role.ToLower() == "employee" || u.Role.ToLower() == "staff")
+                .Select(u => new { u.Id, u.FullName, u.IsLoggedIn, u.LastLoginTime, u.LastLogoutTime })
+                .ToListAsync();
+
+            // Get attendance for today
+            var attendances = await _db.EmployeeAttendances
+                .Where(a => a.Date == today)
+                .ToListAsync();
+
+            var onlineList = new List<object>();
+            var offlineList = new List<object>();
+
+            foreach (var emp in employees)
+            {
+                var attendance = attendances.FirstOrDefault(a => a.UserId == emp.Id);
+
+                string checkInTimeStr = null;
+                string checkOutTimeStr = null;
+                decimal hoursWorked = 0;
+                bool isOnline = false;
+
+                if (attendance != null)
+                {
+                    if (attendance.CheckInTime.HasValue)
+                    {
+                        var checkIn = attendance.CheckInTime.Value;
+                        checkInTimeStr = $"{checkIn.Hours:D2}:{checkIn.Minutes:D2}";
+                    }
+
+                    if (attendance.CheckOutTime.HasValue)
+                    {
+                        var checkOut = attendance.CheckOutTime.Value;
+                        checkOutTimeStr = $"{checkOut.Hours:D2}:{checkOut.Minutes:D2}";
+                    }
+
+                    hoursWorked = attendance.HoursWorked;
+
+                    // Online kung naka-time in ngayong araw at hindi naka-time out
+                    isOnline = attendance.CheckInTime.HasValue && !attendance.CheckOutTime.HasValue;
+                }
+
+                // Format login/logout times
+                string lastLoginStr = null;
+                string lastLogoutStr = null;
+
+                if (emp.LastLoginTime.HasValue)
+                {
+                    lastLoginStr = emp.LastLoginTime.Value.ToString("hh:mm tt");
+                }
+
+                if (emp.LastLogoutTime.HasValue)
+                {
+                    lastLogoutStr = emp.LastLogoutTime.Value.ToString("hh:mm tt");
+                }
+
+                if (isOnline)
+                {
+                    onlineList.Add(new
+                    {
+                        employeeId = emp.Id,
+                        employeeName = emp.FullName ?? emp.Id.ToString(),
+                        status = "Online",
+                        checkInTime = checkInTimeStr,
+                        hoursWorked = hoursWorked,
+                        lastLoginTime = lastLoginStr
+                    });
+                }
+                else
+                {
+                    offlineList.Add(new
+                    {
+                        employeeId = emp.Id,
+                        employeeName = emp.FullName ?? emp.Id.ToString(),
+                        status = "Offline",
+                        checkInTime = checkInTimeStr,
+                        checkOutTime = checkOutTimeStr,
+                        hoursWorked = hoursWorked,
+                        lastLoginTime = lastLoginStr,
+                        lastLogoutTime = lastLogoutStr
+                    });
+                }
+            }
+
+            return Json(new
+            {
+                online = onlineList,
+                offline = offlineList
+            });
         }
 
         [HttpPost]
@@ -2762,11 +3201,324 @@ namespace Infoman.Controllers
             }
         }
 
+        // GET: Owner/GetApprovedRefunds
+        [HttpGet]
+        public async Task<IActionResult> GetApprovedRefunds()
+        {
+            var approvedRefunds = await _db.PendingRequests
+                .Include(r => r.Order)
+                .Include(r => r.Requester)
+                .Where(r => r.RequestType == "REFUND" && r.Status == "APPROVED")
+                .Select(r => new
+                {
+                    Id = r.Id,
+                    OrderNumber = r.Order.OrderNumber,
+                    Reason = r.Reason,
+                    Amount = _db.RefundTransactions.Where(refund => refund.OriginalOrderId == r.OrderId).Sum(refund => refund.Amount),
+                    RecordedAt = r.ApprovedAt,
+                    RequesterName = r.Requester.Username
+                })
+                .ToListAsync();
+
+            return Json(approvedRefunds);
+        }
+
+        // GET: Owner/GetVoidHistory
+        [HttpGet]
+        public async Task<IActionResult> GetVoidHistory()
+        {
+            var voids = await _db.VoidLogs
+                .Include(v => v.Transaction)
+                .Include(v => v.User)
+                .Where(v => v.VoidType == "item" || v.VoidType == "transaction")
+                .OrderByDescending(v => v.Timestamp)
+                .Select(v => new
+                {
+                    Id = v.VoidLogId,
+                    OrderNumber = v.Transaction.OrderNumber,
+                    Reason = v.Reason,
+                    Amount = v.Transaction.TotalAmount,
+                    RecordedAt = v.Timestamp,
+                    RequesterName = v.User.Username
+                })
+                .ToListAsync();
+
+            return Json(voids);
+        }
+
 
         private int GetCurrentUserId()
         {
-            return HttpContext.Session.GetInt32("UserId") ?? 0;
+            return HttpContext.Session.GetInt32("Owner_UserId") ?? 0;
         }
+
+        [HttpPost]
+        public async Task<IActionResult> AddProductSize([FromBody] AddSizeRequest request)
+        {
+            try
+            {
+                var product = await _db.Products.FindAsync(request.ProductId);
+                if (product == null)
+                    return Json(new { success = false, message = "Product not found" });
+
+                // Generate SKU for the size
+                string sizeSKU = GenerateSizeSKU(product.SKU, request.SizeName);
+
+                var productSize = new ProductSize
+                {
+                    ProductId = request.ProductId,
+                    SizeName = request.SizeName,
+                    SKU = sizeSKU,
+                    Price = request.Price,
+                    Margin = request.Margin,
+                    IsAvailableInPOS = true,
+                    RecipeItems = new List<RecipeItem>()
+                };
+
+                // Add recipe items
+                foreach (var ingredient in request.Ingredients)
+                {
+                    var rawMat = await _db.RawMaterials.FindAsync(ingredient.RawMaterialId);
+                    if (rawMat != null)
+                    {
+                        decimal quantityInBaseUnit = ingredient.Quantity;
+
+                        if (ingredient.UnitUsed == "kg" && rawMat.BaseUnit == "g")
+                            quantityInBaseUnit = ingredient.Quantity * 1000;
+                        else if (ingredient.UnitUsed == "L" && rawMat.BaseUnit == "mL")
+                            quantityInBaseUnit = ingredient.Quantity * 1000;
+
+                        productSize.RecipeItems.Add(new RecipeItem
+                        {
+                            RawMaterialId = ingredient.RawMaterialId,
+                            Quantity = quantityInBaseUnit,
+                            UnitUsed = ingredient.UnitUsed
+                        });
+                    }
+                }
+
+                _db.ProductSizes.Add(productSize);
+                await _db.SaveChangesAsync();
+
+                // Recompute price if zero
+                if (request.Price == 0)
+                {
+                    await RecomputeProductSizePrice(productSize.ProductSizeId);
+                }
+
+                return Json(new { success = true, message = "Size added successfully" });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        private async Task RecomputeProductSizePrice(int productSizeId)
+        {
+            var productSize = await _db.ProductSizes
+                .Include(ps => ps.RecipeItems)
+                    .ThenInclude(ri => ri.RawMaterial)
+                .FirstOrDefaultAsync(ps => ps.ProductSizeId == productSizeId);
+
+            if (productSize == null) return;
+
+            decimal totalCost = 0;
+            foreach (var ri in productSize.RecipeItems)
+            {
+                decimal activePrice = await GetFIFOUnitPrice(ri.RawMaterialId);
+                decimal quantityForCost = ri.Quantity;
+
+                if (ri.RawMaterial?.BaseUnit == "g" || ri.RawMaterial?.BaseUnit == "mL")
+                {
+                    quantityForCost = ri.Quantity / 1000;
+                }
+
+                totalCost += quantityForCost * activePrice;
+            }
+
+            if (productSize.Margin > 0 && productSize.Margin < 1)
+            {
+                decimal computedPrice = totalCost / (1 - productSize.Margin);
+                decimal newPrice = RoundToPriceEnding(computedPrice);
+                productSize.Price = newPrice;
+                await _db.SaveChangesAsync();
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetProductById(int productId)
+        {
+            try
+            {
+                var product = await _db.Products
+                    .Where(p => p.ProductId == productId && !p.IsDeleted)
+                    .Select(p => new
+                    {
+                        p.ProductId,
+                        p.Name,
+                        p.SKU,
+                        p.Category,
+                        p.Description,
+                        p.ImagePath,
+                        Sizes = p.Sizes.Select(s => new
+                        {
+                            s.ProductSizeId,
+                            s.SizeName,
+                            s.SKU,
+                            s.Price,
+                            s.IsAvailableInPOS
+                        })
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (product == null)
+                    return Json(new { success = false, message = "Product not found" });
+
+                return Json(new { success = true, product = product });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetProductWithSizes(int productId)
+        {
+            var product = await _db.Products
+                .Where(p => p.ProductId == productId && !p.IsDeleted)
+                .Select(p => new
+                {
+                    p.ProductId,
+                    p.Name,
+                    p.Category,
+                    p.Description,
+                    p.ImagePath,
+                    p.SKU,
+                    Sizes = p.Sizes.Where(s => !s.IsDeleted).Select(s => new
+                    {
+                        s.ProductSizeId,
+                        s.SizeName,
+                        s.SKU,
+                        s.Price,
+                        s.IsAvailableInPOS,
+                        s.Margin
+                    })
+                })
+                .FirstOrDefaultAsync();
+
+            if (product == null)
+                return Json(new { success = false, message = "Product not found" });
+
+            return Json(new { success = true, product = product });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> DeleteProductSize([FromBody] DeleteProductSizeRequest request)
+        {
+            try
+            {
+                var productSize = await _db.ProductSizes
+                    .Include(ps => ps.RecipeItems)
+                    .FirstOrDefaultAsync(ps => ps.ProductSizeId == request.ProductSizeId);
+
+                if (productSize == null)
+                    return Json(new { success = false, message = "Size not found" });
+
+                // Delete associated recipe items first
+                if (productSize.RecipeItems != null && productSize.RecipeItems.Any())
+                {
+                    _db.RecipeItems.RemoveRange(productSize.RecipeItems);
+                }
+
+                // Delete the product size
+                _db.ProductSizes.Remove(productSize);
+                await _db.SaveChangesAsync();
+
+                return Json(new { success = true, message = "Size variant deleted successfully" });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateProduct([FromBody] UpdateProductRequest request)
+        {
+            try
+            {
+                var product = await _db.Products
+                    .Include(p => p.Sizes)
+                    .FirstOrDefaultAsync(p => p.ProductId == request.ProductId);
+
+                if (product == null)
+                    return Json(new { success = false, message = "Product not found" });
+
+                // Update basic info
+                product.Name = request.Name;
+                product.Category = request.Category ?? "";
+                product.Description = request.Description ?? "";
+                product.ImagePath = request.ImagePath ?? "";
+
+                // Delete sizes that are marked for deletion
+                if (request.DeleteSizeIds != null && request.DeleteSizeIds.Any())
+                {
+                    var sizesToDelete = product.Sizes.Where(s => request.DeleteSizeIds.Contains(s.ProductSizeId)).ToList();
+                    foreach (var size in sizesToDelete)
+                    {
+                        // Delete recipe items first
+                        var recipeItems = _db.RecipeItems.Where(ri => ri.ProductSizeId == size.ProductSizeId);
+                        _db.RecipeItems.RemoveRange(recipeItems);
+
+                        // Then delete the size
+                        product.Sizes.Remove(size);
+                    }
+                }
+
+                await _db.SaveChangesAsync();
+
+                return Json(new { success = true, message = "Product updated successfully" });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        public class UpdateProductRequest
+        {
+            public int ProductId { get; set; }
+            public string Name { get; set; }
+            public string Category { get; set; }
+            public string Description { get; set; }
+            public string ImagePath { get; set; }
+            public List<int> DeleteSizeIds { get; set; } = new List<int>();
+        }
+
+        public class DeleteProductSizeRequest
+        {
+            public int ProductSizeId { get; set; }
+        }
+
+        public class AddSizeRequest
+        {
+            public int ProductId { get; set; }
+            public string SizeName { get; set; }
+            public decimal Price { get; set; }
+            public decimal Margin { get; set; }
+            public List<IngredientItem> Ingredients { get; set; }
+        }
+
+        public class IngredientItem
+        {
+            public int RawMaterialId { get; set; }
+            public decimal Quantity { get; set; }
+            public string UnitUsed { get; set; }
+        }
+
         public class ApproveRequestRequest
         {
             public int RequestId { get; set; }

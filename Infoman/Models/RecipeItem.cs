@@ -24,5 +24,6 @@ namespace Infoman.Models
         public decimal Quantity { get; set; } // e.g., 150g, 200ml
         [Required]
         public string UnitUsed { get; set; } = "g";
+        public bool IsDeleted { get; set; } = false;
     }
 }

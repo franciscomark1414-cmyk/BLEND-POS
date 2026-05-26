@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infoman.Migrations
 {
     [DbContext(typeof(ConnectionDatabase))]
-    [Migration("20260524140541_AddStockadjustmentLog")]
-    partial class AddStockadjustmentLog
+    [Migration("20260526135015_AddExpiryDateToWasteLog")]
+    partial class AddExpiryDateToWasteLog
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -269,124 +269,6 @@ namespace Infoman.Migrations
                     b.ToTable("InventoryMovements");
                 });
 
-            modelBuilder.Entity("Infoman.Models.ItemDispositionStatus", b =>
-                {
-                    b.Property<int>("DispositionId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("StatusName")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.HasKey("DispositionId");
-
-                    b.ToTable("ItemDispositionStatus");
-                });
-
-            modelBuilder.Entity("Infoman.Models.Order", b =>
-                {
-                    b.Property<int>("OrderId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("OrderId"));
-
-                    b.Property<decimal>("AdjustmentAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("AdjustmentType")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("CreatedBy")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("datetime2");
-
-                    b.Property<decimal>("DiscountAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("DiscountPercent")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("DiscountType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("ExchangeDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ExchangeReason")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("ExchangeTransactionId")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("HasPendingRefund")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("OrderNumber")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("OriginalOrderId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("OriginalTotalAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("PaymentMethod")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ReceiptNumber")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ReturnStatus")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal>("StoreCreditApplied")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("TotalAmount")
-                        .HasPrecision(10, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("UpdatedBy")
-                        .HasColumnType("int");
-
-                    b.Property<string>("VoidReason")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("VoidedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("VoidedBy")
-                        .HasColumnType("int");
-
-                    b.HasKey("OrderId");
-
-                    b.HasIndex("OriginalOrderId");
-
-                    b.ToTable("Orders");
-                });
-
             modelBuilder.Entity("Infoman.Models.OrderAdjustment", b =>
                 {
                     b.Property<int>("AdjustmentId")
@@ -513,8 +395,6 @@ namespace Infoman.Migrations
 
                     b.HasIndex("DispositionProcessedBy");
 
-                    b.HasIndex("DispositionStatusId");
-
                     b.HasIndex("OrderId");
 
                     b.HasIndex("ProductId");
@@ -635,6 +515,9 @@ namespace Infoman.Migrations
                     b.Property<string>("ImagePath")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -661,6 +544,9 @@ namespace Infoman.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ProductSizeId"));
 
                     b.Property<bool>("IsAvailableInPOS")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
                     b.Property<decimal>("Margin")
@@ -756,8 +642,8 @@ namespace Infoman.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
-                    b.Property<int>("MinQty")
-                        .HasColumnType("int");
+                    b.Property<decimal>("MinQty")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("MinQtyInBaseUnit")
                         .HasColumnType("decimal(18,2)");
@@ -933,6 +819,9 @@ namespace Infoman.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RecipeItemId"));
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
 
                     b.Property<int>("ProductSizeId")
                         .HasColumnType("int");
@@ -1212,6 +1101,15 @@ namespace Infoman.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("IsLoggedIn")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastLoginTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("LastLogoutTime")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Password")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -1301,7 +1199,13 @@ namespace Infoman.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("WasteLogId"));
 
+                    b.Property<int?>("BatchId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ExpiryDate")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Notes")
@@ -1324,13 +1228,122 @@ namespace Infoman.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<decimal>("TotalCost")
+                        .HasColumnType("decimal(18,2)");
+
                     b.HasKey("WasteLogId");
+
+                    b.HasIndex("BatchId");
 
                     b.HasIndex("ProductId");
 
                     b.HasIndex("RawMaterialId");
 
                     b.ToTable("WasteLogs");
+                });
+
+            modelBuilder.Entity("Order", b =>
+                {
+                    b.Property<int>("OrderId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("OrderId"));
+
+                    b.Property<decimal>("AdjustmentAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("AdjustmentType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("DiscountAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("DiscountPercent")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("DiscountType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ExchangeDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ExchangeReason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("ExchangeTransactionId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("HasPendingRefund")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("OrderNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("OriginalOrderId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("OriginalTotalAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ReceiptNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ReturnStatus")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("StaffUserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("StoreCreditApplied")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("UpdatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<string>("VoidReason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("VoidedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("VoidedBy")
+                        .HasColumnType("int");
+
+                    b.HasKey("OrderId");
+
+                    b.HasIndex("OriginalOrderId");
+
+                    b.HasIndex("StaffUserId");
+
+                    b.ToTable("Orders");
                 });
 
             modelBuilder.Entity("Infoman.Models.EmployeeAttendance", b =>
@@ -1390,11 +1403,11 @@ namespace Infoman.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Infoman.Models.Order", "NewOrder")
+                    b.HasOne("Order", "NewOrder")
                         .WithMany()
                         .HasForeignKey("NewOrderId");
 
-                    b.HasOne("Infoman.Models.Order", "OriginalOrder")
+                    b.HasOne("Order", "OriginalOrder")
                         .WithMany()
                         .HasForeignKey("OriginalOrderId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1416,15 +1429,6 @@ namespace Infoman.Migrations
                     b.Navigation("RawMaterial");
                 });
 
-            modelBuilder.Entity("Infoman.Models.Order", b =>
-                {
-                    b.HasOne("Infoman.Models.Order", "OriginalOrder")
-                        .WithMany("ReplacementOrders")
-                        .HasForeignKey("OriginalOrderId");
-
-                    b.Navigation("OriginalOrder");
-                });
-
             modelBuilder.Entity("Infoman.Models.OrderAdjustment", b =>
                 {
                     b.HasOne("Infoman.Models.User", "ApprovedByUser")
@@ -1437,7 +1441,7 @@ namespace Infoman.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Infoman.Models.Order", "OriginalOrder")
+                    b.HasOne("Order", "OriginalOrder")
                         .WithMany("Adjustments")
                         .HasForeignKey("OriginalOrderId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1456,13 +1460,7 @@ namespace Infoman.Migrations
                         .WithMany()
                         .HasForeignKey("DispositionProcessedBy");
 
-                    b.HasOne("Infoman.Models.ItemDispositionStatus", "DispositionStatus")
-                        .WithMany()
-                        .HasForeignKey("DispositionStatusId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Infoman.Models.Order", "Order")
+                    b.HasOne("Order", "Order")
                         .WithMany("Items")
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1482,8 +1480,6 @@ namespace Infoman.Migrations
 
                     b.Navigation("DispositionProcessedByUser");
 
-                    b.Navigation("DispositionStatus");
-
                     b.Navigation("Order");
 
                     b.Navigation("Product");
@@ -1493,7 +1489,7 @@ namespace Infoman.Migrations
 
             modelBuilder.Entity("Infoman.Models.Payment", b =>
                 {
-                    b.HasOne("Infoman.Models.Order", "Order")
+                    b.HasOne("Order", "Order")
                         .WithMany()
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1508,7 +1504,7 @@ namespace Infoman.Migrations
                         .WithMany()
                         .HasForeignKey("ApprovedBy");
 
-                    b.HasOne("Infoman.Models.Order", "Order")
+                    b.HasOne("Order", "Order")
                         .WithMany()
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1546,7 +1542,7 @@ namespace Infoman.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Infoman.Models.Order", "Order")
+                    b.HasOne("Order", "Order")
                         .WithMany()
                         .HasForeignKey("OrderId");
 
@@ -1629,7 +1625,7 @@ namespace Infoman.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Infoman.Models.Order", "OriginalOrder")
+                    b.HasOne("Order", "OriginalOrder")
                         .WithMany()
                         .HasForeignKey("OriginalOrderId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1731,7 +1727,7 @@ namespace Infoman.Migrations
                         .WithMany()
                         .HasForeignKey("ItemId");
 
-                    b.HasOne("Infoman.Models.Order", "Transaction")
+                    b.HasOne("Order", "Transaction")
                         .WithMany()
                         .HasForeignKey("TransactionId");
 
@@ -1752,6 +1748,10 @@ namespace Infoman.Migrations
 
             modelBuilder.Entity("Infoman.Models.WasteLog", b =>
                 {
+                    b.HasOne("Infoman.Models.RawMaterialBatch", "Batch")
+                        .WithMany()
+                        .HasForeignKey("BatchId");
+
                     b.HasOne("Infoman.Models.Product", "Product")
                         .WithMany()
                         .HasForeignKey("ProductId");
@@ -1762,23 +1762,31 @@ namespace Infoman.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("Batch");
+
                     b.Navigation("Product");
 
                     b.Navigation("RawMaterial");
                 });
 
+            modelBuilder.Entity("Order", b =>
+                {
+                    b.HasOne("Order", "OriginalOrder")
+                        .WithMany("ReplacementOrders")
+                        .HasForeignKey("OriginalOrderId");
+
+                    b.HasOne("Infoman.Models.User", "Staff")
+                        .WithMany()
+                        .HasForeignKey("StaffUserId");
+
+                    b.Navigation("OriginalOrder");
+
+                    b.Navigation("Staff");
+                });
+
             modelBuilder.Entity("Infoman.Models.ExchangeTransaction", b =>
                 {
                     b.Navigation("ExchangeItems");
-                });
-
-            modelBuilder.Entity("Infoman.Models.Order", b =>
-                {
-                    b.Navigation("Adjustments");
-
-                    b.Navigation("Items");
-
-                    b.Navigation("ReplacementOrders");
                 });
 
             modelBuilder.Entity("Infoman.Models.Product", b =>
@@ -1816,6 +1824,15 @@ namespace Infoman.Migrations
                     b.Navigation("Attendances");
 
                     b.Navigation("Performances");
+                });
+
+            modelBuilder.Entity("Order", b =>
+                {
+                    b.Navigation("Adjustments");
+
+                    b.Navigation("Items");
+
+                    b.Navigation("ReplacementOrders");
                 });
 #pragma warning restore 612, 618
         }

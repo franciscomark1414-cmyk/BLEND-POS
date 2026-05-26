@@ -37,9 +37,11 @@ namespace Infoman.Service
                     RawMaterialId = batch.RawMaterialId,
                     Quantity = batch.QuantityRemaining,
                     Reason = WasteReason.Expired,
-                    Date = today,
+                    Date = DateTime.Today,
                     RecordedBy = "System",
-                    Notes = $"Auto-moved from expired batch #{batch.BatchId} (expired on {batch.ExpiryDate.Value:yyyy-MM-dd})"
+                    Notes = $"Auto-generated from expired batch received on {batch.ReceivedDate}",
+                    BatchId = batch.BatchId,  // ✅ SAVE THE BATCH ID
+                    TotalCost = batch.QuantityRemaining * batch.UnitPrice
                 };
 
                 _context.WasteLogs.Add(wasteLog);

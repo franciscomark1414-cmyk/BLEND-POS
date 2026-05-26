@@ -24,7 +24,7 @@ namespace Infoman.Models
         public decimal Stock { get; set; }
 
         [Required]
-        public int MinQty { get; set; } // minimum quantity para sa low stock alert
+        public decimal MinQty { get; set; } // minimum quantity para sa low stock alert
 
         [Required]
         public decimal Price { get; set; }
@@ -55,15 +55,18 @@ namespace Infoman.Models
         {
             get
             {
+                if (Stock == 0)
+                    return "No Stock";
+
                 if (Stock <= MinQty)
                     return "Low Stock";
+
                 if (ExpirationDate.HasValue && ExpirationDate.Value <= DateTime.Today.AddDays(3))
                     return "Expiring Soon";
+
                 return "In Stock";
             }
         }
-        public string StockWithUnit => $"{Stock:N1} {Unit}";
-        public string MinQtyWithUnit => $"{MinQty:N1} {Unit}";
         public bool IsDeleted { get; set; } = false;
 
        
@@ -72,6 +75,45 @@ namespace Infoman.Models
         public RawMaterial()
         {
             Batches = new HashSet<RawMaterialBatch>();
+        }
+
+        public string StockWithUnit
+        {
+            get
+            {
+                decimal displayStock = Stock;
+
+                if (BaseUnit == "g" && Unit == "kg")
+                {
+                    displayStock = Stock / 1000;
+                }
+                else if (BaseUnit == "mL" && Unit == "L")
+                {
+                    displayStock = Stock / 1000;
+                }
+
+                return $"{displayStock:N1} {Unit}";
+            }
+        }
+
+        public string MinQtyWithUnit
+        {
+            get
+            {
+                decimal displayMinQty = MinQty;
+
+                // I-convert kung ang base unit ay g/mL at display unit ay kg/L
+                if (BaseUnit == "g" && Unit == "kg")
+                {
+                    displayMinQty = MinQty / 1000;  // 10,000 g → 10 kg
+                }
+                else if (BaseUnit == "mL" && Unit == "L")
+                {
+                    displayMinQty = MinQty / 1000;  // 10,000 mL → 10 L
+                }
+
+                return $"{displayMinQty:N1} {Unit}";
+            }
         }
     }
 }

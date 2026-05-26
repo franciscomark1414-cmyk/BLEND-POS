@@ -31,5 +31,5 @@
         public const string EXCHANGE_REPLACEMENT = "EXCHANGE_REPLACEMENT";
         public const string VOID_RETURN = "VOID_RETURN";
         public const string REFUND_RETURN = "REFUND_RETURN";
-    }
+    }   
 }

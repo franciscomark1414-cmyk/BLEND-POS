@@ -1,8 +1,26 @@
 ﻿@using System.Linq;
 @model DashboardViewModel
 @{
+    Layout = null;  // ✅ WALANG LAYOUT
     ViewBag.Title = "Owner Dashboard";
 }
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Neldie's Mango & More - Owner Dashboard</title>
+    
+    <!-- ✅ CACHE CONTROL -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 
 <style>
     body {
@@ -624,8 +642,63 @@
             margin-bottom: 15px;
         }
     }
-</style>
 
+    .employee-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 15px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border-left: 4px solid #f59e0b;
+    transition: transform 0.2s ease;
+    height: 100%;
+}
+
+.employee-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.employee-avatar {
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.employee-name {
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.employee-username {
+    color: #6c757d;
+    font-size: 13px;
+}
+
+.employee-detail {
+    font-size: 13px;
+    color: #6c757d;
+    margin-top: 6px;
+}
+
+.employee-detail i {
+    width: 18px;
+    margin-right: 5px;
+    color: #f59e0b;
+}
+
+
+
+</style>
+</head>
+<body>
 <div class="dashboard-container">
     <!-- Sidebar -->
     <!-- Sidebar - Dark Blue Design -->
@@ -1504,14 +1577,6 @@
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="card border-left-danger shadow h-100 text-center">
-                            <div class="card-body">
-                                <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Expired</div>
-                                <div class="h5 mb-0 font-weight-bold" id="statExpired">0</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
                         <div class="card border-left-secondary shadow h-100 text-center">
                             <div class="card-body">
                                 <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">Waste Logs</div>
@@ -1533,11 +1598,6 @@
                         </button>
                     </li>
                     <li class="nav-item">
-                        <button class="nav-link" onclick="switchAlertTab('expired', event)">
-                            ❌ Expired <span class="badge bg-danger ms-1" id="expiredBadge">0</span>
-                        </button>
-                    </li>
-                    <li class="nav-item">
                         <button class="nav-link" onclick="switchAlertTab('waste', event)">
                             🗑️ Waste Logs <span class="badge bg-secondary ms-1" id="wasteBadge">0</span>
                         </button>
@@ -1545,19 +1605,16 @@
                 </ul>
 
                 <div class="tab-content">
-                    <div id="lowstockTabContent" class="tab-pane fade show active">
-                        <div class="card"><div class="card-body" id="lowStockContent">Loading...</div></div>
-                    </div>
-                    <div id="expiringTabContent" class="tab-pane fade">
-                        <div class="card"><div class="card-body" id="expiringContent">Loading...</div></div>
-                    </div>
-                    <div id="expiredTabContent" class="tab-pane fade">
-                        <div class="card"><div class="card-body" id="expiredContent">Loading...</div></div>
-                    </div>
-                    <div id="wasteTabContent" class="tab-pane fade">
-                        <div class="card"><div class="card-body" id="wasteContent">Loading...</div></div>
-                    </div>
-                </div>
+    <div id="lowstockTabContent" style="display: block;">
+        <div class="card"><div class="card-body" id="lowStockContent">Loading...</div></div>
+    </div>
+    <div id="expiringTabContent" style="display: none;">
+        <div class="card"><div class="card-body" id="expiringContent">Loading...</div></div>
+    </div>
+    <div id="wasteTabContent" style="display: none;">
+        <div class="card"><div class="card-body" id="wasteContent">Loading...</div></div>
+    </div>
+</div>
             </div>
         </div>
 
@@ -2124,14 +2181,6 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="card bg-warning text-dark border-0 shadow-sm">
-                            <div class="card-body">
-                                <h6 class="card-title fw-semibold">Average Rating</h6>
-                                <h2 class="mb-0 fw-bold" id="perfAvgRating">0.0</h2>
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
                 <div class="card border-0 shadow-sm rounded-4">
@@ -2146,7 +2195,6 @@
                                         <th>Date</th>
                                         <th>Sales</th>
                                         <th>Orders</th>
-                                        <th>Rating</th>
                                         <th>Notes</th>
                                     </tr>
                                 </thead>
@@ -2422,9 +2470,6 @@
         <div id="receivingHistoryModule" class="module">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h3><i class="fas fa-history text-info me-2"></i> Delivery History</h3>
-                <button class="btn btn-outline-primary" onclick="loadDeliveryHistory()">
-                    <i class="fas fa-sync-alt"></i> Refresh
-                </button>
             </div>
 
             <div class="card shadow-sm">
@@ -2473,10 +2518,17 @@
                                     </button>
                                 </li>
                                 <li class="nav-item">
-                                    <button class="nav-link" onclick="switchReturnTab('approved', event)">
-                                         Approved Voids/Refunds <span id="approvedTabBadge" class="ms-1" style="color: black; font-weight: 600;">0</span>
-                                    </button>
-                                </li>
+        <button class="nav-link" onclick="switchReturnTab('refundhistory', event)">
+            <i class="fas fa-history"></i> Approved Refund History 
+            <span id="refundHistoryBadge" class="ms-1 badge bg-info">0</span>
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" onclick="switchReturnTab('voidhistory', event)">
+            <i class="fas fa-trash-alt"></i> Void History 
+            <span id="voidHistoryBadge" class="ms-1 badge bg-secondary">0</span>
+        </button>
+    </li>
                                 <li class="nav-item">
                                     <button class="nav-link" onclick="switchReturnTab('supplier', event)">
                                           Supplier Returns <span id="supplierTabBadge" class="ms-1" style="color: black; font-weight: 600;">0</span>
@@ -2484,66 +2536,92 @@
                                 </li>
                             </ul>
 
-                            <!-- ========== PENDING APPROVALS TAB ========== -->
-                            <div id="pendingTab" class="return-tab-content active">
-                                <div class="card border-warning">
-                                    <div class="card-header bg-warning">
-                                        <h5 class="mb-0"><i class="fas fa-clock"></i> Pending Approvals</h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="table-responsive">
-                                            <table class="table table-bordered table-hover">
-                                                <thead class="table-light">
-                                                    <tr>
-                                                        <th>Date</th>
-                                                        <th>Order #</th>
-                                                        <th>Type</th>
-                                                        <th>Reason</th>
-                                                        <th>Requested By</th>
-                                                        <th>Amount</th>
-                                                        <th>Actions</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody id="pendingRequestsTableBody">
-                                                    <tr><td colspan="7" class="text-center">Loading...</td></tr>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+ <!-- ========== PENDING REFUNDS TAB ========== -->
+<div id="pendingTab" class="return-tab-content active">
+    <div class="card border-warning">
+        <div class="card-header bg-warning">
+            <h5 class="mb-0"><i class="fas fa-clock"></i> Pending Refund Requests</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Date</th>
+                            <th>Order #</th>
+                            <th>Reason</th>
+                            <th>Requested By</th>
+                            <th>Amount</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pendingRequestsTableBody">
+                        <tr><td colspan="6" class="text-center">Loading...<\/td><\/tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
 
-                            <!-- ========== APPROVED VOIDS/REFUNDS TAB ========== -->
-                            <div id="approvedTab" class="return-tab-content" style="display:none;">
-                                <div class="card">
-                                    <div class="card-header bg-info text-white">
-                                        <h5 class="mb-0"><i class="fas fa-check-circle"></i> Approved Void / Refund Records</h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="table-responsive">
-                                            <table class="table table-bordered table-hover">
-                                                <thead class="table-info">
-                                                    <tr>
-                                                        <th>Date</th>
-                                                        <th>Order #</th>
-                                                        <th>Type</th>
-                                                        <th>Reason</th>
-                                                        <th>Amount</th>
-                                                        <th>Requested By</th>
-                                                        <th>Actions</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody id="approvedReturnsTableBody">
-                                                    <tr><td colspan="7" class="text-center">Loading...</td></tr>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+<!-- ========== REFUND HISTORY TAB ========== -->
+<div id="refundHistoryTab" class="return-tab-content" style="display:none;">
+    <div class="card">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="fas fa-check-circle"></i> Refund History (Approved)</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-info">
+                        <tr>
+                            <th>Date</th>
+                            <th>Order #</th>
+                            <th>Reason</th>
+                            <th>Amount</th>
+                            <th>Requested By</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="refundHistoryTableBody">
+                        <tr><td colspan="6" class="text-center">Loading...<\/td><\/tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
 
-                            <!-- ========== SUPPLIER RETURNS TAB ========== -->
-                            <div id="supplierTab" class="return-tab-content" style="display:none;">
+<!-- ========== VOID HISTORY TAB ========== -->
+<div id="voidHistoryTab" class="return-tab-content" style="display:none;">
+    <div class="card">
+        <div class="card-header bg-secondary text-white">
+            <h5 class="mb-0"><i class="fas fa-trash-alt"></i> Void History (Automatic)</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-secondary">
+                        <tr>
+                            <th>Date</th>
+                            <th>Order #</th>
+                            <th>Reason</th>
+                            <th>Amount</th>
+                            <th>Voided By</th>
+                        </tr>
+                    </thead>
+                    <tbody id="voidHistoryTableBody">
+                        <tr><td colspan="5" class="text-center">Loading...<\td></tr>
+                    </tbody>
+                    </table>
+                <tr>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SUPPLIER RETURNS TAB ========== -->
+<div id="supplierTab" class="return-tab-content" style="display:none;">
                                 <div class="card">
                                     <div class="card-header bg-warning">
                                         <h5 class="mb-0">
@@ -2879,6 +2957,167 @@
     </div>
 </div>
 
+<!-- Add Size Modal - Redesigned like Add Product -->
+<div class="modal fade" id="addSizeModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">➕ Add New Size for: <span id="addSizeProductName"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="addSizeProductId">
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Size Name <span class="text-danger">*</span></label>
+                        <input type="text" name="SizeName" id="newSizeName" class="form-control" required placeholder="e.g., Small, Medium, Large">
+                        <small class="text-muted">Enter the size name (e.g., Small, Medium, Large, Extra Large)</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Selling Price (₱)</label>
+                        <input type="number" id="newSizePrice" class="form-control" step="0.01" value="0" placeholder="0.00">
+                        <small class="text-muted">Leave 0 to auto-calculate based on ingredients</small>
+                    </div>
+                </div>
+                
+                <hr />
+                
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">📋 Recipe / Ingredients</h6>
+                    <button type="button" class="btn btn-sm btn-success" onclick="addNewIngredientRow()">
+                        <i class="fas fa-plus"></i> Add Ingredient
+                    </button>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="newSizeIngredientsTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 45%">Ingredient</th>
+                                <th style="width: 20%">Quantity</th>
+                                <th style="width: 20%">Unit</th>
+                                <th style="width: 15%">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="newSizeIngredientsBody">
+                            <tr>
+                                <td>
+                                    <select class="form-control ingredient-select" onchange="updateNewIngredientUnitDropdown(this)">
+                                        <option value="">-- Select Ingredient --</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <input type="number" class="form-control quantity-input" placeholder="Qty" step="0.01" min="0.01" value="1">
+                                </td>
+                                <td>
+                                    <select class="form-control unit-select">
+                                        <option value="kg">📦 kilogram (kg)</option>
+                                        <option value="g">⚖️ gram (g)</option>
+                                        <option value="L">💧 liter (L)</option>
+                                        <option value="mL">🧪 milliliter (mL)</option>
+                                        <option value="pcs">🔢 pieces (pcs)</option>
+                                    </select>
+                                </td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-sm btn-danger" onclick="removeNewIngredientRow(this)">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="alert alert-info mt-3 py-2 small">
+                    <i class="fas fa-info-circle"></i> 
+                    <strong>Note:</strong> The selling price will be automatically calculated based on ingredient costs if left as 0.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveNewSize()">Save Size</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Product Modal -->
+<div class="modal fade" id="editProductModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">✏️ Edit Product: <span id="editProductName"></span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editProductId">
+                
+                <!-- BASIC INFORMATION -->
+                <h6 class="mb-3">📝 Basic Information</h6>
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label class="form-label fw-bold">Product Name <span class="text-danger">*</span></label>
+                        <input type="text" id="editProductNameInput" class="form-control" required>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Category</label>
+                        <input type="text" id="editProductCategory" class="form-control" placeholder="e.g., Fruit Shake">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Image URL</label>
+                        <input type="text" id="editProductImagePath" class="form-control" placeholder="https://example.com/image.jpg">
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Description</label>
+                    <textarea id="editProductDescription" class="form-control" rows="2"></textarea>
+                </div>
+                
+                <hr />
+                
+                <!-- SIZE VARIANTS MANAGEMENT -->
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">📊 Size Variants</h6>
+                    <button type="button" class="btn btn-sm btn-success" onclick="addNewSizeFromEdit()">
+                        <i class="fas fa-plus"></i> Add Size
+                    </button>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Size</th>
+                                <th>SKU</th>
+                                <th>Price</th>
+                                <th>POS Status</th>
+                                <th>Actions</th>
+                            </td>
+                        </thead>
+                        <tbody id="editSizesList">
+                            <tr><td colspan="5" class="text-center">Loading sizes...<\/td><\/tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="alert alert-warning mt-3">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Note:</strong> Deleted sizes will only be removed after clicking "Save Changes".
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveProductEdit()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
     </div>
 </div>
@@ -2910,6 +3149,9 @@ let currentEditBatchId = null;
 let currentEditBatchRemaining = null;
 let currentEditMaterialName = null;
 let currentEditUnit = null;
+let currentEditProductSizes = [];
+let pendingDeleteSizeIds = [];
+
 
     // Chart
     var labels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.SalesLabels ?? new List<string>()));
@@ -3227,7 +3469,6 @@ function showAddDeliveryForm() {
     }
 
     // Submit delivery form
-        // Submit delivery form - FIXED VERSION
     document.getElementById('addDeliveryForm')?.addEventListener('submit', async function(e) {
     e.preventDefault();
 
@@ -3282,7 +3523,14 @@ function showAddDeliveryForm() {
         const result = await response.json();
 
         if (result.success) {
-            await showAlert(result.message, 'Success', '✅');
+            // ✅ IBA-IBANG MESSAGE DEPENDE SA RESULT
+            if (result.isExpired) {
+                await showAlert(result.message, 'Expired Material Added', '⚠️');
+            } else if (result.warning) {
+                await showAlert(result.message, 'Warning', '⚠️');
+            } else {
+                await showAlert(result.message, 'Success', '✅');
+            }
             
             // ✅ I-HIDE ANG PANEL
             document.getElementById('addDeliveryPanel').style.display = 'none';
@@ -3557,126 +3805,146 @@ if (isNaN(category)) { await showAlert('Please select a valid category', 'Requir
 }
 
     // Products Functions
-  function showAddProductModal() {
+function showAddProductModal() {
     const form = document.getElementById('addProductForm');
+    if (!form) {
+        console.error('addProductForm not found');
+        showAlert('Form not found. Please refresh the page.', 'Error', '❌');
+        return;
+    }
+    
     form.reset();
-    document.getElementById('sizesContainer').innerHTML = '';
+    const sizesContainer = document.getElementById('sizesContainer');
+    if (sizesContainer) sizesContainer.innerHTML = '';
     sizeCounter = 0;
     
-    // I-disable muna ang submit button habang naglo-load
+    // Disable submit button while loading
     const submitBtn = form.querySelector('button[type="submit"]');
     const originalText = submitBtn.innerHTML;
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
     
-    // Mag-load ng lahat ng size rows nang sabay-sabay
+    // Load size rows with manual price enabled
     Promise.all([
-        addSizeRowPromise('Small'),
-        addSizeRowPromise('Medium'),
-        addSizeRowPromise('Large')
+        addSizeRowPromise('Small', true),
+        addSizeRowPromise('Medium', true),
+        addSizeRowPromise('Large', true)
     ]).then(() => {
-        // I-enable ulit ang submit button
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalText;
     }).catch(err => {
         console.error('Error loading sizes:', err);
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalText;
+        showAlert('Error loading form. Please refresh and try again.', 'Error', '❌');
     });
     
-    // FIND this code in your script (around line where addProductForm is handled)
-// REPLACE the form.onsubmit function with this:
-
-form.onsubmit = async function(e) {
-    e.preventDefault();
-    const submitBtn = form.querySelector('button[type="submit"]');
-    const originalText = submitBtn.innerHTML;
-    
-    // Show loading state
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving Product...';
-    submitBtn.disabled = true;
-    
-    try {
-        reindexSizeRows();
+    // ✅ ADD THE FORM SUBMIT HANDLER HERE
+    form.onsubmit = async function(e) {
+        e.preventDefault();
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
         
-        const sizeRows = document.querySelectorAll('#sizesContainer .size-row');
-        if (sizeRows.length === 0) {
-            await showAlert(' Please add at least one size', 'Error');
-            submitBtn.innerHTML = originalText;
-            submitBtn.disabled = false;
-            return;
-        }
+        // Show loading state
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving Product...';
+        submitBtn.disabled = true;
         
-        // Validate ingredients
-        let hasValidIngredients = true;
-        for (let i = 0; i < sizeRows.length; i++) {
-            const sizeRow = sizeRows[i];
-            const sizeName = sizeRow.querySelector('input[name*="SizeName"]')?.value || `Size ${i+1}`;
-            const ingredientSelects = sizeRow.querySelectorAll('select[name*="RawMaterialId"]');
-            let hasIngredient = false;
+        try {
+            // Reindex all size rows bago mag-submit
+            reindexSizeRows();
             
-            for (let j = 0; j < ingredientSelects.length; j++) {
-                if (ingredientSelects[j].value && ingredientSelects[j].value !== '') {
-                    hasIngredient = true;
+            const sizeRows = document.querySelectorAll('#sizesContainer .size-row');
+            if (sizeRows.length === 0) {
+                await showAlert(' Please add at least one size', 'Error');
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+                return;
+            }
+            
+            // Validate na may ingredients ang bawat size
+            let hasValidIngredients = true;
+            for (let i = 0; i < sizeRows.length; i++) {
+                const sizeRow = sizeRows[i];
+                const sizeName = sizeRow.querySelector('input[name*="SizeName"]')?.value || `Size ${i+1}`;
+                const ingredientSelects = sizeRow.querySelectorAll('select[name*="RawMaterialId"]');
+                let hasIngredient = false;
+                
+                for (let j = 0; j < ingredientSelects.length; j++) {
+                    if (ingredientSelects[j].value && ingredientSelects[j].value !== '') {
+                        hasIngredient = true;
+                        break;
+                    }
+                }
+                
+                if (!hasIngredient) {
+                    await showAlert(`Please add at least one ingredient for "${sizeName}"`, 'Error');
+                    hasValidIngredients = false;
                     break;
                 }
             }
             
-            if (!hasIngredient) {
-                await showAlert(`Please add at least one ingredient for "${sizeName}"`, 'Error');
-                hasValidIngredients = false;
-                break;
+            if (!hasValidIngredients) {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+                return;
             }
-        }
-        
-        if (!hasValidIngredients) {
+            
+            const formData = new FormData(form);
+
+            console.log("=== FORM DATA DEBUG ===");
+for (let pair of formData.entries()) {
+    console.log(pair[0] + ': ' + pair[1]);
+}
+            
+            const response = await fetch('/Owner/AddProduct', {
+                method: 'POST',
+                headers: { 
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value 
+                },
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Save that we want to stay in products module
+                sessionStorage.setItem('activeModule', 'products');
+                
+                // Show success message
+                await showAlert(result.message, 'Success', '✅');
+                
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addProductModal'));
+                if (modal) modal.hide();
+                
+                // Reload with flag to stay in products module
+                window.location.href = window.location.pathname + '?fromProductSave=true';
+                
+            } else {
+                let errorMsg = result.message || 'Please check all fields';
+                if (result.errors && typeof result.errors === 'object') {
+                    errorMsg = Object.values(result.errors).flat().join('\n');
+                }
+                await showAlert(' Error:\n' + errorMsg, 'Error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            await showAlert(' An error occurred: ' + error.message, 'Error');
+        } finally {
             submitBtn.innerHTML = originalText;
             submitBtn.disabled = false;
-            return;
         }
-        
-        const formData = new FormData(form);
-        
-        const response = await fetch('/Owner/AddProduct', {
-            method: 'POST',
-            headers: { 
-                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value 
-            },
-            body: formData
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            // ✅ Save that we want to stay in products module
-            localStorage.setItem('activeModule', 'products');
-            
-            // ✅ Show success message
-            await showAlert( result.message, 'Success', '✅');
-            
-            // ✅ Close modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('addProductModal'));
-            if (modal) modal.hide();
-            
-            // ✅ Reload with flag to stay in products module
-            window.location.href = window.location.pathname + '?fromProductSave=true';
-            
-        } else {
-            let errorMsg = result.message || 'Please check all fields';
-            if (result.errors && typeof result.errors === 'object') {
-                errorMsg = Object.values(result.errors).flat().join('\n');
-            }
-            await showAlert(' Error:\n' + errorMsg, 'Error');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        await showAlert(' An error occurred: ' + error.message, 'Error');
-    } finally {
-        submitBtn.innerHTML = originalText;
-        submitBtn.disabled = false;
+    };
+    
+    // Show the modal
+    const modalElement = document.getElementById('addProductModal');
+    if (modalElement) {
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+    } else {
+        console.error('addProductModal not found');
+        showAlert('Modal not found. Please refresh the page.', 'Error', '❌');
     }
-};
-    new bootstrap.Modal(document.getElementById('addProductModal')).show();
 }
 
 // Function to reindex all size rows para mag-match sa model binding
@@ -3718,7 +3986,7 @@ function removeSizeRow(sizeId) {
 }
 
 // Gumawa ng Promise version ng addSizeRow
-function addSizeRowPromise(predefinedName = null) {
+function addSizeRowPromise(predefinedName = null, enableManualPrice = true) {
     return new Promise((resolve, reject) => {
         const container = document.getElementById('sizesContainer');
         const sizeId = sizeCounter++;
@@ -3733,19 +4001,26 @@ function addSizeRowPromise(predefinedName = null) {
                     materialOptions += `<option value="${m.id}" data-price="${price}" data-unit="${m.unit}">${m.name} (${m.unit} - ₱${price})</option>`;
                 });
                 
+                // ✅ ADD DATA-MANUAL-PRICE FLAG
                 const sizeHtml = `
-                    <div class="size-row border p-3 mb-3 rounded" data-size-id="${sizeId}" style="background: #fef9e6; position: relative;">
-                     <button type="button" class="btn-remove-size" onclick="removeSizeRow(${sizeId})">✕</button>
+                    <div class="size-row border p-3 mb-3 rounded" data-size-id="${sizeId}" data-manual-price="${enableManualPrice}" style="background: #fef9e6; position: relative;">
+                        <button type="button" class="btn-remove-size" onclick="removeSizeRow(${sizeId})">✕</button>
                         <div class="row">
                             <div class="col-md-3 mb-2">
                                 <label class="form-label fw-bold">Size Name</label>
                                 <input type="text" name="Sizes[${sizeId}].SizeName" class="form-control" value="${sizeName}" required placeholder="e.g., Small, Medium, Large">
                             </div>
                             <div class="col-md-3 mb-2">
-                                <label class="form-label fw-bold">Selling Price (₱)</label>
-                                <input type="number" name="Sizes[${sizeId}].Price" class="form-control" step="0.01" value="0" placeholder="0.00">
-                                <small class="text-muted">Leave 0 to auto-calculate</small>
-                            </div>
+    <label class="form-label fw-bold">Selling Price (₱)</label>
+    <input type="number" 
+           name="Sizes[${sizeId}].Price" 
+           class="form-control price-input" 
+           step="0.01" 
+           value="0" 
+           placeholder="0.00"
+           data-original-value="0">
+    <small class="text-muted">Enter 0 to auto-calculate, or type your own price</small>
+</div>
                             <div class="col-md-6 mb-2">
                                 <label class="form-label fw-bold">Recipe / Ingredients</label>
                                 <div class="recipe-items" id="recipe-items-${sizeId}">
@@ -3781,33 +4056,7 @@ function addSizeRowPromise(predefinedName = null) {
             })
             .catch(err => {
                 console.error('Error loading materials:', err);
-                const fallbackHtml = `
-                    <div class="size-row border p-3 mb-3 rounded" data-size-id="${sizeId}" style="background: #fef9e6;">
-                        <button type="button" class="btn btn-sm btn-danger float-end" onclick="removeSizeRow(${sizeId})">✕</button>
-                        <div class="row">
-                            <div class="col-md-3 mb-2">
-                                <label class="form-label fw-bold">Size Name</label>
-                                <input type="text" name="Sizes[${sizeId}].SizeName" class="form-control" value="${sizeName}" required>
-                            </div>
-                            <div class="col-md-3 mb-2">
-                                <label class="form-label fw-bold">Selling Price (₱)</label>
-                                <input type="number" name="Sizes[${sizeId}].Price" class="form-control" step="0.01" value="0">
-                            </div>
-                            <div class="col-md-6 mb-2">
-                                <label class="form-label fw-bold">Recipe / Ingredients</label>
-                                <div class="recipe-items" id="recipe-items-${sizeId}">
-                                    <div class="row mb-2 g-2">
-                                        <div class="col-md-5">
-                                            <input type="text" class="form-control" placeholder="No materials available">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                container.insertAdjacentHTML('beforeend', fallbackHtml);
-                resolve(); // I-resolve pa rin para hindi ma-stuck
+                reject(err);
             });
     });
 }
@@ -3985,9 +4234,257 @@ function addSizeRow(predefinedName = null) {
     }
 
     function refreshProducts() { saveAndReload(); }
-    async function editProduct(productId) { 
-    await showAlert('Edit product feature - coming soon!', 'Notice');
+    async function editProduct(productId) {
+    try {
+        const response = await fetch(`/Owner/GetProductWithSizes?productId=${productId}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const product = data.product;
+            
+            // Set basic info
+            document.getElementById('editProductId').value = product.productId;
+            document.getElementById('editProductName').innerText = product.name;
+            document.getElementById('editProductNameInput').value = product.name;
+            document.getElementById('editProductCategory').value = product.category || '';
+            document.getElementById('editProductDescription').value = product.description || '';
+            document.getElementById('editProductImagePath').value = product.imagePath || '';
+            
+            // Reset pending deletes
+            pendingDeleteSizeIds = [];
+            
+            // Store sizes for reference
+            currentEditProductSizes = (product.sizes || []).map(s => ({ ...s }));
+            
+            // Display sizes in table
+            displayEditSizesTable(currentEditProductSizes);
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('editProductModal'));
+            modal.show();
+        } else {
+            await showAlert('Product not found', 'Error', '❌');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        await showAlert('Error loading product details', 'Error', '❌');
+    }
 }
+
+function displayEditSizesTable(sizes) {
+    const tbody = document.getElementById('editSizesList');
+    
+    if (!sizes || sizes.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No sizes added yet. Click "Add Size" to add.</td></tr>';
+        return;
+    }
+    
+    let html = '';
+    sizes.forEach(size => {
+        // Check if this size is marked for deletion
+        const isPendingDelete = pendingDeleteSizeIds.includes(size.productSizeId);
+        const deleteClass = isPendingDelete ? 'table-danger' : '';
+        const deleteBadge = isPendingDelete ? '<span class="badge bg-danger ms-2">Will be deleted</span>' : '';
+        
+        const posStatus = size.isAvailableInPOS ? 
+            '<span class="badge bg-success">✅ Displayed</span>' : 
+            '<span class="badge bg-secondary">⚫ Hidden</span>';
+        
+        html += `
+            <tr data-size-id="${size.productSizeId}" class="${deleteClass}">
+                <td><strong>${escapeHtml(size.sizeName)}</strong>${deleteBadge}</td>
+                <td><code>${escapeHtml(size.sku)}</code></td>
+                <td class="text-primary fw-bold">₱${size.price.toFixed(2)}</td>
+                <td>${posStatus}</td>
+                <td>
+                    <button class="btn btn-sm btn-warning me-1" onclick="editSizeRecipe(${size.productSizeId})">
+                        <i class="fas fa-edit"></i> Edit Recipe
+                    </button>
+                    ${!isPendingDelete ? 
+                        `<button class="btn btn-sm btn-danger" onclick="markSizeForDeletion(${size.productSizeId}, '${escapeHtml(size.sizeName)}')">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>` :
+                        `<button class="btn btn-sm btn-secondary" onclick="unmarkSizeForDeletion(${size.productSizeId})">
+                            <i class="fas fa-undo"></i> Undo
+                        </button>`
+                    }
+                </td>
+            </tr>
+        `;
+    });
+    tbody.innerHTML = html;
+}
+
+function markSizeForDeletion(productSizeId, sizeName) {
+    // Add to pending delete list
+    if (!pendingDeleteSizeIds.includes(productSizeId)) {
+        pendingDeleteSizeIds.push(productSizeId);
+    }
+    
+    // Update display
+    displayEditSizesTable(currentEditProductSizes);
+}
+
+function unmarkSizeForDeletion(productSizeId) {
+    // Remove from pending delete list
+    pendingDeleteSizeIds = pendingDeleteSizeIds.filter(id => id !== productSizeId);
+    
+    // Update display
+    displayEditSizesTable(currentEditProductSizes);
+}
+
+function editSizeRecipe(productSizeId) {
+    // Check if size is pending deletion
+    if (pendingDeleteSizeIds.includes(productSizeId)) {
+        showAlert('Cannot edit a size that is marked for deletion. Undo delete first.', 'Warning', '⚠️');
+        return;
+    }
+    
+    // Close edit product modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('editProductModal'));
+    if (modal) modal.hide();
+    
+    // Open edit recipe modal
+    editRecipe(productSizeId);
+}
+
+function addNewSizeFromEdit() {
+    // Store current edit modal state
+    const editModal = bootstrap.Modal.getInstance(document.getElementById('editProductModal'));
+    const productId = document.getElementById('editProductId').value;
+    const productName = document.getElementById('editProductNameInput').value;
+    
+    // Hide edit modal (not close, just hide)
+    if (editModal) {
+        editModal.hide();
+    }
+    
+    // Store that we came from edit mode
+    window.returnToEditModal = true;
+    
+    // Show add size modal
+    showAddSizeModal(productId, productName);
+}
+
+async function saveProductEdit() {
+    const productId = document.getElementById('editProductId').value;
+    const name = document.getElementById('editProductNameInput').value.trim();
+    const category = document.getElementById('editProductCategory').value;
+    const description = document.getElementById('editProductDescription').value.trim();
+    const imagePath = document.getElementById('editProductImagePath').value.trim();
+    
+    if (!name) {
+        await showAlert('Please enter a product name', 'Required', '⚠️');
+        return;
+    }
+    
+    showLoading('Saving changes...');
+    
+    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    
+    try {
+        // Update basic info
+        const updateResponse = await fetch('/Owner/UpdateProduct', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': token
+            },
+            body: JSON.stringify({
+                productId: parseInt(productId),
+                name: name,
+                category: category,
+                description: description,
+                imagePath: imagePath
+            })
+        });
+        
+        const updateResult = await updateResponse.json();
+        
+        if (!updateResult.success) {
+            hideLoading();
+            await showAlert('Error updating product: ' + updateResult.message, 'Error', '❌');
+            return;
+        }
+        
+        // Delete pending sizes
+        for (const sizeId of pendingDeleteSizeIds) {
+            await fetch('/Owner/DeleteProductSize', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token
+                },
+                body: JSON.stringify({ productSizeId: sizeId })
+            });
+        }
+        
+        hideLoading();
+        await showAlert('Product updated successfully!', 'Success', '✅');
+        
+        const modal = bootstrap.Modal.getInstance(document.getElementById('editProductModal'));
+        if (modal) modal.hide();
+        saveAndReload();
+        
+    } catch (error) {
+        hideLoading();
+        await showAlert('Error: ' + error.message, 'Error', '❌');
+    }
+}
+
+
+async function deleteSizeVariant(productSizeId, sizeName) {
+    const confirmed = await showConfirm(
+        `Delete "${sizeName}" size?\n\nThis will permanently remove this size variant and its recipe.\nThis action cannot be undone.`,
+        'Delete Size Variant'
+    );
+    
+    if (!confirmed) return;
+    
+    showLoading('Deleting size variant...');
+    
+    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    
+    try {
+        const response = await fetch('/Owner/DeleteProductSize', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': token
+            },
+            body: JSON.stringify({ productSizeId: productSizeId })
+        });
+        
+        const result = await response.json();
+        hideLoading();
+        
+        if (result.success) {
+            await showAlert('Size variant deleted successfully!', 'Success', '✅');
+            // Refresh the sizes list
+            const productId = document.getElementById('editProductId').value;
+            await refreshProductSizes(productId);
+        } else {
+            await showAlert('Error: ' + result.message, 'Error', '❌');
+        }
+    } catch (error) {
+        hideLoading();
+        await showAlert('Error: ' + error.message, 'Error', '❌');
+    }
+}
+async function refreshProductSizes(productId) {
+    try {
+        const response = await fetch(`/Owner/GetProductWithSizes?productId=${productId}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            currentEditProductSizes = data.product.sizes || [];
+            displayEditSizesTable(currentEditProductSizes);
+        }
+    } catch (error) {
+        console.error('Error refreshing sizes:', error);
+    }
+}
+
    async function archiveProduct(productId) {
     const confirmed = await showConfirm('Are you sure you want to archive this product?', 'Archive Product');
     if (!confirmed) return;
@@ -4013,7 +4510,141 @@ function addSizeRow(predefinedName = null) {
         await showAlert('Error: ' + error.message, 'Error');
     });
 }
-    function addSize(productId) { showAddProductModal(); }
+    async function addSize(productId) {
+    // Get product details first
+    try {
+        const response = await fetch(`/Owner/GetProductById?productId=${productId}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            showAddSizeModal(productId, data.product.name);
+        } else {
+            await showAlert('Product not found', 'Error', '❌');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        await showAlert('Error loading product details', 'Error', '❌');
+    }
+}
+
+async function showAddSizeModal(productId, productName) {
+    // Check if elements exist
+    const productIdInput = document.getElementById('addSizeProductId');
+    const productNameSpan = document.getElementById('addSizeProductName');
+    const sizeNameInput = document.getElementById('newSizeName');
+    const priceInput = document.getElementById('newSizePrice');
+    
+    if (!productIdInput || !productNameSpan) {
+        console.error('Modal elements not found');
+        return;
+    }
+    
+    // Set product info
+    productIdInput.value = productId;
+    productNameSpan.innerText = productName;
+    
+    if (sizeNameInput) sizeNameInput.value = '';
+    if (priceInput) priceInput.value = '0';
+    
+    // Reset ingredients table
+    const tbody = document.getElementById('newSizeIngredientsBody');
+    if (tbody) {
+        tbody.innerHTML = `
+            <tr>
+                <td>
+                    <select class="form-control ingredient-select" onchange="updateNewIngredientUnitDropdown(this)">
+                        <option value="">-- Select Ingredient --</option>
+                    </select>
+                </td>
+                <td>
+                    <input type="number" class="form-control quantity-input" placeholder="Qty" step="0.01" min="0.01" value="1">
+                </td>
+                <td>
+                    <select class="form-control unit-select">
+                        <option value="kg">📦 kilogram (kg)</option>
+                        <option value="g">⚖️ gram (g)</option>
+                        <option value="L">💧 liter (L)</option>
+                        <option value="mL">🧪 milliliter (mL)</option>
+                        <option value="pcs">🔢 pieces (pcs)</option>
+                    </select>
+                </td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-danger" onclick="removeNewIngredientRow(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+        
+        // Load ingredients into first row
+        fetch('/RawMaterial/GetAllWithLatestPrice')
+            .then(response => response.json())
+            .then(materials => {
+                const select = tbody.querySelector('.ingredient-select');
+                if (select) {
+                    let options = '<option value="">-- Select Ingredient --</option>';
+                    materials.forEach(m => {
+                        const price = m.latestBatchPrice > 0 ? m.latestBatchPrice : m.defaultPrice;
+                        options += `<option value="${m.id}" data-price="${price}" data-unit="${m.unit}">${m.name} (${m.unit} - ₱${price})</option>`;
+                    });
+                    select.innerHTML = options;
+                }
+            });
+    }
+    
+    newIngredientCounter = 1;
+    
+    // Show modal
+    const modalEl = document.getElementById('addSizeModal');
+    if (modalEl) {
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+    } else {
+        console.error('addSizeModal element not found');
+        await showAlert('Modal not found. Please refresh the page.', 'Error', '❌');
+    }
+}
+
+function updateNewIngredientUnitDropdown(selectElement) {
+    const row = selectElement.closest('tr');
+    const unitSelect = row.querySelector('.unit-select');
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+    const materialUnit = selectedOption.getAttribute('data-unit');
+    
+    if (!materialUnit) return;
+    
+    // Get unit category
+    const weightUnits = ['kg', 'g'];
+    const volumeUnits = ['L', 'mL'];
+    
+    let allowedUnits = [];
+    if (weightUnits.includes(materialUnit)) {
+        allowedUnits = ['kg', 'g'];
+    } else if (volumeUnits.includes(materialUnit)) {
+        allowedUnits = ['L', 'mL'];
+    } else {
+        allowedUnits = ['pcs'];
+    }
+    
+    // Enable/disable options
+    for (let i = 0; i < unitSelect.options.length; i++) {
+        const opt = unitSelect.options[i];
+        if (allowedUnits.includes(opt.value)) {
+            opt.disabled = false;
+        } else {
+            opt.disabled = true;
+            if (opt.selected) {
+                // Find first enabled option
+                for (let j = 0; j < unitSelect.options.length; j++) {
+                    if (!unitSelect.options[j].disabled) {
+                        unitSelect.selectedIndex = j;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
 
     // Recipe Functions
                async function viewRecipe(productSizeId) {
@@ -4215,6 +4846,63 @@ function addSizeRow(predefinedName = null) {
             select.innerHTML = '<option value="">Error loading ingredients</option>';
         });
 }
+function closeSizeModal() {
+    const sizeModal = document.getElementById('sizeModal');
+    if (sizeModal) sizeModal.style.display = 'none';
+    
+    // If we came from edit modal, show it again
+    if (window.returnToEditModal) {
+        window.returnToEditModal = false;
+        
+        // ✅ GET THE EDIT MODAL ELEMENT
+        const editModalEl = document.getElementById('editProductModal');
+        if (editModalEl) {
+            // ✅ TRY TO GET EXISTING INSTANCE FIRST
+            let editModal = bootstrap.Modal.getInstance(editModalEl);
+            if (!editModal) {
+                // ✅ IF NO INSTANCE, CREATE NEW ONE
+                editModal = new bootstrap.Modal(editModalEl);
+            }
+            editModal.show();
+            
+            // ✅ REFRESH SIZES LIST PARA MAKITA ANG MGA CHANGES
+            const productId = document.getElementById('editProductId')?.value;
+            if (productId) {
+                refreshProductSizes(productId);
+            }
+        }
+    }
+}
+
+function closeQuantityModal() {
+    const quantityModal = document.getElementById('quantityModal');
+    if (quantityModal) quantityModal.style.display = 'none';
+    tempSelectedSize = null;
+    
+    // If we came from edit modal, show it again
+    if (window.returnToEditModal) {
+        window.returnToEditModal = false;
+        
+        // ✅ GET THE EDIT MODAL ELEMENT
+        const editModalEl = document.getElementById('editProductModal');
+        if (editModalEl) {
+            // ✅ TRY TO GET EXISTING INSTANCE FIRST
+            let editModal = bootstrap.Modal.getInstance(editModalEl);
+            if (!editModal) {
+                // ✅ IF NO INSTANCE, CREATE NEW ONE
+                editModal = new bootstrap.Modal(editModalEl);
+            }
+            editModal.show();
+            
+            // ✅ REFRESH SIZES LIST
+            const productId = document.getElementById('editProductId')?.value;
+            if (productId) {
+                refreshProductSizes(productId);
+            }
+        }
+    }
+}
+
   function calculateIngredientTotal(element) {
     const row = element.closest('tr');
     const select = row.querySelector('.ingredient-select');
@@ -4348,22 +5036,19 @@ function addSizeRow(predefinedName = null) {
 
             document.getElementById('statLowStock').innerText = data.lowStockCount;
             document.getElementById('statExpiring').innerText = data.expiringCount;
-            document.getElementById('statExpired').innerText = data.expiredCount;
             document.getElementById('statWaste').innerText = data.wasteCount;
             document.getElementById('lowStockBadge').innerText = data.lowStockCount;
             document.getElementById('expiringBadge').innerText = data.expiringCount;
-            document.getElementById('expiredBadge').innerText = data.expiredCount;
             document.getElementById('wasteBadge').innerText = data.wasteCount;
             loadLowStockTab(data.lowStockItems);
             loadExpiringTab(data.expiringItems);
-            loadExpiredTab(data.expiredItems);
             loadWasteTab(data.wasteLogs);
         }).catch(error => console.error('Error loading alerts:', error));
     }
 
-        function loadLowStockTab(items) {
-        const container = document.getElementById('lowStockContent');
-        if (!items || items.length === 0) {
+function loadLowStockTab(items) {
+    const container = document.getElementById('lowStockContent');
+    if (!items || items.length === 0) {
         container.innerHTML = `
             <div class="empty-state" style="text-align: center; padding: 40px 20px;">
                 <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
@@ -4373,34 +5058,40 @@ function addSizeRow(predefinedName = null) {
             </div>
         `;
     } else {
-            container.innerHTML = `
-                <div class="table-responsive">
-                    <table class="table table-bordered">
-                        <thead class="table-warning">
-                            <tr><th>Name</th><th>Category</th><th>Current Stock</th><th>Min Qty</th><th>Unit</th><th>Status</th><th>Action</th></tr>
-                        </thead>
-                        <tbody>
-                            ${items.map(item => `
-                                <tr>
-                                    <td><strong>${escapeHtml(item.name)}</strong></td>
-                                    <td>${escapeHtml(item.category)}</td>
-                                    <td class="text-danger fw-bold">${item.stockWithUnit}</td>
-                                    <td>${item.minQty}</td>
-                                    <td>${escapeHtml(item.unit)}</td>
-                                    <td><span class="badge bg-warning">⚠️ Low Stock</span></td>
-                                    <td>
-                                        <button class="btn btn-sm btn-outline-success" onclick="restockMaterial(${item.rawMaterialId})">
-                                            📦 Restock
-                                        </button>
-                                    </td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            `;
-        }
+        container.innerHTML = `
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead class="table-warning">
+                        <tr>
+                            <th>Name</th>
+                            <th>Category</th>
+                            <th>Current Stock</th>
+                            <th>Min Qty</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${items.map(item => `
+                            <tr>
+                                <td><strong>${escapeHtml(item.name)}</strong></td>
+                                <td>${escapeHtml(item.category)}</td>
+                                <td class="text-danger fw-bold">${item.stockWithUnit}</td>
+                                <td class="text-danger fw-bold">${item.minQtyWithUnit}</td>  <!-- ✅ GAMITIN ANG PROPERTY -->
+                                <td><span class="badge bg-warning">⚠️ Low Stock</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-success" onclick="restockMaterial(${item.rawMaterialId})">
+                                        📦 Restock
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
     }
+}
 
         function loadExpiringTab(items) {
         const container = document.getElementById('expiringContent');
@@ -4453,18 +5144,131 @@ function addSizeRow(predefinedName = null) {
         else container.innerHTML = `<div class="table-responsive"><table class="table table-bordered"><thead class="table-danger"><tr><th>Name</th><th>Category</th><th>Current Stock</th><th>Expiry Date</th><th>Days Overdue</th><th>Status</th><th>Action</th></tr></thead><tbody>${items.map(item => `<tr><td><strong>${escapeHtml(item.name)}</strong></td><td>${escapeHtml(item.category)}</td><td class="text-danger">${item.stockWithUnit}</td><td class="text-danger">${item.expiryDate}</td><td class="text-danger fw-bold">${item.daysOverdue} days ago</td><td><span class="badge bg-danger">❌ Expired</span></td><td><button class="btn btn-sm btn-outline-danger" onclick="logExpiredAsWaste(${item.rawMaterialId})">Log as Waste</button></td></tr>`).join('')}</tbody></table></div>`;
     }
 
-    function loadWasteTab(wasteLogs) {
-        const container = document.getElementById('wasteContent');
-        if (!wasteLogs || wasteLogs.length === 0) container.innerHTML = '<div class="empty-state"><i class="fas fa-trash-alt fa-4x text-secondary mb-3"></i><h4 class="text-secondary">No Waste Logs</h4><p class="text-muted">No waste has been logged yet.</p><button class="btn btn-warning btn-sm mt-2" onclick="showAddWasteModal()">Log Your First Waste</button></div>';
-        else container.innerHTML = `<div class="table-responsive"><table class="table table-bordered"><thead class="table-secondary"><tr><th>Date</th><th>Material</th><th>Quantity</th><th>Reason</th><th>Total Cost</th><th>Recorded By</th><th>Notes</th></tr></thead><tbody>${wasteLogs.map(log => `<tr><td>${log.date}</td><td><strong>${escapeHtml(log.materialName)}</strong></td><td class="text-danger">${log.quantity} ${log.unit}</td><td><span class="badge bg-secondary">${log.reason}</span></td><td class="text-danger">₱${log.totalCost}</td><td>${escapeHtml(log.recordedBy)}</td><td>${escapeHtml(log.notes) || '-'}</td></tr>`).join('')}</tbody></table></div>`;
+   function loadWasteTab(wasteLogs) {
+    const container = document.getElementById('wasteContent');
+    
+    if (!container) {
+        console.error('wasteContent element not found');
+        return;
     }
+    
+    if (!wasteLogs || wasteLogs.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state" style="text-align: center; padding: 40px 20px;">
+                <i class="fas fa-trash-alt fa-4x text-secondary mb-3"></i>
+                <h4 class="text-secondary">No Waste Logs</h4>
+                <p class="text-muted">No waste has been logged yet.</p>
+                <button class="btn btn-warning btn-sm mt-2" onclick="showAddWasteModal()">Log Your First Waste</button>
+            </div>
+        `;
+        return;
+    }
+    
+    // ✅ GAMITIN ANG BOOTSTRAP CLASSES PARA MAY KULAY
+    let html = `
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Date Logged</th>
+                        <th>Expiry Date</th>
+                        <th>Material</th>
+                        <th>Quantity</th>
+                        <th>Reason</th>
+                        <th>Total Cost</th>
+                        <th>Recorded By</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    for (let i = 0; i < wasteLogs.length; i++) {
+        const log = wasteLogs[i];
+        
+        // Format date
+        let dateLogged = log.date ? log.date.split('T')[0] : 'N/A';
+        
+        // Format expiry date - tanggalin ang time part
+        let expiryDateDisplay = 'N/A';
+        if (log.expiryDate && log.expiryDate !== 'null' && log.expiryDate !== '') {
+            expiryDateDisplay = log.expiryDate.toString().substring(0, 10);
+        }
+        
+        let totalCostDisplay = '₱0.00';
+        if (log.totalCost && !isNaN(parseFloat(log.totalCost))) {
+            totalCostDisplay = `₱${parseFloat(log.totalCost).toFixed(2)}`;
+        }
+        
+        html += `
+            <tr>
+                <td>${escapeHtml(dateLogged)}</td>
+                <td>${escapeHtml(expiryDateDisplay)}</td>
+                <td><strong>${escapeHtml(log.materialName)}</strong></td>
+                <td class="text-danger">${escapeHtml(log.quantity)} ${escapeHtml(log.unit || '')}</td>
+                <td><span class="badge bg-secondary">${escapeHtml(log.reason || 'Unknown')}</span></td>
+                <td class="text-danger">${totalCostDisplay}</td>
+                <td>${escapeHtml(log.recordedBy) || '-'}</td>
+                <td>${escapeHtml(log.notes) || '-'}</td>
+            </tr>
+        `;
+    }
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
 
-    function switchAlertTab(tabName, clickEvent) {
-        document.querySelectorAll('.nav-link').forEach(btn => btn.classList.remove('active'));
-        if (clickEvent && clickEvent.target) clickEvent.target.classList.add('active');
-        document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('show', 'active'));
-        document.getElementById(`${tabName}TabContent`).classList.add('show', 'active');
+  function switchAlertTab(tabName, clickEvent) {
+    console.log('Switching to tab:', tabName);
+    
+    // I-update ang active class sa buttons
+    document.querySelectorAll('#inventoryAlertsModule .nav-link').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    if (clickEvent && clickEvent.target) {
+        clickEvent.target.classList.add('active');
     }
+    
+    // I-hide lahat ng tab content
+    const lowstockTab = document.getElementById('lowstockTabContent');
+    const expiringTab = document.getElementById('expiringTabContent');
+    const wasteTab = document.getElementById('wasteTabContent');
+    
+    if (lowstockTab) lowstockTab.style.display = 'none';
+    if (expiringTab) expiringTab.style.display = 'none';
+    if (wasteTab) wasteTab.style.display = 'none';
+    
+    // Ipakita ang napiling tab at i-refresh ang content
+    if (tabName === 'lowstock') {
+        if (lowstockTab) lowstockTab.style.display = 'block';
+        // Refresh low stock data
+        fetch('/Owner/GetInventoryAlertsData')
+            .then(r => r.json())
+            .then(data => loadLowStockTab(data.lowStockItems));
+    } else if (tabName === 'expiring') {
+        if (expiringTab) expiringTab.style.display = 'block';
+        // Refresh expiring data
+        fetch('/Owner/GetInventoryAlertsData')
+            .then(r => r.json())
+            .then(data => loadExpiringTab(data.expiringItems));
+    } else if (tabName === 'waste') {
+        if (wasteTab) wasteTab.style.display = 'block';
+        console.log('Waste tab selected, loading waste logs...');
+        // Refresh waste data
+        fetch('/Owner/GetInventoryAlertsData')
+            .then(r => r.json())
+            .then(data => {
+                console.log('Waste logs received:', data.wasteLogs.length);
+                loadWasteTab(data.wasteLogs);
+            })
+            .catch(err => console.error('Error refreshing waste:', err));
+    }
+}
 
     function showAddWasteModal() { document.getElementById('wasteForm').reset(); new bootstrap.Modal(document.getElementById('addWasteModal')).show(); }
         let currentRestockMaterialId = null;
@@ -4647,13 +5451,13 @@ async function produceProduct(productSizeId, sizeName, currentStock) {
     }
 }
 
-    async function viewBatchHistory(materialId, materialName) {
+   async function viewBatchHistory(materialId, materialName) {
     const modal = new bootstrap.Modal(document.getElementById('batchHistoryModal'));
     const materialNameSpan = document.getElementById('modalBatchMaterialName');
     const tbody = document.getElementById('modalBatchHistoryBody');
 
     materialNameSpan.innerText = materialName;
-    tbody.innerHTML = `<tr><td colspan="7" class="text-center"><div class="spinner-border text-primary spinner-border-sm"></div> Loading...<\/td><\/tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center"><div class="spinner-border text-primary spinner-border-sm"></div> Loading...</td></tr>`;
     
     modal.show();
 
@@ -4666,7 +5470,7 @@ async function produceProduct(productSizeId, sizeName, currentStock) {
         const unit = data.unit || 'kg';
 
         if (!batches || batches.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No batches found<\/td><\/tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No batches found</td></tr>`;
             return;
         }
 
@@ -4674,6 +5478,7 @@ async function produceProduct(productSizeId, sizeName, currentStock) {
         let totalRemaining = 0;
 
         batches.forEach((batch, index) => {
+            // ✅ I-DECLARE ANG MGA VARIABLES
             const quantityReceived = batch.quantityReceived;
             const quantityRemaining = batch.quantityRemaining;
             
@@ -4715,7 +5520,6 @@ async function produceProduct(productSizeId, sizeName, currentStock) {
                                     📋 View Usage (${batch.usage.length})
                                 </button>` : 
                                 '<span class="text-muted">No usage</span>'}
-                            <!-- ✅ ADD EDIT STOCK BUTTON HERE -->
                             <button class="btn btn-sm btn-outline-warning" onclick="showEditStockModal(${batch.batchId}, ${quantityRemaining}, '${materialName}', '${unit}')">
                                 ✏️ Edit Stock
                             </button>
@@ -4725,6 +5529,7 @@ async function produceProduct(productSizeId, sizeName, currentStock) {
             `;
         });
 
+        // Add total row
         tbody.innerHTML += `
             <tr class="table-dark fw-bold">
                 <td colspan="2" class="text-end">TOTAL REMAINING STOCK:</td>
@@ -4734,7 +5539,7 @@ async function produceProduct(productSizeId, sizeName, currentStock) {
 
     } catch (error) {
         console.error('Error:', error);
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error loading batches: ${error.message}<\/td><\/tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error loading batches: ${error.message}</td></tr>`;
     }
 }
 
@@ -5453,96 +6258,197 @@ async function loadExchangeDetailsForReceipt(orderId, originalOrderId) {
 // ========== EMPLOYEE MODULE FUNCTIONS ==========
 
 function loadEmployees() {
-    fetch('/Employee/GetAllEmployees')
-        .then(function(res) { return res.json(); })
-        .then(function(employees) {
-            var container = document.getElementById('employeesContainer');
-            
-            if (!employees || employees.length === 0) {
-                container.innerHTML = '<div class="text-center py-5"><i class="fas fa-users fa-4x text-muted mb-3"></i><h5>No Employees Yet</h5><p class="text-muted">Click "Add Employee" to get started.</p></div>';
-                return;
+    // Load both employees and their online status
+    Promise.all([
+        fetch('/Employee/GetAllEmployees').then(res => res.json()),
+        fetch('/Owner/GetEmployeeOnlineStatus').then(res => res.json())
+    ])
+    .then(function([employees, statusData]) {
+        var container = document.getElementById('employeesContainer');
+        
+        if (!employees || employees.length === 0) {
+            container.innerHTML = '<div class="text-center py-5"><i class="fas fa-users fa-4x text-muted mb-3"></i><h5>No Employees Yet</h5><p class="text-muted">Click "Add Employee" to get started.</p></div>';
+            return;
+        }
+        
+        // Create maps for quick status lookup
+        var onlineMap = {};
+        var offlineMap = {};
+        
+        if (statusData.online) {
+            for (var i = 0; i < statusData.online.length; i++) {
+                var emp = statusData.online[i];
+                onlineMap[emp.employeeId] = emp;
             }
+        }
+        
+        if (statusData.offline) {
+            for (var i = 0; i < statusData.offline.length; i++) {
+                var emp = statusData.offline[i];
+                offlineMap[emp.employeeId] = emp;
+            }
+        }
+        
+        var html = '';
+        for (var i = 0; i < employees.length; i++) {
+            var emp = employees[i];
+            var statusInfo = onlineMap[emp.id] || offlineMap[emp.id];
             
-            var html = '';
-            for (var i = 0; i < employees.length; i++) {
-                var emp = employees[i];
+            var statusBadge = '';
+            var statusText = '';
+            var statusIcon = '';
+            var extraInfo = '';
+            
+            if (statusInfo && statusInfo.status === 'Online') {
+                statusBadge = 'bg-success';
+                statusIcon = '<i class="fas fa-circle" style="font-size: 10px; color: #10b981;"></i>';
+                statusText = 'ONLINE 🟢';
+                extraInfo = `
+                    <div class="mt-2 pt-2 border-top">
+                        <small><i class="fas fa-clock"></i> Time in: ${statusInfo.checkInTime || '--:--'}</small><br>
+                        <small><i class="fas fa-hourglass-half"></i> Hours: ${(statusInfo.hoursWorked || 0).toFixed(1)} hrs</small>
+                        <small class="d-block"><i class="fas fa-sign-in-alt"></i> Last login: ${statusInfo.lastLoginTime || '--:--'}</small>
+                    </div>
+                `;
+            } else {
+                statusBadge = 'bg-secondary';
+                statusIcon = '<i class="fas fa-circle" style="font-size: 10px; color: #6b7280;"></i>';
+                statusText = 'OFFLINE 🔴';
                 
-                html += '<div class="employee-card">' +
-                    '<div class="d-flex">' +
-                    '<div class="employee-avatar">' +
-                    '<i class="fas fa-user"></i>' +
-                    '</div>' +
-                    '<div class="flex-grow-1">' +
-                    '<div class="d-flex justify-content-between align-items-start">' +
-                    '<div>' +
-                    '<div class="employee-name">' + escapeHtml(emp.fullName) + '</div>' +
-                    '<div class="employee-username">\u0040' + escapeHtml(emp.username) + '</div>' +
-                    '</div>' +
-                    '<div>' +
-                    '<button class="btn btn-sm btn-outline-warning me-1" onclick="editEmployee(' + emp.id + ')">' +
-                    '<i class="fas fa-edit"></i> Edit' +
-                    '</button>' +
-                    '<button class="btn btn-sm btn-outline-danger" onclick="deleteEmployee(' + emp.id + ', \'' + escapeHtml(emp.fullName) + '\')">' +
-                    '<i class="fas fa-trash"></i> Delete' +
-                    '</button>' +
-                    '</div>' +
-                    '</div>' +
-                    '<div class="row mt-2">' +
-                    '<div class="col-md-6">' +
-                    '<div class="employee-detail">' +
-                    '<i class="fas fa-envelope"></i> ' + escapeHtml(emp.email || 'No email') +
-                    '</div>' +
-                    '<div class="employee-detail">' +
-                    '<i class="fas fa-phone"></i> ' + escapeHtml(emp.phone || 'No phone') +
-                    '</div>' +
-                    '</div>' +
-                    '<div class="col-md-6">' +
-                    '<div class="employee-detail">' +
-                    '<i class="fas fa-calendar-alt"></i> Joined: ' + escapeHtml(emp.dateJoined) +
-                    '</div>' +
-                    '<div class="employee-detail">' +
-                    '<span class="status-badge ' + (emp.status === 'Active' ? 'status-active' : 'status-inactive') + '">' +
-                    escapeHtml(emp.status) +
-                    '</span>' +
-                    '</div>' +
-                    '</div>' +
-                    '</div>' +
-                    '</div>' +
-                    '</div>' +
-                    '</div>';
+                if (statusInfo && (statusInfo.checkInTime || statusInfo.checkOutTime)) {
+                    extraInfo = `
+                        <div class="mt-2 pt-2 border-top">
+                            <small><i class="fas fa-clock"></i> Time in: ${statusInfo.checkInTime || '--:--'}</small><br>
+                            <small><i class="fas fa-sign-out-alt"></i> Time out: ${statusInfo.checkOutTime || '--:--'}</small><br>
+                            <small><i class="fas fa-hourglass-half"></i> Hours: ${(statusInfo.hoursWorked || 0).toFixed(1)} hrs</small>
+                        </div>
+                    `;
+                } else {
+                    extraInfo = `
+                        <div class="mt-2 pt-2 border-top">
+                            <small class="text-muted"><i class="fas fa-clock"></i> No attendance today</small>
+                        </div>
+                    `;
+                }
             }
-            container.innerHTML = html;
-        })
-        .catch(function(err) {
-            console.error('Error loading employees:', err);
-            document.getElementById('employeesContainer').innerHTML = '<div class="alert alert-danger">Error loading employees: ' + err.message + '</div>';
-        });
+            
+            // Add last login info for offline employees
+            if (!statusInfo || statusInfo.status !== 'Online') {
+                if (statusInfo && statusInfo.lastLoginTime) {
+                    extraInfo += `<small class="d-block mt-1"><i class="fas fa-sign-in-alt"></i> Last login: ${statusInfo.lastLoginTime}</small>`;
+                }
+                if (statusInfo && statusInfo.lastLogoutTime) {
+                    extraInfo += `<small class="d-block"><i class="fas fa-sign-out-alt"></i> Last logout: ${statusInfo.lastLogoutTime}</small>`;
+                }
+            }
+            
+            html += '<div class="col-md-6 col-lg-4 mb-3">' +
+                '<div class="employee-card">' +
+                '<div class="d-flex align-items-start">' +
+                '<div class="employee-avatar">' +
+                '<i class="fas fa-user"></i>' +
+                '</div>' +
+                '<div class="flex-grow-1 ms-3">' +
+                '<div class="d-flex justify-content-between align-items-start">' +
+                '<div>' +
+                '<div class="employee-name">' + escapeHtml(emp.fullName) + '</div>' +
+                '<div class="employee-username">@@' + escapeHtml(emp.username) + '</div>' +
+                '</div>' +
+                '<div>' +
+                '<span class="badge ' + statusBadge + ' px-2 py-1">' + statusIcon + ' ' + statusText + '</span>' +
+                '</div>' +
+                '</div>' +
+                '<div class="row mt-2">' +
+                '<div class="col-12">' +
+                '<div class="employee-detail">' +
+                '<i class="fas fa-envelope"></i> ' + escapeHtml(emp.email || 'No email') +
+                '</div>' +
+                '<div class="employee-detail">' +
+                '<i class="fas fa-phone"></i> ' + escapeHtml(emp.phone || 'No phone') +
+                '</div>' +
+                '<div class="employee-detail">' +
+                '<i class="fas fa-calendar-alt"></i> Joined: ' + escapeHtml(emp.dateJoined) +
+                '</div>' +
+                extraInfo +
+                '</div>' +
+                '</div>' +
+                '<div class="mt-2">' +
+                '<button class="btn btn-sm btn-outline-warning me-1" onclick="editEmployee(' + emp.id + ')">' +
+                '<i class="fas fa-edit"></i> Edit' +
+                '</button>' +
+                '<button class="btn btn-sm btn-outline-danger" onclick="deleteEmployee(' + emp.id + ', \'' + escapeHtml(emp.fullName) + '\')">' +
+                '<i class="fas fa-trash"></i> Delete' +
+                '</button>' +
+                '</div>' +
+                '</div>' +
+                '</div>' +
+                '</div>' +
+                '</div>';
+        }
+        container.innerHTML = html;
+    })
+    .catch(function(err) {
+        console.error('Error loading employees:', err);
+        document.getElementById('employeesContainer').innerHTML = '<div class="alert alert-danger">Error loading employees: ' + err.message + '</div>';
+    });
+}
+
+// Function to refresh employee status
+function refreshEmployeeStatus() {
+    console.log('Refreshing employee status...');
+    loadEmployees();
+}
+
+// Auto-refresh employee status every 30 seconds
+var employeeStatusInterval = null;
+
+function startEmployeeStatusAutoRefresh() {
+    if (employeeStatusInterval) {
+        clearInterval(employeeStatusInterval);
+    }
+    employeeStatusInterval = setInterval(function() {
+        var employeesModule = document.getElementById('employeesModule');
+        if (employeesModule && employeesModule.classList.contains('active')) {
+            refreshEmployeeStatus();
+        }
+    }, 30000);
+}
+
+// Call this when DOM is ready or when switching to employees module
+function initEmployeeModule() {
+    loadEmployees();
+    startEmployeeStatusAutoRefresh();
 }
 
 
     function switchEmployeeTab(tab) {
-        var listTab = document.getElementById('employeeListTab');
-        var perfTab = document.getElementById('employeePerformanceTab');
-        var attendTab = document.getElementById('employeeAttendanceTab');
-        var tabs = document.querySelectorAll('#employeesModule .nav-link');
+    var listTab = document.getElementById('employeeListTab');
+    var perfTab = document.getElementById('employeePerformanceTab');
+    var attendTab = document.getElementById('employeeAttendanceTab');
+    var tabs = document.querySelectorAll('#employeesModule .nav-link');
 
-        for (var i = 0; i < tabs.length; i++) {
-            tabs[i].classList.remove('active');
-        }
+    for (var i = 0; i < tabs.length; i++) {
+        tabs[i].classList.remove('active');
+    }
 
-        if (tab === 'list') {
-            if (tabs[0]) tabs[0].classList.add('active');
-            if (listTab) listTab.style.display = 'block';
-            if (perfTab) perfTab.style.display = 'none';
-            if (attendTab) attendTab.style.display = 'none';
-            loadEmployees();
-        }
-           else if (tab === 'performance') {
+    if (tab === 'list') {
+        if (tabs[0]) tabs[0].classList.add('active');
+        if (listTab) listTab.style.display = 'block';
+        if (perfTab) perfTab.style.display = 'none';
+        if (attendTab) attendTab.style.display = 'none';
+        loadEmployees();  // Load when switching to list tab
+        startEmployeeStatusAutoRefresh();  // Start auto-refresh
+    }
+    else if (tab === 'performance') {
         if (tabs[1]) tabs[1].classList.add('active');
         if (listTab) listTab.style.display = 'none';
         if (perfTab) perfTab.style.display = 'block';
         if (attendTab) attendTab.style.display = 'none';
-
+        // Stop auto-refresh when not on list tab
+        if (employeeStatusInterval) {
+            clearInterval(employeeStatusInterval);
+            employeeStatusInterval = null;
+        }
         // Load employees into performance dropdown
         fetch('/Employee/GetAllEmployees')
             .then(response => response.json())
@@ -5550,47 +6456,44 @@ function loadEmployees() {
                 const perfSelect = document.getElementById('perfEmployeeSelect');
                 if (perfSelect) {
                     let options = '<option value="">-- Select Employee --</option>';
-
-                    // I-save ang dating selected value kung meron
                     const oldValue = perfSelect.value;
-
                     employees.forEach(emp => {
                         options += `<option value="${emp.id}">${emp.fullName}</option>`;
                     });
                     perfSelect.innerHTML = options;
-
-                    // I-restore ang dating selected value
                     if (oldValue && oldValue !== "") {
                         perfSelect.value = oldValue;
                     }
                 }
-
-                // Auto-load performance kung may naunang napili
                 if (perfSelect && perfSelect.value) {
                     loadPerformanceData();
                 }
             });
     }
-        else if (tab === 'attendance') {
-            if (tabs[2]) tabs[2].classList.add('active');
-            if (listTab) listTab.style.display = 'none';
-            if (perfTab) perfTab.style.display = 'none';
-            if (attendTab) attendTab.style.display = 'block';
-
-            // Load employees into attendance dropdown
-            fetch('/Employee/GetAllEmployees')
-                .then(response => response.json())
-                .then(employees => {
-                    const attSelect = document.getElementById('attEmployeeSelect');
-                    if (attSelect) {
-                        attSelect.innerHTML = '<option value="">-- Select Employee --</option>';
-                        employees.forEach(emp => {
-                            attSelect.innerHTML += `<option value="${emp.id}">${emp.fullName}</option>`;
-                        });
-                    }
-                });
+    else if (tab === 'attendance') {
+        if (tabs[2]) tabs[2].classList.add('active');
+        if (listTab) listTab.style.display = 'none';
+        if (perfTab) perfTab.style.display = 'none';
+        if (attendTab) attendTab.style.display = 'block';
+        // Stop auto-refresh when not on list tab
+        if (employeeStatusInterval) {
+            clearInterval(employeeStatusInterval);
+            employeeStatusInterval = null;
         }
+        // Load employees into attendance dropdown
+        fetch('/Employee/GetAllEmployees')
+            .then(response => response.json())
+            .then(employees => {
+                const attSelect = document.getElementById('attEmployeeSelect');
+                if (attSelect) {
+                    attSelect.innerHTML = '<option value="">-- Select Employee --</option>';
+                    employees.forEach(emp => {
+                        attSelect.innerHTML += `<option value="${emp.id}">${emp.fullName}</option>`;
+                    });
+                }
+            });
     }
+}
 
     async function deleteEmployee(employeeId, employeeName) {
     const confirmed = await showConfirm(
@@ -5885,66 +6788,59 @@ function validatePassword(password) {
 
  // ========== LOAD PERFORMANCE DATA FUNCTION ==========
     function loadPerformanceData() {
-        const employeeSelect = document.getElementById('perfEmployeeSelect');
-        const userId = employeeSelect.value;
+    const employeeSelect = document.getElementById('perfEmployeeSelect');
+    const userId = employeeSelect.value;
 
-        if (!userId) {
-            document.getElementById('perfTotalSales').innerHTML = '₱0.00';
-            document.getElementById('perfTotalOrders').innerHTML = '0';
-            document.getElementById('perfAvgRating').innerHTML = '0.0';
-            document.getElementById('performanceTableBody').innerHTML = `
-                <tr><td colspan="5" class="text-center text-muted">Select an employee to view performance</td></tr>
-            `;
-            return;
-        }
-
-        // Get last 30 days by default
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - 30);
-
-        const startDateStr = startDate.toISOString().split('T')[0];
-        const endDateStr = endDate.toISOString().split('T')[0];
-
-        fetch(`/Employee/GetPerformance?userId=${userId}&startDate=${startDateStr}&endDate=${endDateStr}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Update summary cards
-                    document.getElementById('perfTotalSales').innerHTML = `₱${(data.summary.totalSales || 0).toFixed(2)}`;
-                    document.getElementById('perfTotalOrders').innerHTML = data.summary.totalOrders || 0;
-                    document.getElementById('perfAvgRating').innerHTML = (data.summary.averageRating || 0).toFixed(1);
-
-                    // Update table
-                    let rows = '';
-                    if (data.performances && data.performances.length > 0) {
-                        data.performances.forEach(perf => {
-                            const dateObj = new Date(perf.date);
-                            const formattedDate = `${dateObj.getMonth() + 1}/${dateObj.getDate()}/${dateObj.getFullYear()}`;
-                            rows += `
-                                <tr>
-                                    <td>${formattedDate}</td>
-                                    <td>₱${(perf.totalSales || 0).toFixed(2)}</td>
-                                    <td>${perf.ordersProcessed || 0}</td>
-                                    <td>${(perf.rating || 0).toFixed(1)}</td>
-                                    <td>${perf.notes || '-'}</td>
-                                </tr>
-                            `;
-                        });
-                    } else {
-                        rows = `<tr><td colspan="5" class="text-center text-muted">No performance records found for this employee</td></tr>`;
-                    }
-                    document.getElementById('performanceTableBody').innerHTML = rows;
-                } else {
-                    console.error('Error loading performance:', data);
-                    document.getElementById('performanceTableBody').innerHTML = `<tr><td colspan="5" class="text-center text-danger">Error loading data</td></tr>`;
-                }
-            })
-            .catch(error => {
-                console.error('Error loading performance:', error);
-                document.getElementById('performanceTableBody').innerHTML = `<tr><td colspan="5" class="text-center text-danger">Error loading performance data</td></tr>`;
-            });
+    if (!userId) {
+        document.getElementById('perfTotalSales').innerHTML = '₱0.00';
+        document.getElementById('perfTotalOrders').innerHTML = '0';
+        document.getElementById('performanceTableBody').innerHTML = `
+            <tr><td colspan="4" class="text-center text-muted">Select an employee to view performance</td>
+        </tr>
+        `;
+        return;
     }
+
+    // Get last 30 days by default
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+
+    fetch(`/Employee/GetPerformance?userId=${userId}&startDate=${startDateStr}&endDate=${endDateStr}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('perfTotalSales').innerHTML = `₱${(data.summary.totalSales || 0).toFixed(2)}`;
+                document.getElementById('perfTotalOrders').innerHTML = data.summary.totalOrders || 0;
+
+                let rows = '';
+                if (data.performances && data.performances.length > 0) {
+                    data.performances.forEach(perf => {
+                        const dateObj = new Date(perf.date);
+                        const formattedDate = `${dateObj.getMonth() + 1}/${dateObj.getDate()}/${dateObj.getFullYear()}`;
+                        rows += `
+                            <tr>
+                                <td>${formattedDate}</td>
+                                <td>₱${(perf.totalSales || 0).toFixed(2)}</td>
+                                <td>${perf.ordersProcessed || 0}</td>
+                                <td>${perf.notes || '-'}</td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    rows = `<tr><td colspan="4" class="text-center text-muted">No performance records found for this employee</td></tr>`;
+                }
+                document.getElementById('performanceTableBody').innerHTML = rows;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading performance:', error);
+            document.getElementById('performanceTableBody').innerHTML = `<tr><td colspan="4" class="text-center text-danger">Error loading performance data</td></tr>`;
+        });
+}
 
     function toggleRawMaterialForm() {
     var box = document.getElementById('addRawMaterialBox');
@@ -6490,15 +7386,19 @@ function viewDeliveryDetails(receivingId) {
                function showDeliveryDetailsModal(delivery) {
     console.log("Showing modal for delivery:", delivery);
     
-    let itemsHtml = '';
+   let itemsHtml = '';
     
     delivery.items.forEach(item => {
+        // ✅ FORMAT ACCEPTED WITH UNIT
+        const acceptedDisplay = `${item.acceptedQty} ${item.unit}`;
+        const rejectedDisplay = `${item.rejectedQty} ${item.unit}`;
+        
         if (item.rejectedQty > 0 && item.returnStatus !== 'RETURNED' && item.returnStatus !== 'PENDING') {
             itemsHtml += `
                 <tr>
-                    <td><strong>${escapeHtml(item.name)}</strong></td>
-                    <td class="text-success">${item.acceptedQty}</td>
-                    <td class="text-danger">${item.rejectedQty} ${item.unit}</td>
+                    <td><strong>${escapeHtml(item.name)}</strong> ${item.unit}</td>
+                     <td class="text-success">${item.acceptedQtyWithUnit}</td>
+                     <td class="text-danger">${item.rejectedQtyWithUnit}</td>
                     <td>
                         <button class="btn btn-sm btn-warning" onclick="createSupplierReturn(${item.receivingItemId}, ${item.rejectedQty}, '${escapeHtml(item.name)}', ${item.unitPrice})">
                             <i class="fas fa-exchange-alt"></i> Return to Supplier
@@ -6509,17 +7409,17 @@ function viewDeliveryDetails(receivingId) {
         } else if (item.rejectedQty > 0 && (item.returnStatus === 'RETURNED' || item.returnStatus === 'PENDING')) {
             itemsHtml += `
                 <tr class="table-secondary">
-                    <td><strong>${escapeHtml(item.name)}</strong></td>
-                    <td class="text-success">${item.acceptedQty}</td>
-                    <td class="text-danger">${item.rejectedQty} ${item.unit}</td>
+                    <td><strong>${escapeHtml(item.name)}</strong> ${item.unit}</td>
+                    <td class="text-success">${acceptedDisplay}</td>
+                    <td class="text-danger">${rejectedDisplay}</td>
                     <td><span class="badge bg-info">${item.returnStatus === 'RETURNED' ? '✅ Returned' : '⏳ Pending Return'}</span></td>
                 </tr>
             `;
         } else {
             itemsHtml += `
                 <tr>
-                    <td><strong>${escapeHtml(item.name)}</strong></td>
-                    <td class="text-success">${item.acceptedQty}</td>
+                    <td><strong>${escapeHtml(item.name)}</strong> ${item.unit}</td>
+                    <td class="text-success">${acceptedDisplay}</td>
                     <td class="text-muted">0</td>
                     <td>—</td>
                 </tr>
@@ -6956,37 +7856,40 @@ function closeReturnDetailModal() {
     if (modal) modal.remove();
 }
 
-                    function switchReturnTab(tabName, clickEvent) {
-                    // Update tabs
-                    const tabs = document.querySelectorAll('#returnsModule .nav-link');
-                    tabs.forEach(tab => tab.classList.remove('active'));
-                    if (clickEvent && clickEvent.target) {
-                    clickEvent.target.classList.add('active');
-                    }
+                   function switchReturnTab(tabName, clickEvent) {
+    // Update tabs
+    const tabs = document.querySelectorAll('#returnsModule .nav-link');
+    tabs.forEach(tab => tab.classList.remove('active'));
+    if (clickEvent && clickEvent.target) {
+        clickEvent.target.classList.add('active');
+    }
     
-                    // Hide all tab contents
-                    document.getElementById('pendingTab').style.display = 'none';
-                    document.getElementById('approvedTab').style.display = 'none';
-                    document.getElementById('supplierTab').style.display = 'none';
+    // Hide all tab contents
+    document.getElementById('pendingTab').style.display = 'none';
+    document.getElementById('refundHistoryTab').style.display = 'none';
+    document.getElementById('voidHistoryTab').style.display = 'none';
+    document.getElementById('supplierTab').style.display = 'none';
     
-                    // Show selected tab
-                    if (tabName === 'pending') {
-                    document.getElementById('pendingTab').style.display = 'block';
-                    loadPendingRequests();
-                    } else if (tabName === 'approved') {
-                    document.getElementById('approvedTab').style.display = 'block';
-                    loadApprovedReturns();
-                    } else if (tabName === 'supplier') {
-                    document.getElementById('supplierTab').style.display = 'block';
-                    loadSupplierReturns();
-                    }
-    
-                    currentReturnTab = tabName;
-                    }
+    // Show selected tab and load data
+    if (tabName === 'pending') {
+        document.getElementById('pendingTab').style.display = 'block';
+        loadPendingRequests();
+    } else if (tabName === 'refundhistory') {
+        document.getElementById('refundHistoryTab').style.display = 'block';
+        loadRefundHistory();
+    } else if (tabName === 'voidhistory') {
+        document.getElementById('voidHistoryTab').style.display = 'block';
+        loadVoidHistory();
+    } else if (tabName === 'supplier') {
+        document.getElementById('supplierTab').style.display = 'block';
+        loadSupplierReturns();  // ✅ ITO ANG TAMA, hindi loadAllReturns
+    }
+}
 
-                    function loadAllReturns() {
+function loadAllReturns() {
     loadPendingRequests();
-    loadApprovedReturns();
+    loadRefundHistory();
+    loadVoidHistory();
     loadSupplierReturns();
 }
 
@@ -7000,14 +7903,13 @@ async function loadPendingRequests() {
         const tbody = document.getElementById('pendingRequestsTableBody');
         const badge = document.getElementById('pendingTabBadge');
         
-        // Check if elements exist
         if (!tbody) {
             console.warn('pendingRequestsTableBody not found');
             return;
         }
         
         if (!requests || requests.length === 0) {
-            tbody.innerHTML = '<td><td colspan="7" class="text-center text-muted">No pending requests</td></tr>';
+            tbody.innerHTML = '</table><td colspan="6" class="text-center text-muted">No pending requests</td><\/tr>';
             if (badge) badge.innerText = '0';
             return;
         }
@@ -7023,15 +7925,15 @@ async function loadPendingRequests() {
             const date = new Date(req.requestedAt);
             const formattedDate = `${date.getMonth()+1}/${date.getDate()}/${date.getFullYear()}, ${date.toLocaleTimeString()}`;
             
+            // ✅ CORRECTED ORDER NG COLUMNS
             html += `
                 <tr>
-                    <td>${formattedDate}</td>
-                    <td><strong>${escapeHtml(req.orderNumber)}</strong></td>
-                    <td>${typeBadge}</td>
+                    <td style="white-space: nowrap;">${formattedDate}</td>
+                    <td><strong>${escapeHtml(req.orderNumber)}</strong><br>${typeBadge}</td>
                     <td>${escapeHtml(req.reason)}</td>
                     <td>${escapeHtml(req.requesterName)}</td>
-                    <td class="text-danger fw-bold">₱${(req.orderTotal || 0).toFixed(2)}</td>
-                    <td>
+                    <td class="text-danger fw-bold text-end">₱${(req.orderTotal || 0).toFixed(2)}</td>
+                    <td class="text-center" style="white-space: nowrap;">
                         <button class="btn btn-sm btn-success me-1" onclick="approveRequest(${req.id})">
                             <i class="fas fa-check"></i> Approve
                         </button>
@@ -7039,7 +7941,7 @@ async function loadPendingRequests() {
                             <i class="fas fa-times"></i> Reject
                         </button>
                     </td>
-                </tr>
+                </table>
             `;
         });
         tbody.innerHTML = html;
@@ -7047,7 +7949,7 @@ async function loadPendingRequests() {
         console.error('Error loading pending:', error);
         const tbody = document.getElementById('pendingRequestsTableBody');
         if (tbody) {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading requests</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error loading requests</td><\/tr>';
         }
     }
 }
@@ -7098,6 +8000,9 @@ async function loadApprovedReturns() {
                 displayType = 'REFUND';
             }
             
+            // ✅ Check if this is a direct void (has Source = 'DIRECT')
+            const isPendingRequest = r.source !== 'DIRECT';  // Direct voids are NOT in PendingRequests
+            
             html += `
                 <tr>
                     <td>${formattedDate}</td>
@@ -7107,7 +8012,7 @@ async function loadApprovedReturns() {
                     <td class="text-danger fw-bold">₱${Math.abs(r.amount || 0).toFixed(2)}</td>
                     <td>${escapeHtml(r.requesterName)}</td>
                     <td>
-                        <button class="btn btn-sm btn-info" onclick="viewReturnDetails(${r.id})">
+                        <button class="btn btn-sm btn-info" onclick="viewReturnDetails(${r.id}, ${!isPendingRequest})">
                             <i class="fas fa-eye"></i> View
                         </button>
                     </td>
@@ -7391,10 +8296,24 @@ function closeSupplierReturnReceipt() {
                     if (existing) existing.remove();
                     document.body.insertAdjacentHTML('beforeend', modalHtml);
                     }
-                    async function viewReturnDetails(requestId) {
+                   async function viewReturnDetails(requestId) {
+    console.log('viewReturnDetails called with requestId:', requestId);
+    
+    if (!requestId || requestId === 0) {
+        await showAlert('Invalid request ID', 'Error', '❌');
+        return;
+    }
+    
     try {
+        showLoading('Loading details...');
+        
         const response = await fetch(`/Owner/GetReturnDetails?requestId=${requestId}`);
+        console.log('Response status:', response.status);
+        
         const data = await response.json();
+        console.log('Response data:', data);
+        
+        hideLoading();
         
         if (data.success) {
             showReturnDetailModal(data);
@@ -7402,7 +8321,8 @@ function closeSupplierReturnReceipt() {
             await showAlert('Error loading details: ' + (data.message || 'Unknown error'), 'Error', '❌');
         }
     } catch (error) {
-        console.error('Error:', error);
+        hideLoading();
+        console.error('Error in viewReturnDetails:', error);
         await showAlert('Error loading return details: ' + error.message, 'Error', '❌');
     }
 }
@@ -7885,6 +8805,255 @@ async function exportAdjustmentHistory() {
     await showAlert('Export feature coming soon!', 'Notice', 'ℹ️');
 }
 
+// Load Refund History (approved refunds only)
+async function loadRefundHistory() {
+    try {
+        const response = await fetch('/Owner/GetApprovedRefunds');
+        const data = await response.json();
+        
+        const tbody = document.getElementById('refundHistoryTableBody');
+        const badge = document.getElementById('refundHistoryBadge');
+        
+        let refunds = [];
+        if (data && data.$values) refunds = data.$values;
+        else if (data && Array.isArray(data)) refunds = data;
+        else refunds = [];
+        
+        if (badge) badge.innerText = refunds.length;
+        
+        if (refunds.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No refund records found<\/td><\/tr>';
+            return;
+        }
+        
+        let html = '';
+        refunds.forEach(r => {
+            const date = new Date(r.recordedAt);
+            const formattedDate = `${date.getMonth()+1}/${date.getDate()}/${date.getFullYear()}`;
+            html += `
+                <tr>
+                    <td>${formattedDate}</td>
+                    <td><strong>${escapeHtml(r.orderNumber)}</strong></td>
+                    <td>${escapeHtml(r.reason)}</td>
+                    <td class="text-danger fw-bold">₱${Math.abs(r.amount || 0).toFixed(2)}</td>
+                    <td>${escapeHtml(r.requesterName)}</td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="viewRefundDetails(${r.id})">
+                            <i class="fas fa-eye"></i> View
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    } catch (error) {
+        console.error('Error loading refund history:', error);
+    }
+}
+
+// Load Void History (direct voids - automatic)
+async function loadVoidHistory() {
+    try {
+        const response = await fetch('/Owner/GetVoidHistory');
+        const data = await response.json();
+        
+        const tbody = document.getElementById('voidHistoryTableBody');
+        const badge = document.getElementById('voidHistoryBadge');
+        
+        let voids = [];
+        if (data && data.$values) voids = data.$values;
+        else if (data && Array.isArray(data)) voids = data;
+        else voids = [];
+        
+        if (badge) badge.innerText = voids.length;
+        
+        if (voids.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No void records found<\/td><\/tr>';
+            return;
+        }
+        
+        let html = '';
+        voids.forEach(v => {
+            const date = new Date(v.recordedAt);
+            const formattedDate = `${date.getMonth()+1}/${date.getDate()}/${date.getFullYear()}`;
+            html += `
+                <tr>
+                    <td>${formattedDate}</td>
+                    <td><strong>${escapeHtml(v.orderNumber)}</strong></td>
+                    <td>${escapeHtml(v.reason)}</td>
+                    <td class="text-danger fw-bold">₱${Math.abs(v.amount || 0).toFixed(2)}</td>
+                    <td>${escapeHtml(v.requesterName)}</td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    } catch (error) {
+        console.error('Error loading void history:', error);
+    }
+}
+
+function viewRefundDetails(requestId) {
+    // Same as viewReturnDetails
+    viewReturnDetails(requestId);
+}
+
+let newIngredientCounter = 0;
+
+function toggleCustomSizeInput() {
+    const select = document.getElementById('newSizeName');
+    const customInput = document.getElementById('newSizeNameCustom');
+    
+    if (customInput.style.display === 'none') {
+        select.style.display = 'none';
+        customInput.style.display = 'block';
+    } else {
+        select.style.display = 'block';
+        customInput.style.display = 'none';
+        customInput.value = '';
+    }
+}
+
+function addNewIngredientRow() {
+    const tbody = document.getElementById('newSizeIngredientsBody');
+    const index = newIngredientCounter++;
+    
+    fetch('/RawMaterial/GetAllWithLatestPrice')
+        .then(response => response.json())
+        .then(materials => {
+            let options = '<option value="">-- Select Ingredient --</option>';
+            materials.forEach(m => {
+                const price = m.latestBatchPrice > 0 ? m.latestBatchPrice : m.defaultPrice;
+                options += `<option value="${m.id}" data-price="${price}" data-unit="${m.unit}">${m.name} (${m.unit} - ₱${price})</option>`;
+            });
+            
+            const html = `
+                <tr data-ingredient-idx="${index}">
+                    <td>
+                        <select class="form-control ingredient-select" onchange="updateNewIngredientUnitDropdown(this)">
+                            ${options}
+                        </select>
+                    </td>
+                    <td>
+                        <input type="number" class="form-control quantity-input" placeholder="Qty" step="0.01" min="0.01" value="1">
+                    </td>
+                    <td>
+                        <select class="form-control unit-select">
+                            <option value="kg">📦 kilogram (kg)</option>
+                            <option value="g">⚖️ gram (g)</option>
+                            <option value="L">💧 liter (L)</option>
+                            <option value="mL">🧪 milliliter (mL)</option>
+                            <option value="pcs">🔢 pieces (pcs)</option>
+                        </select>
+                    </td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-sm btn-danger" onclick="removeNewIngredientRow(this)">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+            tbody.insertAdjacentHTML('beforeend', html);
+        });
+}
+function removeNewIngredientRow(btn) {
+    const row = btn.closest('tr');
+    if (row) row.remove();
+}
+
+async function saveNewSize() {
+    // ✅ I-CHECK MUNA KUNG EXIST ANG MGA ELEMENTS
+    const productIdInput = document.getElementById('addSizeProductId');
+    const sizeNameInput = document.getElementById('newSizeName');
+    const priceInput = document.getElementById('newSizePrice');
+    
+    if (!productIdInput) {
+        console.error('addSizeProductId element not found');
+        await showAlert('Form error. Please refresh and try again.', 'Error', '❌');
+        return;
+    }
+    
+    const productId = productIdInput.value;
+    let sizeName = sizeNameInput ? sizeNameInput.value : '';
+    const price = priceInput ? parseFloat(priceInput.value) || 0 : 0;
+    
+    if (!productId) {
+        await showAlert('Product ID not found', 'Error', '❌');
+        return;
+    }
+    
+    if (!sizeName) {
+        await showAlert('Please enter a size name', 'Required', '⚠️');
+        return;
+    }
+    
+    // Collect ingredients
+    const ingredients = [];
+    const rows = document.querySelectorAll('#newSizeIngredientsBody tr');
+    
+    for (let row of rows) {
+        const select = row.querySelector('.ingredient-select');
+        const quantity = row.querySelector('.quantity-input');
+        const unitSelect = row.querySelector('.unit-select');
+        
+        if (select && select.value && quantity && quantity.value) {
+            ingredients.push({
+                rawMaterialId: parseInt(select.value),
+                quantity: parseFloat(quantity.value),
+                unitUsed: unitSelect ? unitSelect.value : 'g'
+            });
+        }
+    }
+    
+    if (ingredients.length === 0) {
+        await showAlert('Please add at least one ingredient', 'Required', '⚠️');
+        return;
+    }
+    
+    showLoading('Adding size...');
+    
+    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    
+    try {
+        const response = await fetch('/Owner/AddProductSize', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': token
+            },
+            body: JSON.stringify({
+                productId: parseInt(productId),
+                sizeName: sizeName,
+                price: price,
+                margin: 0.3,
+                ingredients: ingredients
+            })
+        });
+        
+        const result = await response.json();
+        hideLoading();
+        
+       if (result.success) {
+        await showAlert('Size added successfully!', 'Success', '✅');
+        const modal = bootstrap.Modal.getInstance(document.getElementById('addSizeModal'));
+        if (modal) modal.hide();
+        
+        // If we came from edit modal, return to it
+        if (window.returnToEditModal) {
+            window.returnToEditModal = false;
+            const productId = document.getElementById('addSizeProductId').value;
+            await refreshProductSizes(productId);
+            const editModal = new bootstrap.Modal(document.getElementById('editProductModal'));
+            editModal.show();
+        } else {
+            saveAndReload();
+        }
+    }
+    } catch (error) {
+        hideLoading();
+        console.error('Error:', error);
+        await showAlert('Error: ' + error.message, 'Error', '❌');
+    }
+}
 
 
        
@@ -7921,3 +9090,5 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 </script>
+</body>
+</html>

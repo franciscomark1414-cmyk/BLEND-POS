@@ -1,6 +1,7 @@
 ﻿using Infoman.Data;
 using Infoman.Service;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -22,12 +23,36 @@ namespace Infoman.Controllers
 
         private int GetCurrentUserId()
         {
-            return HttpContext.Session.GetInt32("UserId") ?? 0;
+            // ✅ UNA: Check Staff session (galing sa POS)
+            var staffId = HttpContext.Session.GetInt32("Staff_UserId");
+            if (staffId.HasValue && staffId.Value > 0)
+                return staffId.Value;
+
+            // ✅ PANGALAWA: Check Owner session
+            var ownerId = HttpContext.Session.GetInt32("Owner_UserId");
+            if (ownerId.HasValue && ownerId.Value > 0)
+                return ownerId.Value;
+
+            // ✅ FALLBACK: Regular UserId
+            var userId = HttpContext.Session.GetInt32("UserId");
+            return userId ?? 0;
         }
 
         private string GetCurrentUserRole()
         {
-            return HttpContext.Session.GetString("UserRole") ?? "Staff";
+            // ✅ UNA: Check Staff role (galing sa POS)
+            var staffRole = HttpContext.Session.GetString("Staff_UserRole");
+            if (!string.IsNullOrEmpty(staffRole))
+                return staffRole;
+
+            // ✅ PANGALAWA: Check Owner role
+            var ownerRole = HttpContext.Session.GetString("Owner_UserRole");
+            if (!string.IsNullOrEmpty(ownerRole))
+                return ownerRole;
+
+            // ✅ FALLBACK: Regular UserRole
+            var userRole = HttpContext.Session.GetString("UserRole");
+            return userRole ?? "Staff";
         }
 
         [HttpGet]
@@ -41,16 +66,18 @@ namespace Infoman.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetPendingOrders()
+        public async Task<IActionResult> GetPendingOrders(DateTime? date)
         {
-            var orders = await _voidRefundService.GetPendingOrders();
+            var targetDate = date ?? DateTime.Today;
+            var orders = await _voidRefundService.GetPendingOrdersByDate(targetDate);
             return Json(orders);
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetCompletedOrders()
+        public async Task<IActionResult> GetCompletedOrders(DateTime? date)
         {
-            var orders = await _voidRefundService.GetCompletedOrders();
+            var targetDate = date ?? DateTime.Today;
+            var orders = await _voidRefundService.GetCompletedOrdersByDate(targetDate);
             return Json(orders);
         }
 

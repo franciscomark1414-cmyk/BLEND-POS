@@ -31,5 +31,6 @@ namespace Infoman.Models
         // FOR PROFIT MARGIN (temporary, not saved to database)
         [NotMapped]
         public string SelectedProfitMargin { get; set; }
+        public bool IsDeleted { get; set; } = false;
     }
 }

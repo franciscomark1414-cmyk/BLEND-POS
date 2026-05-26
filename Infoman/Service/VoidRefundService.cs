@@ -410,8 +410,33 @@ namespace Infoman.Service
 
             if (order == null) return null;
 
-            if (order.Status == OrderStatus.VOIDED || order.Status == OrderStatus.REFUNDED)
-                return null;
+            // Get ALL items - NO FILTER, include voided/refunded
+            var allItems = order.Items.Select(oi => new
+            {
+                oi.OrderItemId,
+                ProductId = oi.ProductId,
+                ProductSizeId = oi.ProductSizeId,
+                ProductName = oi.Product != null ? oi.Product.Name : "Unknown Product",
+                SizeName = oi.ProductSize != null ? oi.ProductSize.SizeName : "Regular",
+                oi.Quantity,
+                oi.Price,
+                Subtotal = oi.Price * oi.Quantity,
+                IsVoided = oi.DispositionStatusId == ItemDispositionConstants.VOIDED,
+                IsRefunded = oi.DispositionStatusId == ItemDispositionConstants.REFUNDED,
+                IsExchanged = oi.DispositionStatusId == ItemDispositionConstants.EXCHANGED,
+                DispositionStatusId = oi.DispositionStatusId
+            }).ToList();
+
+            // Debug logging
+            System.Diagnostics.Debug.WriteLine($"=== GetOrderDetails for OrderId: {orderId} ===");
+            System.Diagnostics.Debug.WriteLine($"Order Status: {order.Status}");
+            System.Diagnostics.Debug.WriteLine($"Total Items in database: {order.Items.Count}");
+            System.Diagnostics.Debug.WriteLine($"Total Items returned: {allItems.Count}");
+
+            foreach (var item in allItems)
+            {
+                System.Diagnostics.Debug.WriteLine($"Item: {item.ProductName}, DispositionStatusId: {item.DispositionStatusId}, IsVoided: {item.IsVoided}");
+            }
 
             return new
             {
@@ -423,32 +448,36 @@ namespace Infoman.Service
                 DiscountPercent = order.DiscountPercent,
                 order.PaymentMethod,
                 order.Date,
-                Items = order.Items
-                    .Where(i => i.DispositionStatusId == ItemDispositionConstants.AVAILABLE)
-                    .Select(oi => new
-                    {
-                        oi.OrderItemId,
-                        ProductId = oi.ProductId,
-                        ProductSizeId = oi.ProductSizeId,
-                        ProductName = oi.Product != null ? oi.Product.Name : "Unknown Product",
-                        SizeName = oi.ProductSize != null ? oi.ProductSize.SizeName : "Regular",
-                        oi.Quantity,
-                        oi.Price,
-                        Subtotal = oi.Price * oi.Quantity,
-                        IsVoided = oi.DispositionStatusId == ItemDispositionConstants.VOIDED,
-                        IsRefunded = oi.DispositionStatusId == ItemDispositionConstants.REFUNDED,
-                        IsExchanged = oi.DispositionStatusId == ItemDispositionConstants.EXCHANGED
-                    })
+                Items = allItems
             };
         }
 
         public async Task<List<object>> GetPendingOrders()
         {
-            return await _db.Orders
-                 .Where(o => o.Status == OrderStatus.PENDING_PAYMENT
-                    && o.Status != OrderStatus.VOIDED
-                    && o.Status != OrderStatus.REFUNDED
-                    && o.Items.Any(i => i.DispositionStatusId == ItemDispositionConstants.AVAILABLE))
+            var today = DateTime.Today;
+
+            // ✅ DEBUG: I-print lahat ng orders na PENDING_PAYMENT ngayong araw
+            var allOrders = await _db.Orders
+                .Where(o => o.Status == "PENDING_PAYMENT" && o.Date.Date == today.Date)
+                .ToListAsync();
+
+            System.Diagnostics.Debug.WriteLine($"=== GetPendingOrders DEBUG ===");
+            System.Diagnostics.Debug.WriteLine($"Today: {today:yyyy-MM-dd}");
+            System.Diagnostics.Debug.WriteLine($"Total PENDING_PAYMENT orders today: {allOrders.Count}");
+
+            foreach (var order in allOrders)
+            {
+                var hasAvailableItems = await _db.OrderItems
+                    .AnyAsync(i => i.OrderId == order.OrderId && i.DispositionStatusId == 1);
+
+                System.Diagnostics.Debug.WriteLine($"Order #{order.OrderId} (#{order.OrderNumber}): HasAvailableItems = {hasAvailableItems}");
+            }
+
+            // ✅ Ang original query
+            var result = await _db.Orders
+                .Where(o => o.Status == "PENDING_PAYMENT"
+                            && o.Date.Date == today.Date
+                            && o.Items.Any(i => i.DispositionStatusId == 1))
                 .OrderByDescending(o => o.Date)
                 .Select(o => new
                 {
@@ -460,15 +489,84 @@ namespace Infoman.Service
                     o.PaymentMethod
                 })
                 .ToListAsync<object>();
+
+            System.Diagnostics.Debug.WriteLine($"Query result count: {result.Count}");
+
+            return result;
         }
 
         public async Task<List<object>> GetCompletedOrders()
         {
+            var today = DateTime.Today;
+
             return await _db.Orders
-                .Where(o => o.Status == "COMPLETED"  // ✅ ITO AY TAMA NA
+                .Where(o => o.Status == "COMPLETED"  // ✅ COMPLETED LANG PARA SA REFUND
+                            && o.Date.Date == today.Date
+                            && o.Items.Any(i => i.DispositionStatusId == 1))
+                .OrderByDescending(o => o.Date)
+                .Select(o => new
+                {
+                    o.OrderId,
+                    o.OrderNumber,
+                    o.Status,
+                    o.TotalAmount,
+                    o.Date,
+                    o.PaymentMethod,
+                    ItemCount = o.Items.Count(i => i.DispositionStatusId == 1)
+                })
+                .ToListAsync<object>();
+        }
+
+        public async Task<List<object>> GetPendingOrdersByDate(DateTime targetDate)
+        {
+            // ✅ DEBUG: I-print lahat ng PENDING_PAYMENT orders sa target date
+            var allOrders = await _db.Orders
+                .Where(o => o.Status == "PENDING_PAYMENT" && o.Date.Date == targetDate.Date)
+                .ToListAsync();
+
+            System.Diagnostics.Debug.WriteLine($"=== GetPendingOrdersByDate DEBUG ===");
+            System.Diagnostics.Debug.WriteLine($"Target Date: {targetDate:yyyy-MM-dd}");
+            System.Diagnostics.Debug.WriteLine($"Total PENDING_PAYMENT orders: {allOrders.Count}");
+
+            foreach (var order in allOrders)
+            {
+                var hasAvailableItems = await _db.OrderItems
+                    .AnyAsync(i => i.OrderId == order.OrderId && i.DispositionStatusId == 1);
+
+                System.Diagnostics.Debug.WriteLine($"Order #{order.OrderId} ({order.OrderNumber}): HasAvailableItems = {hasAvailableItems}");
+            }
+
+            var result = await _db.Orders
+                .Where(o => o.Status == "PENDING_PAYMENT"
                             && o.Status != "VOIDED"
                             && o.Status != "REFUNDED"
-                            && o.Items.Any(i => i.DispositionStatusId == ItemDispositionConstants.AVAILABLE))
+                            && o.Date.Date == targetDate.Date
+                            && o.Items.Any(i => i.DispositionStatusId == 1))
+                .OrderByDescending(o => o.Date)
+                .Select(o => new
+                {
+                    o.OrderId,
+                    o.OrderNumber,
+                    o.Status,
+                    o.TotalAmount,
+                    o.Date,
+                    o.PaymentMethod
+                })
+                .ToListAsync<object>();
+
+            System.Diagnostics.Debug.WriteLine($"Query result count: {result.Count}");
+
+            return result;
+        }
+
+        public async Task<List<object>> GetCompletedOrdersByDate(DateTime targetDate)
+        {
+            return await _db.Orders
+                .Where(o => o.Status == "COMPLETED"   // ✅ COMPLETED LANG, hindi PENDING_PAYMENT
+                            && o.Status != "VOIDED"
+                            && o.Status != "REFUNDED"
+                            && o.Date.Date == targetDate.Date
+                            && o.Items.Any(i => i.DispositionStatusId == ItemDispositionConstants.AVAILABLE))  // ✅ MAY AVAILABLE ITEMS PA
                 .OrderByDescending(o => o.Date)
                 .Select(o => new
                 {

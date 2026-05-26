@@ -1,5 +1,6 @@
 ﻿using Infoman.Data;
 using Infoman.Models;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
 
@@ -14,14 +15,16 @@ namespace Infoman.Controllers
             _context = context;
         }
 
+        [HttpGet]
         public IActionResult Login()
         {
+            // ✅ NO AUTO-REDIRECT - para makapag-login sa kabilang tab
             ViewBag.Layout = "_LoginLayout";
             return View();
         }
 
         [HttpPost]
-        public IActionResult Login(LoginViewModel model)
+        public async Task<IActionResult> Login(LoginViewModel model)
         {
             if (!ModelState.IsValid)
                 return View(model);
@@ -39,34 +42,68 @@ namespace Infoman.Controllers
                 return View(model);
             }
 
-            // I-save sa session
-            HttpContext.Session.SetInt32("UserId", user.Id);
-            HttpContext.Session.SetString("Username", user.Username);
-            HttpContext.Session.SetString("UserRole", user.Role);
-
-            // ✅ FIXED: Check for "owner" OR "employee"
             var roleLower = user.Role.Trim().ToLower();
+
+            if (roleLower != "owner")
+            {
+                if (user.Status != null && user.Status != "Active")
+                {
+                    ViewBag.Error = "Your account is inactive. Please contact the owner.";
+                    return View(model);
+                }
+            }
+
+            // ✅ USE PREFIXED SESSION KEYS
+            string sessionPrefix = roleLower == "owner" ? "Owner_" : "Staff_";
+            HttpContext.Session.SetInt32(sessionPrefix + "UserId", user.Id);
+            HttpContext.Session.SetString(sessionPrefix + "Username", user.Username);
+            HttpContext.Session.SetString(sessionPrefix + "UserRole", user.Role);
+
+            // ✅ DO NOT clear the other role's session
+
+            await HttpContext.Session.CommitAsync();
 
             if (roleLower == "owner")
             {
                 return RedirectToAction("Dashboard", "Owner");
             }
-            else if (roleLower == "employee" || roleLower == "staff")
-            {
-                // Employee or Staff mapupunta sa POS
-                return RedirectToAction("POS", "Staff");
-            }
             else
             {
-                ViewBag.Error = "Invalid User Role";
-                return View(model);
+                return RedirectToAction("POS", "Staff");
             }
         }
-        // Optional: Logout function
-        public IActionResult Logout()
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Logout()
         {
-            HttpContext.Session.Clear();
-            return RedirectToAction("Login");
+            try
+            {
+                // ✅ UPDATE LOGOUT STATUS (kung may IsLoggedIn field ka)
+                var userId = HttpContext.Session.GetInt32("UserId");
+                if (userId.HasValue)
+                {
+                    var user = await _context.Users.FindAsync(userId.Value);
+                    if (user != null)
+                    {
+                        user.IsLoggedIn = false;
+                        user.LastLogoutTime = DateTime.Now;
+                        await _context.SaveChangesAsync();
+                    }
+                }
+
+                // Clear all session data
+                HttpContext.Session.Clear();
+
+                // Remove session cookie
+                HttpContext.Response.Cookies.Delete(".AspNetCore.Session");
+
+                return Json(new { success = true, message = "Logged out successfully" });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
         }
     }
 }

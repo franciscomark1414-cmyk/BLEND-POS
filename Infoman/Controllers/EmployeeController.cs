@@ -44,6 +44,81 @@ namespace Infoman.Controllers
             }
         }
 
+        [HttpGet]
+        public async Task<IActionResult> GetEmployeeOrdersByDate(int employeeId, string date)
+        {
+            try
+            {
+                var targetDate = DateTime.Parse(date).Date;
+
+                var orders = await _db.Orders
+                    .Where(o => o.StaffUserId == employeeId
+                                && o.Date.Date == targetDate
+                                && (o.Status == "COMPLETED" || o.Status == "VOIDED" || o.Status == "REFUNDED" || o.Status == "PENDING_BLENDING"))
+                    .Select(o => new
+                    {
+                        o.OrderId,
+                        o.OrderNumber,
+                        o.TotalAmount,
+                        o.Status,
+                        o.Date,
+                        o.ReturnStatus,
+                        o.DiscountType,
+                        o.DiscountAmount
+                    })
+                    .OrderBy(o => o.Date)
+                    .ToListAsync();
+
+                return Json(new { success = true, orders = orders, date = date });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message, orders = new List<object>() });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetEmployeeDailyOrders(int employeeId, int days = 30)
+        {
+            var startDate = DateTime.Today.AddDays(-days);
+
+            // Get employee name
+            var employee = await _db.Users.FindAsync(employeeId);
+            var employeeName = employee?.FullName ?? "Unknown";
+
+            // Get orders grouped by date (using StaffUserId)
+            var dailyOrders = await _db.Orders
+                .Where(o => o.StaffUserId == employeeId
+                            && o.Date >= startDate)
+                .GroupBy(o => o.Date.Date)
+                .Select(g => new
+                {
+                    Date = g.Key,
+                    OrderCount = g.Count(),
+                    TotalSales = g.Sum(o => o.TotalAmount),
+                    Orders = g.Select(o => new
+                    {
+                        o.OrderId,
+                        o.OrderNumber,
+                        o.TotalAmount,
+                        o.Status,
+                        o.Date,
+                        o.ReturnStatus,
+                        o.DiscountType,
+                        o.DiscountAmount
+                    }).ToList()
+                })
+                .OrderByDescending(d => d.Date)
+                .ToListAsync();
+
+            return Json(new
+            {
+                success = true,
+                dailyOrders = dailyOrders,
+                employeeName = employeeName
+            });
+        }
+
         // GET: Employee/GetEmployee/{id}
         [HttpGet]
         [AllowAnonymous]

@@ -456,6 +456,21 @@
         transition: transform 0.2s ease;
     }
 
+    /* Custom select dropdown - manual arrow */
+select#filterCategory {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 14px;
+}
+
+select#filterCategory::-ms-expand {
+    display: none;
+}
+
     /* ========== EMPTY STATE ========== */
     .empty-state {
         text-align: center;
@@ -1114,25 +1129,31 @@
         </button>
     </div>
 
-    <!-- Search and Filter Bar -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <input type="text" id="searchProduct" class="form-control" placeholder="🔍 Search Products..." onkeyup="filterProducts()">
-        </div>
-        <div class="col-md-3">
-            <select id="filterCategory" class="form-control" onchange="filterProducts()">
-                <option value=""> All Categories ▼</option>
-                <option value="Fruit Shake"> Fruit Shake ▼</option>
-                <option value="Milk Shake"> Milk Shake ▼</option>
-                        <option value="Specialty"> Specialty ▼</option>
-            </select>
-        </div>
-        <div class="col-md-3 text-end">
-            <button class="btn btn-outline-secondary" onclick="refreshProducts()">
-                <i class="fas fa-sync-alt"></i> Refresh
-            </button>
+<!-- Search and Filter Bar - COMPACT -->
+<div class="d-flex gap-3 mb-4 align-items-center flex-wrap">
+    <div style="width: 280px;">
+        <div class="input-group">
+            <span class="input-group-text bg-white">
+                <i class="fas fa-search"></i>
+            </span>
+            <input type="text" id="searchProduct" class="form-control" 
+                   placeholder="Search products..." onkeyup="filterProducts()">
         </div>
     </div>
+    <div>
+        <select id="filterCategory" class="form-select" style="width: 180px;" onchange="filterProducts()">
+            <option value="">All Categories</option>
+            <option value="Fruit Shake"> Fruit Shake</option>
+            <option value="Milk Shake"> Milk Shake</option>
+            <option value="Specialty"> Specialty</option>
+        </select>
+    </div>
+    <div>
+        <button class="btn btn-outline-secondary" onclick="refreshProducts()">
+            <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+    </div>
+</div>
 
     <!-- Products List Container -->
     <div id="productsList">
@@ -2114,6 +2135,7 @@
                     </button>
                 </div>
             </div>
+
         </div>
 
         <!-- Employees Module - COMPLETE WORKING VERSION (gaya sa images) -->
@@ -2152,62 +2174,86 @@
                 </div>
             </div>
 
-            <!-- ==================== PERFORMANCE TAB ==================== -->
-            <div id="employeePerformanceTab" style="display:none;">
-                <div class="row mb-4 g-3">
-                    <div class="col-md-3">
-                        <div class="card bg-primary text-white border-0 shadow-sm">
-                            <div class="card-body">
-                                <h6 class="card-title fw-semibold">Select Employee</h6>
-                                <select id="perfEmployeeSelect" class="form-select mt-2 bg-light border-0 rounded-pill" onchange="loadPerformanceData()">
-                                    <option value="">-- Select Employee --</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card bg-success text-white border-0 shadow-sm">
-                            <div class="card-body">
-                                <h6 class="card-title fw-semibold">Total Sales (30 days)</h6>
-                                <h2 class="mb-0 fw-bold" id="perfTotalSales">₱0.00</h2>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card bg-info text-white border-0 shadow-sm">
-                            <div class="card-body">
-                                <h6 class="card-title fw-semibold">Orders Processed</h6>
-                                <h2 class="mb-0 fw-bold" id="perfTotalOrders">0</h2>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card border-0 shadow-sm rounded-4">
-                    <div class="card-header bg-white fw-semibold border-0 pt-3 pb-2">
-                        <i class="fas fa-chart-line me-2" style="color:#f59e0b;"></i> Performance History
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-bordered table-hover align-middle" id="performanceTable">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Sales</th>
-                                        <th>Orders</th>
-                                        <th>Notes</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="performanceTableBody">
-                                    <tr>
-                                        <td colspan="5" class="text-center text-muted">Select an employee to view performance</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+           <!-- ==================== PERFORMANCE TAB (UPDATED - WITH VIEW BUTTON) ==================== -->
+<div id="employeePerformanceTab" style="display:none;">
+    <div class="row mb-4 g-3">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-title fw-semibold">Select Employee</h6>
+                    <select id="perfEmployeeSelect" class="form-select mt-2 bg-light border-0 rounded-pill" onchange="loadPerformanceData()">
+                        <option value="">-- Select Employee --</option>
+                    </select>
                 </div>
             </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-title fw-semibold">Total Sales (30 days)</h6>
+                    <h2 class="mb-0 fw-bold" id="perfTotalSales">₱0.00</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-title fw-semibold">Orders Processed</h6>
+                    <h2 class="mb-0 fw-bold" id="perfTotalOrders">0</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PERFORMANCE HISTORY TABLE (with new Actions column) -->
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-header bg-white fw-semibold border-0 pt-3 pb-2">
+            <i class="fas fa-chart-line me-2" style="color:#f59e0b;"></i> Performance History
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle" id="performanceTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Date</th>
+                            <th>Sales</th>
+                            <th>Orders</th>
+                            <th>Notes</th>
+                            <th>Actions</th>  <!-- ✅ BAGONG COLUMN -->
+                        </tr>
+                    </thead>
+                    <tbody id="performanceTableBody">
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">Select an employee to view performance</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL FOR DAILY ORDERS (lalabas pag click ng View button) -->
+<div class="modal fade" id="dailyOrdersModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #ff6b35, #f7931e); color: white;">
+                <h5 class="modal-title" id="dailyOrdersModalTitle">
+                    <i class="fas fa-calendar-day me-2"></i> Orders for 
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="max-height: 500px; overflow-y: auto;">
+                <div id="dailyOrdersList" class="list-group">
+                    <!-- Dynamic orders will appear here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 
             <!-- ==================== ATTENDANCE TAB ==================== -->
           <!-- ==================== ATTENDANCE TAB - SIMPLE VERSION ==================== -->
@@ -4708,70 +4754,75 @@ function updateNewIngredientUnitDropdown(selectElement) {
     function editRecipeFromView() { if (currentViewProductSizeId) { bootstrap.Modal.getInstance(document.getElementById('viewRecipeModal')).hide(); editRecipe(currentViewProductSizeId); } }
 
 
-               function editRecipe(productSizeId) {
-        // Una, i-check kung pwedeng i-edit
-        fetch(`/Owner/CanEditRecipe/${productSizeId}`)
-            .then(response => response.json())
-            .then(async (data) => {
-                if (!data.canEdit) {
-                    await showAlert(data.message, 'Cannot Edit');
-                    return;
-                }
+       function editRecipe(productSizeId) {
+    // Una, i-check kung pwedeng i-edit
+    fetch(`/Owner/CanEditRecipe/${productSizeId}`)
+        .then(response => response.json())
+        .then(async (data) => {
+            if (!data.canEdit) {
+                await showAlert(data.message, 'Cannot Edit');
+                return;
+            }
 
-                // Kung pwede, i-load ang recipe para i-edit
-                fetch(`/Owner/EditRecipe/${productSizeId}`)
-                    .then(response => response.json())
-                    .then(async (recipeData) => {
-                        if (!recipeData.success || recipeData.error) {
-                            await showAlert(recipeData.error || 'Error loading recipe');
-                            return;
-                        }
+            // Kung pwede, i-load ang recipe para i-edit
+            fetch(`/Owner/EditRecipe/${productSizeId}`)
+                .then(response => response.json())
+                .then(async (recipeData) => {
+                    if (!recipeData.success || recipeData.error) {
+                        await showAlert(recipeData.error || 'Error loading recipe');
+                        return;
+                    }
 
-                        // I-set ang currentProductSizeId
-                        currentProductSizeId = recipeData.productSizeId;
+                    // I-set ang currentProductSizeId
+                    currentProductSizeId = recipeData.productSizeId;
 
-                        // I-fill ang modal fields
-                        document.getElementById('recipeProductName').innerText = recipeData.productName;
-                        document.getElementById('recipeSizeName').innerText = recipeData.sizeName;
-                        document.getElementById('recipeSellingPrice').value = `₱${recipeData.sellingPrice.toFixed(2)}`;
-                        document.getElementById('recipeTotalCost').value = `₱${recipeData.totalCost.toFixed(2)}`;
+                    // ✅ I-fill ang modal fields (title)
+                    document.getElementById('recipeProductName').innerText = recipeData.productName;
+                    document.getElementById('recipeSizeName').innerText = recipeData.sizeName;
+                    
+                    // ✅ ITO ANG KULANG! I-fill ang input fields sa modal body
+                    document.getElementById('recipeProductDisplay').value = recipeData.productName;
+                    document.getElementById('recipeSizeDisplay').value = recipeData.sizeName;
+                    
+                    document.getElementById('recipeSellingPrice').value = `₱${recipeData.sellingPrice.toFixed(2)}`;
+                    document.getElementById('recipeTotalCost').value = `₱${recipeData.totalCost.toFixed(2)}`;
 
-                        // I-set ang margin select
-                        const marginSelect = document.getElementById('marginSelect');
-                        const marginValue = recipeData.margin || 0.3;
-                        if (marginValue === 0.3) marginSelect.value = '0.3';
-                        else if (marginValue === 0.4) marginSelect.value = '0.4';
-                        else if (marginValue === 0.5) marginSelect.value = '0.5';
-                        else marginSelect.value = '0.3';
+                    // I-set ang margin select
+                    const marginSelect = document.getElementById('marginSelect');
+                    const marginValue = recipeData.margin || 0.3;
+                    if (marginValue === 0.3) marginSelect.value = '0.3';
+                    else if (marginValue === 0.4) marginSelect.value = '0.4';
+                    else if (marginValue === 0.5) marginSelect.value = '0.5';
+                    else marginSelect.value = '0.3';
 
-                        // I-load ang ingredients
-                        const tbody = document.getElementById('ingredientsBody');
-                        tbody.innerHTML = '';
+                    // I-load ang ingredients
+                    const tbody = document.getElementById('ingredientsBody');
+                    tbody.innerHTML = '';
 
-                        if (recipeData.ingredients && recipeData.ingredients.length > 0) {
-                            ingredientCounter = 0;
-                            recipeData.ingredients.forEach(ing => {
-                                addIngredientRowToTable(ing, ingredientCounter++);
-                            });
-                        } else {
-                            addIngredientRowToTable(null, 0);
-                        }
+                    if (recipeData.ingredients && recipeData.ingredients.length > 0) {
+                        ingredientCounter = 0;
+                        recipeData.ingredients.forEach(ing => {
+                            addIngredientRowToTable(ing, ingredientCounter++);
+                        });
+                    } else {
+                        addIngredientRowToTable(null, 0);
+                    }
 
-                        updateTotals();
+                    updateTotals();
 
-                        // Ipakita ang modal
-                        new bootstrap.Modal(document.getElementById('editRecipeModal')).show();
-                    })
-                    .catch(async (err) => {
-                        console.error('Error:', err);
-                        await showAlert('Error loading recipe: ' + err.message, 'Error', '❌');
-                    });
-            })
-            .catch(async (err) => {
-                console.error('Error checking edit permission:', err);
-                await showAlert('Error: ' + err.message);
-            });
-    }
+                    // Ipakita ang modal
+                    new bootstrap.Modal(document.getElementById('editRecipeModal')).show();
+                })
+                .catch(async (err) => {
+                    console.error('Error:', err);
+                    await showAlert('Error loading recipe: ' + err.message, 'Error', '❌');
+                });
+        })
+        .catch(async (err) => {
+            console.error('Error checking edit permission:', err);
+            await showAlert('Error: ' + err.message);
+        });
+}
 
     function addIngredientRow() { addIngredientRowToTable(null, ingredientCounter++); }
 
@@ -6459,37 +6510,37 @@ function initEmployeeModule() {
         loadEmployees();  // Load when switching to list tab
         startEmployeeStatusAutoRefresh();  // Start auto-refresh
     }
-    else if (tab === 'performance') {
-        if (tabs[1]) tabs[1].classList.add('active');
-        if (listTab) listTab.style.display = 'none';
-        if (perfTab) perfTab.style.display = 'block';
-        if (attendTab) attendTab.style.display = 'none';
-        // Stop auto-refresh when not on list tab
-        if (employeeStatusInterval) {
-            clearInterval(employeeStatusInterval);
-            employeeStatusInterval = null;
-        }
-        // Load employees into performance dropdown
-        fetch('/Employee/GetAllEmployees')
-            .then(response => response.json())
-            .then(employees => {
-                const perfSelect = document.getElementById('perfEmployeeSelect');
-                if (perfSelect) {
-                    let options = '<option value="">-- Select Employee --</option>';
-                    const oldValue = perfSelect.value;
-                    employees.forEach(emp => {
-                        options += `<option value="${emp.id}">${emp.fullName}</option>`;
-                    });
-                    perfSelect.innerHTML = options;
-                    if (oldValue && oldValue !== "") {
-                        perfSelect.value = oldValue;
-                    }
-                }
-                if (perfSelect && perfSelect.value) {
-                    loadPerformanceData();
-                }
-            });
+   else if (tab === 'performance') {
+    if (tabs[1]) tabs[1].classList.add('active');
+    if (listTab) listTab.style.display = 'none';
+    if (perfTab) perfTab.style.display = 'block';
+    if (attendTab) attendTab.style.display = 'none';
+    
+    if (employeeStatusInterval) {
+        clearInterval(employeeStatusInterval);
+        employeeStatusInterval = null;
     }
+    
+    fetch('/Employee/GetAllEmployees')
+        .then(response => response.json())
+        .then(employees => {
+            const perfSelect = document.getElementById('perfEmployeeSelect');
+            if (perfSelect) {
+                let options = '<option value="">-- Select Employee --</option>';
+                employees.forEach(emp => {
+                    options += `<option value="${emp.id}">${escapeHtml(emp.fullName)}</option>`;
+                });
+                perfSelect.innerHTML = options;
+                
+                // ✅ I-RESTORE ang dating napiling employee (kung meron)
+                const oldValue = sessionStorage.getItem('selectedEmployeeId');
+                if (oldValue) {
+                    perfSelect.value = oldValue;
+                }
+            }
+        });
+}
+
     else if (tab === 'attendance') {
         if (tabs[2]) tabs[2].classList.add('active');
         if (listTab) listTab.style.display = 'none';
@@ -6513,6 +6564,155 @@ function initEmployeeModule() {
                 }
             });
     }
+}
+
+// ========== LOAD EMPLOYEE DAILY ORDERS ==========
+async function loadEmployeeDailyOrders() {
+    const employeeSelect = document.getElementById('perfEmployeeSelect');
+    const employeeId = employeeSelect.value;
+    
+    if (!employeeId) {
+        document.getElementById('perfTotalSales').innerHTML = '₱0.00';
+        document.getElementById('perfTotalOrders').innerHTML = '0';
+        document.getElementById('dailyOrdersBody').innerHTML = `
+            <tr><td colspan="4" class="text-center text-muted">Select an employee to view orders</td><\/tr>
+        `;
+        return;
+    }
+    
+    showLoading('Loading employee orders...');
+    
+    try {
+        const response = await fetch(`/Employee/GetEmployeeDailyOrders?employeeId=${employeeId}&days=30`);
+        const data = await response.json();
+        
+        if (data.success) {
+            let totalSales = 0;
+            let totalOrders = 0;
+            let html = '';
+            
+            data.dailyOrders.forEach(day => {
+                totalSales += day.totalSales;
+                totalOrders += day.orderCount;
+                
+                const formattedDate = new Date(day.date).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+                
+                html += `
+                    <tr>
+                        <td class="fw-bold">${formattedDate}<\/td>
+                        <td>${day.orderCount} order(s)<\/td>
+                        <td class="text-primary fw-bold">₱${day.totalSales.toFixed(2)}<\/td>
+                        <td>
+                            <button class="btn btn-sm btn-info" onclick='showDailyOrdersModal(${JSON.stringify(day.orders)}, "${formattedDate}")'>
+                                <i class="fas fa-eye me-1"></i> View All (${day.orderCount})
+                            </button>
+                        <\/td>
+                    <\/tr>
+                `;
+            });
+            
+            document.getElementById('perfTotalSales').innerHTML = `₱${totalSales.toFixed(2)}`;
+            document.getElementById('perfTotalOrders').innerHTML = totalOrders;
+            document.getElementById('dailyOrdersBody').innerHTML = html;
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        await showAlert('Error loading employee orders', 'Error', '❌');
+    } finally {
+        hideLoading();
+    }
+}
+
+// ========== SHOW DAILY ORDERS MODAL ==========
+function showDailyOrdersModal(orders, dateString) {
+    const modal = new bootstrap.Modal(document.getElementById('dailyOrdersModal'));
+    const title = document.getElementById('dailyOrdersModalTitle');
+    const container = document.getElementById('dailyOrdersList');
+    
+    title.innerHTML = `<i class="fas fa-calendar-day me-2"></i> Orders for ${dateString}`;
+    
+    if (!orders || orders.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted py-4">No orders found for this date</div>';
+        modal.show();
+        return;
+    }
+    
+    let html = '';
+    orders.forEach(order => {
+        // Determine status badge
+        let statusBadge = '';
+        let statusIcon = '';
+        
+        if (order.status === 'COMPLETED') {
+            statusBadge = '<span class="badge bg-success">✅ COMPLETED</span>';
+            statusIcon = '✅';
+        } else if (order.status === 'VOIDED') {
+            statusBadge = '<span class="badge bg-danger">⚠️ VOIDED</span>';
+            statusIcon = '⚠️';
+        } else if (order.status === 'REFUNDED') {
+            statusBadge = '<span class="badge bg-warning text-dark">💰 REFUNDED</span>';
+            statusIcon = '💰';
+        } else if (order.status === 'PENDING_BLENDING') {
+            statusBadge = '<span class="badge bg-info">⏳ PENDING BLENDING</span>';
+            statusIcon = '⏳';
+        } else {
+            statusBadge = `<span class="badge bg-secondary">${order.status}</span>`;
+            statusIcon = '📋';
+        }
+        
+        // Check for exchange
+        if (order.returnStatus === 'EXCHANGED') {
+            statusBadge = '<span class="badge bg-warning text-dark">🔄 EXCHANGED</span>';
+            statusIcon = '🔄';
+        }
+        
+        // Add warning flag for problematic orders
+        let warningFlag = '';
+        if (order.status === 'VOIDED') {
+            warningFlag = '<span class="text-danger ms-2"><i class="fas fa-ban"></i> VOID</span>';
+        } else if (order.status === 'REFUNDED') {
+            warningFlag = '<span class="text-warning ms-2"><i class="fas fa-money-bill-wave"></i> REFUND</span>';
+        } else if (order.returnStatus === 'EXCHANGED') {
+            warningFlag = '<span class="text-warning ms-2"><i class="fas fa-exchange-alt"></i> EXCHANGE</span>';
+        }
+        
+        const orderTime = new Date(order.date).toLocaleTimeString();
+        
+        // Determine border color based on order status
+        let borderColor = '#28a745';
+        if (order.status === 'VOIDED') borderColor = '#dc3545';
+        else if (order.status === 'REFUNDED') borderColor = '#ffc107';
+        else if (order.returnStatus === 'EXCHANGED') borderColor = '#fd7e14';
+        
+        html += `
+            <div class="list-group-item d-flex justify-content-between align-items-center" style="border-left: 4px solid ${borderColor};">
+                <div>
+                    <div class="fw-bold">
+                        ${statusIcon} Order #${order.orderNumber}
+                        ${warningFlag}
+                    </div>
+                    <small class="text-muted">${orderTime}</small>
+                    <div class="mt-1">
+                        ${statusBadge}
+                        ${order.discountType && order.discountAmount > 0 ? `<span class="badge bg-secondary ms-1">${order.discountType} -₱${order.discountAmount.toFixed(2)}</span>` : ''}
+                    </div>
+                </div>
+                <div class="text-end">
+                    <div class="fw-bold text-primary fs-5">₱${order.totalAmount.toFixed(2)}</div>
+                    <button class="btn btn-sm btn-outline-info mt-2" onclick="viewReceiptDetail(${order.orderId})">
+                        <i class="fas fa-receipt"></i> View Receipt
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+    modal.show();
 }
 
     async function deleteEmployee(employeeId, employeeName) {
@@ -6807,7 +7007,8 @@ function validatePassword(password) {
 }
 
  // ========== LOAD PERFORMANCE DATA FUNCTION ==========
-    function loadPerformanceData() {
+   // ========== LOAD PERFORMANCE DATA FUNCTION (WITH VIEW BUTTON) ==========
+function loadPerformanceData() {
     const employeeSelect = document.getElementById('perfEmployeeSelect');
     const userId = employeeSelect.value;
 
@@ -6815,8 +7016,7 @@ function validatePassword(password) {
         document.getElementById('perfTotalSales').innerHTML = '₱0.00';
         document.getElementById('perfTotalOrders').innerHTML = '0';
         document.getElementById('performanceTableBody').innerHTML = `
-            <tr><td colspan="4" class="text-center text-muted">Select an employee to view performance</td>
-        </tr>
+            <tr><td colspan="5" class="text-center text-muted">Select an employee to view performance<\/td><\/tr>
         `;
         return;
     }
@@ -6829,36 +7029,59 @@ function validatePassword(password) {
     const startDateStr = startDate.toISOString().split('T')[0];
     const endDateStr = endDate.toISOString().split('T')[0];
 
+    showLoading('Loading performance data...');
+
     fetch(`/Employee/GetPerformance?userId=${userId}&startDate=${startDateStr}&endDate=${endDateStr}`)
         .then(response => response.json())
-        .then(data => {
+        .then(async (data) => {
+            hideLoading();
             if (data.success) {
                 document.getElementById('perfTotalSales').innerHTML = `₱${(data.summary.totalSales || 0).toFixed(2)}`;
                 document.getElementById('perfTotalOrders').innerHTML = data.summary.totalOrders || 0;
 
                 let rows = '';
                 if (data.performances && data.performances.length > 0) {
-                    data.performances.forEach(perf => {
+                    for (const perf of data.performances) {
                         const dateObj = new Date(perf.date);
                         const formattedDate = `${dateObj.getMonth() + 1}/${dateObj.getDate()}/${dateObj.getFullYear()}`;
+                        const dateString = perf.date.split('T')[0];
+                        
+                        // Fetch orders for this specific date
+                        let ordersForDate = [];
+                        try {
+                            const ordersResponse = await fetch(`/Employee/GetEmployeeOrdersByDate?employeeId=${userId}&date=${dateString}`);
+                            const ordersData = await ordersResponse.json();
+                            if (ordersData.success) {
+                                ordersForDate = ordersData.orders;
+                            }
+                        } catch (err) {
+                            console.error('Error fetching orders for date:', err);
+                        }
+                        
                         rows += `
                             <tr>
                                 <td>${formattedDate}</td>
                                 <td>₱${(perf.totalSales || 0).toFixed(2)}</td>
                                 <td>${perf.ordersProcessed || 0}</td>
                                 <td>${perf.notes || '-'}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-info" onclick='showDailyOrdersModal(${JSON.stringify(ordersForDate)}, "${formattedDate}")'>
+                                        <i class="fas fa-eye"></i> View (${perf.ordersProcessed})
+                                    </button>
+                                </td>
                             </tr>
                         `;
-                    });
+                    }
                 } else {
-                    rows = `<tr><td colspan="4" class="text-center text-muted">No performance records found for this employee</td></tr>`;
+                    rows = `<tr><td colspan="5" class="text-center text-muted">No performance records found for this employee<\/td><\/tr>`;
                 }
                 document.getElementById('performanceTableBody').innerHTML = rows;
             }
         })
         .catch(error => {
+            hideLoading();
             console.error('Error loading performance:', error);
-            document.getElementById('performanceTableBody').innerHTML = `<tr><td colspan="4" class="text-center text-danger">Error loading performance data</td></tr>`;
+            document.getElementById('performanceTableBody').innerHTML = `<tr><td colspan="5" class="text-center text-danger">Error loading performance data<\/td><\/tr>`;
         });
 }
 

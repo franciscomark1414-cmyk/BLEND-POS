@@ -49,12 +49,12 @@ namespace Infoman.Service
                     .Include(oi => oi.ProductSize)
                         .ThenInclude(ps => ps.RecipeItems)
                             .ThenInclude(ri => ri.RawMaterial)
-                    .Include(oi => oi.Order)  // ✅ PARA MAKUHA ANG DISCOUNT
+                    .Include(oi => oi.Order)
                     .FirstOrDefaultAsync(oi => oi.OrderItemId == returnItem.OrderItemId);
 
                 if (orderItem == null) continue;
 
-                // ✅ Compute actual price paid (with discount)
+                // Compute actual price paid (with discount)
                 decimal actualPricePerUnit = orderItem.Price;
                 if (orderItem.Order != null && orderItem.Order.DiscountPercent > 0)
                 {
@@ -65,28 +65,44 @@ namespace Infoman.Service
 
                 foreach (var recipe in orderItem.ProductSize.RecipeItems)
                 {
-                    decimal quantityWasted = recipe.Quantity * returnItem.Quantity;
+                    // ✅ 1. Compute wasted quantity in BASE UNIT (grams/mL/pcs)
+                    decimal quantityWastedInBaseUnit = recipe.Quantity * returnItem.Quantity;
 
-                    if (recipe.RawMaterial.BaseUnit == "g" || recipe.RawMaterial.BaseUnit == "mL")
-                        quantityWasted = quantityWasted / 1000;
+                    // ✅ 2. Compute wasted quantity in DISPLAY UNIT (kg/L) for costing
+                    decimal quantityWastedInDisplayUnit = quantityWastedInBaseUnit;
 
-                    decimal costWasted = recipe.RawMaterial.Price * quantityWasted;
+                    if (recipe.RawMaterial.BaseUnit == "g" && recipe.RawMaterial.Unit == "kg")
+                    {
+                        quantityWastedInDisplayUnit = quantityWastedInBaseUnit / 1000;  // grams → kg
+                    }
+                    else if (recipe.RawMaterial.BaseUnit == "mL" && recipe.RawMaterial.Unit == "L")
+                    {
+                        quantityWastedInDisplayUnit = quantityWastedInBaseUnit / 1000;  // mL → L
+                    }
+
+                    // ✅ 3. Compute cost using DISPLAY UNIT
+                    decimal costWasted = quantityWastedInDisplayUnit * recipe.RawMaterial.Price;
                     totalWasteCost += costWasted;
 
+                    // ✅ 4. CREATE WASTE LOG - Store in BASE UNIT (grams/mL)
                     var waste = new WasteLog
                     {
                         RawMaterialId = recipe.RawMaterialId,
-                        Quantity = quantityWasted,
+                        Quantity = quantityWastedInBaseUnit,  // ✅ Store in base unit
                         Reason = WasteLog.WasteReason.CustomerCancel,
                         Date = DateTime.Now,
                         RecordedBy = userId.ToString(),
-                        Notes = $"Exchange from Order #{originalOrder.OrderNumber}: {reason}"
+                        Notes = $"Exchange from Order #{originalOrder.OrderNumber}: {reason}",
+                        TotalCost = costWasted  // ✅ May cost na!
                     };
                     _db.WasteLogs.Add(waste);
 
+                    // ✅ 5. DEDUCT STOCK (dapat sa base unit din)
                     var material = await _db.RawMaterials.FindAsync(recipe.RawMaterialId);
                     if (material != null)
-                        material.Stock -= quantityWasted;
+                    {
+                        material.Stock -= quantityWastedInBaseUnit;  // ✅ Subtract base unit
+                    }
                 }
 
                 orderItem.IsExchanged = true;

@@ -1239,8 +1239,6 @@ namespace Infoman.Controllers
                 .Where(r => !r.IsDeleted)
                 .ToListAsync();
 
-            // ========== LOW STOCK ITEMS ==========
-            // ✅ I-CONVERT ANG STOCK SA DISPLAY UNIT PARA SA COMPARISON
             var lowStockItems = new List<object>();
 
             foreach (var r in allMaterials)
@@ -1250,15 +1248,18 @@ namespace Infoman.Controllers
                     .Where(b => b.RawMaterialId == r.RawMaterialId)
                     .SumAsync(b => (decimal?)b.QuantityRemaining) ?? 0;
 
-                // Convert to display unit for comparison with MinQty (which is in display unit from user input)
+                // Convert to display unit for comparison
                 decimal totalStockInDisplayUnit = totalStockInBaseUnit;
+                decimal minQtyInDisplayUnit = r.MinQty;  // Start with MinQty (which is in base unit)
+
                 if ((r.BaseUnit == "g" && r.Unit == "kg") || (r.BaseUnit == "mL" && r.Unit == "L"))
                 {
                     totalStockInDisplayUnit = totalStockInBaseUnit / 1000;
+                    minQtyInDisplayUnit = r.MinQty / 1000;  // ✅ CONVERT MinQty to display unit!
                 }
 
-                // Compare using display units (both in kg/L)
-                if (totalStockInDisplayUnit <= r.MinQty)
+                // Now compare both in display units
+                if (totalStockInDisplayUnit <= minQtyInDisplayUnit)
                 {
                     lowStockItems.Add(new
                     {
@@ -1266,10 +1267,10 @@ namespace Infoman.Controllers
                         r.Name,
                         Category = r.Category.ToString(),
                         Stock = totalStockInDisplayUnit,
-                        MinQty = r.MinQty,
+                        MinQty = minQtyInDisplayUnit,  // ✅ Now in display unit (e.g., 10 kg)
                         r.Unit,
                         StockWithUnit = $"{totalStockInDisplayUnit:F2} {r.Unit}",
-                        MinQtyWithUnit = $"{r.MinQty:F2} {r.Unit}"
+                        MinQtyWithUnit = $"{minQtyInDisplayUnit:F2} {r.Unit}"  // ✅ Now shows 10.00 kg
                     });
                 }
             }

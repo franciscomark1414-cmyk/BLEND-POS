@@ -81,21 +81,19 @@ namespace Infoman.Models
         {
             get
             {
-                decimal displayStock = Stock;
-
-                if (BaseUnit == "g" && Unit == "kg")
+                if (Unit == "kg" && BaseUnit == "g")
                 {
-                    displayStock = Stock / 1000;
+                    decimal displayStock = Stock / 1000;
+                    return $"{displayStock:F2} {Unit}";
                 }
-                else if (BaseUnit == "mL" && Unit == "L")
+                else if (Unit == "L" && BaseUnit == "mL")
                 {
-                    displayStock = Stock / 1000;
+                    decimal displayStock = Stock / 1000;
+                    return $"{displayStock:F2} {Unit}";
                 }
-
-                return $"{displayStock:N1} {Unit}";
+                return $"{Stock:F2} {Unit}";
             }
         }
-
         public string MinQtyWithUnit
         {
             get

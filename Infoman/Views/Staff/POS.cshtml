@@ -1363,7 +1363,7 @@
     <div class="modal-qty-content" style="width: 700px; max-width: 95%; padding: 0;">
         <!-- Header -->
         <div style="background: #ff6b35; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
-            <h4 style="margin: 0; font-size: 18px;"><i class="fas fa-exchange-alt"></i> Return / Refund</h4>
+            <h4 style="margin: 0; font-size: 18px;"><i class="fas fa-exchange-alt"></i>  Refund / Exchange</h4>
             <button onclick="closeVoidRefundModal()" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer;">&times;</button>
         </div>
         
@@ -1371,40 +1371,9 @@
         <div style="padding: 20px;">
             <!-- Tabs -->
 <div style="display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid #eee;">
-    <button id="voidTabBtn" class="void-tab-btn-custom" onclick="switchVoidTab('void')" style="padding: 10px 30px; border: none; background: #dc3545; color: white; font-weight: 600; cursor: pointer; border-radius: 8px 8px 0 0;">🗑️ VOID</button>
     <button id="refundTabBtn" class="void-tab-btn-custom" onclick="switchVoidTab('refund')" style="padding: 10px 30px; border: none; background: #e9ecef; font-weight: 600; cursor: pointer; border-radius: 8px 8px 0 0;">💰 REFUND</button>
     <button id="exchangeTabBtn" class="void-tab-btn-custom" onclick="switchVoidTab('exchange')" style="padding: 10px 30px; border: none; background: #e9ecef; font-weight: 600; cursor: pointer; border-radius: 8px 8px 0 0;">🔄 EXCHANGE</button>
 </div>
-
-            <!-- VOID TAB CONTENT -->
-            <div id="voidTabContent">
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 13px;">Select Order:</label>
-                    <select id="voidOrderSelect" class="reason-select" onchange="loadVoidOrderItems()">
-                        <option value="">-- Select Order --</option>
-                    </select>
-                </div>
-                
-                <div id="voidOrderItems" style="max-height: 300px; overflow-y: auto; margin-bottom: 15px;"></div>
-                
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 13px;">Reason for Void:</label>
-                    <select id="voidReason" class="reason-select">
-                        <option value="">-- Select Reason --</option>
-                        <option value="Customer changed mind">Customer changed mind</option>
-                        <option value="Wrong order entered">Wrong order entered</option>
-                        <option value="Duplicate order">Duplicate order</option>
-                        <option value="Price adjustment">Price adjustment</option>
-                        <option value="Other">Other</option>
-                    </select>
-                    <input type="text" id="voidOtherReason" class="reason-select" style="margin-top: 8px; display: none;" placeholder="Please specify...">
-                </div>
-                
-                <div style="display: flex; gap: 10px;">
-                    <button class="btn-void-item" onclick="processVoidItem()">🗑️ Void Selected Item</button>
-                    <button class="btn-void-transaction" onclick="processVoidTransaction()">⚠️ Void Entire Transaction</button>
-                </div>
-            </div>
 
            <!-- EXCHANGE TAB CONTENT - REDESIGNED UI -->
 <div id="exchangeTabContent" style="display: none;">
@@ -1663,11 +1632,11 @@
         const countSpan = document.getElementById('queueCount');
         if (!container) return;
         
-        // ✅ Only show PENDING_PAYMENT orders with active items
-        const pendingOrders = orders.filter(o => o.status === 'PENDING_PAYMENT');
-        
-        // ✅ Filter out orders with no active items
-        const activeOrders = pendingOrders.filter(o => o.items && o.items.length > 0);
+        // ✅ Include BOTH PENDING_BLENDING and PREPARING
+        const activeOrders = orders.filter(o => 
+            (o.status === 'PENDING_BLENDING' || o.status === 'PREPARING') && 
+            o.items && o.items.length > 0
+        );
         
         if (countSpan) countSpan.innerText = activeOrders.length;
         
@@ -1687,12 +1656,16 @@
                 itemsHtml += `<div>• ${item.quantity}x ${item.productName} (${item.sizeName}) - ₱${itemTotal.toFixed(2)}</div>`;
             });
             
-            const shortOrderNum = order.orderNumber.substring(order.orderNumber.length - 6);
+            const shortOrderNum = order.orderNumber ? order.orderNumber.substring(order.orderNumber.length - 6) : `#${order.orderId}`;
+            
+            // Determine status badge text
+            let statusText = order.status === 'PENDING_BLENDING' ? 'PAID - WAITING' : 'PREPARING';
+            
             html += `
                 <div class="queue-item" data-order-id="${order.orderId}" style="border-left: 3px solid #ffc107; margin-bottom: 8px; background: white; border-radius: 8px; padding: 8px;">
                     <div class="d-flex justify-content-between align-items-center">
-                        <span class="queue-order-number" style="font-size: 12px; font-weight: bold;" title="${order.orderNumber}">#${shortOrderNum}</span>
-                        <span class="badge bg-warning" style="font-size: 9px;">PENDING</span>
+                        <span class="queue-order-number" style="font-size: 12px; font-weight: bold;" title="${order.orderNumber}">${shortOrderNum}</span>
+                        <span class="badge ${order.status === 'PENDING_BLENDING' ? 'bg-info' : 'bg-warning'}" style="font-size: 9px;">${statusText}</span>
                     </div>
                     <div class="queue-items" style="font-size: 11px; color: #666; margin: 5px 0;">${itemsHtml}</div>
                     <div class="d-flex justify-content-between align-items-center mt-1">
@@ -2117,7 +2090,6 @@ async function createNewOrder() {
     let lastOrderId = null;
     let allSuccessful = true;
     
-    // ✅ GUMAGAWA NG IISANG ORDER NUMBER PARA SA LAHAT NG ITEMS
     const sharedOrderNumber = `POS-${Date.now()}`;
     
     for (const item of cart) {
@@ -2130,7 +2102,7 @@ async function createNewOrder() {
             body: JSON.stringify({
                 productSizeId: item.productSizeId,
                 quantity: item.quantity,
-                orderNumber: sharedOrderNumber,  // ✅ SAME ORDER NUMBER FOR ALL ITEMS
+                orderNumber: sharedOrderNumber,
                 paymentMethod: paymentMethod,
                 discountType: currentDiscountType,
                 discountPercent: currentDiscountPercent
@@ -2158,6 +2130,7 @@ async function createNewOrder() {
     if (allSuccessful && orderDetails.length > 0) {
         const discountSavings = currentCartTotal - currentDiscountedTotal;
         
+        // ✅ Use 'PENDING_BLENDING' - para visible ang void buttons at start blending
         showReceiptModal(
             orderDetails, 
             paymentMethod, 
@@ -2166,7 +2139,7 @@ async function createNewOrder() {
             discountSavings, 
             currentDiscountedTotal, 
             lastOrderId, 
-            'PENDING_PAYMENT'
+            'PENDING_BLENDING'  // ✅ Changed from 'COMPLETED' to 'PENDING_BLENDING'
         );
         
         window.lastClosedOrderId = lastOrderId;
@@ -2190,7 +2163,7 @@ async function createNewOrder() {
         // ============================================================
         // RECEIPT MODAL — with Void Transaction button
         // ============================================================
-       function showReceiptModal(orderDetails, paymentMethod, discountType, discountPercent, discountSavings, total, orderId, orderStatus) {
+      function showReceiptModal(orderDetails, paymentMethod, discountType, discountPercent, discountSavings, total, orderId, orderStatus) {
     const receiptDiv = document.getElementById('receiptContent');
     const now = new Date();
 
@@ -2219,7 +2192,7 @@ async function createNewOrder() {
             </div>`;
     }
 
-    // ✅ Check if this is an exchange replacement order
+    // Check if this is an exchange replacement order
     let exchangeInfoHtml = '';
     if (window.isExchangeReplacement) {
         let adjustmentText = '';
@@ -2247,7 +2220,6 @@ async function createNewOrder() {
             </div>
         `;
         
-        // Reset after 3 seconds
         setTimeout(() => {
             if (window.isExchangeReplacement) {
                 window.isExchangeReplacement = false;
@@ -2259,6 +2231,27 @@ async function createNewOrder() {
     }
 
     const shortOrderId = orderId ? orderId.toString().substring(orderId.toString().length - 6) : 'N/A';
+    
+    // ✅ Determine badge class and text based on orderStatus
+    let badgeClass = 'bg-warning';
+    let statusText = '⏳ PENDING BLENDING';
+    
+    if (orderStatus === 'COMPLETED') {
+        badgeClass = 'bg-success';
+        statusText = '✅ COMPLETED';
+    } else if (orderStatus === 'PENDING_BLENDING') {
+        badgeClass = 'bg-warning';
+        statusText = '⏳ PAID - WAITING BLENDING';
+    } else if (orderStatus === 'PENDING_PAYMENT') {
+        badgeClass = 'bg-danger';
+        statusText = '⚠️ PENDING PAYMENT';
+    } else if (orderStatus === 'VOIDED') {
+        badgeClass = 'bg-danger';
+        statusText = '❌ VOIDED';
+    } else if (orderStatus === 'REFUNDED') {
+        badgeClass = 'bg-info';
+        statusText = '💰 REFUNDED';
+    }
 
     receiptDiv.innerHTML = `
         <div style="text-align:center; margin-bottom: 12px;">
@@ -2271,8 +2264,8 @@ async function createNewOrder() {
         ${exchangeInfoHtml}
         <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
             <strong style="font-size: 14px;">Order Summary</strong>
-            <span class="badge ${orderStatus === 'COMPLETED' ? 'bg-success' : 'bg-warning'} text-dark" style="font-size: 10px; padding: 2px 8px;">
-                ${orderStatus === 'COMPLETED' ? '✅ COMPLETED' : '⏳ PENDING BLENDING'}
+            <span class="badge ${badgeClass} text-dark" style="font-size: 10px; padding: 2px 8px;">
+                ${statusText}
             </span>
         </div>
         ${itemsHtml}
@@ -2303,27 +2296,35 @@ async function createNewOrder() {
     
     if (actionArea) actionArea.style.display = 'flex';
     
+    // ✅ Start Blending button - enabled for PENDING_BLENDING only
     if (startBtn) {
         if (orderStatus === 'COMPLETED') {
             startBtn.disabled = true;
             startBtn.innerHTML = '✅ Already Blended';
             startBtn.style.background = '#28a745';
             startBtn.style.color = 'white';
-        } else {
+        } else if (orderStatus === 'PENDING_BLENDING') {
             startBtn.disabled = false;
             startBtn.innerHTML = '🥤 START BLENDING (Deduct Ingredients)';
             startBtn.style.background = '#ffc107';
             startBtn.style.color = '#212529';
+        } else {
+            startBtn.disabled = true;
+            startBtn.innerHTML = '❌ Cannot Blend';
+            startBtn.style.background = '#6c757d';
+            startBtn.style.color = 'white';
         }
     }
     
-    if (voidBtn) voidBtn.style.display = orderStatus === 'COMPLETED' ? 'none' : 'block';
-    if (voidItemBtn) voidItemBtn.style.display = orderStatus === 'COMPLETED' ? 'none' : 'block';
+    // ✅ Void buttons - visible for PENDING_BLENDING only (hindi kapag COMPLETED)
+    const showVoidButtons = (orderStatus === 'PENDING_BLENDING');
+    
+    if (voidBtn) voidBtn.style.display = showVoidButtons ? 'block' : 'none';
+    if (voidItemBtn) voidItemBtn.style.display = showVoidButtons ? 'block' : 'none';
 
     document.getElementById('receiptModal').style.display = 'flex';
     loadOrderQueue();
 }
-
 
         function closeReceiptModal() {
     const modal = document.getElementById('receiptModal');
@@ -2405,7 +2406,6 @@ function showReceiptModalWithValues(orderDetails, paymentMethod, discountType, d
     const receiptDiv = document.getElementById('receiptContent');
     const now = new Date();
 
-    // I-store ang order ID para magamit ng mga button
     if (orderId) window.currentOrderId = orderId;
 
     let itemsHtml = '';
@@ -2429,8 +2429,19 @@ function showReceiptModalWithValues(orderDetails, paymentMethod, discountType, d
             </div>`;
     }
 
-    // Shortened order number for display
     const shortOrderId = orderId ? orderId.toString().substring(orderId.toString().length - 6) : 'N/A';
+    
+    // ✅ Determine badge and status display text
+    let badgeClass = 'bg-warning';
+    let statusText = '⏳ PENDING BLENDING';
+    
+    if (orderStatus === 'COMPLETED') {
+        badgeClass = 'bg-success';
+        statusText = '✅ COMPLETED';
+    } else if (orderStatus === 'PENDING_BLENDING') {
+        badgeClass = 'bg-warning';
+        statusText = '⏳ PAID - WAITING BLENDING';
+    }
 
     receiptDiv.innerHTML = `
         <div style="text-align:center; margin-bottom: 12px;">
@@ -2440,7 +2451,7 @@ function showReceiptModalWithValues(orderDetails, paymentMethod, discountType, d
         </div>
         <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
             <strong style="font-size: 14px;">Order Summary</strong>
-            <span class="badge bg-warning text-dark">${orderStatus === 'COMPLETED' ? 'COMPLETED' : 'PENDING BLENDING'}</span>
+            <span class="badge ${badgeClass} text-dark">${statusText}</span>
         </div>
         ${itemsHtml}
         <div class="receipt-subtotal">
@@ -2457,7 +2468,6 @@ function showReceiptModalWithValues(orderDetails, paymentMethod, discountType, d
             <div style="margin-top: 4px; color: #28a745;">✅ Payment Received: ₱${total.toFixed(2)}</div>
         </div>`;
 
-    // Ipakita ang action buttons (Start Blending, Void Item, Void Transaction)
     const actionArea = document.getElementById('receiptActionArea');
     const startBtn = document.getElementById('startBlendingBtn');
     const voidBtn = document.getElementById('voidReceiptBtn');
@@ -2465,28 +2475,33 @@ function showReceiptModalWithValues(orderDetails, paymentMethod, discountType, d
     
     if (actionArea) actionArea.style.display = 'flex';
     
-    // Kung COMPLETED na ang order, i-disable ang Start Blending button
+    // ✅ Start Blending button - enabled for PENDING_BLENDING only
     if (startBtn) {
         if (orderStatus === 'COMPLETED') {
             startBtn.disabled = true;
             startBtn.innerHTML = '✅ Already Blended';
             startBtn.style.background = '#28a745';
             startBtn.style.color = 'white';
-        } else {
+        } else if (orderStatus === 'PENDING_BLENDING') {
             startBtn.disabled = false;
-            startBtn.innerHTML = ' START BLENDING (Deduct Ingredients)';
+            startBtn.innerHTML = '🥤 START BLENDING (Deduct Ingredients)';
             startBtn.style.background = '#ffc107';
             startBtn.style.color = '#212529';
+        } else {
+            startBtn.disabled = true;
+            startBtn.innerHTML = '❌ Cannot Blend';
+            startBtn.style.background = '#6c757d';
         }
     }
     
-    // Ipakita ang void buttons kung hindi pa completed
-    if (voidBtn) voidBtn.style.display = orderStatus === 'COMPLETED' ? 'none' : 'block';
-    if (voidItemBtn) voidItemBtn.style.display = orderStatus === 'COMPLETED' ? 'none' : 'block';
+    // ✅ Void buttons - visible for PENDING_BLENDING only
+    const showVoidButtons = (orderStatus === 'PENDING_BLENDING');
+    
+    if (voidBtn) voidBtn.style.display = showVoidButtons ? 'block' : 'none';
+    if (voidItemBtn) voidItemBtn.style.display = showVoidButtons ? 'block' : 'none';
 
     document.getElementById('receiptModal').style.display = 'flex';
 }
-
       async function startBlending(orderId) {
     if (!orderId) {
         await showAlert('No order found.', 'Error', '❌');
@@ -2922,9 +2937,10 @@ async function updateExistingOrder() {
     
     const confirmed = await showConfirm(
         'Update this order?\n\n' +
-        'Items removed will be VOIDED.\n' +
+        'Items removed will be VOIDED and refunded.\n' +
         'Items added will be ADDED to this order.\n\n' +
-        'This will UPDATE the existing order.',
+        'Price difference will be adjusted accordingly.\n\n' +
+        'Continue?',
         'Confirm Update'
     );
     
@@ -2933,7 +2949,7 @@ async function updateExistingOrder() {
     showLoading('Updating order...');
     
     try {
-        // ✅ STEP 1: Get current items from server
+        // ✅ STEP 1: Get current items from server (BEFORE update)
         const getOrderResponse = await fetch(`/VoidRefund/GetOrderDetails?orderId=${orderId}`);
         const orderData = await getOrderResponse.json();
         
@@ -2942,6 +2958,13 @@ async function updateExistingOrder() {
         }
         
         const serverItems = orderData.order.items || [];
+        const originalTotal = orderData.order.totalAmount || 0;
+        
+        // Track amounts
+        let totalVoidedAmount = 0;
+        let totalAddedAmount = 0;
+        const voidedItemsList = [];
+        const addedItemsList = [];
         
         // ✅ STEP 2: VOID items that are in server but NOT in cart
         for (const serverItem of serverItems) {
@@ -2952,7 +2975,17 @@ async function updateExistingOrder() {
                 );
                 
                 if (!stillInCart) {
-                    console.log(`Voiding item: ${serverItem.productName}`);
+                    const itemAmount = serverItem.price * serverItem.quantity;
+                    totalVoidedAmount += itemAmount;
+                    voidedItemsList.push({
+                        name: serverItem.productName,
+                        size: serverItem.sizeName,
+                        quantity: serverItem.quantity,
+                        price: serverItem.price,
+                        subtotal: itemAmount
+                    });
+                    
+                    console.log(`Voiding item: ${serverItem.productName} - ₱${itemAmount}`);
                     await fetch('/VoidRefund/VoidItem', {
                         method: 'POST',
                         headers: { 
@@ -2961,7 +2994,7 @@ async function updateExistingOrder() {
                         },
                         body: JSON.stringify({ 
                             orderItemId: serverItem.orderItemId, 
-                            reason: 'Removed from order' 
+                            reason: 'Removed from order - Customer requested removal' 
                         })
                     });
                 }
@@ -2977,6 +3010,33 @@ async function updateExistingOrder() {
             );
             
             if (serverItem && serverItem.quantity !== cartItem.quantity) {
+                const oldAmount = serverItem.price * serverItem.quantity;
+                const newAmount = serverItem.price * cartItem.quantity;
+                
+                if (newAmount > oldAmount) {
+                    const addedAmount = newAmount - oldAmount;
+                    totalAddedAmount += addedAmount;
+                    addedItemsList.push({
+                        name: cartItem.productName,
+                        size: cartItem.sizeName,
+                        quantity: cartItem.quantity - serverItem.quantity,
+                        price: serverItem.price,
+                        subtotal: addedAmount,
+                        type: 'quantity_increased'
+                    });
+                } else if (newAmount < oldAmount) {
+                    const voidedAmount = oldAmount - newAmount;
+                    totalVoidedAmount += voidedAmount;
+                    voidedItemsList.push({
+                        name: cartItem.productName,
+                        size: cartItem.sizeName,
+                        quantity: serverItem.quantity - cartItem.quantity,
+                        price: serverItem.price,
+                        subtotal: voidedAmount,
+                        type: 'quantity_decreased'
+                    });
+                }
+                
                 console.log(`Updating quantity for: ${cartItem.productName} from ${serverItem.quantity} to ${cartItem.quantity}`);
                 await fetch('/Staff/UpdateOrderItemQuantity', {
                     method: 'POST',
@@ -3001,7 +3061,18 @@ async function updateExistingOrder() {
             );
             
             if (!existsInServer) {
-                console.log(`Adding new item: ${cartItem.productName}`);
+                const itemAmount = cartItem.price * cartItem.quantity;
+                totalAddedAmount += itemAmount;
+                addedItemsList.push({
+                    name: cartItem.productName,
+                    size: cartItem.sizeName,
+                    quantity: cartItem.quantity,
+                    price: cartItem.price,
+                    subtotal: itemAmount,
+                    type: 'new_item'
+                });
+                
+                console.log(`Adding new item: ${cartItem.productName} - ₱${itemAmount}`);
                 await fetch('/Staff/AddItemToExistingOrder', {
                     method: 'POST',
                     headers: { 
@@ -3035,16 +3106,40 @@ async function updateExistingOrder() {
             })
         });
         
+        // ✅ STEP 6: Get final order details
+        const finalOrderResponse = await fetch(`/VoidRefund/GetOrderDetails?orderId=${orderId}`);
+        const finalOrderData = await finalOrderResponse.json();
+        
+        const newTotal = finalOrderData.order.totalAmount || 0;
+        const priceDifference = newTotal - originalTotal;
+        
+        // Determine if customer pays more or gets refund
+        const needsAdditionalPayment = priceDifference > 0;
+        const refundAmount = priceDifference < 0 ? Math.abs(priceDifference) : 0;
+        const additionalPayment = priceDifference > 0 ? priceDifference : 0;
+        
         hideLoading();
+        
+        // ✅ STEP 7: Show UPDATED receipt with COMPLETE details
+        await showUpdatedReceiptAfterVoidWithDifference(
+            orderId,
+            originalTotal,
+            voidedItemsList,
+            addedItemsList,
+            totalVoidedAmount,
+            totalAddedAmount,
+            newTotal,
+            refundAmount,
+            additionalPayment,
+            needsAdditionalPayment
+        );
+        
         await showAlert('✅ Order updated successfully!', 'Success', '✅');
         
-        // ✅ STEP 6: Refresh order queue
+        // ✅ STEP 8: Refresh order queue
         await loadOrderQueue();
         
-        // ✅ STEP 7: Show UPDATED receipt
-        await showReceiptPopup(orderId);
-        
-        // ✅ STEP 8: Clean up edit mode
+        // ✅ STEP 9: Clean up edit mode
         const banner = document.getElementById('editModeBanner');
         if (banner) banner.remove();
         
@@ -3073,6 +3168,204 @@ async function updateExistingOrder() {
     }
 }
 
+async function showUpdatedReceiptAfterVoidWithDifference(
+    orderId, 
+    originalTotal,
+    voidedItemsList,
+    addedItemsList,
+    totalVoidedAmount,
+    totalAddedAmount,
+    newTotal,
+    refundAmount,
+    additionalPayment,
+    needsAdditionalPayment
+) {
+    try {
+        const response = await fetch(`/VoidRefund/GetOrderDetails?orderId=${orderId}`);
+        const data = await response.json();
+        
+        if (!data.success || !data.order) {
+            console.error('Failed to load updated order details');
+            return;
+        }
+        
+        const order = data.order;
+        const now = new Date();
+        
+        // Get active items
+        const activeItems = order.items.filter(item => !item.isVoided && !item.isRefunded);
+        
+        // Build active items HTML
+        let activeItemsHtml = '';
+        activeItems.forEach(item => {
+            const subtotal = item.price * item.quantity;
+            activeItemsHtml += `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <div>
+                        <strong>${escapeHtml(item.productName)}</strong><br>
+                        <small>${item.sizeName} × ${item.quantity}</small>
+                    </div>
+                    <div>₱${subtotal.toFixed(2)}</div>
+                </div>`;
+        });
+        
+        // Build voided items HTML
+        let voidedItemsHtml = '';
+        if (voidedItemsList.length > 0) {
+            voidedItemsList.forEach(item => {
+                voidedItemsHtml += `
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px; color: #dc3545;">
+                        <div>
+                            <strong>✕ ${escapeHtml(item.name)}</strong><br>
+                            <small>${item.size} × ${item.quantity}</small>
+                        </div>
+                        <div>-₱${item.subtotal.toFixed(2)}</div>
+                    </div>`;
+            });
+        }
+        
+        // Build added items HTML
+        let addedItemsHtml = '';
+        if (addedItemsList.length > 0) {
+            addedItemsList.forEach(item => {
+                addedItemsHtml += `
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px; color: #28a745;">
+                        <div>
+                            <strong>+ ${escapeHtml(item.name)}</strong><br>
+                            <small>${item.size} × ${item.quantity}</small>
+                        </div>
+                        <div>+₱${item.subtotal.toFixed(2)}</div>
+                    </div>`;
+            });
+        }
+        
+        // Build payment adjustment section
+        let paymentAdjustmentHtml = '';
+        if (refundAmount > 0) {
+            paymentAdjustmentHtml = `
+                <div style="background: #fff3cd; padding: 12px; border-radius: 8px; margin: 10px 0;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span>Previous Payment:</span>
+                        <span>₱${originalTotal.toFixed(2)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; color: #dc3545; margin-bottom: 8px;">
+                        <span>Refund:</span>
+                        <span>-₱${refundAmount.toFixed(2)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1px dashed #ccc; padding-top: 8px; color: #28a745;">
+                        <span>Cash Back to Customer:</span>
+                        <span>₱${refundAmount.toFixed(2)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 8px;">
+                        <span>New Total Payable:</span>
+                        <span>₱${newTotal.toFixed(2)}</span>
+                    </div>
+                </div>`;
+        } else if (additionalPayment > 0) {
+            paymentAdjustmentHtml = `
+                <div style="background: #e8f5e9; padding: 12px; border-radius: 8px; margin: 10px 0;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span>Original Payment:</span>
+                        <span>₱${originalTotal.toFixed(2)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; color: #28a745; margin-bottom: 8px;">
+                        <span>Additional Items:</span>
+                        <span>+₱${additionalPayment.toFixed(2)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1px dashed #ccc; padding-top: 8px;">
+                        <span>Additional Payment Required:</span>
+                        <span>₱${additionalPayment.toFixed(2)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 8px;">
+                        <span>New Total:</span>
+                        <span>₱${newTotal.toFixed(2)}</span>
+                    </div>
+                </div>`;
+        }
+        
+        // Determine status
+        let badgeClass = 'bg-warning';
+        let statusText = '⏳ PAID - WAITING BLENDING';
+        
+        if (newTotal === 0) {
+            badgeClass = 'bg-danger';
+            statusText = '❌ VOIDED';
+        }
+        
+        const receiptDiv = document.getElementById('receiptContent');
+        receiptDiv.innerHTML = `
+            <div style="text-align:center; margin-bottom: 12px;">
+                <div style="font-weight:600; font-size: 16px;">Neldie's Mango & More</div>
+                <div style="font-size: 12px; color: #888;">${now.toLocaleDateString()} ${now.toLocaleTimeString()}</div>
+                <div style="font-size: 13px; font-weight: bold; margin-top: 5px;">Receipt #: ${order.orderId}</div>
+                <div style="font-size: 12px; color: #17a2b8;">Order #: ${order.orderNumber || order.orderId}</div>
+            </div>
+            <hr>
+            
+            <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                <strong>Order Summary</strong>
+                <span class="badge ${badgeClass} text-dark">${statusText}</span>
+            </div>
+            
+            ${voidedItemsHtml.length > 0 ? `
+                <div><strong style="color: #dc3545;">✕ VOIDED ITEMS:</strong></div>
+                ${voidedItemsHtml}
+                <hr>
+            ` : ''}
+            
+            ${addedItemsHtml.length > 0 ? `
+                <div><strong style="color: #28a745;">➕ ADDED ITEMS:</strong></div>
+                ${addedItemsHtml}
+                <hr>
+            ` : ''}
+            
+            <div><strong>ACTIVE ITEMS:</strong></div>
+            ${activeItemsHtml}
+            <hr>
+            
+            ${paymentAdjustmentHtml}
+            
+            <div style="margin-top: 12px; padding: 10px; background: #f9f9f9; border-radius: 8px;">
+                <div>Payment: <strong>${order.paymentMethod || 'Cash'}</strong></div>
+                <div>${newTotal === 0 ? '✅ Order VOIDED - Full Refund Given' : (refundAmount > 0 ? '⚠️ Order Updated - Refund Given' : (additionalPayment > 0 ? '⚠️ Order Updated - Additional Payment Required' : '✅ Payment Received'))}</div>
+            </div>
+            <hr>
+            <div style="text-align: center; font-size: 12px; color: #aaa;">Thank you for your purchase!</div>
+        `;
+        
+        // Update buttons
+        const actionArea = document.getElementById('receiptActionArea');
+        const startBtn = document.getElementById('startBlendingBtn');
+        const voidBtn = document.getElementById('voidReceiptBtn');
+        const voidItemBtn = document.getElementById('voidItemReceiptBtn');
+        
+        if (actionArea) actionArea.style.display = 'flex';
+        
+        if (startBtn) {
+            if (newTotal === 0) {
+                startBtn.disabled = true;
+                startBtn.innerHTML = '❌ Order Voided - No Blending';
+                startBtn.style.background = '#6c757d';
+            } else {
+                startBtn.disabled = false;
+                startBtn.innerHTML = '🥤 START BLENDING (Deduct Ingredients)';
+                startBtn.style.background = '#ffc107';
+                startBtn.style.color = '#212529';
+            }
+        }
+        
+        if (voidBtn) voidBtn.style.display = newTotal === 0 ? 'none' : 'block';
+        if (voidItemBtn) voidItemBtn.style.display = newTotal === 0 ? 'none' : 'block';
+        
+        document.getElementById('receiptModal').style.display = 'flex';
+        await loadOrderQueue();
+        
+    } catch (error) {
+        console.error('Error:', error);
+        await showAlert('Error updating receipt: ' + error.message, 'Error', '❌');
+    }
+}
+
 // ✅ NEW FUNCTION: Update order totals
 async function updateOrderTotals(orderId, paymentMethod, discountType, discountPercent) {
     const response = await fetch('/Staff/UpdateOrderTotals', {
@@ -3094,50 +3387,162 @@ async function updateOrderTotals(orderId, paymentMethod, discountType, discountP
 // ============================================================
         // VOID FROM RECEIPT — quick void transaction before blending
         // ============================================================
-      async function voidFromReceipt() {
+   async function voidFromReceipt() {
     const orderId = window.currentOrderId;
-    if (!orderId) { 
-        await showAlert('No order found.', 'Error');
-        return; 
+    if (!orderId) {
+        await showAlert('No order found.', 'Error', '❌');
+        return;
     }
-
-    document.getElementById('voidReasonModal').style.display = 'flex';
+    
+    // Get order details first to show amount
+    let orderTotal = 0;
+    try {
+        const orderResponse = await fetch(`/VoidRefund/GetOrderDetails?orderId=${orderId}`);
+        const orderData = await orderResponse.json();
+        if (orderData.success && orderData.order) {
+            orderTotal = orderData.order.totalAmount || 0;
+        }
+    } catch (e) {
+        console.error('Error getting order details:', e);
+    }
+    
+    // Show custom modal for reason
+    const modalHtml = `
+        <div id="voidTransactionModal" class="modal-qty" style="display: flex; z-index: 10050;">
+            <div class="modal-qty-content" style="width: 380px; max-width: 90%; border-radius: 16px; padding: 0;">
+                <div style="background: #dc3545; color: white; padding: 15px 20px; border-radius: 16px 16px 0 0;">
+                    <h3 style="margin: 0; font-size: 18px;">
+                        <i class="fas fa-trash-alt"></i> Void Entire Transaction
+                    </h3>
+                </div>
+                <div style="padding: 20px;">
+                    <p style="margin-bottom: 15px;">
+                        ⚠️ This will void the ENTIRE order and refund 
+                        <strong>₱${orderTotal.toFixed(2)}</strong> to customer.
+                    </p>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Reason for Void:</label>
+                        <select id="voidTransReason" class="form-control" style="width: 100%; padding: 8px; border-radius: 8px;">
+                            <option value="">-- Select Reason --</option>
+                            <option value="Customer changed mind">Customer changed mind</option>
+                            <option value="Wrong order entered">Wrong order entered</option>
+                            <option value="Duplicate order">Duplicate order</option>
+                            <option value="Price adjustment">Price adjustment</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <input type="text" id="voidTransOtherReason" class="form-control" style="margin-top: 8px; display: none; width: 100%; padding: 8px; border-radius: 8px;" placeholder="Please specify...">
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 20px;">
+                        <button id="cancelVoidTransBtn" class="btn-cancel" style="flex: 1; padding: 10px; border-radius: 8px; cursor: pointer; background: #6c757d; color: white; border: none;">Cancel</button>
+                        <button id="confirmVoidTransBtn" class="btn-confirm" style="flex: 1; padding: 10px; border-radius: 8px; cursor: pointer; background: #dc3545; color: white; border: none;">Confirm Void</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('voidTransactionModal');
+    if (existingModal) existingModal.remove();
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Handle reason dropdown
+    const reasonSelect = document.getElementById('voidTransReason');
+    const otherReasonInput = document.getElementById('voidTransOtherReason');
+    
+    reasonSelect.addEventListener('change', function() {
+        otherReasonInput.style.display = this.value === 'Other' ? 'block' : 'none';
+    });
+    
+    // Cancel button
+    document.getElementById('cancelVoidTransBtn').onclick = () => {
+        document.getElementById('voidTransactionModal').remove();
+    };
+    
+    // Confirm button
+    document.getElementById('confirmVoidTransBtn').onclick = async () => {
+        let reason = reasonSelect.value;
+        if (reason === 'Other') {
+            reason = otherReasonInput.value;
+            if (!reason) {
+                await showAlert('Please specify the reason', 'Required', '⚠️');
+                return;
+            }
+        }
+        
+        if (!reason) {
+            await showAlert('Please select a reason', 'Required', '⚠️');
+            return;
+        }
+        
+        document.getElementById('voidTransactionModal').remove();
+        
+        showLoading('Processing void...');
+        
+        const token = getToken();
+        
+        try {
+            const response = await fetch('/VoidRefund/VoidTransaction', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'RequestVerificationToken': token 
+                },
+                body: JSON.stringify({ 
+                    orderId: orderId, 
+                    reason: reason 
+                })
+            });
+            
+            const data = await response.json();
+            hideLoading();
+            
+            if (data.requiresOwner) {
+                await showAlert(data.message, 'Owner Approval Required', '⚠️');
+                return;
+            }
+            
+            if (data.success) {
+                // ✅ Use the detailed receipt with refund display
+                await showUpdatedReceiptAfterVoid(
+                    orderId,
+                    data.refundAmount,
+                    0,
+                    false,
+                    true
+                );
+                
+                await showAlert(
+                    `✅ Transaction voided!\n\n💰 Full Refund: ₱${data.refundAmount.toFixed(2)}`,
+                    'Void Successful',
+                    '✅'
+                );
+                
+                // Refresh order queue
+                await loadOrderQueue();
+                
+                // Close the void/refund modal if open
+                closeVoidRefundModal();
+                
+            } else {
+                await showAlert('Error: ' + data.message, 'Error', '❌');
+            }
+        } catch (error) {
+            hideLoading();
+            await showAlert('Error: ' + error.message, 'Error', '❌');
+        }
+    };
 }
+
+
 
 async function submitVoidFromReceipt() {
-    const reason = document.getElementById('voidReasonInput').value.trim();
-    if (!reason) { 
-        await showAlert('Please provide a reason.', 'Required', '⚠️');
-        return; 
-    }
-
-    document.getElementById('voidReasonModal').style.display = 'none';
-    showLoading('Voiding transaction...');
-
-    try {
-        const response = await fetch('/VoidRefund/VoidTransaction', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() },
-            body: JSON.stringify({ orderId: window.currentOrderId, reason: reason })
-        });
-        const data = await response.json();
-        hideLoading();
-        
-       if (data.requiresOwner) {
-    await showAlert( data.message, 'Owner Approval');
-    return;
-}
-
-if (data.success) {
-    await showAlert('Item removed from order. Inventory returned.', 'Success', '✅');
-    await loadOrderReceipt(orderId);
-} else {
-    await showAlert('Error: ' + data.message, 'Error', '❌');
-}
-    } catch (error) {
-        hideLoading();
-        await showAlert('Error: ' + error.message, 'Error', '❌');
-    }
+    // This function is now handled by the modal above
+    // Keep for compatibility but redirect to voidFromReceipt
+    await voidFromReceipt();
 }
 
 // ============================================================
@@ -3190,13 +3595,13 @@ if (data.success) {
         // ============================================================
         // VOID / REFUND PANEL (Return/Refund button — for after blending)
         // ============================================================
-        function showVoidRefundPanel() {
-    console.log('Opening Void/Refund panel...');
+       function showVoidRefundPanel() {
+    console.log('Opening Refund/Exchange panel...');
     const modal = document.getElementById('voidRefundModal');
     if (modal) {
         modal.style.display = 'flex';
-        // Load default tab (Void)
-        switchVoidTab('void');
+        // Load default tab (Refund instead of Void)
+        switchVoidTab('refund');
     } else {
         console.error('voidRefundModal element not found');
     }
@@ -3207,46 +3612,38 @@ if (data.success) {
         }
         function closeOwnerApprovalModal() { document.getElementById('ownerApprovalModal').style.display = 'none'; }
 
-        function switchVoidTab(tab) {
-    const voidTab = document.getElementById('voidTabContent');
+function switchVoidTab(tab) {
     const refundTab = document.getElementById('refundTabContent');
     const exchangeTab = document.getElementById('exchangeTabContent');
-    const voidBtn = document.getElementById('voidTabBtn');
     const refundBtn = document.getElementById('refundTabBtn');
     const exchangeBtn = document.getElementById('exchangeTabBtn');
     
-    if (tab === 'void') {
-        voidTab.style.display = 'block';
-        refundTab.style.display = 'none';
-        exchangeTab.style.display = 'none';
-        voidBtn.style.background = '#dc3545';
-        voidBtn.style.color = 'white';
-        refundBtn.style.background = '#e9ecef';
-        refundBtn.style.color = '#333';
-        exchangeBtn.style.background = '#e9ecef';
-        exchangeBtn.style.color = '#333';
-        loadPendingOrdersForVoid();
-    } else if (tab === 'refund') {
-        voidTab.style.display = 'none';
+    if (tab === 'refund') {
+        // Show refund tab, hide exchange tab
         refundTab.style.display = 'block';
         exchangeTab.style.display = 'none';
-        voidBtn.style.background = '#e9ecef';
-        voidBtn.style.color = '#333';
+        
+        // Update button styles
         refundBtn.style.background = '#007bff';
         refundBtn.style.color = 'white';
         exchangeBtn.style.background = '#e9ecef';
         exchangeBtn.style.color = '#333';
+        
+        // Load data
         loadCompletedOrdersForRefund();
+        
     } else if (tab === 'exchange') {
-        voidTab.style.display = 'none';
+        // Hide refund tab, show exchange tab
         refundTab.style.display = 'none';
         exchangeTab.style.display = 'block';
-        voidBtn.style.background = '#e9ecef';
-        voidBtn.style.color = '#333';
+        
+        // Update button styles
         refundBtn.style.background = '#e9ecef';
         refundBtn.style.color = '#333';
         exchangeBtn.style.background = '#17a2b8';
         exchangeBtn.style.color = 'white';
+        
+        // Load data
         loadCompletedOrdersForExchange();
     }
 }
@@ -3401,14 +3798,11 @@ if (data.success) {
     }
 }
 
-     async function loadVoidOrderItems() {
+ async function loadVoidOrderItems() {
     const orderId = document.getElementById('voidOrderSelect').value;
     if (!orderId) {
-        // ✅ CLEAR THE CONTAINER KUNG WALANG ORDER
         const container = document.getElementById('voidOrderItems');
-        if (container) {
-            container.innerHTML = '';
-        }
+        if (container) container.innerHTML = '';
         return;
     }
     
@@ -3530,7 +3924,7 @@ function toggleSelectAllVoid() {
             document.getElementById('ownerApprovalModal').style.display = 'block';
         }
 
-        async function processVoidItem() {
+       async function processVoidItem() {
     // ✅ CHECK MUNA KUNG MAY NAPILING ORDER
     const orderSelect = document.getElementById('voidOrderSelect');
     const selectedOrderId = orderSelect ? orderSelect.value : null;
@@ -3555,22 +3949,26 @@ function toggleSelectAllVoid() {
         return; 
     }
     
-    // ✅ CONFIRMATION DIALOG
-    const confirmed = await showConfirm(
-        `⚠️ VOID SELECTED ITEMS\n\n` +
-        `You selected ${selectedItems.length} item(s) to void.\n\n` +
-        `This action cannot be undone.\n\n` +
-        `Continue?`,
-        'Confirm Void Items'
-    );
+    // ✅ CONFIRMATION DIALOG WITH REFUND INFO
+    let confirmMessage = `⚠️ VOID SELECTED ITEMS\n\n`;
+    confirmMessage += `You selected ${selectedItems.length} item(s) to void.\n\n`;
+    confirmMessage += `📌 CASH REFUND will be given to customer.\n\n`;
+    confirmMessage += `This action cannot be undone.\n\nContinue?`;
     
+    const confirmed = await showConfirm(confirmMessage, 'Confirm Void Items');
     if (!confirmed) return;
     
     showLoading('Processing void request...');
     
     const token = getToken();
+    let totalRefund = 0;
+    let lastOrderId = null;
+    let lastNewTotal = 0;
+    let lastIsPartialRefund = false;
+    let lastIsFullRefund = false;
     
     try {
+        // Process each selected item
         for (let checkbox of selectedItems) {
             const response = await fetch('/VoidRefund/VoidItem', {
                 method: 'POST',
@@ -3583,6 +3981,7 @@ function toggleSelectAllVoid() {
                     reason: reason 
                 })
             });
+            
             const data = await response.json();
             
             if (data.requiresOwner) { 
@@ -3596,18 +3995,43 @@ function toggleSelectAllVoid() {
                 await showAlert(data.message, 'Error', '❌');
                 return; 
             }
+            
+            totalRefund += data.refundAmount;
+            lastOrderId = currentVoidOrderId;
+            lastNewTotal = data.newOrderTotal;
+            lastIsPartialRefund = data.isPartialRefund;
+            lastIsFullRefund = data.isFullRefund;
         }
         
         hideLoading();
-        await showAlert('✅ Item(s) voided successfully', 'Success', '✅');
         
-        // ✅ RELOAD THE ORDER ITEMS (para ma-refresh ang listahan)
+        // ✅ Show updated receipt ONCE after all items are processed
+        if (totalRefund > 0 && lastOrderId) {
+            await showUpdatedReceiptAfterVoid(
+                lastOrderId,
+                totalRefund,
+                lastNewTotal,
+                lastIsPartialRefund,
+                lastIsFullRefund
+            );
+        }
+        
+        // Show refund summary
+        await showAlert(
+            `✅ ${selectedItems.length} item(s) voided successfully!\n\n` +
+            `💰 Cash Refund to Customer: ₱${totalRefund.toFixed(2)}\n\n` +
+            `The receipt has been updated.`,
+            'Void Successful',
+            '✅'
+        );
+        
+        // RELOAD THE ORDER ITEMS
         await loadVoidOrderItems();
         
-        // ✅ REFRESH PENDING ORDERS
+        // REFRESH PENDING ORDERS
         await loadPendingOrdersForVoid();
         
-        // ✅ REFRESH ORDER QUEUE SA POS
+        // REFRESH ORDER QUEUE
         await loadOrderQueue();
         
     } catch (error) {
@@ -3616,7 +4040,8 @@ function toggleSelectAllVoid() {
         await showAlert('Error: ' + error.message, 'Error', '❌');
     }
 }
-       async function processVoidTransaction() {
+
+async function processVoidTransaction() {
     // ✅ CHECK MUNA KUNG MAY NAPILING ORDER
     const orderSelect = document.getElementById('voidOrderSelect');
     const selectedOrderId = orderSelect ? orderSelect.value : null;
@@ -3639,11 +4064,24 @@ function toggleSelectAllVoid() {
         return; 
     }
     
-    // ✅ CONFIRMATION DIALOG
+    // ✅ Get order details first to show refund amount
+    let orderTotal = 0;
+    try {
+        const orderResponse = await fetch(`/VoidRefund/GetOrderDetails?orderId=${currentVoidOrderId}`);
+        const orderData = await orderResponse.json();
+        if (orderData.success && orderData.order) {
+            orderTotal = orderData.order.totalAmount || 0;
+        }
+    } catch (e) {
+        console.error('Error getting order details:', e);
+    }
+    
+    // ✅ CONFIRMATION DIALOG WITH REFUND AMOUNT
     const confirmed = await showConfirm(
         `⚠️ VOID ENTIRE TRANSACTION\n\n` +
-        `Order #${currentVoidOrderId}\n\n` +
-        `This will void ALL items in this order.\n` +
+        `Order #${currentVoidOrderId}\n` +
+        `Total Amount: ₱${orderTotal.toFixed(2)}\n\n` +
+        `💰 FULL CASH REFUND of ₱${orderTotal.toFixed(2)} will be given to customer.\n\n` +
         `This action cannot be undone.\n\n` +
         `Continue?`,
         'Confirm Void Transaction'
@@ -3677,7 +4115,22 @@ function toggleSelectAllVoid() {
         }
         
         if (data.success) {
-            await showAlert(data.message, 'Success', '✅');
+            // ✅ Show updated receipt with full refund
+            await showUpdatedReceiptAfterVoid(
+                currentVoidOrderId,
+                data.refundAmount,
+                0,
+                false,
+                true
+            );
+            
+            await showAlert(
+                `✅ Transaction voided successfully!\n\n` +
+                `💰 Cash Refund to Customer: ₱${data.refundAmount.toFixed(2)}\n\n` +
+                `The receipt has been updated.`,
+                'Void Successful',
+                '✅'
+            );
             
             // ✅ RESET THE SELECT DROPDOWN
             if (orderSelect) {
@@ -3696,6 +4149,9 @@ function toggleSelectAllVoid() {
             // ✅ REFRESH ORDER QUEUE SA POS
             await loadOrderQueue();
             
+            // ✅ Close the void/refund modal
+            closeVoidRefundModal();
+            
         } else {
             await showAlert('Error: ' + data.message, 'Error', '❌');
         }
@@ -3703,6 +4159,195 @@ function toggleSelectAllVoid() {
         hideLoading();
         console.error('Error voiding transaction:', error);
         await showAlert('Error: ' + error.message, 'Error', '❌');
+    }
+}
+
+async function showUpdatedReceiptAfterVoid(orderId, refundAmount, newTotal, isPartialRefund, isFullRefund) {
+    try {
+        const response = await fetch(`/VoidRefund/GetOrderDetails?orderId=${orderId}`);
+        const data = await response.json();
+        
+        if (!data.success || !data.order) {
+            console.error('Failed to load updated order details');
+            return;
+        }
+        
+        const order = data.order;
+        const now = new Date();
+        
+        // ✅ FORCE status to PENDING_BLENDING if there are active items
+        const hasActiveItems = order.items.some(item => !item.isVoided && !item.isRefunded);
+        const displayStatus = hasActiveItems ? 'PENDING_BLENDING' : 'VOIDED';
+        
+        // Get active items only (not voided)
+        const activeItems = order.items.filter(item => !item.isVoided && !item.isRefunded);
+        
+        // Get voided items
+        const voidedItems = order.items.filter(item => item.isVoided);
+        
+        // Compute original total (sum of all items including voided)
+        let originalTotal = 0;
+        order.items.forEach(item => {
+            originalTotal += item.price * item.quantity;
+        });
+        
+        // Build active items HTML
+        let activeItemsHtml = '';
+        activeItems.forEach(item => {
+            const subtotal = item.price * item.quantity;
+            activeItemsHtml += `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <div>
+                        <strong>${escapeHtml(item.productName)}</strong><br>
+                        <small>${item.sizeName} × ${item.quantity}</small>
+                    </div>
+                    <div>₱${subtotal.toFixed(2)}</div>
+                </div>`;
+        });
+        
+        // Build voided items HTML
+        let voidedItemsHtml = '';
+        if (voidedItems.length > 0 && !isFullRefund) {
+            voidedItems.forEach(item => {
+                const subtotal = item.price * item.quantity;
+                voidedItemsHtml += `
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px; color: #dc3545;">
+                        <div>
+                            <strong>✕ ${escapeHtml(item.productName)}</strong><br>
+                            <small>${item.sizeName} × ${item.quantity}</small>
+                        </div>
+                        <div>-₱${subtotal.toFixed(2)}</div>
+                    </div>`;
+            });
+        }
+        
+        // Build refund section HTML
+        let refundHtml = '';
+        if (isFullRefund) {
+            refundHtml = `
+                <div style="background: #fff3cd; padding: 12px; border-radius: 8px; margin: 10px 0;">
+                    <div style="display: flex; justify-content: space-between; color: #856404;">
+                        <span><strong>💰 FULL REFUND</strong></span>
+                        <span><strong>₱${refundAmount.toFixed(2)}</strong></span>
+                    </div>
+                    <div style="font-size: 13px; margin-top: 8px; font-weight: bold;">
+                        Cash Back to Customer: ₱${refundAmount.toFixed(2)}
+                    </div>
+                </div>`;
+        } else if (refundAmount > 0 && newTotal > 0) {
+            refundHtml = `
+                <div style="background: #e8f5e9; padding: 12px; border-radius: 8px; margin: 10px 0;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span>Previous Payment:</span>
+                        <span>₱${originalTotal.toFixed(2)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; color: #dc3545; margin-bottom: 8px;">
+                        <span>Refund:</span>
+                        <span>-₱${refundAmount.toFixed(2)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1px dashed #ccc; padding-top: 8px; color: #28a745;">
+                        <span>Cash Back to Customer:</span>
+                        <span>₱${refundAmount.toFixed(2)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 8px;">
+                        <span>New Total Payable:</span>
+                        <span>₱${newTotal.toFixed(2)}</span>
+                    </div>
+                </div>`;
+        }
+        
+        // Determine status badge
+        let badgeClass = 'bg-warning';
+        let statusText = '⏳ PAID - WAITING BLENDING';
+        
+        if (isFullRefund) {
+            badgeClass = 'bg-danger';
+            statusText = '❌ VOIDED';
+        } else if (displayStatus === 'COMPLETED') {
+            badgeClass = 'bg-success';
+            statusText = '✅ COMPLETED';
+        }
+        
+        // Update the receipt modal content
+        const receiptDiv = document.getElementById('receiptContent');
+        receiptDiv.innerHTML = `
+            <div style="text-align:center; margin-bottom: 12px;">
+                <div style="font-weight:600; font-size: 16px;">Neldie's Mango & More</div>
+                <div style="font-size: 12px; color: #888;">${now.toLocaleDateString()} ${now.toLocaleTimeString()}</div>
+                <div style="font-size: 13px; font-weight: bold; margin-top: 5px;">Receipt #: ${order.orderId}</div>
+                <div style="font-size: 12px; color: #17a2b8;">Order #: ${order.orderNumber || order.orderId}</div>
+            </div>
+            <hr style="margin: 8px 0;">
+            
+            <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                <strong style="font-size: 14px;">Order Summary</strong>
+                <span class="badge ${badgeClass} text-dark" style="font-size: 10px; padding: 2px 8px;">
+                    ${statusText}
+                </span>
+            </div>
+            
+            ${voidedItemsHtml.length > 0 ? `
+                <div style="margin: 10px 0;">
+                    <strong style="color: #dc3545;">✕ VOIDED ITEMS:</strong>
+                </div>
+                ${voidedItemsHtml}
+                <hr>
+            ` : ''}
+            
+            <div style="margin-bottom: 8px;">
+                <strong>ACTIVE ITEMS:</strong>
+            </div>
+            ${activeItemsHtml}
+            <hr>
+            
+            ${refundHtml}
+            
+            <div style="margin-top: 12px; padding: 10px; background: #f9f9f9; border-radius: 8px;">
+                <div>Payment: <strong>${order.paymentMethod || 'Cash'}</strong></div>
+                <div style="margin-top: 4px; color: ${isFullRefund ? '#dc3545' : '#28a745'};">
+                    ${isFullRefund ? '✅ Order VOIDED - Full Refund Given' : (refundAmount > 0 ? '⚠️ Order Updated - Partial Refund Given' : '✅ Payment Received')}
+                </div>
+            </div>
+            <hr>
+            <div style="text-align: center; font-size: 12px; color: #aaa;">
+                Thank you for your purchase!
+            </div>
+        `;
+        
+        // Update action buttons
+        const actionArea = document.getElementById('receiptActionArea');
+        const startBtn = document.getElementById('startBlendingBtn');
+        const voidBtn = document.getElementById('voidReceiptBtn');
+        const voidItemBtn = document.getElementById('voidItemReceiptBtn');
+        
+        if (actionArea) actionArea.style.display = 'flex';
+        
+        if (startBtn) {
+            if (isFullRefund || newTotal === 0) {
+                startBtn.disabled = true;
+                startBtn.innerHTML = '❌ Order Voided - No Blending';
+                startBtn.style.background = '#6c757d';
+            } else {
+                startBtn.disabled = false;
+                startBtn.innerHTML = '🥤 START BLENDING (Deduct Ingredients)';
+                startBtn.style.background = '#ffc107';
+                startBtn.style.color = '#212529';
+            }
+        }
+        
+        // Show void buttons only if not fully voided
+        if (voidBtn) voidBtn.style.display = isFullRefund ? 'none' : 'block';
+        if (voidItemBtn) voidItemBtn.style.display = isFullRefund ? 'none' : 'block';
+        
+        // Show the receipt modal
+        document.getElementById('receiptModal').style.display = 'flex';
+        
+        // Refresh order queue
+        await loadOrderQueue();
+        
+    } catch (error) {
+        console.error('Error updating receipt after void:', error);
+        await showAlert('Error updating receipt: ' + error.message, 'Error', '❌');
     }
 }
 

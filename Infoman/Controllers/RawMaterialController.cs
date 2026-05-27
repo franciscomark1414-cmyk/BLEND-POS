@@ -50,9 +50,7 @@ namespace Infoman.Controllers
         {
             System.Diagnostics.Debug.WriteLine($"=== CREATE RAW MATERIAL ===");
             System.Diagnostics.Debug.WriteLine($"MinQty from form: {material.MinQty}");
-            System.Diagnostics.Debug.WriteLine($"MinQty type: {material.MinQty.GetType()}");
             System.Diagnostics.Debug.WriteLine($"Unit: {material.Unit}");
-            System.Diagnostics.Debug.WriteLine($"BaseUnit: {material.BaseUnit}");
 
             ModelState.Remove("ExpirationDate");
 
@@ -65,12 +63,18 @@ namespace Infoman.Controllers
             {
                 SetConversionFields(material);
 
-                // ✅ I-SAVE ANG MINQTY SA BASE UNIT (grams/mL)
-                decimal minQtyInBaseUnit = ConvertToBaseUnit(material.MinQty, material.Unit, material.BaseUnit);
-                material.MinQty = minQtyInBaseUnit;              // ← ITO ANG KULANG!
-                material.MinQtyInBaseUnit = minQtyInBaseUnit;
+                // ✅ SAVE the original display unit value in MinQty
+                decimal displayMinQty = material.MinQty;  // User input (e.g., 10 kg)
 
-                System.Diagnostics.Debug.WriteLine($"Converted MinQty: {material.MinQty} {material.BaseUnit}");
+                // ✅ Convert to base unit for MinQtyInBaseUnit
+                decimal minQtyInBaseUnit = ConvertToBaseUnit(displayMinQty, material.Unit, material.BaseUnit);
+
+                // ✅ STORE: MinQty keeps display unit, MinQtyInBaseUnit stores base unit
+                material.MinQty = displayMinQty;              // ✅ Keep as display unit (10)
+                material.MinQtyInBaseUnit = minQtyInBaseUnit; // ✅ Store base unit (10000)
+
+                System.Diagnostics.Debug.WriteLine($"Display MinQty: {material.MinQty} {material.Unit}");
+                System.Diagnostics.Debug.WriteLine($"Base MinQty: {material.MinQtyInBaseUnit} {material.BaseUnit}");
 
                 if (material.ExpirationDate == DateTime.MinValue)
                     material.ExpirationDate = null;
@@ -79,7 +83,7 @@ namespace Infoman.Controllers
                     material.SKU = GenerateRawMaterialSKU(material.Name);
 
                 material.IsDeleted = false;
-                material.Stock = 0;  // ✅ INITIAL STOCK = 0
+                material.Stock = 0;
 
                 _context.Add(material);
                 await _context.SaveChangesAsync();
@@ -434,105 +438,105 @@ namespace Infoman.Controllers
             public DateTime? ExpiryDate { get; set; }
         }
 
-        [HttpPost]
-        public async Task<JsonResult> AddDelivery([FromBody] AddDeliveryRequest request)
-        {
-            var rawMaterial = await _context.RawMaterials.FindAsync(request.RawMaterialId);
-            if (rawMaterial == null)
-                return Json(new { success = false, message = "Raw material not found" });
-
-            // ✅ CHECK IF EXPIRY DATE IS EXPIRED
-            bool isExpired = false;
-            string warningMessage = null;
-
-            if (request.ExpiryDate.HasValue)
+            [HttpPost]
+            public async Task<JsonResult> AddDelivery([FromBody] AddDeliveryRequest request)
             {
-                if (request.ExpiryDate.Value.Date < DateTime.Today)
+                var rawMaterial = await _context.RawMaterials.FindAsync(request.RawMaterialId);
+                if (rawMaterial == null)
+                    return Json(new { success = false, message = "Raw material not found" });
+
+                // ✅ CHECK IF EXPIRY DATE IS EXPIRED
+                bool isExpired = false;
+                string warningMessage = null;
+
+                if (request.ExpiryDate.HasValue)
                 {
-                    isExpired = true;
-                    warningMessage = $"WARNING: The expiry date ({request.ExpiryDate.Value:yyyy-MM-dd}) is already EXPIRED!";
+                    if (request.ExpiryDate.Value.Date < DateTime.Today)
+                    {
+                        isExpired = true;
+                        warningMessage = $"WARNING: The expiry date ({request.ExpiryDate.Value:yyyy-MM-dd}) is already EXPIRED!";
+                    }
+                    else if (request.ExpiryDate.Value.Date <= DateTime.Today.AddDays(7))
+                    {
+                        warningMessage = $"NOTE: The expiry date ({request.ExpiryDate.Value:yyyy-MM-dd}) is within 7 days. This material will expire soon.";
+                    }
                 }
-                else if (request.ExpiryDate.Value.Date <= DateTime.Today.AddDays(7))
+
+                // ✅ I-DEBUG ITO (ilagay sa simula)
+                System.Diagnostics.Debug.WriteLine($"=== ADD DELIVERY DEBUG ===");
+                System.Diagnostics.Debug.WriteLine($"RawMaterial: {rawMaterial?.Name}");
+                System.Diagnostics.Debug.WriteLine($"RawMaterial.Unit: {rawMaterial?.Unit}");
+                System.Diagnostics.Debug.WriteLine($"RawMaterial.BaseUnit: {rawMaterial?.BaseUnit}");
+                System.Diagnostics.Debug.WriteLine($"Request.Quantity: {request.Quantity}");
+                System.Diagnostics.Debug.WriteLine($"Request.Unit: {request.Unit}");
+                System.Diagnostics.Debug.WriteLine($"ExpiryDate: {request.ExpiryDate}");
+                System.Diagnostics.Debug.WriteLine($"IsExpired: {isExpired}");
+                System.Diagnostics.Debug.WriteLine($"WarningMessage: {warningMessage}");
+
+                decimal quantityInBaseUnit = request.Quantity;
+
+                // Conversion
+                if (rawMaterial.BaseUnit == "g" && request.Unit == "kg")
                 {
-                    warningMessage = $"NOTE: The expiry date ({request.ExpiryDate.Value:yyyy-MM-dd}) is within 7 days. This material will expire soon.";
+                    quantityInBaseUnit = request.Quantity * 1000;
+                    System.Diagnostics.Debug.WriteLine($"Converted: {request.Quantity} kg → {quantityInBaseUnit} g");
                 }
-            }
+                else if (rawMaterial.BaseUnit == "mL" && request.Unit == "L")
+                {
+                    quantityInBaseUnit = request.Quantity * 1000;
+                    System.Diagnostics.Debug.WriteLine($"Converted: {request.Quantity} L → {quantityInBaseUnit} mL");
+                }
 
-            // ✅ I-DEBUG ITO (ilagay sa simula)
-            System.Diagnostics.Debug.WriteLine($"=== ADD DELIVERY DEBUG ===");
-            System.Diagnostics.Debug.WriteLine($"RawMaterial: {rawMaterial?.Name}");
-            System.Diagnostics.Debug.WriteLine($"RawMaterial.Unit: {rawMaterial?.Unit}");
-            System.Diagnostics.Debug.WriteLine($"RawMaterial.BaseUnit: {rawMaterial?.BaseUnit}");
-            System.Diagnostics.Debug.WriteLine($"Request.Quantity: {request.Quantity}");
-            System.Diagnostics.Debug.WriteLine($"Request.Unit: {request.Unit}");
-            System.Diagnostics.Debug.WriteLine($"ExpiryDate: {request.ExpiryDate}");
-            System.Diagnostics.Debug.WriteLine($"IsExpired: {isExpired}");
-            System.Diagnostics.Debug.WriteLine($"WarningMessage: {warningMessage}");
-
-            decimal quantityInBaseUnit = request.Quantity;
-
-            // Conversion
-            if (rawMaterial.BaseUnit == "g" && request.Unit == "kg")
-            {
-                quantityInBaseUnit = request.Quantity * 1000;
-                System.Diagnostics.Debug.WriteLine($"Converted: {request.Quantity} kg → {quantityInBaseUnit} g");
-            }
-            else if (rawMaterial.BaseUnit == "mL" && request.Unit == "L")
-            {
-                quantityInBaseUnit = request.Quantity * 1000;
-                System.Diagnostics.Debug.WriteLine($"Converted: {request.Quantity} L → {quantityInBaseUnit} mL");
-            }
-
-            var batch = new RawMaterialBatch
-            {
-                RawMaterialId = request.RawMaterialId,
-                QuantityReceived = quantityInBaseUnit,
-                QuantityRemaining = quantityInBaseUnit,
-                ReceivedDate = DateTime.Now,
-                ExpiryDate = request.ExpiryDate,
-                UnitPrice = request.UnitPrice
-            };
-
-            _context.RawMaterialBatches.Add(batch);
-            await _context.SaveChangesAsync();
-
-            // ✅ IF EXPIRED, AUTO-CREATE WASTE LOG
-            // ✅ IF EXPIRED, AUTO-CREATE WASTE LOG
-            if (isExpired)
-            {
-                // Compute total cost first
-                decimal totalCost = request.Quantity * request.UnitPrice;
-
-                var wasteLog = new WasteLog
+                var batch = new RawMaterialBatch
                 {
                     RawMaterialId = request.RawMaterialId,
-                    Quantity = request.Quantity,
-                    Reason = WasteReason.Expired,
-                    Date = DateTime.Now,
-                    RecordedBy = "System",
-                    Notes = $"Auto-generated from expired batch received on {DateTime.Now:yyyy-MM-dd HH:mm}",
-                    TotalCost = totalCost,
+                    QuantityReceived = quantityInBaseUnit,
+                    QuantityRemaining = quantityInBaseUnit,
+                    ReceivedDate = DateTime.Now,
                     ExpiryDate = request.ExpiryDate,
-                    BatchId = batch.BatchId
+                    UnitPrice = request.UnitPrice
                 };
-                _context.WasteLogs.Add(wasteLog);
 
-                // Set remaining to 0 since it's expired
-                batch.QuantityRemaining = 0;
-
+                _context.RawMaterialBatches.Add(batch);
                 await _context.SaveChangesAsync();
+
+                // ✅ IF EXPIRED, AUTO-CREATE WASTE LOG
+                // ✅ IF EXPIRED, AUTO-CREATE WASTE LOG
+                if (isExpired)
+                {
+                    // Compute total cost first
+                    decimal totalCost = request.Quantity * request.UnitPrice;
+
+                    var wasteLog = new WasteLog
+                    {
+                        RawMaterialId = request.RawMaterialId,
+                        Quantity = request.Quantity,
+                        Reason = WasteReason.Expired,
+                        Date = DateTime.Now,
+                        RecordedBy = "System",
+                        Notes = $"Auto-generated from expired batch received on {DateTime.Now:yyyy-MM-dd HH:mm}",
+                        TotalCost = totalCost,
+                        ExpiryDate = request.ExpiryDate,
+                        BatchId = batch.BatchId
+                    };
+                    _context.WasteLogs.Add(wasteLog);
+
+                    // Set remaining to 0 since it's expired
+                    batch.QuantityRemaining = 0;
+
+                    await _context.SaveChangesAsync();
+                }
+
+                // I-update ang main Stock column
+                await UpdateMainStockColumn(request.RawMaterialId);
+                await UpdateProductPricesForRawMaterial(request.RawMaterialId);
+
+                string successMessage = isExpired
+                    ? $"Delivery added but marked as EXPIRED and logged as waste. {warningMessage}"
+                    : (warningMessage != null ? $"Delivery added successfully. {warningMessage}" : "Delivery added successfully!");
+
+                return Json(new { success = true, message = successMessage, isExpired = isExpired, warning = warningMessage });
             }
-
-            // I-update ang main Stock column
-            await UpdateMainStockColumn(request.RawMaterialId);
-            await UpdateProductPricesForRawMaterial(request.RawMaterialId);
-
-            string successMessage = isExpired
-                ? $"Delivery added but marked as EXPIRED and logged as waste. {warningMessage}"
-                : (warningMessage != null ? $"Delivery added successfully. {warningMessage}" : "Delivery added successfully!");
-
-            return Json(new { success = true, message = successMessage, isExpired = isExpired, warning = warningMessage });
-        }
 
         private async Task UpdateMainStockColumn(int rawMaterialId)
         {

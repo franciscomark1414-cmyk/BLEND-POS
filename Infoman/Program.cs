@@ -1,5 +1,6 @@
 using Infoman.Data;
 using Microsoft.EntityFrameworkCore;
+using Infoman.Service;
 using Infoman.Filters;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -25,6 +26,13 @@ builder.Services.AddSession(options =>
 
 builder.Services.AddScoped<OwnerAuthorizationFilter>();
 builder.Services.AddScoped<StaffAuthorizationFilter>();
+
+// ========== REGISTER CUSTOM SERVICES ==========
+builder.Services.AddScoped<FIFOService>();
+builder.Services.AddScoped<VoidRefundService>();
+builder.Services.AddScoped<RefundService>();
+builder.Services.AddScoped<ExchangeService>();
+// ==============================================
 
 var app = builder.Build();
 

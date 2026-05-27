@@ -65,6 +65,8 @@ public class Order
     // ✅ ADD THIS - Navigation property for Staff
     [ForeignKey("StaffUserId")]
     public virtual User? Staff { get; set; }
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal TotalRefundAmount { get; set; } = 0;
 
     [NotMapped]
     public decimal NetRevenue
@@ -72,7 +74,9 @@ public class Order
         get
         {
             if (Status == "VOIDED" || Status == "REFUNDED" || Status == "EXCHANGED")
-                return 0;
+                // ✅ Include PENDING_BLENDING as valid for revenue
+                if (Status != "COMPLETED" && Status != "PENDING_BLENDING")
+            return 0;
 
             decimal netRevenue = OriginalTotalAmount;
 

@@ -1,9 +1,10 @@
 ﻿using Infoman.Data;
+using Infoman.Models;
 using Infoman.Service;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
-using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Infoman.Controllers
@@ -12,155 +13,230 @@ namespace Infoman.Controllers
     {
         private readonly ConnectionDatabase _db;
         private readonly VoidRefundService _voidRefundService;
-        private readonly RefundService _refundService;  // ✅ ADD THIS
 
-        public VoidRefundController(ConnectionDatabase db)
+        public VoidRefundController(ConnectionDatabase db, VoidRefundService voidRefundService)
         {
             _db = db;
-            _voidRefundService = new VoidRefundService(_db);
-            _refundService = new RefundService(_db);  // ✅ ADD THIS
+            _voidRefundService = voidRefundService;
         }
+
+        // GET: VoidRefund/GetOrderDetails?orderId=5
+        [HttpGet]
+        public async Task<IActionResult> GetOrderDetails(int orderId)
+        {
+            try
+            {
+                var orderDetails = await _voidRefundService.GetOrderDetails(orderId);
+                if (orderDetails == null)
+                    return Json(new { success = false, message = "Order not found" });
+
+                return Json(new { success = true, order = orderDetails });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        // GET: VoidRefund/GetPendingOrders
+        [HttpGet]
+        public async Task<IActionResult> GetPendingOrders(DateTime? date)
+        {
+            try
+            {
+                var targetDate = date ?? DateTime.Today;
+                var orders = await _voidRefundService.GetPendingOrdersByDate(targetDate);
+                return Json(orders);
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        // GET: VoidRefund/GetCompletedOrders
+        [HttpGet]
+        public async Task<IActionResult> GetCompletedOrders(DateTime? date)
+        {
+            try
+            {
+                var targetDate = date ?? DateTime.Today;
+                var orders = await _voidRefundService.GetCompletedOrdersByDate(targetDate);
+                return Json(orders);
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        // POST: VoidRefund/VoidItem
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> VoidItem([FromBody] VoidItemRequest request)
+        {
+            try
+            {
+                if (request == null || request.OrderItemId == 0)
+                    return Json(new { success = false, message = "Invalid request" });
+
+                if (string.IsNullOrWhiteSpace(request.Reason))
+                    return Json(new { success = false, message = "Reason is required" });
+
+                var userId = GetCurrentUserId();
+                var userRole = GetCurrentUserRole();
+
+                var result = await _voidRefundService.VoidItem(
+                    request.OrderItemId,
+                    userId,
+                    userRole,
+                    request.Reason
+                );
+
+                if (result.needsOwner)
+                {
+                    return Json(new
+                    {
+                        success = false,
+                        requiresOwner = true,
+                        message = result.message
+                    });
+                }
+
+                if (!result.success)
+                {
+                    return Json(new { success = false, message = result.message });
+                }
+
+                return Json(new
+                {
+                    success = true,
+                    message = result.message,
+                    refundAmount = result.refundAmount,
+                    newOrderTotal = result.newOrderTotal,
+                    updatedItems = result.updatedItems,
+                    isPartialRefund = result.newOrderTotal > 0,
+                    isFullRefund = result.newOrderTotal == 0
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        // POST: VoidRefund/VoidTransaction
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> VoidTransaction([FromBody] VoidTransactionRequest request)
+        {
+            try
+            {
+                if (request == null || request.OrderId == 0)
+                    return Json(new { success = false, message = "Invalid request" });
+
+                if (string.IsNullOrWhiteSpace(request.Reason))
+                    return Json(new { success = false, message = "Reason is required" });
+
+                var userId = GetCurrentUserId();
+                var userRole = GetCurrentUserRole();
+
+                var result = await _voidRefundService.VoidTransaction(
+                    request.OrderId,
+                    userId,
+                    userRole,
+                    request.Reason
+                );
+
+                if (result.needsOwner)
+                {
+                    return Json(new
+                    {
+                        success = false,
+                        requiresOwner = true,
+                        message = result.message
+                    });
+                }
+
+                if (!result.success)
+                {
+                    return Json(new { success = false, message = result.message });
+                }
+
+                return Json(new
+                {
+                    success = true,
+                    message = result.message,
+                    refundAmount = result.refundAmount,
+                    updatedItems = result.updatedItems,
+                    isFullRefund = true
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        // GET: VoidRefund/GetReports
+        [HttpGet]
+        public async Task<IActionResult> GetReports(DateTime startDate, DateTime endDate)
+        {
+            try
+            {
+                var reports = await _voidRefundService.GetReports(startDate, endDate);
+                return Json(reports);
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        #region Private Helpers
 
         private int GetCurrentUserId()
         {
-            // ✅ UNA: Check Staff session (galing sa POS)
             var staffId = HttpContext.Session.GetInt32("Staff_UserId");
             if (staffId.HasValue && staffId.Value > 0)
                 return staffId.Value;
 
-            // ✅ PANGALAWA: Check Owner session
             var ownerId = HttpContext.Session.GetInt32("Owner_UserId");
             if (ownerId.HasValue && ownerId.Value > 0)
                 return ownerId.Value;
 
-            // ✅ FALLBACK: Regular UserId
-            var userId = HttpContext.Session.GetInt32("UserId");
-            return userId ?? 0;
+            return 0;
         }
 
         private string GetCurrentUserRole()
         {
-            // ✅ UNA: Check Staff role (galing sa POS)
-            var staffRole = HttpContext.Session.GetString("Staff_UserRole");
-            if (!string.IsNullOrEmpty(staffRole))
-                return staffRole;
+            var staffId = HttpContext.Session.GetInt32("Staff_UserId");
+            if (staffId.HasValue && staffId.Value > 0)
+                return "Staff";
 
-            // ✅ PANGALAWA: Check Owner role
-            var ownerRole = HttpContext.Session.GetString("Owner_UserRole");
-            if (!string.IsNullOrEmpty(ownerRole))
-                return ownerRole;
+            var ownerId = HttpContext.Session.GetInt32("Owner_UserId");
+            if (ownerId.HasValue && ownerId.Value > 0)
+                return "Owner";
 
-            // ✅ FALLBACK: Regular UserRole
-            var userRole = HttpContext.Session.GetString("UserRole");
-            return userRole ?? "Staff";
+            return "Unknown";
         }
 
-        [HttpGet]
-        public async Task<IActionResult> GetOrderDetails(int orderId)
-        {
-            var details = await _voidRefundService.GetOrderDetails(orderId);
-            if (details == null)
-                return Json(new { success = false, message = "Order not found" });
-
-            return Json(new { success = true, order = details });
-        }
-
-        [HttpGet]
-        public async Task<IActionResult> GetPendingOrders(DateTime? date)
-        {
-            var targetDate = date ?? DateTime.Today;
-            var orders = await _voidRefundService.GetPendingOrdersByDate(targetDate);
-            return Json(orders);
-        }
-
-        [HttpGet]
-        public async Task<IActionResult> GetCompletedOrders(DateTime? date)
-        {
-            var targetDate = date ?? DateTime.Today;
-            var orders = await _voidRefundService.GetCompletedOrdersByDate(targetDate);
-            return Json(orders);
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> VoidItem([FromBody] VoidItemRequest request)
-        {
-            var userId = GetCurrentUserId();
-            var userRole = GetCurrentUserRole();
-
-            if (userId == 0)
-                return Json(new { success = false, message = "User not logged in" });
-
-            var result = await _voidRefundService.VoidItem(
-                request.OrderItemId, userId, userRole, request.Reason);
-
-            if (result.needsOwner)
-            {
-                return Json(new { success = false, requiresOwner = true, message = result.message });
-            }
-
-            return Json(new { success = result.success, message = result.message });
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> VoidTransaction([FromBody] VoidTransactionRequest request)
-        {
-            var userId = GetCurrentUserId();
-            var userRole = GetCurrentUserRole();
-
-            if (userId == 0)
-                return Json(new { success = false, message = "User not logged in" });
-
-            var result = await _voidRefundService.VoidTransaction(
-                request.OrderId, userId, userRole, request.Reason);
-
-            if (result.needsOwner)
-            {
-                return Json(new { success = false, requiresOwner = true, message = result.message });
-            }
-
-            return Json(new { success = result.success, message = result.message });
-        }
-
-        // ✅ UPDATED: Use RefundService, not VoidRefundService
-        [HttpPost]
-        public async Task<IActionResult> ProcessRefund([FromBody] RefundRequest request)
-        {
-            var userId = GetCurrentUserId();
-            var userRole = GetCurrentUserRole();
-
-            if (userId == 0)
-                return Json(new { success = false, message = "User not logged in" });
-
-            // ✅ Use _refundService, not _voidRefundService
-            var result = await _refundService.RequestRefundAsync(
-                request.OrderId, request.ItemIds, request.Reason, userId);
-
-            if (result.success)
-            {
-                return Json(new { success = true, requiresOwner = true, message = result.message, requestId = result.requestId });
-            }
-
-            return Json(new { success = false, message = result.message });
-        }
-
-        // Request Models
-        public class VoidItemRequest
-        {
-            public int OrderItemId { get; set; }
-            public string Reason { get; set; }
-        }
-
-        public class VoidTransactionRequest
-        {
-            public int OrderId { get; set; }
-            public string Reason { get; set; }
-        }
-
-        public class RefundRequest
-        {
-            public int OrderId { get; set; }
-            public List<int> ItemIds { get; set; }
-            public string Reason { get; set; }
-        }
+        #endregion
     }
+
+    #region Request Models
+
+    public class VoidItemRequest
+    {
+        public int OrderItemId { get; set; }
+        public string Reason { get; set; }
+    }
+
+    public class VoidTransactionRequest
+    {
+        public int OrderId { get; set; }
+        public string Reason { get; set; }
+    }
+
+    #endregion
 }

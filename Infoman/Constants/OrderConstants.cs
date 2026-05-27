@@ -5,9 +5,11 @@ namespace Infoman.Constants
     {
         public const string PENDING = "PENDING";
         public const string PENDING_PAYMENT = "PENDING_PAYMENT";
+        public const string PENDING_BLENDING = "PENDING_BLENDING";
         public const string PREPARING = "PREPARING";
         public const string COMPLETED = "COMPLETED";
         public const string VOIDED = "VOIDED";
+        public const string PARTIALLY_REFUNDED = "PARTIALLY_REFUNDED";
         public const string REFUNDED = "REFUNDED";
 
         public static readonly string[] AllowedStatuses = { PENDING, PREPARING, COMPLETED, VOIDED, REFUNDED };

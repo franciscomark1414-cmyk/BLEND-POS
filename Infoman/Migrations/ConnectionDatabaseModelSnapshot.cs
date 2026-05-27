@@ -1151,6 +1151,9 @@ namespace Infoman.Migrations
                     b.Property<int?>("ApprovedBy")
                         .HasColumnType("int");
 
+                    b.Property<bool>("IsRefundProcessed")
+                        .HasColumnType("bit");
+
                     b.Property<int?>("ItemId")
                         .HasColumnType("int");
 
@@ -1164,6 +1167,9 @@ namespace Infoman.Migrations
                     b.Property<string>("Reason")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("RefundAmount")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("datetime2");
@@ -1320,6 +1326,9 @@ namespace Infoman.Migrations
 
                     b.Property<decimal>("TotalAmount")
                         .HasPrecision(10, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalRefundAmount")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime?>("UpdatedAt")

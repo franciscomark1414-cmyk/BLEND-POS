@@ -38,5 +38,9 @@ namespace Infoman.Models
         public DateTime Timestamp { get; set; } = DateTime.Now;
 
         public string PreparedStatus { get; set; } // "NOT_PREPARED", "PREPARED"
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal RefundAmount { get; set; } = 0;
+
+        public bool IsRefundProcessed { get; set; } = false;
     }
 }

@@ -905,8 +905,8 @@
                                 <td class="sku-column">@(string.IsNullOrEmpty(item.SKU) ? "—" : item.SKU)</td>
                                 <td>@item.Name</td>
                                 <td data-value="@((int)item.Category)">@item.Category</td>
-                                <td data-stock="@item.Stock" data-unit="@item.Unit">@item.StockWithUnit</td>
-                                <td data-minqty="@item.MinQty" data-unit="@item.Unit">@item.MinQtyWithUnit</td>
+                                <td data-stock="@item.Stock" data-unit="@item.Unit">@($"{item.Stock:F2} {item.Unit}")</td>
+                                <td data-minqty="@item.MinQty" data-unit="@item.Unit">@($"{item.MinQty:F2} {item.Unit}")</td>
                                 <td>@item.Status</td>
                                 <td>
                                     <button class="btn btn-sm btn-info" onclick="viewBatchHistory(@item.RawMaterialId, '@item.Name')"> Batches</button>
@@ -1018,7 +1018,7 @@
                         <tbody id="rawMaterialsTableBody">
                             @if (ViewBag.RawMaterialsMaster != null)
                             {
-                                foreach (var item in ViewBag.RawMaterials)
+                                 foreach (var item in ViewBag.RawMaterialsMaster)  
                                 {
                                     <tr data-id="@item.RawMaterialId">
                                         <td>@(string.IsNullOrEmpty(item.SKU) ? "—" : item.SKU)</td>
@@ -3474,7 +3474,7 @@ function showAddDeliveryForm() {
     }
 
     // Submit delivery form
-    document.getElementById('addDeliveryForm')?.addEventListener('submit', async function(e) {
+   document.getElementById('addDeliveryForm')?.addEventListener('submit', async function(e) {
     e.preventDefault();
 
     const selectElement = document.getElementById('deliveryMaterialSelect');
@@ -3540,6 +3540,7 @@ function showAddDeliveryForm() {
             // ✅ I-HIDE ANG PANEL
             document.getElementById('addDeliveryPanel').style.display = 'none';
             
+            // ✅ REFRESH THE PAGE TO UPDATE DISPLAY
             saveAndReload();
         } else {
             await showAlert(' Error: ' + result.message, 'Error', '❌');

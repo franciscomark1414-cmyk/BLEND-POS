@@ -93,9 +93,10 @@ namespace Infoman.Controllers
             DateTime today = DateTime.Today;
 
             // ========== TODAY'S NET REVENUE (Using Order NetRevenue property) ==========
+            // Today's Sales
             var todaysOrders = await _db.Orders
                 .Include(o => o.Adjustments)
-                .Where(o => o.Date.Date == today && o.Status == "COMPLETED")
+                .Where(o => o.Date.Date == today && (o.Status == "COMPLETED" || o.Status == "PENDING_BLENDING"))
                 .ToListAsync();
 
             decimal todaysNetRevenue = 0;
@@ -107,10 +108,10 @@ namespace Infoman.Controllers
             ViewBag.TodaysSales = todaysNetRevenue;
             ViewBag.TotalOrdersToday = todaysOrders.Count;
 
-            // ========== ALL-TIME NET REVENUE ==========
+            // ALL-TIME NET REVENUE
             var allOrders = await _db.Orders
                 .Include(o => o.Adjustments)
-                .Where(o => o.Status == "COMPLETED")
+                .Where(o => o.Status == "COMPLETED" || o.Status == "PENDING_BLENDING")
                 .ToListAsync();
 
             decimal allTimeNetRevenue = 0;
@@ -230,7 +231,7 @@ namespace Infoman.Controllers
                 bestSelling = new List<BestSellingProductVM>();
             }
 
-            // Raw materials for inventory module - FIXED
+            // Raw materials for inventory module - FIXED CONVERSION
             var rawMaterialsData = await _db.RawMaterials
                 .Where(r => !r.IsDeleted)
                 .Select(r => new
@@ -246,7 +247,8 @@ namespace Infoman.Controllers
                     r.ExpirationDate,
                     TotalStockInBaseUnit = _db.RawMaterialBatches
                         .Where(b => b.RawMaterialId == r.RawMaterialId)
-                        .Sum(b => (decimal?)b.QuantityRemaining) ?? 0
+                        .Sum(b => (decimal?)b.QuantityRemaining) ?? 0,
+                    MinQtyInBaseUnit = r.MinQtyInBaseUnit
                 })
                 .ToListAsync();
 
@@ -254,11 +256,13 @@ namespace Infoman.Controllers
             foreach (var r in rawMaterialsData)
             {
                 decimal displayStock = r.TotalStockInBaseUnit;
+                decimal displayMinQty = r.MinQtyInBaseUnit;
 
-                // Convert to display unit (kg/L)
+                // Convert from base unit to display unit
                 if ((r.BaseUnit == "g" && r.Unit == "kg") || (r.BaseUnit == "mL" && r.Unit == "L"))
                 {
                     displayStock = r.TotalStockInBaseUnit / 1000;
+                    displayMinQty = r.MinQtyInBaseUnit / 1000;
                 }
 
                 rawMaterialsList.Add(new RawMaterial
@@ -266,7 +270,7 @@ namespace Infoman.Controllers
                     RawMaterialId = r.RawMaterialId,
                     Name = r.Name,
                     Category = r.Category,
-                    MinQty = r.MinQty,
+                    MinQty = displayMinQty,
                     Price = r.Price,
                     Unit = r.Unit,
                     SKU = r.SKU,
@@ -669,6 +673,43 @@ namespace Infoman.Controllers
             int count = _db.Products.Count(p => p.SKU.StartsWith(prefix));
             string number = (count + 1).ToString("D3");
             return $"{prefix}{number}";
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetRefundReports(DateTime? startDate, DateTime? endDate)
+        {
+            var start = startDate ?? DateTime.Today.AddDays(-30);
+            var end = endDate ?? DateTime.Today;
+
+            var refunds = await _db.OrderAdjustments
+                .Where(a => (a.AdjustmentType == "VOID_REFUND" || a.AdjustmentType == "REFUND") &&
+                            a.Status == "COMPLETED" &&
+                            a.CreatedAt.Date >= start.Date && a.CreatedAt.Date <= end.Date)
+                .Include(a => a.OriginalOrder)
+                .Select(a => new
+                {
+                    a.AdjustmentId,
+                    OrderId = a.OriginalOrderId,
+                    OrderNumber = a.OriginalOrder.OrderNumber,
+                    a.AdjustmentType,
+                    a.Amount,
+                    a.Reason,
+                    a.ReferenceNumber,
+                    a.CreatedAt,
+                    ProcessedBy = a.ApprovedByUser != null ? a.ApprovedByUser.Username : "System"
+                })
+                .OrderByDescending(a => a.CreatedAt)
+                .ToListAsync();
+
+            var summary = new
+            {
+                TotalRefundAmount = refunds.Sum(r => r.Amount),
+                TotalRefundCount = refunds.Count,
+                VoidRefunds = refunds.Count(r => r.AdjustmentType == "VOID_REFUND"),
+                ExchangeRefunds = refunds.Count(r => r.AdjustmentType == "REFUND")
+            };
+
+            return Json(new { success = true, refunds = refunds, summary = summary });
         }
 
         [HttpGet]
@@ -1654,7 +1695,7 @@ namespace Infoman.Controllers
             var today = DateTime.Today;
             var queryDate = filterDate ?? today;
 
-            // ========== SALES PERFORMANCE (EXCLUDE REFUNDED) ==========
+            // ========== SALES PERFORMANCE ==========
             var last7Days = Enumerable.Range(0, 7).Select(i => today.AddDays(-6 + i)).ToList();
             var salesLabels = last7Days.Select(d => d.ToString("MMM dd")).ToList();
             var salesRevenue = new List<decimal>();
@@ -1662,8 +1703,9 @@ namespace Infoman.Controllers
 
             foreach (var day in last7Days)
             {
+                // ✅ Include PENDING_BLENDING and COMPLETED
                 var dailyRevenue = await _db.Orders
-                    .Where(o => o.Date.Date == day && o.Status != "Cancelled" && o.Status != "REFUNDED")
+                    .Where(o => o.Date.Date == day && (o.Status == "COMPLETED" || o.Status == "PENDING_BLENDING"))
                     .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
 
                 var dailyRefunds = await _db.RefundTransactions
@@ -1672,16 +1714,17 @@ namespace Infoman.Controllers
 
                 salesRevenue.Add(dailyRevenue - dailyRefunds);
 
+                // ✅ Include PENDING_BLENDING and COMPLETED
                 var dailyOrders = await _db.Orders
-                    .CountAsync(o => o.Date.Date == day && o.Status != "Cancelled" && o.Status != "REFUNDED");
+                    .CountAsync(o => o.Date.Date == day && (o.Status == "COMPLETED" || o.Status == "PENDING_BLENDING"));
                 salesOrders.Add(dailyOrders);
             }
 
-            // ========== CATEGORY DISTRIBUTION (EXCLUDE REFUNDED) ==========
+            // ========== CATEGORY DISTRIBUTION ==========
             var categoryDistribution = await _db.OrderItems
                 .Include(oi => oi.Order)
                 .Include(oi => oi.Product)
-                .Where(oi => oi.Order.Status != "Cancelled" && oi.Order.Status != "REFUNDED")
+                .Where(oi => oi.Order.Status == "COMPLETED" || oi.Order.Status == "PENDING_BLENDING")
                 .GroupBy(oi => oi.Product.Category ?? "Uncategorized")
                 .Select(g => new
                 {
@@ -1690,12 +1733,12 @@ namespace Infoman.Controllers
                 })
                 .ToListAsync();
 
-            // ========== TOP SELLING PRODUCTS (EXCLUDE REFUNDED) ==========
+            // ========== TOP SELLING PRODUCTS ==========
             var topSelling = await _db.OrderItems
                 .Include(oi => oi.Order)
                 .Include(oi => oi.Product)
                 .Include(oi => oi.ProductSize)
-                .Where(oi => oi.Order.Status != "Cancelled" && oi.Order.Status != "REFUNDED")
+                .Where(oi => oi.Order.Status == "COMPLETED" || oi.Order.Status == "PENDING_BLENDING")
                 .GroupBy(oi => new {
                     oi.Product.Name,
                     SizeName = oi.ProductSize != null ? oi.ProductSize.SizeName : "Regular"
@@ -1711,11 +1754,11 @@ namespace Infoman.Controllers
                 .Take(5)
                 .ToListAsync();
 
-            // ========== DISCOUNT RECORDS (EXCLUDE REFUNDED) ==========
+            // ========== DISCOUNT RECORDS ==========
             var discountRecords = await _db.Orders
                 .Include(o => o.Items)
                     .ThenInclude(oi => oi.Product)
-                .Where(o => o.Status == "Completed" && o.DiscountPercent > 0 && o.Status != "REFUNDED")
+                .Where(o => (o.Status == "COMPLETED" || o.Status == "PENDING_BLENDING") && o.DiscountPercent > 0)
                 .OrderByDescending(o => o.Date)
                 .Select(o => new
                 {
@@ -1730,7 +1773,7 @@ namespace Infoman.Controllers
                 })
                 .ToListAsync();
 
-            // ========== WASTE LOGS - CORRECTED DISPLAY ==========
+            // ========== WASTE LOGS ==========
             var wasteLogs = await _db.WasteLogs
                 .Include(w => w.RawMaterial)
                 .OrderByDescending(w => w.Date)
@@ -1739,7 +1782,6 @@ namespace Infoman.Controllers
                     w.WasteLogId,
                     w.Date,
                     MaterialName = w.RawMaterial.Name,
-                    // ✅ CONVERT BACK TO DISPLAY UNIT (kg or L)
                     Quantity = (w.RawMaterial.Unit == "kg" && w.RawMaterial.BaseUnit == "g")
                         ? w.Quantity / 1000
                         : ((w.RawMaterial.Unit == "L" && w.RawMaterial.BaseUnit == "mL")
@@ -1747,30 +1789,28 @@ namespace Infoman.Controllers
                             : w.Quantity),
                     Unit = w.RawMaterial.Unit,
                     Reason = w.Reason.ToString(),
-                    TotalCost = w.TotalCost,   // ✅ May value na ito
+                    TotalCost = w.TotalCost,
                     w.RecordedBy,
                     w.Notes,
-                    ExpiryDate = w.ExpiryDate != null
-                        ? w.ExpiryDate.Value.ToString("yyyy-MM-dd")
-                        : "N/A"
+                    ExpiryDate = w.ExpiryDate != null ? w.ExpiryDate.Value.ToString("yyyy-MM-dd") : "N/A"
                 })
                 .ToListAsync();
 
             var totalWasteCost = wasteLogs.Sum(w => w.TotalCost);
 
-            // ========== TOTAL REVENUE (EXCLUDE REFUNDED) ==========
+            // ========== TOTAL REVENUE ==========
             var totalRevenue = await _db.Orders
-                .Where(o => o.Status != "Cancelled" && o.Status != "REFUNDED")
+                .Where(o => o.Status == "COMPLETED" || o.Status == "PENDING_BLENDING")
                 .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
 
             var allRefunds = await _db.RefundTransactions.SumAsync(r => (decimal?)r.Amount) ?? 0;
             var netRevenue = totalRevenue - allRefunds;
 
-            // ========== REVENUE BY CATEGORY (EXCLUDE REFUNDED) ==========
+            // ========== REVENUE BY CATEGORY ==========
             var categoryRevenue = await _db.OrderItems
                 .Include(oi => oi.Order)
                 .Include(oi => oi.Product)
-                .Where(oi => oi.Order.Status != "Cancelled" && oi.Order.Status != "REFUNDED")
+                .Where(oi => oi.Order.Status == "COMPLETED" || oi.Order.Status == "PENDING_BLENDING")
                 .GroupBy(oi => oi.Product.Category ?? "Uncategorized")
                 .Select(g => new
                 {
@@ -1786,7 +1826,7 @@ namespace Infoman.Controllers
                     .ThenInclude(oi => oi.Product)
                 .Include(o => o.Items)
                     .ThenInclude(oi => oi.ProductSize)
-                .Where(o => o.Status == "Completed")
+                .Where(o => o.Status == "COMPLETED" || o.Status == "PENDING_BLENDING")
                 .OrderByDescending(o => o.Date)
                 .Select(o => new
                 {
@@ -2203,15 +2243,14 @@ namespace Infoman.Controllers
         }
         private async Task UpdateStockFromBatches(int rawMaterialId)
         {
-            var totalStock = await _db.RawMaterialBatches
+            var totalStockInBaseUnit = await _db.RawMaterialBatches
                 .Where(b => b.RawMaterialId == rawMaterialId)
                 .SumAsync(b => (decimal?)b.QuantityRemaining) ?? 0;
 
             var material = await _db.RawMaterials.FindAsync(rawMaterialId);
             if (material != null)
             {
-                material.Stock = totalStock;
-                // ✅ ITO ANG KULANG! I-save ang changes sa database
+                material.Stock = totalStockInBaseUnit;  // This stores in base unit (grams)
                 await _db.SaveChangesAsync();
             }
         }

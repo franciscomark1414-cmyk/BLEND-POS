@@ -224,13 +224,13 @@ namespace Infoman.Controllers
 
                     var orderItem = new OrderItem
                     {
-                        OrderId = existingOrder.OrderId,  // ✅ FIXED: existingOrder.OrderId
+                        OrderId = existingOrder.OrderId,
                         ProductId = productSize.ProductId,
                         ProductSizeId = productSize.ProductSizeId,
                         Quantity = request.Quantity,
                         Price = productSize.Price,
                         ActualCost = 0,
-                        DispositionStatusId = 1  // ✅ AVAILABLE (1)
+                        DispositionStatusId = 1
                     };
                     _db.OrderItems.Add(orderItem);
 
@@ -245,8 +245,6 @@ namespace Infoman.Controllers
 
                     await _db.SaveChangesAsync();
                     newTotalAmount = newDiscountedTotalAmount;
-
-                    System.Diagnostics.Debug.WriteLine($"Added item to existing order #{existingOrder.OrderNumber}. New total: {newTotalAmount}");
                 }
                 else
                 {
@@ -258,7 +256,7 @@ namespace Infoman.Controllers
                         OrderNumber = orderNumber,
                         Date = DateTime.Now,
                         TotalAmount = discountedTotal,
-                        Status = "PENDING_PAYMENT",
+                        Status = "PENDING_PAYMENT",  // Still PENDING until payment is recorded
                         PaymentMethod = request.PaymentMethod ?? "Cash",
                         DiscountType = string.IsNullOrEmpty(request.DiscountType) ? "None" : request.DiscountType,
                         DiscountPercent = request.DiscountPercent,
@@ -276,31 +274,52 @@ namespace Infoman.Controllers
 
                     var orderItem = new OrderItem
                     {
-                        OrderId = newOrder.OrderId,  // ✅ FIXED: newOrder.OrderId
+                        OrderId = newOrder.OrderId,
                         ProductId = productSize.ProductId,
                         ProductSizeId = productSize.ProductSizeId,
                         Quantity = request.Quantity,
                         Price = productSize.Price,
                         ActualCost = 0,
-                        DispositionStatusId = 1  // ✅ AVAILABLE (1)
+                        DispositionStatusId = 1
                     };
                     _db.OrderItems.Add(orderItem);
                     await _db.SaveChangesAsync();
-
-                    System.Diagnostics.Debug.WriteLine($"Created new order #{newOrder.OrderNumber} with total: {newTotalAmount}");
                 }
 
-                // ========== 6. RECORD PERFORMANCE ==========
+                // ========== ✅ 6. CREATE PAYMENT RECORD (POSITIVE AMOUNT) ==========
+                // ✅ This is where payment is recorded - when order is confirmed
+                var payment = new Payment
+                {
+                    OrderId = orderId,
+                    Amount = newTotalAmount,  // ✅ POSITIVE AMOUNT (not negative)
+                    PaymentMethod = request.PaymentMethod ?? "Cash",
+                    PaymentReference = $"PAY-{DateTime.Now:yyyyMMddHHmmss}",
+                    Status = "PAID",  // ✅ PAID status
+                    PaymentDate = DateTime.Now,
+                    CreatedAt = DateTime.Now
+                };
+                _db.Payments.Add(payment);
+
+                // ========== 7. UPDATE ORDER STATUS TO COMPLETED (since payment is received) ==========
+                var orderToUpdate = await _db.Orders.FindAsync(orderId);
+                if (orderToUpdate != null)
+                {
+                    orderToUpdate.Status = "PENDING_BLENDING"; // ✅ ORDER IS COMPLETED AT CONFIRMATION
+                }
+
+                await _db.SaveChangesAsync();
+
+                // ========== 8. RECORD EMPLOYEE PERFORMANCE ==========
                 await RecordEmployeePerformance(userId, newTotalAmount);
 
                 return Json(new
                 {
                     success = true,
-                    message = $"✅ Item added to order!",
+                    message = $"✅ Order confirmed! Payment received: ₱{newTotalAmount:F2}",
                     orderId = orderId,
                     orderNumber = request.OrderNumber,
                     totalAmount = newTotalAmount,
-                    status = "PENDING_PAYMENT"
+                    status = "PENDING_BLENDING"// ✅ Return COMPLETED status
                 });
             }
             catch (Exception ex)
@@ -682,8 +701,8 @@ namespace Infoman.Controllers
                     .ThenInclude(oi => oi.Product)
                 .Include(o => o.Items)
                     .ThenInclude(oi => oi.ProductSize)
-                .Where(o => o.Status == "PENDING_PAYMENT")
-                .Where(o => o.Items.Any(i => i.DispositionStatusId == 1))  // ✅ AVAILABLE (1)
+                .Where(o => (o.Status == "PENDING_BLENDING" || o.Status == "PREPARING") &&  // ✅ Updated
+                            o.Items.Any(i => i.DispositionStatusId == 1))
                 .OrderBy(o => o.Date)
                 .Select(o => new
                 {
@@ -692,7 +711,7 @@ namespace Infoman.Controllers
                     o.Status,
                     o.TotalAmount,
                     o.Date,
-                    Items = o.Items.Where(i => i.DispositionStatusId == 1).Select(oi => new  // ✅ AVAILABLE LANG
+                    Items = o.Items.Where(i => i.DispositionStatusId == 1).Select(oi => new
                     {
                         oi.OrderItemId,
                         ProductName = oi.Product.Name,
@@ -752,27 +771,33 @@ namespace Infoman.Controllers
         public async Task<IActionResult> StartBlending([FromBody] StartBlendingRequest request)
         {
             var order = await _db.Orders
-                .Include(o => o.Items)
-                    .ThenInclude(oi => oi.ProductSize)
-                        .ThenInclude(ps => ps.RecipeItems)
-                            .ThenInclude(ri => ri.RawMaterial)
-                .FirstOrDefaultAsync(o => o.OrderId == request.OrderId);
+        .Include(o => o.Items)
+            .ThenInclude(oi => oi.ProductSize)
+                .ThenInclude(ps => ps.RecipeItems)
+                    .ThenInclude(ri => ri.RawMaterial)
+        .FirstOrDefaultAsync(o => o.OrderId == request.OrderId);
 
             if (order == null)
                 return Json(new { success = false, message = "Order not found" });
 
-            if (order.Status != "PENDING_PAYMENT")
+            // ✅ Allow PENDING_BLENDING and PREPARING status
+            if (order.Status != "PENDING_BLENDING" && order.Status != "PREPARING")
                 return Json(new { success = false, message = $"Cannot start blending. Order status is '{order.Status}'" });
+
+            // Check if already blended (to prevent double deduction)
+            if (order.Items.All(i => i.ActualCost > 0))
+            {
+                return Json(new { success = false, message = "Order already blended!" });
+            }
 
             decimal totalActualCost = 0;
 
-            // ✅ FILTER: Only process active items (AVAILABLE = 1)
             var activeItems = order.Items.Where(i => i.DispositionStatusId == 1).ToList();
 
             if (activeItems.Count == 0)
                 return Json(new { success = false, message = "No active items to blend." });
 
-            foreach (var orderItem in activeItems)  // ✅ USE activeItems
+            foreach (var orderItem in activeItems)
             {
                 var productSize = orderItem.ProductSize;
                 decimal itemCost = 0;
@@ -782,29 +807,13 @@ namespace Infoman.Controllers
                     var material = await _db.RawMaterials.FindAsync(recipe.RawMaterialId);
                     if (material == null) continue;
 
-                    System.Diagnostics.Debug.WriteLine($"=== START BLENDING DEBUG ===");
-                    System.Diagnostics.Debug.WriteLine($"Material: {material.Name}");
-                    System.Diagnostics.Debug.WriteLine($"material.Unit: {material.Unit}");
-                    System.Diagnostics.Debug.WriteLine($"material.BaseUnit: {material.BaseUnit}");
-                    System.Diagnostics.Debug.WriteLine($"recipe.Quantity: {recipe.Quantity}");
-                    System.Diagnostics.Debug.WriteLine($"recipe.UnitUsed: {recipe.UnitUsed}");
-
-                    // recipe.Quantity is stored in BaseUnit (g or mL)
-                    // batches are stored in material.Unit (kg or L)
                     decimal totalInBaseUnit = recipe.Quantity * orderItem.Quantity;
                     decimal totalForBatch = totalInBaseUnit;
 
-                    System.Diagnostics.Debug.WriteLine($"totalInBaseUnit: {totalInBaseUnit}");
-                    System.Diagnostics.Debug.WriteLine($"totalForBatch: {totalForBatch}");
-
-                    // Convert from BaseUnit to Unit (how batches are stored)
                     if (material.BaseUnit == "g" && material.Unit == "kg")
-                        totalForBatch = totalInBaseUnit / 1000;  // 180g → 0.18 kg
+                        totalForBatch = totalInBaseUnit / 1000;
                     else if (material.BaseUnit == "mL" && material.Unit == "L")
-                        totalForBatch = totalInBaseUnit / 1000;  // 60mL → 0.06 L
-                                                                 // else: pcs, or same unit — no conversion needed
-
-                    System.Diagnostics.Debug.WriteLine($"[BLEND] {material.Name}: {recipe.Quantity} {material.BaseUnit} → {totalForBatch} {material.Unit}");
+                        totalForBatch = totalInBaseUnit / 1000;
 
                     var (success, cost, usedBatches) = await _fifoService.DeductStockWithCostAsync(
                         recipe.RawMaterialId,
@@ -831,13 +840,12 @@ namespace Infoman.Controllers
                 totalActualCost += itemCost;
             }
 
-            order.Status = "COMPLETED";
             await _db.SaveChangesAsync();
 
             return Json(new
             {
                 success = true,
-                message = $"✅ Order #{order.OrderNumber} completed! Ingredients deducted.",
+                message = $"✅ Order #{order.OrderNumber} ingredients deducted!",
                 actualCost = totalActualCost
             });
         }
@@ -852,8 +860,10 @@ namespace Infoman.Controllers
                 if (userId == 0)
                     return Json(new { success = false, message = "User not logged in" });
 
+                // ✅ Allow BOTH PENDING_PAYMENT and PENDING_BLENDING
                 var order = await _db.Orders
-                    .FirstOrDefaultAsync(o => o.OrderId == request.OrderId && o.Status == "PENDING_PAYMENT");
+                    .FirstOrDefaultAsync(o => o.OrderId == request.OrderId &&
+                        (o.Status == "PENDING_PAYMENT" || o.Status == "PENDING_BLENDING"));
 
                 if (order == null)
                     return Json(new { success = false, message = "Order not found" });
@@ -934,22 +944,27 @@ namespace Infoman.Controllers
             }
         }
 
-        // POST: Staff/UpdateOrderItemQuantity
         [HttpPost]
         public async Task<IActionResult> UpdateOrderItemQuantity([FromBody] UpdateOrderItemQuantityRequest request)
         {
             try
             {
                 var orderItem = await _db.OrderItems
+                    .Include(oi => oi.Order)  // ✅ Include Order para ma-check ang status
                     .FirstOrDefaultAsync(oi => oi.OrderItemId == request.OrderItemId);
 
                 if (orderItem == null)
                     return Json(new { success = false, message = "Order item not found" });
 
+                // ✅ Check if order is still editable (not yet blended)
+                if (orderItem.Order.Status == "COMPLETED")
+                {
+                    return Json(new { success = false, message = "Cannot modify - order already blended!" });
+                }
+
                 if (request.Quantity <= 0)
                 {
-                    // If quantity is 0, void the item
-                    orderItem.DispositionStatusId = 2;  // ✅ VOIDED
+                    orderItem.DispositionStatusId = 2;  // VOIDED
                     orderItem.DispositionReason = "Quantity reduced to zero";
                 }
                 else

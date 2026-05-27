@@ -1107,35 +1107,30 @@ namespace Infoman.Controllers
                 })
                 .ToList();
             int lowStockCount = lowStockItems.Count;
-
-            // ========== FIXED: EXPIRING SOON (from BATCHES within 7 days ONLY) ==========
+            // ========== FIXED: EXPIRING SOON (BATCHES within 7 days ONLY) ==========
             var expiringDateThreshold = today.AddDays(7);
 
-            var expiringBatches = await _db.RawMaterialBatches
+            var expiringItems = await _db.RawMaterialBatches
                 .Include(b => b.RawMaterial)
                 .Where(b => b.ExpiryDate.HasValue &&
                             b.ExpiryDate.Value >= today &&
                             b.ExpiryDate.Value <= expiringDateThreshold &&
                             b.QuantityRemaining > 0 &&
                             !b.RawMaterial.IsDeleted)
-                .ToListAsync();
-
-            // I-group at i-sum ang quantity ng MGA BATCH LANG NA WITHIN 7 DAYS
-            var expiringItems = expiringBatches
-                .GroupBy(b => b.RawMaterial)
-                .Select(g => new
+                .Select(b => new
                 {
-                    RawMaterialId = g.Key.RawMaterialId,
-                    Name = g.Key.Name,
-                    Category = g.Key.Category.ToString(),
-                    ExpiringStockQuantity = g.Sum(b => b.QuantityRemaining),
-                    ExpiringStockWithUnit = $"{g.Sum(b => b.QuantityRemaining):F2} {g.Key.Unit}",
-                    EarliestExpiryDate = g.Min(b => b.ExpiryDate).Value.ToString("yyyy-MM-dd"),
-                    DaysLeft = (g.Min(b => b.ExpiryDate).Value - today).Days,
-                    Unit = g.Key.Unit,
-                    BatchCount = g.Count()
+                    RawMaterialId = b.RawMaterial.RawMaterialId,
+                    Name = b.RawMaterial.Name,
+                    Category = b.RawMaterial.Category.ToString(),
+                    // ✅ CONVERT GRAMS TO KG
+                    ExpiringStockQuantity = b.QuantityRemaining / 1000,
+                    ExpiringStockWithUnit = $"{(b.QuantityRemaining / 1000):F2} {b.RawMaterial.Unit}",
+                    ExpiryDate = b.ExpiryDate.Value.ToString("yyyy-MM-dd"),
+                    DaysLeft = (b.ExpiryDate.Value - today).Days,
+                    Unit = b.RawMaterial.Unit,
+                    BatchId = b.BatchId
                 })
-                .ToList();
+                .ToListAsync();
             int expiringCount = expiringItems.Count;
 
             // ========== FIXED: EXPIRED (from BATCHES) ==========
@@ -1164,8 +1159,7 @@ namespace Infoman.Controllers
                 .ToList();
             int expiredCount = expiredItems.Count;
 
-            // ========== WASTE LOGS ==========
-            // ========== WASTE LOGS ==========
+            // ========== WASTE LOGS = CORRECTED ==========
             var wasteLogs = await _db.WasteLogs
                 .Include(w => w.RawMaterial)
                 .OrderByDescending(w => w.Date)
@@ -1174,13 +1168,17 @@ namespace Infoman.Controllers
                     w.WasteLogId,
                     w.Date,
                     MaterialName = w.RawMaterial.Name,
-                    w.Quantity,
+                    // ✅ CONVERT BACK TO DISPLAY UNIT
+                    Quantity = w.RawMaterial.Unit == "kg" && w.RawMaterial.BaseUnit == "g"
+                        ? w.Quantity / 1000
+                        : (w.RawMaterial.Unit == "L" && w.RawMaterial.BaseUnit == "mL")
+                            ? w.Quantity / 1000
+                            : w.Quantity,
                     Unit = w.RawMaterial.Unit,
                     Reason = w.Reason.ToString(),
                     TotalCost = w.TotalCost,
                     w.RecordedBy,
                     w.Notes,
-                    // ✅ SAFELY GET EXPIRY DATE FROM BATCH
                     ExpiryDate = w.BatchId != null ? _db.RawMaterialBatches
                         .Where(b => b.BatchId == w.BatchId)
                         .Select(b => b.ExpiryDate.ToString())
@@ -1201,7 +1199,6 @@ namespace Infoman.Controllers
                 wasteLogs = wasteLogs
             });
         }
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddWasteLog([FromBody] WasteLogViewModel model)
@@ -1212,67 +1209,110 @@ namespace Infoman.Controllers
                 if (material == null)
                     return Json(new { success = false, message = "Material not found" });
 
-                if (material.Stock < model.Quantity)
-                    return Json(new { success = false, message = $"Insufficient stock. Only {material.Stock} {material.Unit} available." });
+                // Convert to base unit (grams/mL) for checking
+                decimal quantityInBaseUnit = model.Quantity;
+                if (material.Unit == "kg" && material.BaseUnit == "g")
+                    quantityInBaseUnit = model.Quantity * 1000;
+                else if (material.Unit == "L" && material.BaseUnit == "mL")
+                    quantityInBaseUnit = model.Quantity * 1000;
 
-                // ✅ KUNIN ANG MGA BATCHES NA MAAPEKTUHAN (FIFO/FEFO)
+                if (material.Stock < quantityInBaseUnit)
+                    return Json(new { success = false, message = $"Insufficient stock. Only {material.Stock / 1000} {material.Unit} available." });
+
+                // ✅ GET ALL BATCHES (FEFO: earliest expiry first)
                 var batches = await _db.RawMaterialBatches
-                    .Where(b => b.RawMaterialId == model.RawMaterialId && b.QuantityRemaining> 0)
-                    .OrderBy(b => b.ExpiryDate ?? DateTime.MaxValue) // Expiring soonest first
+                    .Where(b => b.RawMaterialId == model.RawMaterialId && b.QuantityRemaining > 0)
+                    .OrderBy(b => b.ExpiryDate ?? DateTime.MaxValue)
                     .ThenBy(b => b.ReceivedDate)
                     .ToListAsync();
 
                 decimal totalCost = 0;
-                decimal remainingToDeduct = model.Quantity;
-                DateTime? expiryDate = null;
-                int? batchId = null;
+                decimal remainingToDeduct = quantityInBaseUnit;
+                DateTime? earliestExpiry = null;
+                int? primaryBatchId = null;
+                bool hasBatches = batches.Any();
 
-                foreach (var batch in batches)
+                // ✅ KUNG MAY BATCHES, DEDUCT FROM THEM
+                if (hasBatches)
                 {
-                    if (remainingToDeduct <= 0) break;
-
-                    decimal deductQty = Math.Min(remainingToDeduct, batch.QuantityRemaining);
-                    decimal batchCost = deductQty * batch.UnitPrice;
-                    totalCost += batchCost;
-                    remainingToDeduct -= deductQty;
-
-                    // ✅ KUHAIN ANG EXPIRY DATE AT BATCH ID
-                    if (expiryDate == null && batch.ExpiryDate != null)
+                    foreach (var batch in batches)
                     {
-                        expiryDate = batch.ExpiryDate;
-                        batchId = batch.BatchId;
-                    }
+                        if (remainingToDeduct <= 0) break;
 
-                    // Deduct from batch
-                    batch.QuantityRemaining -= deductQty;
+                        decimal deductQty = Math.Min(remainingToDeduct, batch.QuantityRemaining);
+
+                        // ✅ COMPUTE COST - use the batch's unit price
+                        // IMPORTANT: deductQty is in base unit (grams/mL)
+                        // Convert to display unit for costing
+                        decimal deductQtyInDisplayUnit = deductQty;
+                        if (material.Unit == "kg" && material.BaseUnit == "g")
+                            deductQtyInDisplayUnit = deductQty / 1000;  // grams → kg
+                        else if (material.Unit == "L" && material.BaseUnit == "mL")
+                            deductQtyInDisplayUnit = deductQty / 1000;  // mL → L
+
+                        decimal batchCost = deductQtyInDisplayUnit * batch.UnitPrice;
+                        totalCost += batchCost;
+                        remainingToDeduct -= deductQty;
+
+                        // ✅ GET EARLIEST EXPIRY DATE
+                        if (batch.ExpiryDate.HasValue)
+                        {
+                            if (!earliestExpiry.HasValue || batch.ExpiryDate.Value < earliestExpiry.Value)
+                            {
+                                earliestExpiry = batch.ExpiryDate;
+                                primaryBatchId = batch.BatchId;
+                            }
+                        }
+
+                        batch.QuantityRemaining -= deductQty;
+                    }
                 }
 
+                // ✅ KUNG WALANG BATCHES O KULANG, DEDUCT DIRECTLY FROM MAIN STOCK
                 if (remainingToDeduct > 0)
                 {
-                    return Json(new { success = false, message = "Insufficient stock" });
+                    // Compute cost based on current price
+                    decimal currentPrice = material.Price;
+                    decimal remainingInDisplayUnit = remainingToDeduct;
+                    if (material.Unit == "kg" && material.BaseUnit == "g")
+                        remainingInDisplayUnit = remainingToDeduct / 1000;
+                    else if (material.Unit == "L" && material.BaseUnit == "mL")
+                        remainingInDisplayUnit = remainingToDeduct / 1000;
+
+                    totalCost += remainingInDisplayUnit * currentPrice;
                 }
 
-                // ✅ I-UPDATE ANG MATERIAL STOCK
-                material.Stock -= model.Quantity;
+                // ✅ UPDATE MAIN STOCK
+                material.Stock -= quantityInBaseUnit;
+                await _db.SaveChangesAsync();
 
-                // ✅ CREATE WASTE LOG NA MAY EXPIRY DATE
+                // ✅ CREATE WASTE LOG - STORE IN BASE UNIT (grams/mL)
                 var wasteLog = new WasteLog
                 {
                     RawMaterialId = model.RawMaterialId,
-                    Quantity = model.Quantity,
-                    Reason = Enum.Parse<WasteReason>(model.Reason),
+                    Quantity = quantityInBaseUnit,  // Store in base unit (grams/mL)
+                    Reason = Enum.Parse<WasteLog.WasteReason>(model.Reason),
                     Date = DateTime.Now,
                     RecordedBy = model.RecordedBy ?? "Owner",
                     Notes = model.Notes,
-                    TotalCost = totalCost,
-                    BatchId = batchId,           // ✅ I-SAVE ANG BATCH ID
-                    ExpiryDate = expiryDate      // ✅ I-SAVE ANG EXPIRY DATE
+                    TotalCost = totalCost,           // ✅ MAY VALUE NA
+                    BatchId = primaryBatchId,        // ✅ MAY BATCH ID KUNG MERON
+                    ExpiryDate = earliestExpiry      // ✅ MAY EXPIRY DATE KUNG MERON
                 };
 
                 _db.WasteLogs.Add(wasteLog);
                 await _db.SaveChangesAsync();
 
-                return Json(new { success = true, message = "Waste logged successfully", totalCost = totalCost });
+                // Convert back to display unit for response
+                decimal displayQuantity = model.Quantity;
+                string displayUnit = material.Unit;
+
+                return Json(new
+                {
+                    success = true,
+                    message = $"Waste logged successfully: {displayQuantity:F2} {displayUnit}",
+                    totalCost = totalCost
+                });
             }
             catch (Exception ex)
             {
@@ -1281,12 +1321,12 @@ namespace Infoman.Controllers
         }
 
         // Helper class
-        public class BatchDeduction
+        private class BatchDeductionInfo
         {
             public int BatchId { get; set; }
-            public decimal Quantity { get; set; }
+            public decimal QuantityDeducted { get; set; }
+            public DateTime? ExpiryDate { get; set; }
             public decimal UnitPrice { get; set; }
-            public decimal Cost { get; set; }
         }
 
         // ViewModel for WasteLog
@@ -1554,21 +1594,29 @@ namespace Infoman.Controllers
                 })
                 .ToListAsync();
 
-            // ========== WASTE LOGS - CORRECTED (ISANG BESES LANG) ==========
+            // ========== WASTE LOGS - CORRECTED DISPLAY ==========
             var wasteLogs = await _db.WasteLogs
                 .Include(w => w.RawMaterial)
                 .OrderByDescending(w => w.Date)
                 .Select(w => new
                 {
                     w.WasteLogId,
+                    w.Date,
                     MaterialName = w.RawMaterial.Name,
-                    w.Quantity,
+                    // ✅ CONVERT BACK TO DISPLAY UNIT (kg or L)
+                    Quantity = (w.RawMaterial.Unit == "kg" && w.RawMaterial.BaseUnit == "g")
+                        ? w.Quantity / 1000
+                        : ((w.RawMaterial.Unit == "L" && w.RawMaterial.BaseUnit == "mL")
+                            ? w.Quantity / 1000
+                            : w.Quantity),
                     Unit = w.RawMaterial.Unit,
                     Reason = w.Reason.ToString(),
-                    TotalCost = w.TotalCost,     // ✅ GAMITIN ANG STORED TOTALCOST
-                    Date = w.Date.ToString("yyyy-MM-dd"),
+                    TotalCost = w.TotalCost,   // ✅ May value na ito
                     w.RecordedBy,
-                    w.Notes
+                    w.Notes,
+                    ExpiryDate = w.ExpiryDate != null
+                        ? w.ExpiryDate.Value.ToString("yyyy-MM-dd")
+                        : "N/A"
                 })
                 .ToListAsync();
 
@@ -1851,7 +1899,6 @@ namespace Infoman.Controllers
 
             return Json(new { suppliers, rawMaterials });
         }
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ReceiveDelivery([FromBody] ReceivingViewModel model)
@@ -1916,7 +1963,6 @@ namespace Infoman.Controllers
                     {
                         var rawMat = await _db.RawMaterials.FindAsync(item.RawMaterialId);
 
-                        // ✅ TAMANG CONVERSION - gaya sa AddDelivery
                         decimal quantityInBaseUnit = item.AcceptedQty;
 
                         if (rawMat.BaseUnit == "g" && rawMat.Unit == "kg")
@@ -1931,32 +1977,86 @@ namespace Infoman.Controllers
                         var batch = new RawMaterialBatch
                         {
                             RawMaterialId = item.RawMaterialId,
-                            QuantityReceived = quantityInBaseUnit,     // ✅ Naka-base unit na
-                            QuantityRemaining = quantityInBaseUnit,    // ✅ Naka-base unit na
+                            QuantityReceived = quantityInBaseUnit,
+                            QuantityRemaining = quantityInBaseUnit,
                             ReceivedDate = DateTime.Now,
                             ExpiryDate = item.ExpiryDate,
                             UnitPrice = item.UnitPrice
                         };
                         _db.RawMaterialBatches.Add(batch);
+
+                        // ✅ I-SAVE MUNA PARA MAGKAROON NG BATCH ID
+                        await _db.SaveChangesAsync();
+
+                        // ✅ CHECK KUNG EXPIRED ANG BATCH NA ITO
+                        if (item.ExpiryDate.HasValue && item.ExpiryDate.Value.Date < DateTime.Today)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"=== EXPIRED BATCH DETECTED! ===");
+                            System.Diagnostics.Debug.WriteLine($"Material: {rawMat.Name}");
+                            System.Diagnostics.Debug.WriteLine($"ExpiryDate: {item.ExpiryDate.Value:yyyy-MM-dd}");
+                            System.Diagnostics.Debug.WriteLine($"Today: {DateTime.Today:yyyy-MM-dd}");
+                            System.Diagnostics.Debug.WriteLine($"AcceptedQty: {item.AcceptedQty}");
+                            System.Diagnostics.Debug.WriteLine($"UnitPrice: {item.UnitPrice}");
+                            // Compute total cost (accepted quantity in display unit * unit price)
+                            decimal totalCost = item.AcceptedQty * item.UnitPrice;
+                            System.Diagnostics.Debug.WriteLine($"TotalCost: {totalCost}");
+
+                            // Convert to base unit for storage
+                            decimal wastedQtyInBaseUnit = quantityInBaseUnit;
+
+                            var wasteLog = new WasteLog
+                            {
+                                RawMaterialId = item.RawMaterialId,
+                                Quantity = wastedQtyInBaseUnit,  // ✅ BASE UNIT (grams/mL)
+                                Reason = WasteLog.WasteReason.Expired,
+                                Date = DateTime.Now,
+                                RecordedBy = "Receiving",
+                                Notes = $"Auto-generated from expired batch received on DR#{model.DRNumber}. Expiry: {item.ExpiryDate.Value:yyyy-MM-dd}",
+                                TotalCost = totalCost,
+                                ExpiryDate = item.ExpiryDate,
+                                BatchId = batch.BatchId
+                            };
+                            _db.WasteLogs.Add(wasteLog);
+
+                            // ✅ SET REMAINING TO 0 DAHIL EXPIRED
+                            batch.QuantityRemaining = 0;
+                            System.Diagnostics.Debug.WriteLine($"WasteLog added. Batch.QuantityRemaining set to 0");
+
+                            await _db.SaveChangesAsync();
+                            System.Diagnostics.Debug.WriteLine($"Changes saved successfully!");
+                        }
                     }
 
+                    // ✅ HANDLE REJECTED ITEMS (may conversion na)
                     if (item.RejectedQty > 0)
                     {
+                        var rawMat = await _db.RawMaterials.FindAsync(item.RawMaterialId);
+
+                        // Convert rejected quantity to base unit
+                        decimal rejectedQtyInBaseUnit = item.RejectedQty;
+                        if (rawMat.BaseUnit == "g" && rawMat.Unit == "kg")
+                        {
+                            rejectedQtyInBaseUnit = item.RejectedQty * 1000;
+                        }
+                        else if (rawMat.BaseUnit == "mL" && rawMat.Unit == "L")
+                        {
+                            rejectedQtyInBaseUnit = item.RejectedQty * 1000;
+                        }
+
                         if (item.Disposition == "Waste")
                         {
-                            // ✅ I-DECLARE MUNA ANG totalCost VARIABLE
                             decimal totalCost = item.RejectedQty * item.UnitPrice;
 
                             var wasteLog = new WasteLog
                             {
                                 RawMaterialId = item.RawMaterialId,
-                                Quantity = item.RejectedQty,
+                                Quantity = rejectedQtyInBaseUnit,  // ✅ BASE UNIT (grams/mL)
                                 Reason = WasteLog.WasteReason.QualityIssue,
                                 Date = DateTime.Now,
                                 RecordedBy = "Receiving",
                                 Notes = $"Rejected from DR#{model.DRNumber}: {item.RejectionReason}",
-                                TotalCost = totalCost,           // ✅ NGAYON PUEDE NA
-                                ExpiryDate = item.ExpiryDate,    // ✅ PUEDE NA RIN
+                                TotalCost = totalCost,
+                                ExpiryDate = item.ExpiryDate,
                                 BatchId = null
                             };
                             _db.WasteLogs.Add(wasteLog);
@@ -1967,7 +2067,7 @@ namespace Infoman.Controllers
                             {
                                 ReceivingId = receiving.ReceivingId,
                                 RawMaterialId = item.RawMaterialId,
-                                Quantity = item.RejectedQty,
+                                Quantity = item.RejectedQty,  // Display unit okay for return
                                 Reason = item.RejectionReason,
                                 UnitPrice = item.UnitPrice,
                                 Status = "Pending Return"
@@ -2871,7 +2971,6 @@ namespace Infoman.Controllers
             {
                 var targetYear = year ?? DateTime.Today.Year;
                 var targetMonth = month ?? DateTime.Today.Month;
-
                 var startDate = new DateTime(targetYear, targetMonth, 1);
                 var endDate = startDate.AddMonths(1).AddDays(-1);
 

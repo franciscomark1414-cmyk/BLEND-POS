@@ -414,6 +414,7 @@ namespace Infoman.Controllers
                 b.ReceivedDate,
                 QuantityReceived = b.QuantityReceived / conversionFactor,
                 QuantityRemaining = b.QuantityRemaining / conversionFactor,
+                QuantityRemainingInBaseUnit = b.QuantityRemaining,
                 b.ExpiryDate,
                 b.UnitPrice,
                 b.Usage
@@ -754,11 +755,13 @@ namespace Infoman.Controllers
             try
             {
                 // ✅ CHECK KUNG OWNER LANG
-                var userRole = HttpContext.Session.GetString("UserRole");
-                if (userRole != "Owner")
-                    return Json(new { success = false, message = "Only Owner can adjust batch stock" });
+                var ownerRole = HttpContext.Session.GetString("Owner_UserRole");
+                var ownerId = HttpContext.Session.GetInt32("Owner_UserId");
 
-                var userId = GetCurrentUserId();
+                if (ownerRole != "Owner" || !ownerId.HasValue || ownerId.Value == 0)
+                {
+                    return Json(new { success = false, message = "Only Owner can adjust batch stock" });
+                }
 
                 var batch = await _context.RawMaterialBatches
                     .Include(b => b.RawMaterial)
@@ -767,24 +770,45 @@ namespace Infoman.Controllers
                 if (batch == null)
                     return Json(new { success = false, message = "Batch not found" });
 
-                decimal oldQuantity = batch.QuantityRemaining;
-                decimal newQuantity = request.NewQuantity;
+                decimal oldQuantityInBaseUnit = batch.QuantityRemaining;
+
+                // ✅ CONVERT input from DISPLAY UNIT to BASE UNIT
+                decimal newQuantityInBaseUnit = request.NewQuantity;
+
+                if (batch.RawMaterial.Unit == "kg" && batch.RawMaterial.BaseUnit == "g")
+                {
+                    newQuantityInBaseUnit = request.NewQuantity * 1000;  // 40 kg → 40000 g
+                }
+                else if (batch.RawMaterial.Unit == "L" && batch.RawMaterial.BaseUnit == "mL")
+                {
+                    newQuantityInBaseUnit = request.NewQuantity * 1000;  // 40 L → 40000 mL
+                }
+                // ✅ Kung grams/mL/pcs, no conversion needed
+
+                decimal differenceInBaseUnit = oldQuantityInBaseUnit - newQuantityInBaseUnit;
+
+                System.Diagnostics.Debug.WriteLine($"=== STOCK ADJUSTMENT CONVERSION ===");
+                System.Diagnostics.Debug.WriteLine($"Input: {request.NewQuantity} {batch.RawMaterial.Unit}");
+                System.Diagnostics.Debug.WriteLine($"Old (base unit): {oldQuantityInBaseUnit} {batch.RawMaterial.BaseUnit}");
+                System.Diagnostics.Debug.WriteLine($"New (base unit): {newQuantityInBaseUnit} {batch.RawMaterial.BaseUnit}");
+                System.Diagnostics.Debug.WriteLine($"Difference: {differenceInBaseUnit} {batch.RawMaterial.BaseUnit}");
+                System.Diagnostics.Debug.WriteLine($"Batch UnitPrice: {batch.UnitPrice} per {batch.RawMaterial.Unit}");
 
                 // ✅ CREATE ADJUSTMENT LOG
                 var adjustmentLog = new StockAdjustmentLog
                 {
                     BatchId = request.BatchId,
-                    OldQuantity = oldQuantity,
-                    NewQuantity = newQuantity,
+                    OldQuantity = oldQuantityInBaseUnit,
+                    NewQuantity = newQuantityInBaseUnit,
                     Reason = request.Reason,
-                    AdjustedBy = userId,
+                    AdjustedBy = ownerId.Value,
                     AdjustedAt = DateTime.Now,
                     Notes = request.Notes ?? ""
                 };
                 _context.StockAdjustmentLogs.Add(adjustmentLog);
 
-                // ✅ CREATE WASTE LOG KUNG NABAWASAN AT HINDI TYPO/CORRECTION
-                if (newQuantity < oldQuantity)
+                // ✅ KUNG NABAWASAN (may waste)
+                if (differenceInBaseUnit > 0)
                 {
                     bool shouldCreateWasteLog = !request.Reason.Contains("Typo") &&
                                                 !request.Reason.Contains("Correction") &&
@@ -792,26 +816,59 @@ namespace Infoman.Controllers
 
                     if (shouldCreateWasteLog)
                     {
-                        decimal wastedQty = oldQuantity - newQuantity;
+                        // ✅ CONVERT wasted quantity to DISPLAY UNIT for costing
+                        decimal wastedQtyInDisplayUnit = differenceInBaseUnit;
+                        if (batch.RawMaterial.Unit == "kg" && batch.RawMaterial.BaseUnit == "g")
+                        {
+                            wastedQtyInDisplayUnit = differenceInBaseUnit / 1000;  // grams → kg
+                        }
+                        else if (batch.RawMaterial.Unit == "L" && batch.RawMaterial.BaseUnit == "mL")
+                        {
+                            wastedQtyInDisplayUnit = differenceInBaseUnit / 1000;  // mL → L
+                        }
+
+                        // ✅ COMPUTE TOTAL COST using batch unit price
+                        decimal totalCost = wastedQtyInDisplayUnit * batch.UnitPrice;
+
+                        System.Diagnostics.Debug.WriteLine($"Wasted (display): {wastedQtyInDisplayUnit} {batch.RawMaterial.Unit}");
+                        System.Diagnostics.Debug.WriteLine($"Total Cost: {totalCost}");
+
                         var wasteLog = new WasteLog
                         {
                             RawMaterialId = batch.RawMaterialId,
-                            Quantity = wastedQty,
+                            Quantity = differenceInBaseUnit,  // ✅ STORE IN BASE UNIT (grams/mL)
                             Reason = GetWasteReasonFromAdjustment(request.Reason),
-                            Date = DateTime.Today,
+                            Date = DateTime.Now,  // ✅ Use DateTime.Now, not Date.Today
                             RecordedBy = "Owner",
-                            Notes = $"Manual adjustment from batch #{batch.BatchId}: {request.Reason}"
+                            Notes = $"Manual adjustment from batch #{batch.BatchId}: {request.Reason}",
+                            TotalCost = totalCost,  // ✅ MAY VALUE NA!
+                            BatchId = batch.BatchId,
+                            ExpiryDate = batch.ExpiryDate
                         };
                         _context.WasteLogs.Add(wasteLog);
                     }
                 }
 
-                batch.QuantityRemaining = newQuantity;
+                // ✅ UPDATE BATCH
+                batch.QuantityRemaining = newQuantityInBaseUnit;
+
+                // ✅ UPDATE MAIN STOCK
                 await UpdateMainStockColumn(batch.RawMaterialId);
                 await _context.SaveChangesAsync();
 
-                string message = (newQuantity < oldQuantity && !request.Reason.Contains("Typo")) ?
-                    $"Stock adjusted. {Math.Abs(oldQuantity - newQuantity)} {batch.RawMaterial.Unit} logged as waste." :
+                // ✅ CONVERT PARA SA MESSAGE
+                decimal displayDifference = differenceInBaseUnit;
+                if (batch.RawMaterial.Unit == "kg" && batch.RawMaterial.BaseUnit == "g")
+                {
+                    displayDifference = differenceInBaseUnit / 1000;
+                }
+                else if (batch.RawMaterial.Unit == "L" && batch.RawMaterial.BaseUnit == "mL")
+                {
+                    displayDifference = differenceInBaseUnit / 1000;
+                }
+
+                string message = (differenceInBaseUnit > 0 && !request.Reason.Contains("Typo")) ?
+                    $"Stock adjusted. {displayDifference:F2} {batch.RawMaterial.Unit} logged as waste." :
                     "Stock adjusted successfully.";
 
                 return Json(new { success = true, message = message });
@@ -822,15 +879,15 @@ namespace Infoman.Controllers
             }
         }
 
-        private WasteReason GetWasteReasonFromAdjustment(string reason)
+        // Helper method to map reason to WasteReason enum
+        private WasteLog.WasteReason GetWasteReasonFromAdjustment(string reason)
         {
-            if (reason.Contains("Expired")) return WasteReason.Expired;
-            if (reason.Contains("Spoilage")) return WasteReason.Other;
-            if (reason.Contains("Damage")) return WasteReason.Damaged;
-            if (reason.Contains("Quality")) return WasteReason.QualityIssue;
-            if (reason.Contains("Overripe")) return WasteReason.Overprepared;
-            if (reason.Contains("Theft")) return WasteReason.Other;
-            return WasteReason.Other;
+            if (reason.Contains("Spoilage")) return WasteLog.WasteReason.Other;
+            if (reason.Contains("Damage")) return WasteLog.WasteReason.Damaged;
+            if (reason.Contains("Quality")) return WasteLog.WasteReason.QualityIssue;
+            if (reason.Contains("Expired")) return WasteLog.WasteReason.Expired;
+            if (reason.Contains("Missing") || reason.Contains("Theft")) return WasteLog.WasteReason.Other;
+            return WasteLog.WasteReason.Other;
         }
 
         private int GetCurrentUserId()

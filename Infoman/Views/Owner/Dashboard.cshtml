@@ -5028,23 +5028,37 @@ function closeQuantityModal() {
 
     // Alerts Functions
     function loadInventoryAlerts() {
-        fetch('/Owner/GetInventoryAlertsData').then(response => response.json()).then(data => {
-                    console.log('=== WASTE LOGS ORDER FROM SERVER ===');
-                    data.wasteLogs.forEach((log, index) => {
-                    console.log(`${index + 1}. ${log.date} - ${log.materialName}`);
-                    });
-
-            document.getElementById('statLowStock').innerText = data.lowStockCount;
-            document.getElementById('statExpiring').innerText = data.expiringCount;
-            document.getElementById('statWaste').innerText = data.wasteCount;
-            document.getElementById('lowStockBadge').innerText = data.lowStockCount;
-            document.getElementById('expiringBadge').innerText = data.expiringCount;
-            document.getElementById('wasteBadge').innerText = data.wasteCount;
-            loadLowStockTab(data.lowStockItems);
-            loadExpiringTab(data.expiringItems);
-            loadWasteTab(data.wasteLogs);
-        }).catch(error => console.error('Error loading alerts:', error));
-    }
+    fetch('/Owner/GetInventoryAlertsData')
+        .then(response => response.json())
+        .then(data => {
+            // ✅ I-DEBUG ANG BUONG RESPONSE
+            console.log('=== FULL RESPONSE ===');
+            console.log(data);
+            
+            // ✅ I-EXTRACT ANG MGA ARRAY (dahil sa $values)
+            const lowStockItems = data.lowStockItems?.$values || data.lowStockItems || [];
+            const expiringItems = data.expiringItems?.$values || data.expiringItems || [];
+            const wasteLogs = data.wasteLogs?.$values || data.wasteLogs || [];
+            
+            console.log('Low stock items:', lowStockItems.length);
+            console.log('Expiring items:', expiringItems.length);
+            console.log('Waste logs:', wasteLogs.length);
+            
+            // I-update ang mga badge counts
+            document.getElementById('statLowStock').innerText = data.lowStockCount || 0;
+            document.getElementById('statExpiring').innerText = data.expiringCount || 0;
+            document.getElementById('statWaste').innerText = data.wasteCount || 0;
+            document.getElementById('lowStockBadge').innerText = data.lowStockCount || 0;
+            document.getElementById('expiringBadge').innerText = data.expiringCount || 0;
+            document.getElementById('wasteBadge').innerText = data.wasteCount || 0;
+            
+            // I-load ang mga tab
+            loadLowStockTab(lowStockItems);
+            loadExpiringTab(expiringItems);
+            loadWasteTab(wasteLogs);
+        })
+        .catch(error => console.error('Error loading alerts:', error));
+}
 
 function loadLowStockTab(items) {
     const container = document.getElementById('lowStockContent');
@@ -5144,34 +5158,28 @@ function loadLowStockTab(items) {
         else container.innerHTML = `<div class="table-responsive"><table class="table table-bordered"><thead class="table-danger"><tr><th>Name</th><th>Category</th><th>Current Stock</th><th>Expiry Date</th><th>Days Overdue</th><th>Status</th><th>Action</th></tr></thead><tbody>${items.map(item => `<tr><td><strong>${escapeHtml(item.name)}</strong></td><td>${escapeHtml(item.category)}</td><td class="text-danger">${item.stockWithUnit}</td><td class="text-danger">${item.expiryDate}</td><td class="text-danger fw-bold">${item.daysOverdue} days ago</td><td><span class="badge bg-danger">❌ Expired</span></td><td><button class="btn btn-sm btn-outline-danger" onclick="logExpiredAsWaste(${item.rawMaterialId})">Log as Waste</button></td></tr>`).join('')}</tbody></table></div>`;
     }
 
-   function loadWasteTab(wasteLogs) {
+ function loadWasteTab(wasteLogs) {
     const container = document.getElementById('wasteContent');
-    
-    if (!container) {
-        console.error('wasteContent element not found');
-        return;
-    }
     
     if (!wasteLogs || wasteLogs.length === 0) {
         container.innerHTML = `
-            <div class="empty-state" style="text-align: center; padding: 40px 20px;">
-                <i class="fas fa-trash-alt fa-4x text-secondary mb-3"></i>
-                <h4 class="text-secondary">No Waste Logs</h4>
-                <p class="text-muted">No waste has been logged yet.</p>
-                <button class="btn btn-warning btn-sm mt-2" onclick="showAddWasteModal()">Log Your First Waste</button>
+            <div class="empty-state text-center py-5">
+                <i class="fas fa-trash-alt fa-4x text-muted mb-3"></i>
+                <h5 class="text-muted">No Waste Logs Yet</h5>
+                <button class="btn btn-warning btn-sm mt-2" onclick="showAddWasteModal()">
+                    <i class="fas fa-plus"></i> Log Waste
+                </button>
             </div>
         `;
         return;
     }
     
-    // ✅ GAMITIN ANG BOOTSTRAP CLASSES PARA MAY KULAY
     let html = `
         <div class="table-responsive">
-            <table class="table table-bordered">
-                <thead>
+            <table class="table table-bordered table-hover">
+                <thead class="table-danger">
                     <tr>
-                        <th>Date Logged</th>
-                        <th>Expiry Date</th>
+                        <th>Date</th>
                         <th>Material</th>
                         <th>Quantity</th>
                         <th>Reason</th>
@@ -5183,43 +5191,48 @@ function loadLowStockTab(items) {
                 <tbody>
     `;
     
-    for (let i = 0; i < wasteLogs.length; i++) {
-        const log = wasteLogs[i];
-        
+    for (const log of wasteLogs) {
         // Format date
-        let dateLogged = log.date ? log.date.split('T')[0] : 'N/A';
+        const dateLogged = log.date ? new Date(log.date).toLocaleString() : 'N/A';
         
-        // Format expiry date - tanggalin ang time part
-        let expiryDateDisplay = 'N/A';
-        if (log.expiryDate && log.expiryDate !== 'null' && log.expiryDate !== '') {
-            expiryDateDisplay = log.expiryDate.toString().substring(0, 10);
+        // Format quantity - ITO ANG IMPORTANTE
+        // Dapat ang quantity galing sa server ay display unit na (kg/L)
+        let quantityDisplay = '0';
+        if (typeof log.quantity === 'number') {
+            quantityDisplay = log.quantity.toFixed(2);
+        } else if (log.quantity) {
+            quantityDisplay = parseFloat(log.quantity).toFixed(2);
         }
         
+        // Format total cost
         let totalCostDisplay = '₱0.00';
         if (log.totalCost && !isNaN(parseFloat(log.totalCost))) {
             totalCostDisplay = `₱${parseFloat(log.totalCost).toFixed(2)}`;
         }
         
+        // Get reason text
+        let reasonText = log.reason || 'Unknown';
+        let reasonBadge = 'bg-secondary';
+        if (reasonText === 'Spoilage' || reasonText === 'Damaged') {
+            reasonBadge = 'bg-warning text-dark';
+        } else if (reasonText === 'Expired') {
+            reasonBadge = 'bg-danger';
+        }
+        
         html += `
             <tr>
-                <td>${escapeHtml(dateLogged)}</td>
-                <td>${escapeHtml(expiryDateDisplay)}</td>
-                <td><strong>${escapeHtml(log.materialName)}</strong></td>
-                <td class="text-danger">${escapeHtml(log.quantity)} ${escapeHtml(log.unit || '')}</td>
-                <td><span class="badge bg-secondary">${escapeHtml(log.reason || 'Unknown')}</span></td>
+                <td>${dateLogged}</td>
+                <td><strong>${escapeHtml(log.materialName || 'Unknown')}</strong></td>
+                <td class="text-danger fw-bold">${quantityDisplay} ${escapeHtml(log.unit || '')}</td>
+                <td><span class="badge ${reasonBadge}">${escapeHtml(reasonText)}</span></td>
                 <td class="text-danger">${totalCostDisplay}</td>
-                <td>${escapeHtml(log.recordedBy) || '-'}</td>
+                <td>${escapeHtml(log.recordedBy) || 'System'}</td>
                 <td>${escapeHtml(log.notes) || '-'}</td>
             </tr>
         `;
     }
     
-    html += `
-                </tbody>
-            </table>
-        </div>
-    `;
-    
+    html += `</tbody>}</div>`;
     container.innerHTML = html;
 }
 
@@ -5520,9 +5533,9 @@ async function produceProduct(productSizeId, sizeName, currentStock) {
                                     📋 View Usage (${batch.usage.length})
                                 </button>` : 
                                 '<span class="text-muted">No usage</span>'}
-                            <button class="btn btn-sm btn-outline-warning" onclick="showEditStockModal(${batch.batchId}, ${quantityRemaining}, '${materialName}', '${unit}')">
-                                ✏️ Edit Stock
-                            </button>
+                            <button class="btn btn-sm btn-outline-warning" onclick="showEditStockModal(${batch.batchId}, ${batch.quantityRemainingInBaseUnit}, '${materialName}', '${unit}', ${batch.rawMaterialId})">
+    ✏️ Edit Stock
+</button>
                         </div>
                     </td>
                 </tr>
@@ -8594,22 +8607,31 @@ function saveAndReload() {
     location.reload();
 }
 
+let currentBatchMaterialId = null;  // Add this at the top with other variables
 
-
-function showEditStockModal(batchId, currentRemaining, materialName, unit) {
+function showEditStockModal(batchId, currentRemainingInBaseUnit, materialName, unit, materialId) {
+    // Store material ID for later refresh
+    currentBatchMaterialId = materialId;
+    
     // Store for later use
     currentEditBatchId = batchId;
-    currentEditBatchRemaining = currentRemaining;
     currentEditMaterialName = materialName;
     currentEditUnit = unit;
     
-    // Set values in modal
+    // ✅ CONVERT FROM BASE UNIT TO DISPLAY UNIT
+    let displayCurrentStock = currentRemainingInBaseUnit;
+    if (unit === 'kg' || unit === 'L') {
+        displayCurrentStock = currentRemainingInBaseUnit / 1000;
+    }
+    currentEditBatchRemaining = displayCurrentStock;  // Store in display unit
+    
+    // Set values in modal (use converted display value)
     document.getElementById('editBatchId').innerText = batchId;
     document.getElementById('editMaterialName').innerText = materialName;
-    document.getElementById('editCurrentStock').innerText = `${currentRemaining.toFixed(2)} ${unit}`;
+    document.getElementById('editCurrentStock').innerText = `${displayCurrentStock.toFixed(2)} ${unit}`;
     document.getElementById('editUnit').innerText = unit;
-    document.getElementById('editNewQuantity').value = currentRemaining;
-    document.getElementById('editNewQuantity').placeholder = `Current: ${currentRemaining} ${unit}`;
+    document.getElementById('editNewQuantity').value = displayCurrentStock;
+    document.getElementById('editNewQuantity').placeholder = `Current: ${displayCurrentStock.toFixed(2)} ${unit}`;
     
     // Reset form
     document.getElementById('editReason').value = '';
@@ -8655,13 +8677,13 @@ function toggleOtherReason() {
 }
 
 async function confirmStockAdjustment() {
-    const newQuantity = parseFloat(document.getElementById('editNewQuantity').value);
+    const newQuantityInDisplayUnit = parseFloat(document.getElementById('editNewQuantity').value);
     let reason = document.getElementById('editReason').value;
     const otherReason = document.getElementById('editOtherReason').value;
     const notes = document.getElementById('editNotes').value;
     
     // Validation
-    if (isNaN(newQuantity) || newQuantity < 0) {
+    if (isNaN(newQuantityInDisplayUnit) || newQuantityInDisplayUnit < 0) {
         await showAlert('Please enter a valid quantity (0 or positive number)', 'Invalid Input', '⚠️');
         return;
     }
@@ -8680,21 +8702,21 @@ async function confirmStockAdjustment() {
         reason = otherReason;
     }
     
-    if (newQuantity === currentEditBatchRemaining) {
+    // Compare using display unit values
+    if (newQuantityInDisplayUnit === currentEditBatchRemaining) {
         await showAlert('No changes made. Quantity is the same as current stock.', 'Notice', 'ℹ️');
         return;
     }
     
-    const adjustment = Math.abs(newQuantity - currentEditBatchRemaining);
-    const isDecrease = newQuantity < currentEditBatchRemaining;
-    const action = isDecrease ? 'decrease' : 'increase';
+    const adjustment = Math.abs(newQuantityInDisplayUnit - currentEditBatchRemaining);
+    const isDecrease = newQuantityInDisplayUnit < currentEditBatchRemaining;
     
     const confirmed = await showConfirm(
         `Confirm Stock Adjustment\n\n` +
         `Batch #${currentEditBatchId}\n` +
         `Material: ${currentEditMaterialName}\n` +
         `Current: ${currentEditBatchRemaining.toFixed(2)} ${currentEditUnit}\n` +
-        `New: ${newQuantity.toFixed(2)} ${currentEditUnit}\n` +
+        `New: ${newQuantityInDisplayUnit.toFixed(2)} ${currentEditUnit}\n` +
         `${isDecrease ? `Reduction: ${adjustment.toFixed(2)} ${currentEditUnit}` : `Increase: ${adjustment.toFixed(2)} ${currentEditUnit}`}\n\n` +
         `Reason: ${reason}\n` +
         `Notes: ${notes || 'None'}\n\n` +
@@ -8717,7 +8739,7 @@ async function confirmStockAdjustment() {
             },
             body: JSON.stringify({
                 batchId: currentEditBatchId,
-                newQuantity: newQuantity,
+                newQuantity: newQuantityInDisplayUnit,  // ✅ Send in display unit (kg/L)
                 reason: reason,
                 notes: notes
             })
@@ -8733,12 +8755,23 @@ async function confirmStockAdjustment() {
             const modal = bootstrap.Modal.getInstance(document.getElementById('editStockModal'));
             if (modal) modal.hide();
             
-            // Refresh batch history
+            // ✅ Refresh the batch history modal to show updated data
             const materialName = document.getElementById('modalBatchMaterialName').innerText;
-            const materialId = currentEditBatchId; // Need to get actual materialId
+            // You need to store the materialId when showing batch history
+            if (window.currentBatchMaterialId) {
+                await viewBatchHistory(window.currentBatchMaterialId, materialName);
+            }
             
-            // Refresh the page to show updated data
-            saveAndReload();
+            // Also refresh the alerts page if open
+            const alertsModule = document.getElementById('inventoryAlertsModule');
+            if (alertsModule && alertsModule.classList.contains('active')) {
+                loadInventoryAlerts();
+            }
+            
+            // Optional: reload the whole page to ensure all data is fresh
+            setTimeout(() => {
+                saveAndReload();
+            }, 1000);
         } else {
             await showAlert('Error: ' + result.message, 'Error', '❌');
         }

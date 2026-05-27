@@ -230,24 +230,38 @@ namespace Infoman.Controllers
                 bestSelling = new List<BestSellingProductVM>();
             }
 
-            // ========== RAW MATERIALS MASTER RECORD ==========
-            ViewBag.RawMaterialsMaster = await _db.RawMaterials
+            // Raw materials for inventory module - FIXED
+            var rawMaterialsData = await _db.RawMaterials
                 .Where(r => !r.IsDeleted)
                 .Select(r => new
                 {
                     r.RawMaterialId,
                     r.Name,
                     r.Category,
+                    r.MinQty,
+                    r.Price,
                     r.Unit,
                     r.SKU,
-                    Status = r.Stock <= r.MinQty ? "Low Stock" : "In Stock"
+                    r.BaseUnit,
+                    r.ExpirationDate,
+                    TotalStockInBaseUnit = _db.RawMaterialBatches
+                        .Where(b => b.RawMaterialId == r.RawMaterialId)
+                        .Sum(b => (decimal?)b.QuantityRemaining) ?? 0
                 })
                 .ToListAsync();
 
-            // Raw materials for inventory module
-            ViewBag.RawMaterials = await _db.RawMaterials
-                .Where(r => !r.IsDeleted)
-                .Select(r => new RawMaterial
+            var rawMaterialsList = new List<RawMaterial>();
+            foreach (var r in rawMaterialsData)
+            {
+                decimal displayStock = r.TotalStockInBaseUnit;
+
+                // Convert to display unit (kg/L)
+                if ((r.BaseUnit == "g" && r.Unit == "kg") || (r.BaseUnit == "mL" && r.Unit == "L"))
+                {
+                    displayStock = r.TotalStockInBaseUnit / 1000;
+                }
+
+                rawMaterialsList.Add(new RawMaterial
                 {
                     RawMaterialId = r.RawMaterialId,
                     Name = r.Name,
@@ -257,11 +271,25 @@ namespace Infoman.Controllers
                     Unit = r.Unit,
                     SKU = r.SKU,
                     ExpirationDate = r.ExpirationDate,
-                    Stock = _db.RawMaterialBatches
-                        .Where(b => b.RawMaterialId == r.RawMaterialId)
-                        .Sum(b => (decimal?)b.QuantityRemaining) ?? 0
-                })
-                .ToListAsync();
+                    Stock = displayStock
+                });
+            }
+
+            ViewBag.RawMaterials = rawMaterialsList;
+
+            // ========== RAW MATERIALS MASTER RECORD (para sa Raw Materials Module) ==========
+            ViewBag.RawMaterialsMaster = rawMaterialsList.Select(r => new
+            {
+                r.RawMaterialId,
+                r.Name,
+                r.Category,
+                r.Unit,
+                r.SKU,
+                Status = r.Stock <= r.MinQty ? "Low Stock" : "In Stock"
+            }).ToList();
+
+
+
 
             var products = await _db.Products
                  .Where(p => !p.IsDeleted)
@@ -1164,29 +1192,50 @@ namespace Infoman.Controllers
         [HttpGet]
         public async Task<IActionResult> GetInventoryAlertsData()
         {
-            var today = DateTime.Today;  // ✅ Isang beses lang ideclare
+            var today = DateTime.Today;
 
             var allMaterials = await _db.RawMaterials
                 .Where(r => !r.IsDeleted)
                 .ToListAsync();
 
             // ========== LOW STOCK ITEMS ==========
-            var lowStockItems = allMaterials
-                .Where(r => r.Stock <= r.MinQtyInBaseUnit)
-                .Select(r => new
+            // ✅ I-CONVERT ANG STOCK SA DISPLAY UNIT PARA SA COMPARISON
+            var lowStockItems = new List<object>();
+
+            foreach (var r in allMaterials)
+            {
+                // Compute total stock from batches (in base unit)
+                decimal totalStockInBaseUnit = await _db.RawMaterialBatches
+                    .Where(b => b.RawMaterialId == r.RawMaterialId)
+                    .SumAsync(b => (decimal?)b.QuantityRemaining) ?? 0;
+
+                // Convert to display unit for comparison with MinQty (which is in display unit from user input)
+                decimal totalStockInDisplayUnit = totalStockInBaseUnit;
+                if ((r.BaseUnit == "g" && r.Unit == "kg") || (r.BaseUnit == "mL" && r.Unit == "L"))
                 {
-                    r.RawMaterialId,
-                    r.Name,
-                    Category = r.Category.ToString(),
-                    r.Stock,
-                    r.MinQty,
-                    r.Unit,
-                    StockWithUnit = r.StockWithUnit,
-                    MinQtyWithUnit = r.MinQtyWithUnit  // ✅ GAMITIN ANG PROPERTY
-                })
-                .ToList();
+                    totalStockInDisplayUnit = totalStockInBaseUnit / 1000;
+                }
+
+                // Compare using display units (both in kg/L)
+                if (totalStockInDisplayUnit <= r.MinQty)
+                {
+                    lowStockItems.Add(new
+                    {
+                        r.RawMaterialId,
+                        r.Name,
+                        Category = r.Category.ToString(),
+                        Stock = totalStockInDisplayUnit,
+                        MinQty = r.MinQty,
+                        r.Unit,
+                        StockWithUnit = $"{totalStockInDisplayUnit:F2} {r.Unit}",
+                        MinQtyWithUnit = $"{r.MinQty:F2} {r.Unit}"
+                    });
+                }
+            }
+
             int lowStockCount = lowStockItems.Count;
-            // ========== FIXED: EXPIRING SOON (BATCHES within 7 days ONLY) ==========
+
+            // ========== EXPIRING SOON (BATCHES within 7 days ONLY) ==========
             var expiringDateThreshold = today.AddDays(7);
 
             var expiringItems = await _db.RawMaterialBatches
@@ -1201,9 +1250,14 @@ namespace Infoman.Controllers
                     RawMaterialId = b.RawMaterial.RawMaterialId,
                     Name = b.RawMaterial.Name,
                     Category = b.RawMaterial.Category.ToString(),
-                    // ✅ CONVERT GRAMS TO KG
-                    ExpiringStockQuantity = b.QuantityRemaining / 1000,
-                    ExpiringStockWithUnit = $"{(b.QuantityRemaining / 1000):F2} {b.RawMaterial.Unit}",
+                    ExpiringStockQuantity = (b.RawMaterial.BaseUnit == "g" && b.RawMaterial.Unit == "kg") ||
+                                           (b.RawMaterial.BaseUnit == "mL" && b.RawMaterial.Unit == "L")
+                        ? b.QuantityRemaining / 1000
+                        : b.QuantityRemaining,
+                    ExpiringStockWithUnit = ((b.RawMaterial.BaseUnit == "g" && b.RawMaterial.Unit == "kg") ||
+                                            (b.RawMaterial.BaseUnit == "mL" && b.RawMaterial.Unit == "L"))
+                        ? $"{(b.QuantityRemaining / 1000):F2} {b.RawMaterial.Unit}"
+                        : $"{b.QuantityRemaining:F2} {b.RawMaterial.Unit}",
                     ExpiryDate = b.ExpiryDate.Value.ToString("yyyy-MM-dd"),
                     DaysLeft = (b.ExpiryDate.Value - today).Days,
                     Unit = b.RawMaterial.Unit,
@@ -1212,7 +1266,7 @@ namespace Infoman.Controllers
                 .ToListAsync();
             int expiringCount = expiringItems.Count;
 
-            // ========== FIXED: EXPIRED (from BATCHES) ==========
+            // ========== EXPIRED (from BATCHES) ==========
             var expiredBatches = await _db.RawMaterialBatches
                 .Include(b => b.RawMaterial)
                 .Where(b => b.ExpiryDate.HasValue &&
@@ -1229,7 +1283,10 @@ namespace Infoman.Controllers
                     Name = g.Key.Name,
                     Category = g.Key.Category.ToString(),
                     ExpiredStockQuantity = g.Sum(b => b.QuantityRemaining),
-                    ExpiredStockWithUnit = $"{g.Sum(b => b.QuantityRemaining):F2} {g.Key.Unit}",
+                    ExpiredStockWithUnit = ((g.Key.BaseUnit == "g" && g.Key.Unit == "kg") ||
+                                           (g.Key.BaseUnit == "mL" && g.Key.Unit == "L"))
+                        ? $"{g.Sum(b => b.QuantityRemaining) / 1000:F2} {g.Key.Unit}"
+                        : $"{g.Sum(b => b.QuantityRemaining):F2} {g.Key.Unit}",
                     ExpiryDate = g.Min(b => b.ExpiryDate).Value.ToString("yyyy-MM-dd"),
                     DaysOverdue = (today - g.Min(b => b.ExpiryDate).Value).Days,
                     Unit = g.Key.Unit,
@@ -1238,7 +1295,7 @@ namespace Infoman.Controllers
                 .ToList();
             int expiredCount = expiredItems.Count;
 
-            // ========== WASTE LOGS = CORRECTED ==========
+            // ========== WASTE LOGS ==========
             var wasteLogs = await _db.WasteLogs
                 .Include(w => w.RawMaterial)
                 .OrderByDescending(w => w.Date)
@@ -1247,12 +1304,10 @@ namespace Infoman.Controllers
                     w.WasteLogId,
                     w.Date,
                     MaterialName = w.RawMaterial.Name,
-                    // ✅ CONVERT BACK TO DISPLAY UNIT
-                    Quantity = w.RawMaterial.Unit == "kg" && w.RawMaterial.BaseUnit == "g"
+                    Quantity = (w.RawMaterial.BaseUnit == "g" && w.RawMaterial.Unit == "kg") ||
+                              (w.RawMaterial.BaseUnit == "mL" && w.RawMaterial.Unit == "L")
                         ? w.Quantity / 1000
-                        : (w.RawMaterial.Unit == "L" && w.RawMaterial.BaseUnit == "mL")
-                            ? w.Quantity / 1000
-                            : w.Quantity,
+                        : w.Quantity,
                     Unit = w.RawMaterial.Unit,
                     Reason = w.Reason.ToString(),
                     TotalCost = w.TotalCost,
@@ -1278,6 +1333,8 @@ namespace Infoman.Controllers
                 wasteLogs = wasteLogs
             });
         }
+
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddWasteLog([FromBody] WasteLogViewModel model)
@@ -1924,10 +1981,23 @@ namespace Infoman.Controllers
         public async Task<IActionResult> GetReceivingFormData()
         {
             var suppliers = await _db.Suppliers.Where(s => s.Status == "Active").Select(s => new { s.SupplierId, s.Name }).ToListAsync();
-            var rawMaterials = await _db.RawMaterials.Where(r => !r.IsDeleted).Select(r => new { r.RawMaterialId, r.Name, r.Unit }).ToListAsync();
+
+            var rawMaterials = await _db.RawMaterials
+                .Where(r => !r.IsDeleted)
+                .Select(r => new
+                {
+                    r.RawMaterialId,
+                    r.Name,
+                    r.Unit,
+                    // ✅ CONVERT STOCK
+                    StockInDisplayUnit = r.BaseUnit == "g" && r.Unit == "kg" ? r.Stock / 1000 :
+                                        (r.BaseUnit == "mL" && r.Unit == "L" ? r.Stock / 1000 : r.Stock)
+                })
+                .ToListAsync();
 
             return Json(new { suppliers, rawMaterials });
         }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ReceiveDelivery([FromBody] ReceivingViewModel model)

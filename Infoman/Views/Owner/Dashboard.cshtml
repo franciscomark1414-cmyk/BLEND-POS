@@ -3222,9 +3222,12 @@ function isUnitCompatible(materialUnit, recipeUnit) {
     return materialCategory === recipeCategory;
 }
 
-// I-update ang unit dropdown options based sa napiling raw material
 function updateUnitDropdown(selectElement) {
-    const row = selectElement.closest('tr');
+    // ✅ Hanapin ang parent row (pwede tr o div)
+    let row = selectElement.closest('tr');
+    if (!row) {
+        row = selectElement.closest('.ingredient-row');
+    }
     if (!row) return;
     
     const unitSelect = row.querySelector('.unit-select');
@@ -3263,8 +3266,10 @@ function updateUnitDropdown(selectElement) {
         }
     }
     
-    // Recalculate total after unit change
-    calculateIngredientTotal(unitSelect);
+    // Recalculate total after unit change (para sa Edit Recipe modal)
+    if (typeof calculateIngredientTotal === 'function') {
+        calculateIngredientTotal(unitSelect);
+    }
 }
 
 // Validation bago mag-save
@@ -4034,7 +4039,8 @@ function addSizeRowPromise(predefinedName = null, enableManualPrice = true) {
                                             <input type="number" name="Sizes[${sizeId}].RecipeItems[0].Quantity" class="form-control" placeholder="Qty" step="0.01" min="0.01" value="1" required>
                                         </div>
                                         <div class="col-md-4">
-                                            <select name="Sizes[${sizeId}].RecipeItems[0].UnitUsed" class="form-control" required>
+                                           
+                                             <select name="Sizes[${sizeId}].RecipeItems[0].UnitUsed" class="form-control unit-select" required>
                                                 <option value="kg">📦 kilogram (kg)</option>
                                                 <option value="g">⚖️ gram (g)</option>
                                                 <option value="L">💧 liter (L)</option>
@@ -4101,7 +4107,7 @@ function addSizeRowSync(predefinedName = null) {
                                         <input type="number" name="Sizes[${sizeId}].RecipeItems[0].Quantity" class="form-control" placeholder="Qty" step="0.01" min="0.01" value="1" required>
                                     </div>
                                     <div class="col-md-4">
-                                        <select name="Sizes[${sizeId}].RecipeItems[0].UnitUsed" class="form-control" required>
+                                        <select name="Sizes[${sizeId}].RecipeItems[0].UnitUsed" class="form-control unit-select" required>
                                             <option value="kg">📦 kilogram (kg)</option>
                                             <option value="g">⚖️ gram (g)</option>
                                             <option value="L">💧 liter (L)</option>
@@ -4191,7 +4197,7 @@ function addSizeRow(predefinedName = null) {
                         <input type="number" name="Sizes[${sizeId}].RecipeItems[${itemCount}].Quantity" class="form-control form-control-sm" placeholder="Qty" step="0.01" min="0.01" value="1" required>
                     </div>
                     <div class="col-4">
-                        <select name="Sizes[${sizeId}].RecipeItems[${itemCount}].UnitUsed" class="form-control form-control-sm" required>
+                       <select name="Sizes[${sizeId}].RecipeItems[${itemCount}].UnitUsed" class="form-control form-control-sm unit-select" required>
                             <option value="kg"> kilogram (kg)</option>
 <option value="g"> gram (g)</option>
 <option value="L"> liter (L)</option>
@@ -7044,52 +7050,59 @@ async function deleteSupplier(id) {
 let receivingRowCount = 0;
 let rawMaterialsList = [];
 
-                    function loadReceivingFormData() {
-                    console.log('Fetching receiving form data...');
+function loadReceivingFormData() {
+    console.log('Fetching receiving form data...');
     
-                    fetch('/Owner/GetReceivingFormData')
-                    .then(r => r.json())
-                    .then(data => {
-                    console.log('Raw data received:', data);
-                    console.log('Suppliers:', data.suppliers);
-                    console.log('Raw materials:', data.rawMaterials);
+    fetch('/Owner/GetReceivingFormData')
+        .then(r => r.json())
+        .then(data => {
+            console.log('Raw data received:', data);
+            console.log('Suppliers:', data.suppliers);
+            console.log('Raw materials:', data.rawMaterials);
             
-                    const supplierSelect = document.getElementById('supplierId');
-                    supplierSelect.innerHTML = '<option value="">-- Select Supplier --</option>';
+            const supplierSelect = document.getElementById('supplierId');
+            supplierSelect.innerHTML = '<option value="">-- Select Supplier --</option>';
             
-                    if (data.suppliers && data.suppliers.length > 0) {
-                    data.suppliers.forEach(s => {
+            if (data.suppliers && data.suppliers.length > 0) {
+                data.suppliers.forEach(s => {
                     supplierSelect.innerHTML += `<option value="${s.supplierId}">${escapeHtml(s.name)}</option>`;
-                    });
-                    } else {
-                    console.warn('No suppliers found');
-                    }
-
-                    // I-assign ang rawMaterialsList
-                    if (data.rawMaterials && data.rawMaterials.length > 0) {
-                    rawMaterialsList = data.rawMaterials;
-                    console.log('Raw materials loaded:', rawMaterialsList.length, 'items');
-                    } else {
-                    console.warn('No raw materials found');
-                    rawMaterialsList = [];
-                    }
+                });
+            } else {
+                console.warn('No suppliers found');
+            }
             
-                    document.getElementById('drNumber').value = generateDRNumber();
-                    document.getElementById('invoiceNumber').value = generateInvoiceNumber();
+            // I-process ang raw materials para magamit sa dropdown
+            if (data.rawMaterials && data.rawMaterials.length > 0) {
+                // I-convert para magamit sa addReceivingRow function
+                rawMaterialsList = data.rawMaterials.map(m => ({
+                    rawMaterialId: m.rawMaterialId,
+                    name: m.name,
+                    unit: m.unit,
+                    stockInDisplayUnit: m.stockInDisplayUnit || 0
+                }));
+                console.log('Raw materials loaded:', rawMaterialsList.length, 'items');
+                console.log('Sample raw material:', rawMaterialsList[0]);
+            } else {
+                console.warn('No raw materials found');
+                rawMaterialsList = [];
+            }
             
-                    // I-clear at mag-add ng row
-                    const tbody = document.getElementById('receivingItemsBody');
-                    if (tbody) {
-                    tbody.innerHTML = '';
-                    receivingRowCount = 0;
-                    addReceivingRow();
-                    }
-                    })
-                    .catch(async error => {
-    console.error('Error loading form data:', error);
-    await showAlert('Error loading form data: ' + error.message, 'Error');
-});
-                    }
+            document.getElementById('drNumber').value = generateDRNumber();
+            document.getElementById('invoiceNumber').value = generateInvoiceNumber();
+            
+            // I-clear at mag-add ng row
+            const tbody = document.getElementById('receivingItemsBody');
+            if (tbody) {
+                tbody.innerHTML = '';
+                receivingRowCount = 0;
+                addReceivingRow();
+            }
+        })
+        .catch(async error => {
+            console.error('Error loading form data:', error);
+            await showAlert('Error loading form data: ' + error.message, 'Error');
+        });
+}
 function generateDRNumber() {
         const today = new Date();
         const year = today.getFullYear();
@@ -7105,31 +7118,40 @@ function generateDRNumber() {
         return `INV-${year}${month}-${random}`;
     }
 
-        function addReceivingRow() {
+       function addReceivingRow() {
     const tbody = document.getElementById('receivingItemsBody');
     const rowId = receivingRowCount++;
-
-    let materialOptions = '<option value="">Select Material</option>';
-    rawMaterialsList.forEach(m => {
-        materialOptions += `<option value="${m.rawMaterialId}" data-unit="${m.unit}">${escapeHtml(m.name)} (${m.unit})</option>`;
-    });
-
+    
+    // ✅ GAMITIN ANG rawMaterialsList NA MAY stockInDisplayUnit
+    let materialOptions = '<option value="">-- Select Material --</option>';
+    
+    if (rawMaterialsList && rawMaterialsList.length > 0) {
+        rawMaterialsList.forEach(m => {
+            const stockDisplay = m.stockInDisplayUnit ? m.stockInDisplayUnit.toFixed(2) : '0';
+            materialOptions += `<option value="${m.rawMaterialId}" data-unit="${m.unit}" data-stock="${stockDisplay}">
+                ${escapeHtml(m.name)} (${m.unit}) - Stock: ${stockDisplay} ${m.unit}
+            </option>`;
+        });
+    } else {
+        materialOptions += '<option value="" disabled>No raw materials available</option>';
+    }
+    
     const row = `
         <tr id="receiving-row-${rowId}">
             <td style="width:18%">
                 <select class="form-control material-select" data-row="${rowId}" onchange="updateUnitDisplay(${rowId})">
                     ${materialOptions}
                 </select>
-            </td>
+              </td>
             <td style="width:8%">
                 <input type="number" class="form-control received-qty" data-row="${rowId}" step="0.01" min="0" value="0" onchange="validateRow(${rowId})">
-            </td>
+              </td>
             <td style="width:8%">
                 <input type="number" class="form-control accepted-qty" data-row="${rowId}" step="0.01" min="0" value="0" onchange="validateRow(${rowId})">
-            </td>
+              </td>
             <td style="width:8%">
                 <input type="number" class="form-control rejected-qty" data-row="${rowId}" step="0.01" min="0" value="0" onchange="validateRow(${rowId}); toggleDisposition(${rowId})">
-            </td>
+              </td>
             <td style="width:25%">
                 <select class="form-control disposition-select" data-row="${rowId}" style="display:none;" onchange="toggleReasonContainer(${rowId})">
                     <option value="">-- Select Disposition --</option>
@@ -7148,22 +7170,41 @@ function generateDRNumber() {
                     </select>
                     <input type="text" class="form-control other-reason mt-1" data-row="${rowId}" placeholder="Please specify reason..." style="display:none;">
                 </div>
-            </td>
+              </td>
             <td style="width:10%">
-                <input type="number" class="form-control unit-price" data-row="${rowId}" step="0.01" min="0" placeholder="0.00">
-            </td>
+                <input type="number" class="form-control unit-price" data-row="${rowId}" step="0.01" min="0" placeholder="0.00" onchange="checkUnitPriceWarning(${rowId})">
+                <small class="text-muted price-warning" data-row="${rowId}" style="display:none; color:#ff6b35; font-size:10px;">
+                    ⚠️ Price is ₱0 (free item)
+                </small>
+              </td>
             <td style="width:12%">
                 <input type="date" class="form-control expiry-date" data-row="${rowId}">
-            </td>
+              </td>
             <td style="width:5%">
                 <button type="button" class="btn btn-sm btn-danger" onclick="removeReceivingRow(${rowId})">
                     <i class="fas fa-trash"></i>
                 </button>
-            </td>
-        </tr>
+              </td>
+          </tr>
     `;
-
+    
     tbody.insertAdjacentHTML('beforeend', row);
+}
+
+function checkUnitPriceWarning(rowId) {
+    const priceInput = document.querySelector(`.unit-price[data-row="${rowId}"]`);
+    const warningSpan = document.querySelector(`.price-warning[data-row="${rowId}"]`);
+    const price = parseFloat(priceInput.value) || 0;
+    
+    if (price === 0 && priceInput.value !== '' && priceInput.value !== '0') {
+        // Hindi zero, valid
+        if (warningSpan) warningSpan.style.display = 'none';
+    } else if (price === 0 && priceInput.value !== '') {
+        // Zero price - show warning but allow
+        if (warningSpan) warningSpan.style.display = 'inline';
+    } else {
+        if (warningSpan) warningSpan.style.display = 'none';
+    }
 }
 
 // Helper function to update unit display when material changes
@@ -7171,12 +7212,29 @@ function updateUnitDisplay(rowId) {
     const select = document.querySelector(`.material-select[data-row="${rowId}"]`);
     const selectedOption = select.options[select.selectedIndex];
     const unit = selectedOption.getAttribute('data-unit') || '';
-    // Optional: Ipakita ang unit sa tabi ng quantity field
-    const unitDisplay = document.querySelector(`.unit-display-${rowId}`);
-    if (unitDisplay) {
-        unitDisplay.innerText = unit;
+    const stockDisplay = selectedOption.getAttribute('data-stock') || '0';
+    
+    // Optional: Ipakita ang unit at stock sa tabi ng quantity field
+    const row = document.getElementById(`receiving-row-${rowId}`);
+    if (row) {
+        // Hanapin kung may existing unit display, kung wala, gumawa
+        let unitDisplay = row.querySelector('.unit-display');
+        if (!unitDisplay) {
+            const qtyCell = row.querySelector('td:nth-child(2)');
+            if (qtyCell) {
+                const span = document.createElement('small');
+                span.className = 'unit-display text-muted d-block';
+                span.style.fontSize = '10px';
+                qtyCell.appendChild(span);
+                unitDisplay = span;
+            }
+        }
+        if (unitDisplay) {
+            unitDisplay.innerHTML = `Unit: ${unit}<br>Stock: ${stockDisplay} ${unit}`;
+        }
     }
 }
+
 // ✅ IDAGDAG ANG FUNCTION NA ITO para sa Other Reason toggle
     function toggleOtherReason(rowId) {
         const select = document.querySelector(`.rejection-reason[data-row="${rowId}"]`);
@@ -7240,6 +7298,8 @@ document.getElementById('receivingForm')?.addEventListener('submit', async funct
 
     const items = [];
     const rows = document.querySelectorAll('#receivingItemsBody tr');
+    let hasZeroPriceWarning = false;
+    let zeroPriceItems = [];
 
     for (let row of rows) {
         const rowId = row.id.split('-').pop();
@@ -7250,16 +7310,22 @@ document.getElementById('receivingForm')?.addEventListener('submit', async funct
         const receivedQty = parseFloat(document.querySelector(`.received-qty[data-row="${rowId}"]`).value) || 0;
         const acceptedQty = parseFloat(document.querySelector(`.accepted-qty[data-row="${rowId}"]`).value) || 0;
         const rejectedQty = parseFloat(document.querySelector(`.rejected-qty[data-row="${rowId}"]`).value) || 0;
+        const unitPrice = parseFloat(document.querySelector(`.unit-price[data-row="${rowId}"]`).value) || 0;
+        
+        // ✅ WARNING LANG PAG ₱0 (hindi required)
+        if (unitPrice === 0 && acceptedQty > 0) {
+            hasZeroPriceWarning = true;
+            const materialName = materialSelect.options[materialSelect.selectedIndex]?.text.split('(')[0].trim() || 'Unknown';
+            zeroPriceItems.push(materialName);
+        }
         
         let disposition = '';
         let rejectionReason = '';
         
         if (rejectedQty > 0) {
-            // Kunin ang disposition
             const dispositionSelect = document.querySelector(`.disposition-select[data-row="${rowId}"]`);
             disposition = dispositionSelect ? dispositionSelect.value : '';
             
-            // Kunin ang rejection reason
             const reasonSelect = document.querySelector(`.rejection-reason[data-row="${rowId}"]`);
             rejectionReason = reasonSelect ? reasonSelect.value : '';
             
@@ -7268,13 +7334,11 @@ document.getElementById('receivingForm')?.addEventListener('submit', async funct
                 rejectionReason = otherReason ? otherReason.value : 'Other (no details)';
             }
             
-            // Validate: If rejected > 0, dapat may disposition
             if (!disposition) {
-    await showAlert(`Please select disposition (Return or Waste) for ${materialSelect.options[materialSelect.selectedIndex].text}`, 'Required', '⚠️');
-    return;
-}
+                await showAlert(`Please select disposition (Return or Waste) for ${materialSelect.options[materialSelect.selectedIndex].text}`, 'Required', '⚠️');
+                return;
+            }
             
-            // If rejected but no reason, set default
             if (!rejectionReason || rejectionReason === '') {
                 rejectionReason = 'No reason provided';
             }
@@ -7288,15 +7352,24 @@ document.getElementById('receivingForm')?.addEventListener('submit', async funct
             rejectedQty: rejectedQty,
             disposition: disposition,
             rejectionReason: rejectionReason,
-            unitPrice: parseFloat(document.querySelector(`.unit-price[data-row="${rowId}"]`).value) || 0,
+            unitPrice: unitPrice,
             expiryDate: document.querySelector(`.expiry-date[data-row="${rowId}"]`).value || null
         });
     }
 
     if (items.length === 0) {
-    await showAlert('Please add at least one item', 'Required');
-    return;
-}
+        await showAlert('Please add at least one item', 'Required');
+        return;
+    }
+
+    // ✅ WARNING LANG PAG ₱0, HINDI REQUIRED
+    if (hasZeroPriceWarning) {
+        const confirmed = await showConfirm(
+            `⚠️ PRICE WARNING\n\nThe following items have ₱0.00 unit price:\n• ${zeroPriceItems.join('\n• ')}\n\nThis means they are FREE items.\n\nDo you want to continue saving this delivery?`,
+            'Zero Price Warning'
+        );
+        if (!confirmed) return;
+    }
 
     const data = {
         supplierId: parseInt(document.getElementById('supplierId').value),
@@ -7308,9 +7381,9 @@ document.getElementById('receivingForm')?.addEventListener('submit', async funct
     };
 
     if (!data.supplierId || !data.drNumber) {
-    await showAlert('Please select supplier and enter DR Number', 'Required');
-    return;
-}
+        await showAlert('Please select supplier and enter DR Number', 'Required');
+        return;
+    }
 
     const submitBtn = this.querySelector('button[type="submit"]');
     const originalText = submitBtn.innerHTML;
@@ -7328,14 +7401,12 @@ document.getElementById('receivingForm')?.addEventListener('submit', async funct
     .then(r => r.json())
     .then(result => {
         if (result.success) {
-            showAlert( result.message, 'Success');
+            showAlert(result.message, 'Success');
             document.getElementById('receivingForm').reset();
             document.getElementById('receivingItemsBody').innerHTML = '';
             receivingRowCount = 0;
             addReceivingRow();
-            // Set new DR number
             document.getElementById('drNumber').value = generateDRNumber();
-            // Set new Invoice number
             document.getElementById('invoiceNumber').value = generateInvoiceNumber();
             showModule('receivingHistory');
             loadDeliveryHistory();

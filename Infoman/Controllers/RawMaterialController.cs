@@ -536,14 +536,14 @@ namespace Infoman.Controllers
 
         private async Task UpdateMainStockColumn(int rawMaterialId)
         {
-            var totalStock = await _context.RawMaterialBatches
+            var totalStockInBaseUnit = await _context.RawMaterialBatches
                 .Where(b => b.RawMaterialId == rawMaterialId)
                 .SumAsync(b => (decimal?)b.QuantityRemaining) ?? 0;
 
             var material = await _context.RawMaterials.FindAsync(rawMaterialId);
             if (material != null)
             {
-                material.Stock = totalStock;
+                material.Stock = totalStockInBaseUnit;  // ✅ I-save sa base unit (grams/mL)
                 await _context.SaveChangesAsync();
             }
         }
@@ -656,18 +656,31 @@ namespace Infoman.Controllers
                     r.Unit,
                     r.Price,
                     r.MinQty,
-                    r.Category
+                    r.Category,
+                    r.BaseUnit,
+                    r.ConversionFactor
                 })
                 .FirstOrDefaultAsync();
 
             if (material == null)
                 return Json(new { success = false, message = "Material not found" });
 
+            // ✅ CONVERT STOCK FROM BASE UNIT TO DISPLAY UNIT
+            decimal displayStock = material.Stock;
+            if (material.BaseUnit == "g" && material.Unit == "kg")
+            {
+                displayStock = material.Stock / 1000;  // 20000 g → 20 kg
+            }
+            else if (material.BaseUnit == "mL" && material.Unit == "L")
+            {
+                displayStock = material.Stock / 1000;  // 20000 mL → 20 L
+            }
+
             return Json(new
             {
                 success = true,
                 name = material.Name,
-                stock = material.Stock,
+                stock = displayStock,        // ✅ CONVERTED NA
                 unit = material.Unit,
                 price = material.Price
             });
@@ -701,16 +714,33 @@ namespace Infoman.Controllers
                     name = r.Name,
                     unit = r.Unit,
                     defaultPrice = r.Price,
+                    // ✅ KUHAIN ANG ACTUAL STOCK MULA SA BATCHES, HINDI SA r.Stock
+                    totalStockInBaseUnit = _context.RawMaterialBatches
+                        .Where(b => b.RawMaterialId == r.RawMaterialId)
+                        .Sum(b => (decimal?)b.QuantityRemaining) ?? 0,
                     latestBatchPrice = _context.RawMaterialBatches
                         .Where(b => b.RawMaterialId == r.RawMaterialId && b.QuantityRemaining > 0)
-                        .OrderBy(b => b.ExpiryDate)      // ✅ FEFO
-                        .ThenBy(b => b.ReceivedDate)     // ✅ FIFO
+                        .OrderBy(b => b.ExpiryDate)
+                        .ThenBy(b => b.ReceivedDate)
                         .Select(b => b.UnitPrice)
                         .FirstOrDefault()
                 })
                 .ToListAsync();
 
-            return Json(materials);
+            // Convert after getting sum from batches
+            var result = materials.Select(m => new
+            {
+                id = m.id,
+                name = m.name,
+                unit = m.unit,
+                defaultPrice = m.defaultPrice,
+                stockInDisplayUnit = (m.unit == "kg" || m.unit == "L")
+                    ? m.totalStockInBaseUnit / 1000
+                    : m.totalStockInBaseUnit,
+                latestBatchPrice = m.latestBatchPrice
+            }).ToList();
+
+            return Json(result);
         }
 
         // GET: RawMaterial/GetAdjustmentHistory

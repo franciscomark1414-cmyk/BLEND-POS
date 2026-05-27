@@ -4150,8 +4150,7 @@ async function loadExchangeOrderItems() {
     if (!orderId) return;
     
     currentExchangeOrderId = parseInt(orderId);
-    exchangeReturnItemsData = [];
-    exchangeReplaceItemsData = [];
+    exchangeReplaceItemsData = [];  // ✅ RESET REPLACEMENT ITEMS
     
     try {
         const response = await fetch(`/ReturnExchange/GetCompletedOrderDetails?orderId=${orderId}`);
@@ -4172,6 +4171,13 @@ async function loadExchangeOrderItems() {
         renderReplacementItems();
         updateExchangeSummary();
         
+        // Reset payment selection
+        selectedExchangePayment = null;
+        document.querySelectorAll('#exchangeTabContent .exchange-payment-btn').forEach(btn => {
+            btn.style.background = 'white';
+            btn.style.color = '#333';
+        });
+        
     } catch (error) {
         console.error('Error:', error);
         await showAlert('Error loading order details', 'Error', '❌');
@@ -4179,24 +4185,32 @@ async function loadExchangeOrderItems() {
 }
 
 async function loadAvailableProductsForExchange() {
+    const orderId = document.getElementById('exchangeOrderSelect').value;
+    if (!orderId) {
+        console.log('No order selected, skipping product load');
+        return;
+    }
+    
     try {
-        const response = await fetch('/ReturnExchange/GetProductsForExchange');
+        // ✅ Isama ang orderId para ma-filter sa backend
+        const response = await fetch(`/ReturnExchange/GetProductsForExchange?excludeOrderId=${orderId}`);
         const products = await response.json();
         
-        // ✅ I-ensure na ang products ay array at may tamang properties
+        console.log('Products loaded (filtered):', products.length);
+        
         if (products && Array.isArray(products)) {
             exchangeProductsList = products.map(p => ({
-                productSizeId: p.productSizeId || p.ProductSizeId,
-                ProductName: p.productName || p.ProductName || 'Unknown',
-                SizeName: p.sizeName || p.SizeName || 'Regular',
-                Price: p.price || p.Price || 0,
-                SKU: p.sku || p.SKU || ''
+                productSizeId: p.productSizeId,
+                ProductName: p.productName,
+                SizeName: p.sizeName,
+                Price: p.price,
+                SKU: p.sku
             }));
         } else {
             exchangeProductsList = [];
         }
         
-        console.log('Products loaded for exchange:', exchangeProductsList.length);
+        console.log('Exchange products list after filter:', exchangeProductsList.length);
     } catch (error) {
         console.error('Error loading products:', error);
         exchangeProductsList = [];
@@ -4313,7 +4327,8 @@ function showProductSearchForExchange() {
     `;
     
     document.body.insertAdjacentHTML('beforeend', modalHtml);
-}
+    }
+
 
 function selectProductForExchange(productSizeId, productName, sizeName, price) {
     // ✅ Check if this product is being returned
@@ -4741,106 +4756,100 @@ async function processExchange() {
         await showAlert('❌ Error: ' + error.message, 'Error', '❌');
     }
 }
-// Exchange Summary Modal - para maintindihan ng user ang nangyari
 async function showExchangeSummaryModal(data) {
     return new Promise(async (resolve) => {
-        // Compute kung may discount sa original order (kailangan i-fetch)
-        let originalDiscountText = '';
-        let originalTotalPaid = 0;
+        // Compute totals
+        const returnTotal = data.returnTotal || 0;
+        const replaceTotal = data.replaceTotal || 0;
+        const priceDiff = data.priceDiff || (replaceTotal - returnTotal);
         
-        try {
-            const orderResponse = await fetch(`/VoidRefund/GetOrderDetails?orderId=${data.originalOrderId}`);
-            const orderData = await orderResponse.json();
-            if (orderData.success && orderData.order) {
-                if (orderData.order.discountPercent > 0) {
-                    originalDiscountText = `<span style="color: #dc3545;">✓ ${orderData.order.discountType} (${orderData.order.discountPercent * 100}% OFF): -₱${orderData.order.discountAmount?.toFixed(2) || '0.00'}</span>`;
-                }
-                originalTotalPaid = orderData.order.totalAmount || 0;
-            }
-        } catch(e) { console.error('Error fetching original order:', e); }
+        // Determine if customer pays or gets money back
+        const isCustomerPays = priceDiff > 0;
+        const amountToSettle = Math.abs(priceDiff);
         
-        const itemsReturnedHtml = data.itemsReturned.map(item => 
-            `<div>• ${item.quantity}x ${item.productName} (${item.sizeName}) - ₱${(item.price * item.quantity).toFixed(2)}</div>`
-        ).join('');
+        // Simple items display
+        let returnedItemsHtml = '';
+        data.itemsReturned.forEach(item => {
+            returnedItemsHtml += `<div style="display: flex; justify-content: space-between; padding: 5px 0;">
+                <span>${item.quantity}x ${escapeHtml(item.productName)} (${escapeHtml(item.sizeName)})</span>
+                <span style="color: #dc3545;">-₱${(item.price * item.quantity).toFixed(2)}</span>
+            </div>`;
+        });
         
-        const itemsReplacedHtml = data.itemsReplaced.map(item => 
-            `<div>• ${item.quantity}x ${item.productName} (${item.sizeName}) - ₱${(item.price * item.quantity).toFixed(2)}</div>`
-        ).join('');
-        
-        const priceDiffClass = data.priceDiff > 0 ? '#dc3545' : (data.priceDiff < 0 ? '#28a745' : '#6c757d');
-        const priceDiffText = data.priceDiff > 0 ? `Customer needs to pay ₱${data.priceDiff.toFixed(2)}` : 
-                              (data.priceDiff < 0 ? `Customer gets ₱${Math.abs(data.priceDiff).toFixed(2)} back` : 'No price difference');
+        let replacedItemsHtml = '';
+        data.itemsReplaced.forEach(item => {
+            replacedItemsHtml += `<div style="display: flex; justify-content: space-between; padding: 5px 0;">
+                <span>${item.quantity}x ${escapeHtml(item.productName)} (${escapeHtml(item.sizeName)})</span>
+                <span style="color: #28a745;">+₱${(item.price * item.quantity).toFixed(2)}</span>
+            </div>`;
+        });
         
         const modalHtml = `
-            <div id="exchangeSummaryModal" class="modal-qty" style="display: flex; z-index: 10050; background: rgba(0,0,0,0.7);">
-                <div class="modal-qty-content" style="width: 550px; max-width: 95%; border-radius: 20px; overflow: hidden; animation: slideUp 0.3s ease;">
-                    <div style="background: linear-gradient(135deg, #17a2b8, #0d6efd); color: white; padding: 15px 20px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <h3 style="margin: 0; font-size: 20px;"><i class="fas fa-exchange-alt"></i> Exchange Summary</h3>
-                            <button onclick="closeExchangeSummaryModal()" style="background: none; border: none; color: white; font-size: 28px; cursor: pointer;">&times;</button>
-                        </div>
+            <div id="exchangeSummaryModal" class="modal-qty" style="display: flex; z-index: 10050;">
+                <div class="modal-qty-content" style="width: 400px; max-width: 90%; border-radius: 16px; padding: 0;">
+                    <!-- Header -->
+                    <div style="background: #17a2b8; color: white; padding: 15px 20px; border-radius: 16px 16px 0 0;">
+                        <h3 style="margin: 0; font-size: 18px; display: flex; align-items: center; gap: 10px;">
+                            <i class="fas fa-exchange-alt"></i> Exchange Summary
+                        </h3>
                     </div>
                     
-                    <div style="padding: 20px; max-height: 500px; overflow-y: auto;">
-                        <!-- ORIGINAL ORDER -->
-                        <div style="background: #f0f2f5; border-radius: 12px; padding: 12px; margin-bottom: 15px;">
-                            <div style="font-weight: bold; color: #17a2b8; margin-bottom: 8px;">
-                                📋 ORIGINAL ORDER #${data.originalOrderId}
+                    <!-- Body -->
+                    <div style="padding: 20px;">
+                        <!-- Items Returned -->
+                        <div style="margin-bottom: 15px;">
+                            <div style="font-weight: bold; color: #dc3545; margin-bottom: 8px;">
+                                📦 Items Returned <span style="font-size: 12px;">(Refund)</span>
                             </div>
-                            <div style="font-size: 13px;">
-                                ${itemsReturnedHtml}
-                                <div style="margin-top: 5px; color: #28a745;">Total refund value: ₱${data.returnTotal.toFixed(2)}</div>
-                                ${originalDiscountText ? `<div style="margin-top: 3px;">${originalDiscountText}</div>` : ''}
-                                <div style="margin-top: 3px; color: #666;">Original total paid: ₱${originalTotalPaid.toFixed(2)}</div>
-                            </div>
-                        </div>
-                        
-                        <!-- NEW ORDER -->
-                        <div style="background: #e8f5e9; border-radius: 12px; padding: 12px; margin-bottom: 15px;">
-                            <div style="font-weight: bold; color: #28a745; margin-bottom: 8px;">
-                                🆕 NEW ORDER (Pending Blending)
-                            </div>
-                            <div style="font-size: 13px;">
-                                ${itemsReplacedHtml}
-                                <div style="margin-top: 5px; font-weight: bold;">Total: ₱${data.replaceTotal.toFixed(2)}</div>
-                                <div style="margin-top: 3px; color: #ffc107;">⚠️ No discount applied (apply separately if Senior/PWD)</div>
-                            </div>
-                        </div>
-                        
-                        <!-- DIFFERENCE -->
-                        <div style="background: linear-gradient(135deg, #fff3e0, #ffe0b2); border-radius: 12px; padding: 12px; margin-bottom: 15px;">
-                            <div style="font-weight: bold; margin-bottom: 8px;">
-                                💰 PRICE DIFFERENCE
-                            </div>
-                            <div style="font-size: 13px;">
-                                <div>Return value: <span style="color: #dc3545;">-₱${data.returnTotal.toFixed(2)}</span></div>
-                                <div>Replacement value: <span style="color: #28a745;">+₱${data.replaceTotal.toFixed(2)}</span></div>
-                                <div style="margin-top: 8px; padding-top: 5px; border-top: 1px solid #ddd;">
-                                    <strong style="color: ${priceDiffClass};">${priceDiffText}</strong>
+                            <div style="background: #fff5f5; border-radius: 8px; padding: 8px;">
+                                ${returnedItemsHtml}
+                                <div style="border-top: 1px solid #f0c0c0; margin-top: 5px; padding-top: 5px; font-weight: bold; display: flex; justify-content: space-between;">
+                                    <span>Total Refund:</span>
+                                    <span style="color: #dc3545;">-₱${returnTotal.toFixed(2)}</span>
                                 </div>
-                                ${data.paymentMethod ? `<div style="margin-top: 5px;">Payment method: <strong>${data.paymentMethod}</strong></div>` : ''}
                             </div>
                         </div>
                         
-                        <!-- REASON -->
-                        <div style="background: #e3f2fd; border-radius: 12px; padding: 10px; margin-bottom: 15px;">
-                            <div style="font-size: 12px; color: #0d6efd;">
-                                <i class="fas fa-comment"></i> Reason: ${data.reason}
+                        <!-- Replacement Items -->
+                        <div style="margin-bottom: 15px;">
+                            <div style="font-weight: bold; color: #28a745; margin-bottom: 8px;">
+                                🆕 Replacement Items
+                            </div>
+                            <div style="background: #f0fff4; border-radius: 8px; padding: 8px;">
+                                ${replacedItemsHtml}
+                                <div style="border-top: 1px solid #c0e0c0; margin-top: 5px; padding-top: 5px; font-weight: bold; display: flex; justify-content: space-between;">
+                                    <span>Total Amount:</span>
+                                    <span style="color: #28a745;">+₱${replaceTotal.toFixed(2)}</span>
+                                </div>
                             </div>
                         </div>
                         
-                        <!-- INFO -->
-                        <div class="alert alert-info" style="font-size: 12px; padding: 10px; background: #d1ecf1; border-radius: 10px;">
-                            <i class="fas fa-info-circle"></i> Exchange completed. A new order will be created for the replacement items.
+                        <!-- Difference / Settlement -->
+                        <div style="background: ${isCustomerPays ? '#fff3cd' : '#d1ecf1'}; border-radius: 12px; padding: 12px; margin: 15px 0; text-align: center;">
+                            <div style="font-size: 14px; margin-bottom: 5px;">
+                                ${isCustomerPays ? '💰 CUSTOMER NEEDS TO PAY' : '💰 CUSTOMER GETS BACK'}
+                            </div>
+                            <div style="font-size: 28px; font-weight: bold; ${isCustomerPays ? 'color: #dc3545;' : 'color: #28a745;'}">
+                                ₱${amountToSettle.toFixed(2)}
+                            </div>
+                            ${data.paymentMethod ? `<div style="font-size: 12px; margin-top: 5px;">Payment: ${data.paymentMethod}</div>` : ''}
+                            ${data.priceDiff === 0 ? '<div style="font-size: 12px;">No additional payment needed</div>' : ''}
                         </div>
                         
-                        <!-- BUTTONS -->
-                        <div style="display: flex; gap: 12px; margin-top: 15px;">
-                            <button onclick="closeExchangeSummaryModal()" class="btn btn-secondary" style="flex: 1; padding: 12px; border-radius: 10px; background: #6c757d; color: white; border: none; cursor: pointer;">
+                        <!-- Reason -->
+                        <div style="background: #e9ecef; border-radius: 8px; padding: 8px; margin-bottom: 15px;">
+                            <div style="font-size: 12px;">
+                                <i class="fas fa-comment"></i> <strong>Reason:</strong> ${escapeHtml(data.reason)}
+                            </div>
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div style="display: flex; gap: 12px; margin-top: 10px;">
+                            <button id="exchangeSummaryCancelBtn" class="btn-cancel" style="flex: 1; padding: 10px; border-radius: 8px; background: #6c757d; color: white; border: none; cursor: pointer;">
                                 Cancel
                             </button>
-                            <button id="confirmExchangeContinueBtn" class="btn btn-success" style="flex: 1; padding: 12px; border-radius: 10px; background: #28a745; color: white; border: none; cursor: pointer; font-weight: bold;">
-                                ✅ Continue to New Order
+                            <button id="exchangeSummaryConfirmBtn" class="btn-confirm" style="flex: 1; padding: 10px; border-radius: 8px; background: #28a745; color: white; border: none; cursor: pointer; font-weight: bold;">
+                                ✅ Confirm Exchange
                             </button>
                         </div>
                     </div>
@@ -4854,33 +4863,40 @@ async function showExchangeSummaryModal(data) {
         
         document.body.insertAdjacentHTML('beforeend', modalHtml);
         
-        // Store exchange data for later use
-        window.pendingExchangeData = data;
+        // Handle Cancel button
+        const cancelBtn = document.getElementById('exchangeSummaryCancelBtn');
+        if (cancelBtn) {
+            cancelBtn.onclick = () => {
+                closeExchangeSummaryModal();
+                resolve(false);
+            };
+        }
         
-        // Add event listener for continue button
-        document.getElementById('confirmExchangeContinueBtn').addEventListener('click', async () => {
-    closeExchangeSummaryModal();
-    
-    // ✅ SHOW RECEIPT FOR THE NEW ORDER
-    if (window.exchangeNewOrderId) {
-        await showReceiptPopup(window.exchangeNewOrderId);
-    }
-    
-    // ✅ RESET CART
-    cart = [];
-    currentCartTotal = 0;
-    currentDiscountedTotal = 0;
-    updateCartDisplay();
-    
-    // ✅ RESET EXCHANGE FLAGS
-    window.isExchangeReplacement = false;
-    window.exchangeOriginalOrderId = null;
-    window.exchangeStoreCreditApplied = null;
-    window.exchangeAdjustmentAmount = null;
-    window.exchangeNewOrderId = null;
-    
-    resolve(true);
-});
+        // Handle Confirm button
+        const confirmBtn = document.getElementById('exchangeSummaryConfirmBtn');
+        if (confirmBtn) {
+            confirmBtn.onclick = async () => {
+                closeExchangeSummaryModal();
+                
+                // Show receipt for the new order
+                if (window.exchangeNewOrderId) {
+                    await showReceiptPopup(window.exchangeNewOrderId);
+                }
+                
+                // Reset cart
+                cart = [];
+                updateCartDisplay();
+                
+                // Reset exchange flags
+                window.isExchangeReplacement = false;
+                window.exchangeOriginalOrderId = null;
+                window.exchangeStoreCreditApplied = null;
+                window.exchangeAdjustmentAmount = null;
+                window.exchangeNewOrderId = null;
+                
+                resolve(true);
+            };
+        }
     });
 }
 

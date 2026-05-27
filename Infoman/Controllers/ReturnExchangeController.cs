@@ -24,6 +24,17 @@ namespace Infoman.Controllers
 
         private int GetCurrentUserId()
         {
+            // ✅ POS user uses Staff_UserId
+            var staffUserId = HttpContext.Session.GetInt32("Staff_UserId");
+            if (staffUserId.HasValue && staffUserId.Value > 0)
+                return staffUserId.Value;
+
+            // ✅ Owner user uses Owner_UserId
+            var ownerUserId = HttpContext.Session.GetInt32("Owner_UserId");
+            if (ownerUserId.HasValue && ownerUserId.Value > 0)
+                return ownerUserId.Value;
+
+            // ✅ Fallback to generic UserId
             return HttpContext.Session.GetInt32("UserId") ?? 0;
         }
 
@@ -67,11 +78,25 @@ namespace Infoman.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetProductsForExchange()
+        public async Task<IActionResult> GetProductsForExchange(int? excludeOrderId = null)
         {
-            var products = await _db.ProductSizes
+            var query = _db.ProductSizes
                 .Include(ps => ps.Product)
-                .Where(ps => ps.IsAvailableInPOS)
+                .Where(ps => ps.IsAvailableInPOS && !ps.IsDeleted);
+
+            // ✅ I-exclude ang mga produkto na nasa order (kung may excludeOrderId)
+            if (excludeOrderId.HasValue && excludeOrderId.Value > 0)
+            {
+                var excludeProductSizeIds = await _db.OrderItems
+                    .Where(oi => oi.OrderId == excludeOrderId.Value && !oi.IsVoided && !oi.IsRefunded)
+                    .Select(oi => oi.ProductSizeId)
+                    .Distinct()
+                    .ToListAsync();
+
+                query = query.Where(ps => !excludeProductSizeIds.Contains(ps.ProductSizeId));
+            }
+
+            var products = await query
                 .Select(ps => new
                 {
                     ps.ProductSizeId,

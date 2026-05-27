@@ -546,6 +546,9 @@ namespace Infoman.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsManualPrice")
+                        .HasColumnType("bit");
+
                     b.Property<decimal>("Margin")
                         .HasPrecision(10, 2)
                         .HasColumnType("decimal(10,2)");

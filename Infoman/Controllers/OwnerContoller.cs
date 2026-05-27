@@ -30,7 +30,12 @@ namespace Infoman.Controllers
 
             foreach (var productSize in allProductSizes)
             {
-                // ✅ Check kung manual price (Price ay hindi 0 at hindi match sa computed)
+                // ✅ KUNG MANUAL PRICE, SKIP (huwag galawin)
+                if (productSize.IsManualPrice)
+                {
+                    continue;  // Skip manual prices completely
+                }
+
                 decimal totalCost = 0;
                 foreach (var ri in productSize.RecipeItems)
                 {
@@ -48,13 +53,8 @@ namespace Infoman.Controllers
                     decimal computedPrice = totalCost / (1 - productSize.Margin);
                     decimal newPrice = RoundToPriceEnding(computedPrice);
 
-                    // ✅ ONLY UPDATE if the current price is ZERO or MATCHES the computed price
-                    // ✅ DO NOT override if user set a manual price
-                    if (productSize.Price == 0 || productSize.Price == newPrice)
-                    {
-                        productSize.Price = newPrice;
-                    }
-                    // If price is different from computed, keep user's manual price
+                    // ✅ Only update auto-priced products
+                    productSize.Price = newPrice;
                 }
             }
 
@@ -517,19 +517,20 @@ namespace Infoman.Controllers
                         return Json(new { success = false, message = $"Please add at least one ingredient for {sizeVM.SizeName}" });
                     }
 
-                    // ✅ COMPUTE PRICE WITH FIXED ENDING 9 (no category check)
+                    // ✅ COMPUTE PRICE WITH FIXED ENDING 9
                     decimal computedPrice = totalCost / (1 - margin);
-
-                    // Apply fixed ending 9 pricing
                     decimal finalPrice = RoundToPriceEnding(computedPrice);
 
+                    // ✅ CHECK KUNG MANUAL PRICE O AUTO
                     if (sizeVM.Price > 0)
                     {
-                        productSize.Price = sizeVM.Price;
+                        productSize.Price = sizeVM.Price;      // Manual price
+                        productSize.IsManualPrice = true;      // ✅ SET MANUAL FLAG
                     }
                     else
                     {
-                        productSize.Price = finalPrice;
+                        productSize.Price = finalPrice;        // Auto price
+                        productSize.IsManualPrice = false;     // ✅ SET AUTO FLAG
                     }
 
                     product.Sizes.Add(productSize);
@@ -547,12 +548,76 @@ namespace Infoman.Controllers
                 {
                     success = true,
                     message = $"Product added successfully! SKU: {generatedProductSKU}",
-                    stayOnPage = true  // Add this flag to indicate stay on same page
+                    stayOnPage = true
                 });
             }
             catch (Exception ex)
             {
                 return Json(new { success = false, message = "Error saving product: " + ex.Message });
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AddProductSize([FromBody] AddSizeRequest request)
+        {
+            try
+            {
+                var product = await _db.Products.FindAsync(request.ProductId);
+                if (product == null)
+                    return Json(new { success = false, message = "Product not found" });
+
+                // Generate SKU for the size
+                string sizeSKU = GenerateSizeSKU(product.SKU, request.SizeName);
+
+                var productSize = new ProductSize
+                {
+                    ProductId = request.ProductId,
+                    SizeName = request.SizeName,
+                    SKU = sizeSKU,
+                    Price = request.Price,
+                    Margin = request.Margin,
+                    IsAvailableInPOS = true,
+                    RecipeItems = new List<RecipeItem>(),
+                    // ✅ SET MANUAL PRICE FLAG
+                    IsManualPrice = request.Price > 0  // Kung may manual price, true; kung auto (0), false
+                };
+
+                // Add recipe items
+                foreach (var ingredient in request.Ingredients)
+                {
+                    var rawMat = await _db.RawMaterials.FindAsync(ingredient.RawMaterialId);
+                    if (rawMat != null)
+                    {
+                        decimal quantityInBaseUnit = ingredient.Quantity;
+
+                        if (ingredient.UnitUsed == "kg" && rawMat.BaseUnit == "g")
+                            quantityInBaseUnit = ingredient.Quantity * 1000;
+                        else if (ingredient.UnitUsed == "L" && rawMat.BaseUnit == "mL")
+                            quantityInBaseUnit = ingredient.Quantity * 1000;
+
+                        productSize.RecipeItems.Add(new RecipeItem
+                        {
+                            RawMaterialId = ingredient.RawMaterialId,
+                            Quantity = quantityInBaseUnit,
+                            UnitUsed = ingredient.UnitUsed
+                        });
+                    }
+                }
+
+                _db.ProductSizes.Add(productSize);
+                await _db.SaveChangesAsync();
+
+                // Recompute price if zero (auto price)
+                if (request.Price == 0)
+                {
+                    await RecomputeProductSizePrice(productSize.ProductSizeId);
+                }
+
+                return Json(new { success = true, message = "Size added successfully" });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
             }
         }
         // ========== HELPER METHOD FOR SIZE SKU ==========
@@ -893,7 +958,6 @@ namespace Infoman.Controllers
                     fifoPrice = recipeItem.RawMaterial.Price;
                 }
 
-                // 1. DISPLAY
                 decimal displayQuantity = recipeItem.Quantity;
                 string displayUnit = recipeItem.UnitUsed;
 
@@ -901,12 +965,10 @@ namespace Infoman.Controllers
                 {
                     if (recipeItem.UnitUsed == "kg" || recipeItem.UnitUsed == "L")
                     {
-                        displayQuantity = recipeItem.Quantity / 1000;  // 1000g → 1 kg
+                        displayQuantity = recipeItem.Quantity / 1000;
                     }
-                    // g or mL — as-is na
                 }
 
-                // 2. COST COMPUTATION - laging divide by 1000 kung BaseUnit ay g o mL
                 decimal quantityForCost = recipeItem.Quantity;
                 if (recipeItem.RawMaterial.BaseUnit == "g" || recipeItem.RawMaterial.BaseUnit == "mL")
                 {
@@ -937,11 +999,13 @@ namespace Infoman.Controllers
                 sellingPrice = productSize.Price,
                 margin = productSize.Margin,
                 totalCost = totalCost,
+                isManualPrice = productSize.IsManualPrice,  // ✅ ADD THIS
                 ingredients = ingredientsWithPrices
             };
 
             return Json(result);
         }
+
         [HttpGet]
         public IActionResult CanEditRecipe(int id)
         {
@@ -967,6 +1031,10 @@ namespace Infoman.Controllers
 
             if (productSize == null)
                 return Json(new { success = false, message = "Product size not found" });
+
+            // ✅ I-save ang old price at manual flag bago magbago
+            bool wasManualPrice = productSize.IsManualPrice;
+            decimal oldPrice = productSize.Price;
 
             productSize.Margin = model.Margin;
 
@@ -1008,7 +1076,7 @@ namespace Infoman.Controllers
 
             await _db.SaveChangesAsync();
 
-            // RECOMPUTE PRICE
+            // RECOMPUTE PRICE (para malaman ang bagong auto-calc price)
             decimal totalCost = 0;
             foreach (var ingredient in model.Ingredients)
             {
@@ -1037,15 +1105,26 @@ namespace Infoman.Controllers
                 totalCost += quantityForCost * unitPrice;
             }
 
-            // ✅ APPLY FIXED ENDING 9 PRICING (no category check)
+            // ✅ APPLY FIXED ENDING 9 PRICING
             decimal computedPrice = totalCost / (1 - productSize.Margin);
-            decimal newSellingPrice = RoundToPriceEnding(computedPrice);
+            decimal newAutoPrice = RoundToPriceEnding(computedPrice);
 
-            productSize.Price = newSellingPrice;
+            // ✅ KUNG MANUAL PRICE, I-RETAIN ANG OLD PRICE
+            // ✅ KUNG AUTO PRICE, I-UPDATE SA BAGONG COMPUTED PRICE
+            if (wasManualPrice)
+            {
+                productSize.Price = oldPrice;           // Keep the manual price
+                productSize.IsManualPrice = true;       // Ensure flag stays true
+            }
+            else
+            {
+                productSize.Price = newAutoPrice;       // Update to new auto-calc price
+                productSize.IsManualPrice = false;      // Ensure flag stays false
+            }
 
             await _db.SaveChangesAsync();
 
-            return Json(new { success = true, newPrice = newSellingPrice });
+            return Json(new { success = true, newPrice = productSize.Price });
         }
 
 
@@ -1748,56 +1827,6 @@ namespace Infoman.Controllers
             ViewBag.CategoryDistribution = categoryDistribution;
 
             return View();
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> RefreshAllProductPrices()
-        {
-            try
-            {
-                var allProductSizes = await _db.ProductSizes
-                    .Include(ps => ps.RecipeItems)
-                        .ThenInclude(ri => ri.RawMaterial)
-                    .ToListAsync();
-
-                int updatedCount = 0;
-
-                foreach (var productSize in allProductSizes)
-                {
-                    decimal totalCost = 0;
-                    foreach (var ri in productSize.RecipeItems)
-                    {
-                        decimal activePrice = await GetFIFOUnitPrice(ri.RawMaterialId);
-                        decimal quantityForCost = ri.Quantity;
-
-                        if (ri.RawMaterial?.BaseUnit == "g" || ri.RawMaterial?.BaseUnit == "mL")
-                        {
-                            quantityForCost = ri.Quantity / 1000;
-                        }
-
-                        totalCost += quantityForCost * activePrice;
-                    }
-
-                    if (productSize.Margin > 0 && productSize.Margin < 1)
-                    {
-                        decimal computedPrice = totalCost / (1 - productSize.Margin);
-                        decimal newPrice = RoundToPriceEnding(computedPrice);
-
-                        if (productSize.Price != newPrice)
-                        {
-                            productSize.Price = newPrice;
-                            updatedCount++;
-                        }
-                    }
-                }
-
-                await _db.SaveChangesAsync();
-                return Json(new { success = true, message = $"Updated {updatedCount} product prices to ending 9", updatedCount = updatedCount });
-            }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, message = ex.Message });
-            }
         }
 
         // ========== SUPPLIER ACTIONS ==========
@@ -3352,60 +3381,54 @@ namespace Infoman.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> AddProductSize([FromBody] AddSizeRequest request)
+        public async Task<IActionResult> RefreshAllProductPrices()
         {
             try
             {
-                var product = await _db.Products.FindAsync(request.ProductId);
-                if (product == null)
-                    return Json(new { success = false, message = "Product not found" });
+                var allProductSizes = await _db.ProductSizes
+                    .Include(ps => ps.RecipeItems)
+                        .ThenInclude(ri => ri.RawMaterial)
+                    .ToListAsync();
 
-                // Generate SKU for the size
-                string sizeSKU = GenerateSizeSKU(product.SKU, request.SizeName);
+                int updatedCount = 0;
 
-                var productSize = new ProductSize
+                foreach (var productSize in allProductSizes)
                 {
-                    ProductId = request.ProductId,
-                    SizeName = request.SizeName,
-                    SKU = sizeSKU,
-                    Price = request.Price,
-                    Margin = request.Margin,
-                    IsAvailableInPOS = true,
-                    RecipeItems = new List<RecipeItem>()
-                };
-
-                // Add recipe items
-                foreach (var ingredient in request.Ingredients)
-                {
-                    var rawMat = await _db.RawMaterials.FindAsync(ingredient.RawMaterialId);
-                    if (rawMat != null)
+                    // ✅ SKIP MANUAL PRICES - ITO ANG PINAKAIMPORTANTE!
+                    if (productSize.IsManualPrice)
                     {
-                        decimal quantityInBaseUnit = ingredient.Quantity;
+                        continue;  // Huwag galawin ang manual price
+                    }
 
-                        if (ingredient.UnitUsed == "kg" && rawMat.BaseUnit == "g")
-                            quantityInBaseUnit = ingredient.Quantity * 1000;
-                        else if (ingredient.UnitUsed == "L" && rawMat.BaseUnit == "mL")
-                            quantityInBaseUnit = ingredient.Quantity * 1000;
+                    decimal totalCost = 0;
+                    foreach (var ri in productSize.RecipeItems)
+                    {
+                        decimal activePrice = await GetFIFOUnitPrice(ri.RawMaterialId);
+                        decimal quantityForCost = ri.Quantity;
 
-                        productSize.RecipeItems.Add(new RecipeItem
+                        if (ri.RawMaterial?.BaseUnit == "g" || ri.RawMaterial?.BaseUnit == "mL")
                         {
-                            RawMaterialId = ingredient.RawMaterialId,
-                            Quantity = quantityInBaseUnit,
-                            UnitUsed = ingredient.UnitUsed
-                        });
+                            quantityForCost = ri.Quantity / 1000;
+                        }
+
+                        totalCost += quantityForCost * activePrice;
+                    }
+
+                    if (productSize.Margin > 0 && productSize.Margin < 1)
+                    {
+                        decimal computedPrice = totalCost / (1 - productSize.Margin);
+                        decimal newPrice = RoundToPriceEnding(computedPrice);
+
+                        if (productSize.Price != newPrice)
+                        {
+                            productSize.Price = newPrice;
+                            updatedCount++;
+                        }
                     }
                 }
 
-                _db.ProductSizes.Add(productSize);
                 await _db.SaveChangesAsync();
-
-                // Recompute price if zero
-                if (request.Price == 0)
-                {
-                    await RecomputeProductSizePrice(productSize.ProductSizeId);
-                }
-
-                return Json(new { success = true, message = "Size added successfully" });
+                return Json(new { success = true, message = $"Updated {updatedCount} product prices to ending 9", updatedCount = updatedCount });
             }
             catch (Exception ex)
             {

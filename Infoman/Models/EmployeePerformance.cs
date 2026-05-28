@@ -25,6 +25,7 @@ namespace Infoman.Models
 
         [Range(0, 5)]
         public decimal Rating { get; set; } = 0;  // Customer rating (1-5 stars)
+        [StringLength(500)]
 
         public string? Notes { get; set; }  // Performance notes/comments
 

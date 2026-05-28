@@ -18,6 +18,7 @@ namespace Infoman.Models
         public int RawMaterialId { get; set; }
 
         [Required]
+        [StringLength(500)]
         public string Name { get; set; }
 
         [Required]
@@ -28,6 +29,7 @@ namespace Infoman.Models
 
         [Required]
         public decimal Price { get; set; }
+        [StringLength(50)]
         public string? SKU { get; set; }
 
         public decimal MinQtyInBaseUnit { get; set; }  // For internal comparison (g, mL)
@@ -40,8 +42,10 @@ namespace Infoman.Models
         public RawMaterialCategory Category { get; set; } // Fruits, Dairy, etc.
         [Required]
         [Display(Name = "Unit")]
+        [StringLength(50)]
         public string Unit { get; set; }
         [Required]
+        [StringLength(50)]
         public string BaseUnit { get; set; } = "g";  // grams, milliliters, pieces
 
         [Required]
@@ -50,7 +54,7 @@ namespace Infoman.Models
         // Computed property for total value
         public decimal TotalValue => Stock * Price;
 
-        // Computed property for status
+        [StringLength(50)]
         public string Status
         {
             get
@@ -76,7 +80,7 @@ namespace Infoman.Models
         {
             Batches = new HashSet<RawMaterialBatch>();
         }
-
+        [StringLength(50)]
         public string StockWithUnit
         {
             get
@@ -94,6 +98,7 @@ namespace Infoman.Models
                 return $"{Stock:F2} {Unit}";
             }
         }
+        [StringLength(50)]
         public string MinQtyWithUnit
         {
             get

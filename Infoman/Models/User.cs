@@ -6,21 +6,27 @@ namespace Infoman.Models
     {
         public int Id { get; set; }
         [Required]
+        [StringLength(100)]
         public string Username { get; set; } = null!;
         [Required]
+        [StringLength(100, MinimumLength = 8)]
         public string Password { get; set; } = null!;
-
+        [StringLength(50)]
         public string Role { get; set; } = null!;
         public DateTime? UpdatedAt { get; set; }
 
         // ========== NEW EMPLOYEE FIELDS ==========
         [Required]
+        [StringLength(100)]
         public string? FullName { get; set; }
+        [StringLength(50)]
 
         public string? Phone { get; set; }
 
         [EmailAddress]
+        [StringLength(100)]
         public string? Email { get; set; }
+        [StringLength(50)]
 
         public string Status { get; set; } = "Active";
 

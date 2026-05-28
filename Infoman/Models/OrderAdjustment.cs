@@ -12,27 +12,27 @@ namespace Infoman.Models
         public int OriginalOrderId { get; set; }
 
         [Required]
-        [MaxLength(30)]
+        [StringLength(50)]
         public string AdjustmentType { get; set; }  // "REFUND", "EXCHANGE_PAYMENT", "EXCHANGE_REFUND"
 
         [Column(TypeName = "decimal(18,2)")]
         public decimal Amount { get; set; }
 
         [Required]
-        [MaxLength(500)]
+        [StringLength(500)]
         public string Reason { get; set; }
 
         [Required]
-        [MaxLength(50)]
+        [StringLength(50)]
         public string ReferenceNumber { get; set; }
 
-        [MaxLength(20)]
+        [StringLength(50)]
         public string Status { get; set; } = "PENDING";
 
         public int? ApprovedBy { get; set; }
         public DateTime? ApprovedAt { get; set; }
 
-        [MaxLength(500)]
+        [StringLength(500)]
         public string? RejectionReason { get; set; }
 
         // Audit fields

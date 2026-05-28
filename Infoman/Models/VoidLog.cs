@@ -19,9 +19,11 @@ namespace Infoman.Models
         public virtual OrderItem Item { get; set; }
 
         [Required]
+        [StringLength(50)]
         public string VoidType { get; set; } // "item" or "transaction"
 
         [Required]
+        [StringLength(500)]
         public string Reason { get; set; }
 
         public bool PreparedFlag { get; set; }

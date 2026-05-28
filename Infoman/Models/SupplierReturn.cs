@@ -10,6 +10,7 @@ namespace Infoman.Models
         public int ReturnId { get; set; }
 
         [Required]
+        [StringLength(100)]
         public string ReturnNumber { get; set; }
 
         public int ReceivingId { get; set; }
@@ -21,8 +22,10 @@ namespace Infoman.Models
         public decimal Quantity { get; set; }
 
         public decimal UnitPrice { get; set; }
+        [StringLength(500)]
 
         public string Reason { get; set; }
+        [StringLength(100)]
 
         public string Status { get; set; } = "Pending Return"; // Pending Return, Returned, Cancelled
 
@@ -30,6 +33,7 @@ namespace Infoman.Models
         public DateTime? ActualReturnDate { get; set; }
 
         public int CreatedBy { get; set; }
+        [StringLength(500)]
         public string Notes { get; set; }
 
         // Navigation properties

@@ -34,10 +34,12 @@ namespace Infoman.Models
 
         [Range(0, 24)]
         public decimal HoursWorked { get; set; } = 0;  // Total hours worked
+        [StringLength(200)]
 
         public string? LeaveReason { get; set; }  // Reason kung naka-leave
 
         public bool IsApproved { get; set; } = true;  // For leave requests
+        [StringLength(500)]
 
         public string? Notes { get; set; }
 

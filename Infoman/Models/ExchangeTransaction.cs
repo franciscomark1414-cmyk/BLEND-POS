@@ -18,7 +18,7 @@ namespace Infoman.Models
         public DateTime ExchangeDate { get; set; } = DateTime.Now;
 
         [Required]
-        [MaxLength(500)]
+        [StringLength(500)]
         public string Reason { get; set; }
 
         [Column(TypeName = "decimal(18,2)")]
@@ -45,8 +45,10 @@ namespace Infoman.Models
 
         [Column(TypeName = "decimal(18,2)")]
         public decimal AdjustmentAmount { get; set; }
+        [StringLength(100)]
 
         public string? AdjustmentType { get; set; }  // 'ADDITIONAL_PAYMENT', 'CHANGE'
+        [StringLength(100)]
 
         public string? PaymentMethod { get; set; }
 

@@ -8,9 +8,11 @@ namespace Infoman.Models
         public int ProductSizeId { get; set; }
 
         [Required(ErrorMessage = "Size Name is required")]
+        [StringLength(50)]
         public string SizeName { get; set; } = string.Empty;
 
         public decimal Price { get; set; }
+        [StringLength(50)]
         public string? SKU { get; set; }
 
         [Required(ErrorMessage = "Stock is required")]

@@ -19,11 +19,14 @@ namespace Infoman.Models
         public decimal Quantity { get; set; }
 
         [Required]
+        [StringLength(50)]
         public string MovementType { get; set; } // "SALE", "VOID_RETURN", "WASTE", "REFUND", "PRODUCTION"
+        [StringLength(100)]
 
         public string ReferenceId { get; set; } // OrderNumber, RefundId, etc.
 
         public DateTime Timestamp { get; set; } = DateTime.Now;
+        [StringLength(200)]
 
         public string Details { get; set; }
 

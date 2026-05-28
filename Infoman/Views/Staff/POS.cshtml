@@ -1037,6 +1037,30 @@
     background: linear-gradient(135deg, #dc2626, #b91c1c);
 }
 
+.modal {
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+    }
+    .modal-content {
+        background-color: white;
+        margin: 10% auto;
+        padding: 20px;
+        width: 80%;
+        max-width: 500px;
+        border-radius: 10px;
+        text-align: center;
+    }
+    .close {
+        float: right;
+        font-size: 28px;
+        cursor: pointer;
+    }
+
     </style>
 </head>
 <body>
@@ -1212,15 +1236,23 @@
                     </div>
 
                     <!-- Payment Section -->
+<!-- Payment Section -->
 <div class="payment-section">
     <div class="section-label"> Payment Method</div>
     <div class="payment-btns">
-        <button class="payment-btn cash" onclick="prepareCheckout(this)">💵 Cash</button>
-        <button class="payment-btn gcash" id="gcashPaymentBtn" onclick="prepareCheckout(this)">📱 GCash</button>
+        <button class="payment-btn cash" onclick="selectPaymentMethod('Cash', this)">💵 Cash</button>
+        <button class="payment-btn gcash" onclick="selectPaymentMethod('GCash', this)">📱 GCash (Redirect)</button>
+        <button class="payment-btn qrph" onclick="selectPaymentMethod('QRPh', this)">📲 GCash (Scan QR)</button>
     </div>
-    <!-- GCash Pay Button (hidden until order is created) -->
+    
+    <!-- GCash Redirect Pay Button (hidden until order is created) -->
     <button id="gcashPayBtn" class="btn-refund mt-2" style="display: none; background: #007bff; color: white;" onclick="payWithGCash()">
-        💳 Pay with GCash
+        💳 Pay with GCash (Redirect)
+    </button>
+    
+    <!-- QRPh Pay Button (hidden until order is created) -->
+    <button id="qrphPayBtn" class="btn-refund mt-2" style="display: none; background: #28a745; color: white;" onclick="payWithQRPh()">
+        📲 Pay with GCash (Scan QR)
     </button>
 </div>
 
@@ -1594,6 +1626,22 @@
     </div>
 </div>
 
+<!-- QR Code Modal - ito ang lalabas kapag QRPh ang pinili -->
+<div id="qrCodeModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close" onclick="closeQRModal()">&times;</span>
+        <h3>📱 I-scan ang QR Code gamit ang GCash App</h3>
+        <div style="text-align: center; padding: 20px;">
+            <img id="qrCodeImage" style="width: 300px; height: 300px; border: 1px solid #ddd; padding: 10px;" />
+            <p style="margin-top: 20px; font-size: 16px;">
+                ✅ Buksan ang GCash app → I-click ang "Scan QR" → I-scan ito → Magbayad
+            </p>
+            <p id="paymentStatus" style="color: blue; font-weight: bold;"></p>
+            <button onclick="closeQRModal()" class="btn-secondary">Cancel</button>
+        </div>
+    </div>
+</div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
@@ -1620,6 +1668,8 @@
         let exchangeReplaceItemsData = [];
         let exchangeProductsList = [];
         let selectedExchangePayment = null;
+        let currentPaymentIntentId = null;
+        let paymentCheckInterval = null;
 
         // ============================================================
         // ORDER QUEUE
@@ -1967,16 +2017,18 @@
         // ============================================================
         // CHECKOUT FLOW
         // ============================================================
-       async function confirmOrder() {
-    console.log('confirmOrder called, isEditingMode:', window.isEditingMode);
+     async function confirmOrder() {
+    console.log('confirmOrder called');
+    console.log('cart.length:', cart.length);
+    console.log('window.pendingPaymentMethod:', window.pendingPaymentMethod);
     
     if (cart.length === 0) { 
         await showAlert('Cart is empty!', 'Cannot Confirm');
         return; 
     }
     
-    if (!pendingPaymentMethod) { 
-        await showAlert('Please select a payment method', 'Payment Required');
+    if (!window.pendingPaymentMethod) { 
+        await showAlert('Please select a payment method first!', 'Payment Required', '⚠️');
         return; 
     }
 
@@ -1984,7 +2036,6 @@
     if (!timeInCheck) return;
 
     if (window.isEditingMode === true) {
-        // ✅ UPDATE EXISTING ORDER - HINDI GUMAWA NG BAGO
         await updateExistingOrder();
     } else {
         showReviewModal();
@@ -2051,10 +2102,13 @@ async function checkTimeInBeforeOrder() {
 }
     
 async function processFinalOrder() {
-    const paymentMethod = pendingPaymentMethod;
+    // ✅ Kunin ang payment method mula sa window.pendingPaymentMethod
+    const paymentMethod = window.pendingPaymentMethod;
+    
+    console.log('processFinalOrder called with paymentMethod:', paymentMethod);
     
     if (!paymentMethod) {
-        await showAlert('Please select a payment method', 'Payment Required');
+        await showAlert('Please select a payment method first!', 'Payment Required', '⚠️');
         return;
     }
     
@@ -2067,13 +2121,21 @@ async function processFinalOrder() {
 
     try {
         if (window.isEditingMode === true) {
-            // ✅ UPDATE EXISTING ORDER
             await updateExistingOrder();
-        } else if (paymentMethod === 'GCash') {
+        } 
+        else if (paymentMethod === 'GCash') {
             await createOrderForGCash();
-        } else if (paymentMethod === 'Cash') {
+        } 
+        else if (paymentMethod === 'QRPh') {
+            await createOrderForQRPh();
+        }
+        else if (paymentMethod === 'Cash') {
             await createNewOrder();
         }
+        else {
+            await showAlert(`Unknown payment method: ${paymentMethod}`, 'Error', '❌');
+        }
+
     } catch (error) {
         console.error('Error:', error);
         await showAlert('❌ Error processing order: ' + error.message, 'Error', '❌');
@@ -5850,6 +5912,93 @@ async function createOrderForGCash() {
     }
 }
 
+// ========== QRPH ORDER CREATION ==========
+async function createOrderForQRPh() {
+    try {
+        if (cart.length === 0) {
+            await showAlert('Cart is empty', 'Cannot proceed');
+            return;
+        }
+
+        const discountPercent = currentDiscountPercent;
+        const discountType = currentDiscountType;
+        const paymentMethod = 'QRPh';
+        
+        // Kunin ang unang item (gaya ng ginagawa sa cash flow)
+        const firstItem = cart[0];
+        
+        const orderNumber = `POS-${Date.now()}`;
+        
+        const response = await fetch('/Staff/PlaceOrder', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': getToken()
+            },
+            body: JSON.stringify({
+                productSizeId: firstItem.productSizeId,
+                quantity: firstItem.quantity,
+                orderNumber: orderNumber,
+                paymentMethod: paymentMethod,
+                discountType: discountType,
+                discountPercent: discountPercent
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Save order info for payment
+            window.currentOrderId = result.orderId;
+            window.currentOrderTotal = result.totalAmount;
+            
+            // Build order details for receipt
+            const orderDetails = cart.map(item => ({
+                name: item.productName,
+                size: item.sizeName,
+                quantity: item.quantity,
+                price: item.price,
+                subtotal: item.price * item.quantity
+            }));
+            
+            const discountSavings = currentCartTotal - currentDiscountedTotal;
+            
+            // Show receipt modal
+            showReceiptModal(
+                orderDetails, 
+                'QRPh', 
+                currentDiscountType, 
+                currentDiscountPercent, 
+                discountSavings, 
+                currentDiscountedTotal, 
+                result.orderId, 
+                'PENDING_PAYMENT'
+            );
+            
+            // Show QRPh pay button
+            const qrphPayBtn = document.getElementById('qrphPayBtn');
+            if (qrphPayBtn) {
+                qrphPayBtn.style.display = 'block';
+            }
+            
+            // Clear cart
+            cart = [];
+            currentDiscountType = 'None';
+            currentDiscountPercent = 0;
+            updateCartDisplay();
+            updateDiscountBtnHighlight();
+            
+            await showAlert('Order created! Click "Pay with GCash (Scan QR)" to generate QR code.', 'Order Ready', '✅');
+            
+        } else {
+            throw new Error(result.message || 'Failed to create order');
+        }
+    } catch (error) {
+        console.error('Create QRPh order error:', error);
+        throw error;
+    }
+}
+
 async function payWithGCash() {
     const orderId = window.currentOrderId;
     const amount = window.currentOrderTotal;
@@ -5952,6 +6101,229 @@ async function processLogout() {
         hideLoading();
         console.error('Logout error:', error);
         await showAlert('Error logging out. Please try again.', 'Error', '❌');
+    }
+}
+
+// ========== QRPH PAYMENT FUNCTIONS ==========
+
+
+
+// Ito ang tatawagin kapag pinili ang QRPh payment
+async function initiateQRPhPayment(orderId, totalAmount) {
+    try {
+        showLoadingMessage("Generating QR code...");
+        
+        const response = await fetch('/Payment/CreateQRPhPayment', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': getAntiForgeryToken()  // Kunin ang token from hidden field
+            },
+            body: JSON.stringify({
+                orderId: orderId,
+                amount: totalAmount
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Display QR code
+            const qrImage = document.getElementById('qrCodeImage');
+            qrImage.src = 'data:image/png;base64,' + data.qrCodeBase64;
+            
+            currentPaymentIntentId = data.paymentIntentId;
+            
+            // Show modal
+            document.getElementById('qrCodeModal').style.display = 'block';
+            
+            // Start checking payment status
+            startCheckingPaymentStatus();
+        } else {
+            showErrorMessage(data.message);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showErrorMessage('Failed to initiate payment');
+    }
+}
+
+// Check payment status every 3 seconds
+function startCheckingPaymentStatus() {
+    if (paymentCheckInterval) {
+        clearInterval(paymentCheckInterval);
+    }
+    
+    paymentCheckInterval = setInterval(async () => {
+        if (!currentPaymentIntentId) return;
+        
+        try {
+            // ✅ SIGURADUHING TAMA ANG URL
+            const url = `/Payment/CheckQRPhStatus?paymentIntentId=${currentPaymentIntentId}`;
+            console.log('Checking status at URL:', url);
+            
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                console.error(`HTTP error! status: ${response.status}`);
+                return;
+            }
+            
+            const data = await response.json();
+            console.log('Status response:', data);
+            
+            const statusElement = document.getElementById('paymentStatus');
+            
+            if (data.status === 'paid') {
+                // Payment successful!
+                clearInterval(paymentCheckInterval);
+                if (statusElement) {
+                    statusElement.style.color = 'green';
+                    statusElement.innerHTML = '✅ PAYMENT RECEIVED! Order confirmed.';
+                }
+                
+                // Close modal after 2 seconds and refresh
+                setTimeout(() => {
+                    closeQRModal();
+                    location.reload();
+                }, 2000);
+                
+            } else if (data.status === 'pending') {
+                if (statusElement) {
+                    statusElement.style.color = 'blue';
+                    statusElement.innerHTML = '⏳ Waiting for customer to scan and pay...';
+                }
+            }
+        } catch (error) {
+            console.error('Status check error:', error);
+        }
+    }, 3000);
+}
+
+// Close QR modal
+function closeQRModal() {
+    document.getElementById('qrCodeModal').style.display = 'none';
+    if (paymentCheckInterval) {
+        clearInterval(paymentCheckInterval);
+    }
+    currentPaymentIntentId = null;
+}
+
+// Helper: Get anti-forgery token (kailangan para sa POST request)
+function getAntiForgeryToken() {
+    return document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+}
+
+// Helper functions for messages
+function showLoadingMessage(msg) {
+    // Implement mo based sa UI mo
+    console.log(msg);
+}
+
+function showErrorMessage(msg) {
+    alert(msg); // or gamitin ang toast/notification mo
+}
+
+// ========== PAYMENT METHOD SELECTION ==========
+// ========== PAYMENT METHOD SELECTION ==========
+let selectedPaymentMethod = null;
+
+function setPaymentMethod(method, buttonElement) {
+    selectedPaymentMethod = method;
+    
+    // ✅ IMPORTANT: I-save din sa window.pendingPaymentMethod
+    window.pendingPaymentMethod = method;
+    
+    // Remove active class from all payment buttons
+    document.querySelectorAll('.payment-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Add active class to selected button
+    if (buttonElement) {
+        buttonElement.classList.add('active');
+    }
+    
+    console.log(`✅ Payment method selected: ${method}`);
+    console.log(`window.pendingPaymentMethod = ${window.pendingPaymentMethod}`);
+    
+    // Show visual feedback
+    showAlert(`${method} selected. Click "Confirm Order" to proceed.`, 'Payment Method Selected', '✅');
+}
+
+// Keep old function name for compatibility (optional)
+function selectPaymentMethod(method, buttonElement) {
+    setPaymentMethod(method, buttonElement);
+}
+
+// ========== QRPH PAYMENT EXECUTION ==========
+// ========== QRPH PAYMENT EXECUTION ==========
+async function payWithQRPh() {
+    const orderId = window.currentOrderId;
+    const totalAmount = window.currentOrderTotal;
+    
+    if (!orderId) {
+        await showAlert('No order found. Please create order first.', 'Error', '❌');
+        return;
+    }
+    
+    showLoading('Generating QR code...');
+    
+    try {
+        const response = await fetch('/Payment/CreateQRPhPayment', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': getAntiForgeryToken()
+            },
+            body: JSON.stringify({
+                orderId: orderId,
+                amount: totalAmount
+            })
+        });
+        
+        const data = await response.json();
+        hideLoading();
+        
+        console.log('QRPh Response:', data);  // ✅ I-log para makita ang response
+        
+        if (data.success) {
+            // ✅ SIGURADUHING MAY QR CODE DATA
+            if (data.qrCodeBase64) {
+                // ✅ TAMA: Diretso na i-set ang src (may data:image/png;base64, na ito)
+                const qrImage = document.getElementById('qrCodeImage');
+                qrImage.src = data.qrCodeBase64;
+                console.log('QR code source set successfully');
+            } else {
+                console.error('No QR code data received');
+                await showAlert('No QR code generated. Please try again.', 'Error', '❌');
+                return;
+            }
+            
+            currentPaymentIntentId = data.paymentIntentId;
+            
+            // Show modal
+            const modal = document.getElementById('qrCodeModal');
+            if (modal) {
+                modal.style.display = 'block';
+            }
+            
+            // Start checking payment status
+            startCheckingPaymentStatus();
+            
+            // Hide the QRPh pay button
+            const qrphPayBtn = document.getElementById('qrphPayBtn');
+            if (qrphPayBtn) {
+                qrphPayBtn.style.display = 'none';
+            }
+            
+        } else {
+            await showAlert('❌ ' + data.message, 'Payment Error', '❌');
+        }
+    } catch (error) {
+        hideLoading();
+        console.error('QRPh payment error:', error);
+        await showAlert('❌ Payment failed: ' + error.message, 'Error', '❌');
     }
 }
 

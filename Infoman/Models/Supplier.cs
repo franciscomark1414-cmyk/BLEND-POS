@@ -10,22 +10,22 @@ namespace Infoman.Models
         public int SupplierId { get; set; }
 
         [Required]
-        [MaxLength(200)]
+        [StringLength(200)]
         public string Name { get; set; }
 
-        [MaxLength(100)]
+        [StringLength(100)]
         public string? ContactPerson { get; set; }
 
-        [MaxLength(50)]
+        [StringLength(50)]
         public string? Phone { get; set; }
 
-        [MaxLength(100)]
+        [StringLength(100)]
         public string? Email { get; set; }
 
-        [MaxLength(500)]
+        [StringLength(500)]
         public string? Address { get; set; }
 
-        [MaxLength(20)]
+        [StringLength(50)]
         public string Status { get; set; } = "Active";
 
         public DateTime CreatedAt { get; set; } = DateTime.Now;

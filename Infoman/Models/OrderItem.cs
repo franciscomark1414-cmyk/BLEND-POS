@@ -25,7 +25,7 @@ namespace Infoman.Models
         // ✅ NEW PROPERTIES - REPLACE OLD IsVoided/IsRefunded
         public int DispositionStatusId { get; set; } = 1; // Default = AVAILABLE (1)
 
-        [MaxLength(500)]
+        [StringLength(500)]
         public string? DispositionReason { get; set; }
 
         public DateTime? DispositionProcessedAt { get; set; }

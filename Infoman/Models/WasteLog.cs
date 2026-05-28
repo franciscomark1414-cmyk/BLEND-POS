@@ -39,8 +39,9 @@ namespace Infoman.Models
         [DataType(DataType.Date)]
         public DateTime Date { get; set; } = DateTime.Today;
 
-        [MaxLength(100)]
+        [StringLength(100)]
         public string? RecordedBy { get; set; }
+        [StringLength(500)]
 
         public string? Notes { get; set; }
 

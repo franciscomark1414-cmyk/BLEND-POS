@@ -6,6 +6,7 @@ public class Order
 {
     [Key]
     public int OrderId { get; set; }
+    [StringLength(100)]
     public string OrderNumber { get; set; }
     public DateTime Date { get; set; }
 
@@ -14,16 +15,21 @@ public class Order
 
     [Column(TypeName = "decimal(18,2)")]
     public decimal OriginalTotalAmount { get; set; }
+    [StringLength(50)]
 
     public string Status { get; set; }
+    [StringLength(100)]
     public string PaymentMethod { get; set; }
+    [StringLength(100)]
     public string DiscountType { get; set; }
     public decimal DiscountPercent { get; set; }
 
     [Column(TypeName = "decimal(18,2)")]
     public decimal DiscountAmount { get; set; }
+    [StringLength(100)]
 
     public string ReceiptNumber { get; set; }
+    [StringLength(200)]
     public string? VoidReason { get; set; }
     public int? VoidedBy { get; set; }
     public DateTime? VoidedAt { get; set; }
@@ -48,10 +54,13 @@ public class Order
 
     [Column(TypeName = "decimal(18,2)")]
     public decimal AdjustmentAmount { get; set; } = 0;
+    [StringLength(50)]
 
     public string? AdjustmentType { get; set; }
+    [StringLength(50)]
     public string? ReturnStatus { get; set; } = "ACTIVE";
     public DateTime? ExchangeDate { get; set; }
+    [StringLength(100)]
     public string? ExchangeReason { get; set; }
 
     // Navigation properties

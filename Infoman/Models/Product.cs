@@ -10,12 +10,16 @@ namespace Infoman.Models
         public int ProductId { get; set; }
 
         [Required]
+        [StringLength(200)]
         public string Name { get; set; } = string.Empty;
 
         [Required]
+        [StringLength(50)]
         public string SKU { get; set; } = string.Empty;
+        [StringLength(50)]
 
         public string Category { get; set; } = string.Empty;
+        [StringLength(500)]
 
         public string Description { get; set; } = string.Empty;
 

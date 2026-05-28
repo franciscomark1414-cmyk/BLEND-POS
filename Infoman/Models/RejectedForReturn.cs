@@ -18,13 +18,13 @@ namespace Infoman.Models
         [Required]
         public decimal Quantity { get; set; }
 
-        [MaxLength(200)]
+        [StringLength(200)]
         public string? Reason { get; set; }
 
         [Required]
         public decimal UnitPrice { get; set; }
 
-        [MaxLength(50)]
+        [StringLength(50)]
         public string Status { get; set; } = "Pending Return";
 
         public DateTime CreatedAt { get; set; } = DateTime.Now;

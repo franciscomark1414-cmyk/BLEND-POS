@@ -23,6 +23,7 @@ namespace Infoman.Models
         [Required]
         public decimal Quantity { get; set; } // e.g., 150g, 200ml
         [Required]
+        [StringLength(50)]
         public string UnitUsed { get; set; } = "g";
         public bool IsDeleted { get; set; } = false;
     }

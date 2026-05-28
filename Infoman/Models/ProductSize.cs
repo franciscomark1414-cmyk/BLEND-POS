@@ -11,6 +11,7 @@ namespace Infoman.Models
         public int ProductSizeId { get; set; }
 
         [Required]
+        [StringLength(100)]
         public string SizeName { get; set; } = string.Empty;    // Small, Medium, Large
 
         [Required]
@@ -23,6 +24,7 @@ namespace Infoman.Models
 
         [ForeignKey("ProductId")]
         public virtual Product Product { get; set; }
+        [StringLength(50)]
         public string SKU { get; set; } = string.Empty;
 
         public virtual ICollection<RecipeItem> RecipeItems { get; set; } = new List<RecipeItem>();

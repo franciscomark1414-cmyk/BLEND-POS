@@ -13,19 +13,23 @@ namespace Infoman.Models
         public int OrderId { get; set; }
         [ForeignKey("OrderId")]
         public virtual Order Order { get; set; }
+        [StringLength(50)]
 
         public string? ItemIds { get; set; } // Comma-separated list of item IDs
 
         [Required]
+        [StringLength(50)]
         public string RequestType { get; set; } // "VOID" or "REFUND" or "EXCHANGE_REFUND"
 
         [Required]
+        [StringLength(500)]
         public string Reason { get; set; }
 
         [Required]
         public int RequestedBy { get; set; }
         [ForeignKey("RequestedBy")]
         public virtual User Requester { get; set; }
+        [StringLength(50)]
 
         public string Status { get; set; } = "PENDING"; // PENDING, APPROVED, REJECTED
 
@@ -37,7 +41,7 @@ namespace Infoman.Models
 
         public DateTime? ApprovedAt { get; set; }
 
-        // ✅ ADD THIS FOR REJECTION REASON
+        [StringLength(200)]
         public string? RejectionReason { get; set; }
     }
 }

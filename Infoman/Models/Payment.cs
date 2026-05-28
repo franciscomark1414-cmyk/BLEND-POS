@@ -14,9 +14,11 @@ namespace Infoman.Models
         [Column(TypeName = "decimal(18,2)")]
         public decimal Amount { get; set; }
 
-        [MaxLength(50)]
+        [StringLength(50)]
         public string PaymentMethod { get; set; } // GCash, Cash
+        [StringLength(50)]
         public string PaymentReference { get; set; } // PayMongo session ID or reference
+        [StringLength(50)]
         public string Status { get; set; } // PENDING, PAID, FAILED, CANCELLED
         public DateTime PaymentDate { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;

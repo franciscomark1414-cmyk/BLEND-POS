@@ -14,26 +14,26 @@ namespace Infoman.Models
         public int SupplierId { get; set; }
 
         [Required]
-        [MaxLength(100)]
+        [StringLength(100)]
         public string DRNumber { get; set; }
 
-        [MaxLength(100)]
+        [StringLength(100)]
         public string? InvoiceNumber { get; set; }
 
         public DateTime DateReceived { get; set; } = DateTime.Now;
 
-        [MaxLength(500)]
+        [StringLength(500)]
         public string? DRImagePath { get; set; }
 
-        [MaxLength(500)]
+        [StringLength(200)]
         public string? Remarks { get; set; }
 
-        [MaxLength(100)]
+        [StringLength(100)]
         public string? CreatedBy { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 
-        [MaxLength(20)]
+        [StringLength(50)]
         public string Status { get; set; } = "Completed";
 
         // Navigation properties
@@ -72,14 +72,14 @@ namespace Infoman.Models
         public decimal RejectedQty { get; set; }
 
 
-        [MaxLength(200)]
+        [StringLength(200)]
         public string? RejectionReason { get; set; }
 
         [Required]
         public decimal UnitPrice { get; set; }
 
         public DateTime? ExpiryDate { get; set; }
-        // Idagdag sa ReceivingItem class
+        [StringLength(50)]
         public string? ReturnStatus { get; set; } // null, PENDING, RETURNED
         public int? ReturnId { get; set; }
 

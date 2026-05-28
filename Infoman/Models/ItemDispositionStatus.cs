@@ -11,10 +11,10 @@ namespace Infoman.Models
         public int DispositionId { get; set; }
 
         [Required]
-        [MaxLength(20)]
+        [StringLength(50)]
         public string StatusName { get; set; }
 
-        [MaxLength(200)]
+        [StringLength(500)]
         public string? Description { get; set; }
     }
 }

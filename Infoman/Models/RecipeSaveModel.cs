@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
 namespace Infoman.Models
 {
@@ -13,6 +14,7 @@ namespace Infoman.Models
     {
         public int RawMaterialId { get; set; }
         public decimal Quantity { get; set; }
+        [StringLength(50)]
         public string UnitUsed { get; set; } = "g";
     }
 }

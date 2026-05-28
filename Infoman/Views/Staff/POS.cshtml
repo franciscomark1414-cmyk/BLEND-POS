@@ -1372,7 +1372,7 @@
             <!-- Tabs -->
 <div style="display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid #eee;">
     <button id="refundTabBtn" class="void-tab-btn-custom" onclick="switchVoidTab('refund')" style="padding: 10px 30px; border: none; background: #e9ecef; font-weight: 600; cursor: pointer; border-radius: 8px 8px 0 0;">💰 REFUND</button>
-    <button id="exchangeTabBtn" class="void-tab-btn-custom" onclick="switchVoidTab('exchange')" style="padding: 10px 30px; border: none; background: #e9ecef; font-weight: 600; cursor: pointer; border-radius: 8px 8px 0 0;">🔄 EXCHANGE</button>
+    <button id="exchangeTabBtn" class="void-tab-btn-custom" onclick="switchVoidTab('exchange')" style="padding: 10px 30px; border: none; background: #e9ecef; font-weight: 600; cursor: pointer; border-radius: 8px 8px 0 0;">🔄 CHANGE</button>
 </div>
 
            <!-- EXCHANGE TAB CONTENT - REDESIGNED UI -->
@@ -3591,7 +3591,7 @@ async function submitVoidFromReceipt() {
         }
 
         function closeReviewModal() { document.getElementById('reviewOrderModal').style.display = 'none'; }
-
+    
         // ============================================================
         // VOID / REFUND PANEL (Return/Refund button — for after blending)
         // ============================================================

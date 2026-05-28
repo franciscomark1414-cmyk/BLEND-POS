@@ -14,6 +14,7 @@
         public string SizeName { get; set; }
         public decimal Price { get; set; }
         public int TotalSold { get; set; }
+        public string ImagePath { get; set; }
     }
 }
 

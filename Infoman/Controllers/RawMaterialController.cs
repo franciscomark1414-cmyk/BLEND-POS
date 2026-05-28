@@ -510,7 +510,7 @@ namespace Infoman.Controllers
                     var wasteLog = new WasteLog
                     {
                         RawMaterialId = request.RawMaterialId,
-                        Quantity = request.Quantity,
+                        Quantity = quantityInBaseUnit,
                         Reason = WasteReason.Expired,
                         Date = DateTime.Now,
                         RecordedBy = "System",

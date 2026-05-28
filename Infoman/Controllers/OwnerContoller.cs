@@ -201,17 +201,17 @@ namespace Infoman.Controllers
                     .Where(oi => oi.Order.Status == "COMPLETED" && !oi.IsRefunded && !oi.IsVoided)
                     .ToListAsync();
 
+                // ✅ GROUP BY PRODUCT AT KUNIN ANG ImagePath
                 bestSelling = orderItems
                     .GroupBy(oi => new {
-                        ProductName = oi.Product?.Name ?? "Unknown",
-                        SizeName = oi.ProductSize?.SizeName ?? "Regular"
+                        oi.Product?.Name,
+                        oi.Product?.ImagePath
                     })
                     .Select(g => new BestSellingProductVM
                     {
-                        Name = g.Key.ProductName,
-                        SizeName = g.Key.SizeName,
-                        TotalSold = g.Sum(oi => oi.Quantity),
-                        Price = 0
+                        Name = g.Key.Name,
+                        ImagePath = g.Key.ImagePath ?? "/images/default-product.png",  // ✅ Default image kung wala
+                        TotalSold = g.Sum(oi => oi.Quantity)
                     })
                     .Where(p => p.TotalSold > 0)
                     .OrderByDescending(p => p.TotalSold)
@@ -220,9 +220,8 @@ namespace Infoman.Controllers
                     {
                         Rank = index + 1,
                         Name = p.Name,
-                        SizeName = p.SizeName,
-                        TotalSold = p.TotalSold,
-                        Price = 0
+                        ImagePath = p.ImagePath,
+                        TotalSold = p.TotalSold
                     })
                     .ToList();
             }
@@ -1229,7 +1228,6 @@ namespace Infoman.Controllers
 
             return Json(new { success = true, message = "Product archived successfully" });
         }
-
         [HttpGet]
         public async Task<IActionResult> GetInventoryAlertsData()
         {
@@ -1239,6 +1237,7 @@ namespace Infoman.Controllers
                 .Where(r => !r.IsDeleted)
                 .ToListAsync();
 
+            // ========== LOW STOCK ITEMS ==========
             var lowStockItems = new List<object>();
 
             foreach (var r in allMaterials)
@@ -1250,16 +1249,18 @@ namespace Infoman.Controllers
 
                 // Convert to display unit for comparison
                 decimal totalStockInDisplayUnit = totalStockInBaseUnit;
-                decimal minQtyInDisplayUnit = r.MinQty;  // Start with MinQty (which is in base unit)
+                decimal minQtyInDisplayUnit = r.MinQtyInBaseUnit;
 
                 if ((r.BaseUnit == "g" && r.Unit == "kg") || (r.BaseUnit == "mL" && r.Unit == "L"))
                 {
                     totalStockInDisplayUnit = totalStockInBaseUnit / 1000;
-                    minQtyInDisplayUnit = r.MinQty / 1000;  // ✅ CONVERT MinQty to display unit!
+                    minQtyInDisplayUnit = r.MinQtyInBaseUnit / 1000;
                 }
 
-                // Now compare both in display units
-                if (totalStockInDisplayUnit <= minQtyInDisplayUnit)
+                bool isNoStock = totalStockInDisplayUnit < 0.001m;
+                bool isLowStock = totalStockInDisplayUnit <= minQtyInDisplayUnit && totalStockInDisplayUnit >= 0.001m;
+
+                if (isNoStock || isLowStock)
                 {
                     lowStockItems.Add(new
                     {
@@ -1267,17 +1268,19 @@ namespace Infoman.Controllers
                         r.Name,
                         Category = r.Category.ToString(),
                         Stock = totalStockInDisplayUnit,
-                        MinQty = minQtyInDisplayUnit,  // ✅ Now in display unit (e.g., 10 kg)
+                        MinQty = minQtyInDisplayUnit,
                         r.Unit,
                         StockWithUnit = $"{totalStockInDisplayUnit:F2} {r.Unit}",
-                        MinQtyWithUnit = $"{minQtyInDisplayUnit:F2} {r.Unit}"  // ✅ Now shows 10.00 kg
+                        MinQtyWithUnit = $"{minQtyInDisplayUnit:F2} {r.Unit}",
+                        Status = isNoStock ? "No Stock" : "Low Stock"
                     });
                 }
-            }
+            }  // ← DITO TAPOS ANG FOREACH LOOP!
 
+            // ✅ ITO NASA LABAS NA NG LOOP
             int lowStockCount = lowStockItems.Count;
 
-            // ========== EXPIRING SOON (BATCHES within 7 days ONLY) ==========
+            // ========== EXPIRING SOON ==========
             var expiringDateThreshold = today.AddDays(7);
 
             var expiringItems = await _db.RawMaterialBatches
@@ -1308,7 +1311,7 @@ namespace Infoman.Controllers
                 .ToListAsync();
             int expiringCount = expiringItems.Count;
 
-            // ========== EXPIRED (from BATCHES) ==========
+            // ========== EXPIRED ==========
             var expiredBatches = await _db.RawMaterialBatches
                 .Include(b => b.RawMaterial)
                 .Where(b => b.ExpiryDate.HasValue &&
@@ -1363,6 +1366,7 @@ namespace Infoman.Controllers
                 .ToListAsync();
             int wasteCount = wasteLogs.Count;
 
+            // ✅ RETURN STATEMENT - NASA LABAS NG LAHAT NG LOOP
             return Json(new
             {
                 lowStockCount = lowStockCount,
@@ -3461,6 +3465,57 @@ namespace Infoman.Controllers
             return Json(approvedRefunds);
         }
 
+        [HttpGet]
+        public async Task<IActionResult> GetInventoryData()
+        {
+            var rawMaterialsData = await _db.RawMaterials
+                .Where(r => !r.IsDeleted)
+                .Select(r => new
+                {
+                    r.RawMaterialId,
+                    r.Name,
+                    r.Category,
+                    r.MinQty,
+                    r.Price,
+                    r.Unit,
+                    r.SKU,
+                    r.BaseUnit,
+                    r.ExpirationDate,
+                    TotalStockInBaseUnit = _db.RawMaterialBatches
+                        .Where(b => b.RawMaterialId == r.RawMaterialId)
+                        .Sum(b => (decimal?)b.QuantityRemaining) ?? 0,
+                    MinQtyInBaseUnit = r.MinQtyInBaseUnit
+                })
+                .ToListAsync();
+
+            var rawMaterialsList = new List<object>();
+            foreach (var r in rawMaterialsData)
+            {
+                decimal displayStock = r.TotalStockInBaseUnit;
+                decimal displayMinQty = r.MinQtyInBaseUnit;
+
+                if ((r.BaseUnit == "g" && r.Unit == "kg") || (r.BaseUnit == "mL" && r.Unit == "L"))
+                {
+                    displayStock = r.TotalStockInBaseUnit / 1000;
+                    displayMinQty = r.MinQtyInBaseUnit / 1000;
+                }
+
+                rawMaterialsList.Add(new
+                {
+                    r.RawMaterialId,
+                    Name = r.Name,
+                    Category = r.Category.ToString(),
+                    Stock = displayStock,
+                    MinQty = displayMinQty,
+                    Unit = r.Unit,
+                    SKU = r.SKU,
+                    Status = displayStock <= displayMinQty ? (displayStock == 0 ? "No Stock" : "Low Stock") : "In Stock"
+                });
+            }
+
+            return Json(new { success = true, rawMaterials = rawMaterialsList });
+        }
+
         // GET: Owner/GetVoidHistory
         [HttpGet]
         public async Task<IActionResult> GetVoidHistory()
@@ -3475,9 +3530,13 @@ namespace Infoman.Controllers
                     Id = v.VoidLogId,
                     OrderNumber = v.Transaction.OrderNumber,
                     Reason = v.Reason,
-                    Amount = v.Transaction.TotalAmount,
+                    // ✅ Use OriginalTotalAmount instead of TotalAmount (which becomes 0 after void)
+                    Amount = v.Transaction.OriginalTotalAmount > 0
+                        ? v.Transaction.OriginalTotalAmount
+                        : v.Transaction.TotalAmount,
                     RecordedAt = v.Timestamp,
-                    RequesterName = v.User.Username
+                    RequesterName = v.User.Username,
+                    OrderId = v.Transaction.OrderId  // ✅ ADD THIS for View Receipt button
                 })
                 .ToListAsync();
 

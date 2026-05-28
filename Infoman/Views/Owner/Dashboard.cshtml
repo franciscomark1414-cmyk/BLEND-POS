@@ -845,39 +845,53 @@ select#filterCategory::-ms-expand {
             </div>
         </div>
 
-        <!-- RIGHT: Best Selling Products -->
-        <div class="col-md-5">
-            <div class="card h-100">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0">🏆 Best Selling Products</h5>
-                </div>
-                <div class="card-body p-0">
-                    <div class="list-group list-group-flush">
-                        @if (Model.BestSellingProducts.Any())
-                        {
-                            foreach (var item in Model.BestSellingProducts)
-                            {
-                                <div class="list-group-item d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <span class="badge @(item.Rank == 1 ? "bg-warning" : "bg-secondary") rounded-pill me-2">#@item.Rank</span>
-                                        <strong>@item.Name</strong>
-                                        <br />
-                                        <small class="text-muted">@item.SizeName</small>
+      <!-- RIGHT: Best Selling Products -->
+<div class="col-md-5">
+    <div class="card h-100">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">🏆 Best Selling Products</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="list-group list-group-flush">
+                @if (Model.BestSellingProducts.Any())
+                {
+                    foreach (var item in Model.BestSellingProducts)
+                    {
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <!-- ✅ IMAGE SECTION - IDAGDAG DITO -->
+                            <div class="d-flex align-items-center gap-3">
+                                @if (!string.IsNullOrEmpty(item.ImagePath))
+                                {
+                                    <img src="@item.ImagePath" alt="@item.Name" 
+                                         style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;">
+                                }
+                                else
+                                {
+                                    <div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-cup"></i>
                                     </div>
-                                    <div class="text-end">
-                                        <span class="fw-bold text-primary">@item.TotalSold sold</span>
-                                    </div>
+                                }
+                                <div>
+                                    <span class="badge @(item.Rank == 1 ? "bg-warning" : "bg-secondary") rounded-pill me-2">#@item.Rank</span>
+                                    <strong>@item.Name</strong>
+                                    <br />
+                                    <small class="text-muted">@item.SizeName</small>
                                 </div>
-                            }
-                        }
-                        else
-                        {
-                            <div class="list-group-item text-center text-muted">No sales data yet</div>
-                        }
-                    </div>
-                </div>
+                            </div>
+                            <div class="text-end">
+                                <span class="fw-bold text-primary">@item.TotalSold sold</span>
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="list-group-item text-center text-muted">No sales data yet</div>
+                }
             </div>
         </div>
+    </div>
+</div>
     </div>
 </div>
 
@@ -960,7 +974,7 @@ select#filterCategory::-ms-expand {
                             foreach (var item in ViewBag.RawMaterials)
                             {
                                 <option value="@item.RawMaterialId" data-unit="@item.Unit">
-                                    @item.Name (@item.Unit) - Current Stock: @item.StockWithUnit
+                                    @item.Name (@item.Unit) - Current Stock: @($"{item.Stock:F2} {item.Unit}")
                                 </option>
                             }
                         }
@@ -2546,14 +2560,6 @@ select#filterCategory::-ms-expand {
                         <div id="returnsModule" class="module">
                             <div class="d-flex justify-content-between align-items-center mb-4">
                                 <h3><i class="fas fa-undo-alt text-warning me-2"></i> Returns & Void Management</h3>
-                                <div class="d-flex gap-2">
-                                    <button class="btn btn-outline-secondary" onclick="printReturns()">
-                                        <i class="fas fa-print"></i> Print
-                                    </button>
-                                    <button class="btn btn-outline-primary" onclick="loadAllReturns()">
-                                        <i class="fas fa-sync-alt"></i> Refresh
-                                    </button>
-                                </div>
                             </div>
 
                             <!-- ========== TABS ========== -->
@@ -2654,6 +2660,7 @@ select#filterCategory::-ms-expand {
                             <th>Reason</th>
                             <th>Amount</th>
                             <th>Voided By</th>
+                            <th>Actions</th> 
                         </tr>
                     </thead>
                     <tbody id="voidHistoryTableBody">
@@ -3519,8 +3526,7 @@ function showAddDeliveryForm() {
         }
     }
 
-    // Submit delivery form
-   document.getElementById('addDeliveryForm')?.addEventListener('submit', async function(e) {
+  document.getElementById('addDeliveryForm')?.addEventListener('submit', async function(e) {
     e.preventDefault();
 
     const selectElement = document.getElementById('deliveryMaterialSelect');
@@ -3586,19 +3592,55 @@ function showAddDeliveryForm() {
             // ✅ I-HIDE ANG PANEL
             document.getElementById('addDeliveryPanel').style.display = 'none';
             
-            // ✅ REFRESH THE PAGE TO UPDATE DISPLAY
-            saveAndReload();
+            // ✅ RESET FORM
+            document.getElementById('addDeliveryForm').reset();
+            
+            // ✅ SMOOTH REFRESH - UPDATE INVENTORY TABLE WITHOUT PAGE RELOAD
+            await refreshInventoryTableData();
+            
+            // ✅ UPDATE DROPDOWN (para updated ang stock display)
+            await refreshDeliveryMaterialDropdown();
+            
+            // ✅ I-UPDATE DIN ANG ALERTS KUNG NASA INVENTORY ALERTS MODULE
+            const alertsModule = document.getElementById('inventoryAlertsModule');
+            if (alertsModule && alertsModule.classList.contains('active')) {
+                loadInventoryAlerts();
+            }
+            
         } else {
             await showAlert(' Error: ' + result.message, 'Error', '❌');
         }
     } catch (error) {
         console.error('Error details:', error);
-        await showAlert(' Error adding delivery: ' + error.message);
+        await showAlert(' Error adding delivery: ' + error.message, 'Error', '❌');
     } finally {
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
     }
 });
+
+// ✅ FUNCTION: Refresh delivery material dropdown
+async function refreshDeliveryMaterialDropdown() {
+    try {
+        const response = await fetch('/Owner/GetInventoryData');
+        const data = await response.json();
+        
+        if (data.success && data.rawMaterials) {
+            const select = document.getElementById('deliveryMaterialSelect');
+            if (!select) return;
+            
+            let options = '<option value="">-- Select Raw Material --</option>';
+            data.rawMaterials.forEach(item => {
+                options += `<option value="${item.rawMaterialId}" data-unit="${item.unit}">
+                    ${escapeHtml(item.name)} (${item.unit}) - Current Stock: ${item.stock.toFixed(2)} ${item.unit}
+                </option>`;
+            });
+            select.innerHTML = options;
+        }
+    } catch (error) {
+        console.error('Error refreshing dropdown:', error);
+    }
+}
 
     // Inventory Functions
     function toggleAddForm() {
@@ -5144,27 +5186,35 @@ function loadLowStockTab(items) {
                         </tr>
                     </thead>
                     <tbody>
-                        ${items.map(item => `
+                        ${items.map(item => {
+                            // ✅ GAMITIN ANG STATUS MULA SA SERVER
+                            let statusBadge = '';
+                            if (item.status === 'No Stock') {
+                                statusBadge = '<span class="badge bg-danger">❌ No Stock</span>';
+                            } else {
+                                statusBadge = '<span class="badge bg-warning">⚠️ Low Stock</span>';
+                            }
+                            
+                            return `
                             <tr>
                                 <td><strong>${escapeHtml(item.name)}</strong></td>
                                 <td>${escapeHtml(item.category)}</td>
                                 <td class="text-danger fw-bold">${item.stockWithUnit}</td>
-                                <td class="text-danger fw-bold">${item.minQtyWithUnit}</td>  <!-- ✅ GAMITIN ANG PROPERTY -->
-                                <td><span class="badge bg-warning">⚠️ Low Stock</span></td>
+                                <td class="text-danger fw-bold">${item.minQtyWithUnit}</td>
+                                <td>${statusBadge}</td>
                                 <td>
                                     <button class="btn btn-sm btn-outline-success" onclick="restockMaterial(${item.rawMaterialId})">
                                         📦 Restock
                                     </button>
-                                </td>
-                            </tr>
-                        `).join('')}
+                                 </td>
+                             </tr>
+                        `}).join('')}
                     </tbody>
-                </table>
+                 </table>
             </div>
         `;
     }
 }
-
         function loadExpiringTab(items) {
         const container = document.getElementById('expiringContent');
         if (!items || items.length === 0) {
@@ -5988,6 +6038,15 @@ function viewReceiptDetail(orderId) {
     }
 
     const now = new Date(receipt.date);
+
+    let voidNoticeHtml = '';
+    if (receipt.isVoided) {
+        voidNoticeHtml = `
+            <div style="background: #dc3545; color: white; text-align: center; padding: 8px; border-radius: 5px; margin-bottom: 15px;">
+                <i class="fas fa-ban"></i> ${receipt.voidNotice || 'THIS ORDER HAS BEEN VOIDED'}
+            </div>
+        `;
+    }
     
     // Build items HTML
     let itemsHtml = '';
@@ -6050,6 +6109,7 @@ function viewReceiptDetail(orderId) {
             <div><small>Receipt #: ${escapeHtml(receipt.receiptNumber)}</small></div>
             <div><small class="fw-bold">Order #: ${receipt.orderId}</small></div>
         </div>
+        ${voidNoticeHtml}
         ${exchangeInfoHtml}
         <hr>
         <div style="margin-bottom: 10px;">
@@ -7516,8 +7576,7 @@ function validateRow(rowId) {
     }
 }
 
-   // Submit receiving form
-document.getElementById('receivingForm')?.addEventListener('submit', async function(e) {
+ document.getElementById('receivingForm')?.addEventListener('submit', async function(e) {
     e.preventDefault();
 
     const items = [];
@@ -7623,26 +7682,83 @@ document.getElementById('receivingForm')?.addEventListener('submit', async funct
         body: JSON.stringify(data)
     })
     .then(r => r.json())
-    .then(result => {
+    .then(async (result) => {
         if (result.success) {
-            showAlert(result.message, 'Success');
+            await showAlert(result.message, 'Success', '✅');
+            
+            // ✅ RESET FORM ONLY (no redirect, no page reload)
             document.getElementById('receivingForm').reset();
             document.getElementById('receivingItemsBody').innerHTML = '';
             receivingRowCount = 0;
             addReceivingRow();
             document.getElementById('drNumber').value = generateDRNumber();
             document.getElementById('invoiceNumber').value = generateInvoiceNumber();
-            showModule('receivingHistory');
-            loadDeliveryHistory();
+            
+            // ✅ REFRESH INVENTORY TABLE DATA (without reloading page)
+            await refreshInventoryTableData();
+            
         } else {
-            showAlert(' Error: ' + result.message, 'Error');
+            await showAlert(' Error: ' + result.message, 'Error', '❌');
         }
+    })
+    .catch(async (error) => {
+        await showAlert(' Error: ' + error.message, 'Error', '❌');
     })
     .finally(() => {
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
     });
 });
+
+// ✅ BAGONG FUNCTION: Refresh inventory table without page reload
+async function refreshInventoryTableData() {
+    try {
+        const response = await fetch('/Owner/GetInventoryData');
+        const data = await response.json();
+        
+        if (data.success && data.rawMaterials) {
+            updateInventoryTable(data.rawMaterials);
+            
+            // ✅ Also refresh the delivery history
+            loadDeliveryHistory();
+        }
+    } catch (error) {
+        console.error('Error refreshing inventory:', error);
+    }
+}
+
+// ✅ BAGONG FUNCTION: Update inventory table with new data
+function updateInventoryTable(rawMaterials) {
+    const tbody = document.querySelector('#rawMaterialTable tbody');
+    if (!tbody) return;
+    
+    if (!rawMaterials || rawMaterials.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center">No raw materials yet.您</td><\/tr>';
+        return;
+    }
+    
+    let html = '';
+    rawMaterials.forEach(item => {
+        const status = item.status || (item.stock <= item.minQty ? (item.stock === 0 ? 'No Stock' : 'Low Stock') : 'In Stock');
+        
+        html += `
+            <tr data-id="${item.rawMaterialId}">
+                <td class="sku-column">${item.sku || '—'}</td>
+                <td>${escapeHtml(item.name)}</td>
+                <td data-value="${item.category}">${escapeHtml(item.category)}</td>
+                <td data-stock="${item.stock}" data-unit="${item.unit}">${item.stock.toFixed(2)} ${item.unit}</td>
+                <td data-minqty="${item.minQty}" data-unit="${item.unit}">${item.minQty.toFixed(2)} ${item.unit}</td>
+                <td>${status}</td>
+                <td>
+                    <button class="btn btn-sm btn-info" onclick="viewBatchHistory(${item.rawMaterialId}, '${escapeHtml(item.name)}')">Batches</button>
+                    <button class="btn btn-sm btn-primary" onclick="editMaterialFromInventory(${item.rawMaterialId}, '${escapeHtml(item.name)}')">Edit</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteMaterialFromInventory(${item.rawMaterialId}, '${escapeHtml(item.name)}')">Delete</button>
+                </td>
+            </tr>
+        `;
+    });
+    tbody.innerHTML = html;
+}
 
 function validateMinQty(input) {
     if (input.value < 0) {
@@ -9180,6 +9296,7 @@ async function loadRefundHistory() {
 }
 
 // Load Void History (direct voids - automatic)
+// Load Void History (direct voids - automatic)
 async function loadVoidHistory() {
     try {
         const response = await fetch('/Owner/GetVoidHistory');
@@ -9196,7 +9313,7 @@ async function loadVoidHistory() {
         if (badge) badge.innerText = voids.length;
         
         if (voids.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No void records found<\/td><\/tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No void records found<\/td><\/tr>';
             return;
         }
         
@@ -9204,19 +9321,56 @@ async function loadVoidHistory() {
         voids.forEach(v => {
             const date = new Date(v.recordedAt);
             const formattedDate = `${date.getMonth()+1}/${date.getDate()}/${date.getFullYear()}`;
+            
+            // ✅ Check if amount is valid
+            const amount = v.amount || 0;
+            
             html += `
                 <tr>
                     <td>${formattedDate}</td>
                     <td><strong>${escapeHtml(v.orderNumber)}</strong></td>
                     <td>${escapeHtml(v.reason)}</td>
-                    <td class="text-danger fw-bold">₱${Math.abs(v.amount || 0).toFixed(2)}</td>
+                    <td class="text-danger fw-bold">₱${amount.toFixed(2)}</td>
                     <td>${escapeHtml(v.requesterName)}</td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="viewVoidOrderReceipt(${v.orderId})">
+                            <i class="fas fa-receipt"></i> View Receipt
+                        </button>
+                    </td>
                 </tr>
             `;
         });
         tbody.innerHTML = html;
     } catch (error) {
         console.error('Error loading void history:', error);
+    }
+}
+
+// ✅ BAGONG FUNCTION: View voided order receipt
+async function viewVoidOrderReceipt(orderId) {
+    console.log("Viewing voided order receipt for orderId:", orderId);
+    
+    showLoading('Loading receipt...');
+    
+    try {
+        const response = await fetch(`/Owner/GetReceiptDetail?orderId=${orderId}`);
+        const data = await response.json();
+        hideLoading();
+        
+        if (data.success) {
+            // Add a note that this is a voided order
+            if (data.receipt) {
+                data.receipt.isVoided = true;
+                data.receipt.voidNotice = "⚠️ THIS ORDER HAS BEEN VOIDED ⚠️";
+            }
+            showReceiptModalFromData(data.receipt);
+        } else {
+            await showAlert('Error loading receipt details: ' + (data.message || 'Unknown error'), 'Error', '❌');
+        }
+    } catch (error) {
+        hideLoading();
+        console.error('Error:', error);
+        await showAlert('Error loading receipt details: ' + error.message, 'Error', '❌');
     }
 }
 

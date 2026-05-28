@@ -1,10 +1,13 @@
-﻿using Infoman.Data;
+﻿using Microsoft.AspNetCore.Http;
+using Infoman.Data;
 using Infoman.Models;
 using Infoman.Service;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using System;
+using System.Net.Http.Headers;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Infoman.Controllers
@@ -32,9 +35,6 @@ namespace Infoman.Controllers
             public string? PhoneNumber { get; set; }
         }
 
-        /// <summary>
-        /// Initiate GCash payment using Sources API (works in test mode!)
-        /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> InitiateGCashPayment([FromBody] GCashPaymentRequest request)
@@ -47,9 +47,12 @@ namespace Infoman.Controllers
                     return Json(new { success = false, message = "Order not found" });
                 }
 
-                // ✅ Use Sources API instead of Checkout Session
-                var successUrl = Url.Action("GCashSuccess", "Payment", null, Request.Scheme);
-                var cancelUrl = Url.Action("GCashCancel", "Payment", null, Request.Scheme);
+                var baseUrl = $"{Request.Scheme}://{Request.Host}";
+                var successUrl = $"{baseUrl}/Payment/GCashSuccess";
+                var cancelUrl = $"{baseUrl}/Payment/GCashCancel";
+
+                System.Diagnostics.Debug.WriteLine($"✅ Success URL: {successUrl}");
+                System.Diagnostics.Debug.WriteLine($"✅ Cancel URL: {cancelUrl}");
 
                 var result = await _payMongoService.CreateGCashSourceAsync(
                     request.Amount,
@@ -63,12 +66,16 @@ namespace Infoman.Controllers
                     return Json(new { success = false, message = result.errorMessage });
                 }
 
+                // ✅ I-SAVE ANG SOURCE ID SA SESSION PARA MAGAMIT PAGBALIK
+                HttpContext.Session.SetString("PendingGCashSourceId", result.sourceId);
+                HttpContext.Session.SetInt32("PendingGCashOrderId", request.OrderId);
+
                 var payment = new Payment
                 {
                     OrderId = request.OrderId,
                     Amount = request.Amount,
                     PaymentMethod = "GCash",
-                    PaymentReference = result.sourceId,  // Source ID, hindi session ID
+                    PaymentReference = result.sourceId,
                     Status = "PENDING",
                     PaymentDate = DateTime.Now
                 };
@@ -114,24 +121,54 @@ namespace Infoman.Controllers
             }
         }
 
-        /// <summary>
-        /// Success callback from PayMongo (Sources API)
-        /// </summary>
-        public async Task<IActionResult> GCashSuccess(string id)  // 'id' ang source ID
+        [HttpGet]
+        public async Task<IActionResult> GCashSuccess()
         {
-            if (string.IsNullOrEmpty(id))
+            System.Diagnostics.Debug.WriteLine($"=== GCASHSUCCESS METHOD HIT ===");
+            System.Diagnostics.Debug.WriteLine($"Query string: {Request.QueryString}");
+
+            // KUNIN ANG SOURCE ID MULA SA SESSION
+            string sourceId = HttpContext.Session.GetString("PendingGCashSourceId");
+            int? orderId = HttpContext.Session.GetInt32("PendingGCashOrderId");
+
+            System.Diagnostics.Debug.WriteLine($"SourceId from session: {sourceId}");
+            System.Diagnostics.Debug.WriteLine($"OrderId from session: {orderId}");
+
+            // Also check query string as fallback
+            if (string.IsNullOrEmpty(sourceId))
             {
+                sourceId = Request.Query["source_id"].ToString();
+                System.Diagnostics.Debug.WriteLine($"From query string: {sourceId}");
+            }
+
+            if (string.IsNullOrEmpty(sourceId) && orderId.HasValue)
+            {
+                var payment = await _db.Payments
+                    .FirstOrDefaultAsync(p => p.OrderId == orderId.Value && p.PaymentMethod == "GCash");
+                if (payment != null)
+                {
+                    sourceId = payment.PaymentReference;
+                    System.Diagnostics.Debug.WriteLine($"Found from payment record: {sourceId}");
+                }
+            }
+
+            if (string.IsNullOrEmpty(sourceId))
+            {
+                System.Diagnostics.Debug.WriteLine("Source ID is null or empty");
                 TempData["Error"] = "Invalid payment session";
                 return RedirectToAction("POS", "Staff");
             }
 
-            // Get source status
-            var result = await _payMongoService.GetSourceStatusAsync(id);
+            // Wait for PayMongo to process
+            await Task.Delay(2000);
+
+            var result = await _payMongoService.GetSourceStatusAsync(sourceId);
+            System.Diagnostics.Debug.WriteLine($"Source status: success={result.success}, status={result.status}");
 
             if (result.success && result.status == "chargeable")
             {
                 var payment = await _db.Payments
-                    .FirstOrDefaultAsync(p => p.PaymentReference == id);
+                    .FirstOrDefaultAsync(p => p.PaymentReference == sourceId);
 
                 if (payment != null)
                 {
@@ -139,34 +176,109 @@ namespace Infoman.Controllers
                     payment.PaymentDate = DateTime.Now;
                     await _db.SaveChangesAsync();
 
-                    var order = await _db.Orders.FindAsync(payment.OrderId);
+                    // ✅ IMPORTANTE: I-load ang order KASAMA ang ITEMS
+                    var order = await _db.Orders
+                        .Include(o => o.Items)  // ✅ DAPAT MAY INCLUDE ITO!
+                        .ThenInclude(oi => oi.Product)
+                        .Include(o => o.Items)
+                        .ThenInclude(oi => oi.ProductSize)
+                        .FirstOrDefaultAsync(o => o.OrderId == payment.OrderId);
+
                     if (order != null)
                     {
-                        order.Status = "COMPLETED";
+                        // ✅ HUWAG GALAWIN ANG ITEMS! I-update lang ang status
+                        order.Status = "PENDING_BLENDING";
                         order.PaymentMethod = "GCash";
                         await _db.SaveChangesAsync();
-                    }
 
-                    TempData["Success"] = $"Payment of ₱{payment.Amount:N2} successful!";
+                        // I-log kung ilang items ang nasa order
+                        System.Diagnostics.Debug.WriteLine($"✅ Order #{order.OrderId} has {order.Items.Count} items");
+                        foreach (var item in order.Items)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"   - {item.Product?.Name} x {item.Quantity}");
+                        }
+
+                        await RecordEmployeePerformance(order.StaffUserId ?? 0, order.TotalAmount);
+
+                        // ✅ I-redirect na may orderId para makita ang tamang receipt
+                        return RedirectToAction("POS", "Staff", new { showReceipt = true, orderId = order.OrderId });
+                    }
                 }
             }
-            else
-            {
-                TempData["Error"] = $"Payment not completed. Status: {result.status}";
-            }
 
-            return RedirectToAction("POS", "Staff");
+            // I-CLEAR ANG SESSION
+            HttpContext.Session.Remove("PendingGCashSourceId");
+            HttpContext.Session.Remove("PendingGCashOrderId");
+
+            return RedirectToAction("POS", "Staff", new { showReceipt = true });
         }
 
-        /// <summary>
-        /// Cancel callback from PayMongo (Sources API)
-        /// </summary>
-        public async Task<IActionResult> GCashCancel(string id)
+        // PaymentController.cs - Idagdag ito sa loob ng PaymentController class
+
+        private async Task RecordEmployeePerformance(int userId, decimal orderAmount)
         {
-            if (!string.IsNullOrEmpty(id))
+            if (userId == 0) return;
+
+            try
+            {
+                var today = DateTime.Today;
+                var now = DateTime.Now;
+
+                var existingPerformance = await _db.EmployeePerformances
+                    .FirstOrDefaultAsync(p => p.UserId == userId && p.Date.Date == today);
+
+                if (existingPerformance != null)
+                {
+                    existingPerformance.TotalSales += orderAmount;
+                    existingPerformance.OrdersProcessed += 1;
+                    existingPerformance.UpdatedAt = now;
+                }
+                else
+                {
+                    var performance = new EmployeePerformance
+                    {
+                        UserId = userId,
+                        Date = today,
+                        TotalSales = orderAmount,
+                        OrdersProcessed = 1,
+                        Rating = 0,
+                        Notes = "Auto-recorded from GCash payment",
+                        CreatedAt = now,
+                        UpdatedAt = now
+                    };
+                    _db.EmployeePerformances.Add(performance);
+                }
+
+                // Update user stats
+                var user = await _db.Users.FindAsync(userId);
+                if (user != null)
+                {
+                    var allPerformances = await _db.EmployeePerformances
+                        .Where(p => p.UserId == userId)
+                        .ToListAsync();
+
+                    user.TotalOrdersProcessed = allPerformances.Sum(p => p.OrdersProcessed);
+                    var ratedPerformances = allPerformances.Where(p => p.Rating > 0).ToList();
+                    user.AverageRating = ratedPerformances.Any() ? ratedPerformances.Average(p => p.Rating) : 0;
+                    user.UpdatedAt = now;
+                }
+
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                // Log error but don't throw - we don't want to break the payment flow
+                Console.WriteLine($"Error recording performance: {ex.Message}");
+            }
+        }
+        public async Task<IActionResult> GCashCancel(string source_id, string id)
+        {
+            string sourceId = source_id ?? id;
+
+            if (!string.IsNullOrEmpty(sourceId))
             {
                 var payment = await _db.Payments
-                    .FirstOrDefaultAsync(p => p.PaymentReference == id);
+                    .FirstOrDefaultAsync(p => p.PaymentReference == sourceId);
 
                 if (payment != null)
                 {

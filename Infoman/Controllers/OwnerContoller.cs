@@ -620,17 +620,24 @@ namespace Infoman.Controllers
                     if (rawMat != null)
                     {
                         decimal quantityInBaseUnit = ingredient.Quantity;
+                        string unitToSave = ingredient.UnitUsed;
 
                         if (ingredient.UnitUsed == "kg" && rawMat.BaseUnit == "g")
+                        {
                             quantityInBaseUnit = ingredient.Quantity * 1000;
+                            unitToSave = "g";
+                        }
                         else if (ingredient.UnitUsed == "L" && rawMat.BaseUnit == "mL")
+                        {
                             quantityInBaseUnit = ingredient.Quantity * 1000;
+                            unitToSave = "mL";
+                        }
 
                         productSize.RecipeItems.Add(new RecipeItem
                         {
                             RawMaterialId = ingredient.RawMaterialId,
                             Quantity = quantityInBaseUnit,
-                            UnitUsed = ingredient.UnitUsed
+                            UnitUsed = unitToSave
                         });
                     }
                 }

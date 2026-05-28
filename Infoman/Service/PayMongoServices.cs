@@ -147,10 +147,10 @@ namespace Infoman.Service
         /// Creates a GCash Source (for test mode - no need to enable GCash in dashboard)
         /// </summary>
         public async Task<(bool success, string checkoutUrl, string errorMessage, string sourceId)> CreateGCashSourceAsync(
-            decimal amount,
-            string orderNumber,
-            string successUrl,
-            string cancelUrl)
+    decimal amount,
+    string orderNumber,
+    string successUrl,
+    string cancelUrl)
         {
             try
             {
@@ -162,6 +162,7 @@ namespace Infoman.Service
                     client.DefaultRequestHeaders.Authorization =
                         new AuthenticationHeaderValue("Basic", authToken);
 
+                    // ✅ GAMITIN ANG SIMPLENG URLS (walang /{id})
                     var payload = new
                     {
                         data = new
@@ -173,8 +174,8 @@ namespace Infoman.Service
                                 type = "gcash",
                                 redirect = new
                                 {
-                                    success = successUrl,
-                                    failed = cancelUrl
+                                    success = successUrl,   // ✅ Simple URL lang
+                                    failed = cancelUrl     // ✅ Simple URL lang
                                 },
                                 billing = new
                                 {
@@ -186,6 +187,8 @@ namespace Infoman.Service
                     };
 
                     var json = JsonConvert.SerializeObject(payload);
+                    System.Diagnostics.Debug.WriteLine($"Request Payload: {json}");
+
                     var content = new StringContent(json, Encoding.UTF8, "application/json");
 
                     var response = await client.PostAsync(
@@ -194,12 +197,16 @@ namespace Infoman.Service
                     );
 
                     var responseString = await response.Content.ReadAsStringAsync();
+                    System.Diagnostics.Debug.WriteLine($"Response: {responseString}");
 
                     if (response.IsSuccessStatusCode)
                     {
                         dynamic result = JsonConvert.DeserializeObject(responseString);
                         string checkoutUrl = result.data.attributes.redirect.checkout_url;
                         string sourceId = result.data.id;
+
+                        System.Diagnostics.Debug.WriteLine($"✅ GCash Source Created - SourceId: {sourceId}");
+                        System.Diagnostics.Debug.WriteLine($"✅ Checkout URL: {checkoutUrl}");
 
                         return (true, checkoutUrl, null, sourceId);
                     }

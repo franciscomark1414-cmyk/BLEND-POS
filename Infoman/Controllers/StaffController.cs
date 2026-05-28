@@ -33,9 +33,14 @@ namespace Infoman.Controllers
             return userId.HasValue && userId.Value > 0;
         }
 
-        // POS Main Page
-        public async Task<IActionResult> POS()
-        {   
+        // StaffController.cs - Update the POS method
+        public async Task<IActionResult> POS(bool showReceipt = false, string orderId = null)
+        {
+
+            System.Diagnostics.Debug.WriteLine("=== POS PAGE LOADED ===");
+            System.Diagnostics.Debug.WriteLine($"showReceipt: {showReceipt}");
+            System.Diagnostics.Debug.WriteLine($"orderId: {orderId ?? "NULL"}");
+
             await EnsureExpiredBatchesProcessed();
 
             if (!IsStaffLoggedIn())
@@ -73,6 +78,15 @@ namespace Infoman.Controllers
                 .ToListAsync();
 
             ViewBag.Categories = categories;
+
+            // ✅ I-pass sa View ang receipt flags
+            ViewBag.ShowReceipt = showReceipt;
+            ViewBag.PendingOrderId = orderId;
+
+            System.Diagnostics.Debug.WriteLine($"=== POS PAGE LOAD ===");
+            System.Diagnostics.Debug.WriteLine($"showReceipt: {showReceipt}");
+            System.Diagnostics.Debug.WriteLine($"orderId: {orderId}");
+
             return View(products);
         }
         // Check availability (base sa raw materials)
@@ -137,36 +151,26 @@ namespace Infoman.Controllers
                 message = $"Available! Can make up to {maxPossibleOrders} orders."
             });
         }
-        // StaffController.cs - PlaceOrder method
         [HttpPost]
         public async Task<IActionResult> PlaceOrder([FromBody] PlaceOrderRequest request)
         {
             System.Diagnostics.Debug.WriteLine("=== PLACE ORDER METHOD HIT ===");
             try
             {
-                // ========== 1. CHECK IF USER IS LOGGED IN ==========
                 var userId = GetCurrentUserId();
                 if (userId == 0)
-                {
                     return Json(new { success = false, message = "User not logged in", requiresTimeIn = true });
-                }
 
-                // ========== 2. CHECK IF STAFF IS CLOCKED IN ==========
                 var today = DateTime.Today;
                 var attendance = await _db.EmployeeAttendances
                     .FirstOrDefaultAsync(a => a.UserId == userId && a.Date == today);
 
                 if (attendance == null || !attendance.CheckInTime.HasValue)
-                {
                     return Json(new { success = false, message = "⚠️ You must TIME IN first!", requiresTimeIn = true });
-                }
 
                 if (attendance.CheckOutTime.HasValue)
-                {
                     return Json(new { success = false, message = "⚠️ You have already clocked out!", requiresTimeIn = true });
-                }
 
-                // ========== 3. VALIDATE PRODUCT ==========
                 var productSize = await _db.ProductSizes
                     .Include(ps => ps.RecipeItems)
                         .ThenInclude(ri => ri.RawMaterial)
@@ -179,159 +183,120 @@ namespace Infoman.Controllers
                 if (request.Quantity <= 0)
                     return Json(new { success = false, message = "Invalid quantity" });
 
-                // ========== 4. CHECK INGREDIENT AVAILABILITY ==========
-                decimal originalTotal = request.Quantity * productSize.Price;
-                decimal discountedTotal = originalTotal * (1 - request.DiscountPercent);
-                decimal discountAmount = originalTotal - discountedTotal;
-
-                foreach (var recipeItem in productSize.RecipeItems)
-                {
-                    decimal neededQty = recipeItem.Quantity * request.Quantity;
-                    decimal availableQty = await _db.RawMaterialBatches
-                        .Where(b => b.RawMaterialId == recipeItem.RawMaterialId
-                            && b.QuantityRemaining > 0
-                            && (!b.ExpiryDate.HasValue || b.ExpiryDate.Value >= DateTime.Today))
-                        .SumAsync(b => b.QuantityRemaining);
-
-                    decimal neededQtyInKg = neededQty;
-                    if (recipeItem.RawMaterial.BaseUnit == "g" || recipeItem.RawMaterial.BaseUnit == "mL")
-                    {
-                        neededQtyInKg = neededQty / 1000;
-                    }
-
-                    if (availableQty < neededQtyInKg)
-                    {
-                        return Json(new
-                        {
-                            success = false,
-                            message = $"Insufficient {recipeItem.RawMaterial.Name}. Need {neededQty} {recipeItem.RawMaterial.Unit}"
-                        });
-                    }
-                }
-
-                // ========== 5. CHECK IF ORDER ALREADY EXISTS ==========
-                var existingOrder = await _db.Orders
-                    .Include(o => o.Items)
-                    .FirstOrDefaultAsync(o => o.OrderNumber == request.OrderNumber && o.Status == "PENDING_PAYMENT");
-
+                // ✅ CHECK KUNG MAY EXISTING ORDER NA MAY SAME ORDER NUMBER
+                Order order = null;
                 int orderId;
-                decimal newTotalAmount = 0;
 
-                if (existingOrder != null)
+                if (!string.IsNullOrEmpty(request.OrderNumber))
                 {
-                    // ✅ ADD ITEM TO EXISTING ORDER
-                    orderId = existingOrder.OrderId;
-
-                    var orderItem = new OrderItem
-                    {
-                        OrderId = existingOrder.OrderId,
-                        ProductId = productSize.ProductId,
-                        ProductSizeId = productSize.ProductSizeId,
-                        Quantity = request.Quantity,
-                        Price = productSize.Price,
-                        ActualCost = 0,
-                        DispositionStatusId = 1
-                    };
-                    _db.OrderItems.Add(orderItem);
-
-                    // Update order totals
-                    decimal newSubtotal = existingOrder.OriginalTotalAmount + (request.Quantity * productSize.Price);
-                    decimal newDiscountedTotalAmount = newSubtotal * (1 - request.DiscountPercent);
-                    decimal newDiscountAmountValue = newSubtotal - newDiscountedTotalAmount;
-
-                    existingOrder.OriginalTotalAmount = newSubtotal;
-                    existingOrder.TotalAmount = newDiscountedTotalAmount;
-                    existingOrder.DiscountAmount = newDiscountAmountValue;
-
-                    await _db.SaveChangesAsync();
-                    newTotalAmount = newDiscountedTotalAmount;
+                    order = await _db.Orders
+                        .FirstOrDefaultAsync(o => o.OrderNumber == request.OrderNumber);
                 }
-                else
-                {
-                    // ✅ CREATE NEW ORDER
-                    string orderNumber = request.OrderNumber ?? $"ORD-{DateTime.Now:yyyyMMddHHmmss}";
 
-                    var newOrder = new Order
+                bool isNewOrder = (order == null);
+
+                if (isNewOrder)
+                {
+                    // Gumawa ng bagong order
+                    string finalStatus = request.PaymentMethod == "Cash" ? "PENDING_BLENDING" : "PENDING_PAYMENT";
+
+                    order = new Order
                     {
-                        OrderNumber = orderNumber,
+                        OrderNumber = request.OrderNumber ?? $"POS-{DateTime.Now:yyyyMMddHHmmss}",
                         Date = DateTime.Now,
-                        TotalAmount = discountedTotal,
-                        Status = "PENDING_PAYMENT",  // Still PENDING until payment is recorded
+                        TotalAmount = 0,
+                        Status = finalStatus,
                         PaymentMethod = request.PaymentMethod ?? "Cash",
                         DiscountType = string.IsNullOrEmpty(request.DiscountType) ? "None" : request.DiscountType,
                         DiscountPercent = request.DiscountPercent,
-                        DiscountAmount = discountAmount,
+                        DiscountAmount = 0,
                         ReceiptNumber = $"RC-{DateTime.Now:yyyyMMdd}-{new Random().Next(1000, 9999)}",
-                        OriginalTotalAmount = discountedTotal,
+                        OriginalTotalAmount = 0,
                         CreatedAt = DateTime.Now,
                         StaffUserId = userId
                     };
-
-                    _db.Orders.Add(newOrder);
-                    await _db.SaveChangesAsync();
-                    orderId = newOrder.OrderId;
-                    newTotalAmount = discountedTotal;
-
-                    var orderItem = new OrderItem
-                    {
-                        OrderId = newOrder.OrderId,
-                        ProductId = productSize.ProductId,
-                        ProductSizeId = productSize.ProductSizeId,
-                        Quantity = request.Quantity,
-                        Price = productSize.Price,
-                        ActualCost = 0,
-                        DispositionStatusId = 1
-                    };
-                    _db.OrderItems.Add(orderItem);
+                    _db.Orders.Add(order);
                     await _db.SaveChangesAsync();
                 }
 
-                // ========== ✅ 6. CREATE PAYMENT RECORD (POSITIVE AMOUNT) ==========
-                // ✅ This is where payment is recorded - when order is confirmed
-                var payment = new Payment
+                orderId = order.OrderId;
+
+                // ✅ I-add ang item sa existing order
+                var orderItem = new OrderItem
                 {
                     OrderId = orderId,
-                    Amount = newTotalAmount,  // ✅ POSITIVE AMOUNT (not negative)
-                    PaymentMethod = request.PaymentMethod ?? "Cash",
-                    PaymentReference = $"PAY-{DateTime.Now:yyyyMMddHHmmss}",
-                    Status = "PAID",  // ✅ PAID status
-                    PaymentDate = DateTime.Now,
-                    CreatedAt = DateTime.Now
+                    ProductId = productSize.ProductId,
+                    ProductSizeId = productSize.ProductSizeId,
+                    Quantity = request.Quantity,
+                    Price = productSize.Price,
+                    ActualCost = 0,
+                    DispositionStatusId = 1
                 };
-                _db.Payments.Add(payment);
+                _db.OrderItems.Add(orderItem);
+                await _db.SaveChangesAsync();  // ✅ I-save muna ang item
 
-                // ========== 7. UPDATE ORDER STATUS TO COMPLETED (since payment is received) ==========
-                var orderToUpdate = await _db.Orders.FindAsync(orderId);
-                if (orderToUpdate != null)
-                {
-                    orderToUpdate.Status = "PENDING_BLENDING"; // ✅ ORDER IS COMPLETED AT CONFIRMATION
-                }
+                // ✅ I-recompute ang order total (i-reload ang items)
+                var allItems = await _db.OrderItems
+                    .Where(oi => oi.OrderId == orderId && oi.DispositionStatusId == 1)
+                    .ToListAsync();
+
+                decimal newSubtotal = allItems.Sum(i => i.Price * i.Quantity);
+                decimal discountPercent = order.DiscountPercent;  // ✅ Gamitin ang discount ng order
+                decimal newDiscountedTotal = newSubtotal * (1 - discountPercent);
+                decimal newDiscountAmount = newSubtotal - newDiscountedTotal;
+
+                order.TotalAmount = newDiscountedTotal;
+                order.OriginalTotalAmount = newSubtotal;
+                order.DiscountAmount = newDiscountAmount;
 
                 await _db.SaveChangesAsync();
 
-                // ========== 8. RECORD EMPLOYEE PERFORMANCE ==========
-                await RecordEmployeePerformance(userId, newTotalAmount);
+                System.Diagnostics.Debug.WriteLine($"=== ORDER UPDATED ===");
+                System.Diagnostics.Debug.WriteLine($"OrderId: {orderId}");
+                System.Diagnostics.Debug.WriteLine($"New Subtotal: {newSubtotal}");
+                System.Diagnostics.Debug.WriteLine($"New Total: {newDiscountedTotal}");
+
+                // For Cash: gumawa ng payment record
+                if (request.PaymentMethod == "Cash")
+                {
+                    var existingPayment = await _db.Payments
+                        .FirstOrDefaultAsync(p => p.OrderId == orderId);
+
+                    if (existingPayment == null)
+                    {
+                        var payment = new Payment
+                        {
+                            OrderId = orderId,
+                            Amount = newDiscountedTotal,
+                            PaymentMethod = "Cash",
+                            PaymentReference = $"PAY-{DateTime.Now:yyyyMMddHHmmss}",
+                            Status = "PAID",
+                            PaymentDate = DateTime.Now,
+                            CreatedAt = DateTime.Now
+                        };
+                        _db.Payments.Add(payment);
+                        await _db.SaveChangesAsync();
+                    }
+
+                    await RecordEmployeePerformance(userId, newDiscountedTotal);
+                }
 
                 return Json(new
                 {
                     success = true,
-                    message = $"✅ Order confirmed! Payment received: ₱{newTotalAmount:F2}",
+                    message = request.PaymentMethod == "Cash" ?
+                        $"✅ Order confirmed! Payment received: ₱{newDiscountedTotal:F2}" :
+                        $"✅ Item added to order! Waiting for GCash payment...",
                     orderId = orderId,
-                    orderNumber = request.OrderNumber,
-                    totalAmount = newTotalAmount,
-                    status = "PENDING_BLENDING"// ✅ Return COMPLETED status
+                    orderNumber = order.OrderNumber,
+                    totalAmount = newDiscountedTotal,
+                    status = order.Status
                 });
             }
             catch (Exception ex)
             {
-                var errorMessage = ex.Message;
-                if (ex.InnerException != null)
-                {
-                    errorMessage += " | INNER: " + ex.InnerException.Message;
-                }
-                System.Diagnostics.Debug.WriteLine("=== PLACE ORDER ERROR ===");
-                System.Diagnostics.Debug.WriteLine(errorMessage);
-                return Json(new { success = false, message = errorMessage });
+                System.Diagnostics.Debug.WriteLine($"ERROR in PlaceOrder: {ex.Message}");
+                return Json(new { success = false, message = ex.Message });
             }
         }
 
@@ -771,27 +736,24 @@ namespace Infoman.Controllers
         public async Task<IActionResult> StartBlending([FromBody] StartBlendingRequest request)
         {
             var order = await _db.Orders
-        .Include(o => o.Items)
-            .ThenInclude(oi => oi.ProductSize)
-                .ThenInclude(ps => ps.RecipeItems)
-                    .ThenInclude(ri => ri.RawMaterial)
-        .FirstOrDefaultAsync(o => o.OrderId == request.OrderId);
+                .Include(o => o.Items)
+                    .ThenInclude(oi => oi.ProductSize)
+                        .ThenInclude(ps => ps.RecipeItems)
+                            .ThenInclude(ri => ri.RawMaterial)
+                .FirstOrDefaultAsync(o => o.OrderId == request.OrderId);
 
             if (order == null)
                 return Json(new { success = false, message = "Order not found" });
 
-            // ✅ Allow PENDING_BLENDING and PREPARING status
             if (order.Status != "PENDING_BLENDING" && order.Status != "PREPARING")
                 return Json(new { success = false, message = $"Cannot start blending. Order status is '{order.Status}'" });
 
-            // Check if already blended (to prevent double deduction)
             if (order.Items.All(i => i.ActualCost > 0))
             {
                 return Json(new { success = false, message = "Order already blended!" });
             }
 
             decimal totalActualCost = 0;
-
             var activeItems = order.Items.Where(i => i.DispositionStatusId == 1).ToList();
 
             if (activeItems.Count == 0)
@@ -805,19 +767,87 @@ namespace Infoman.Controllers
                 foreach (var recipe in productSize.RecipeItems)
                 {
                     var material = await _db.RawMaterials.FindAsync(recipe.RawMaterialId);
+
+                    System.Diagnostics.Debug.WriteLine($"=== ACTUAL DATABASE VALUES ===");
+                    System.Diagnostics.Debug.WriteLine($"Raw Material: {material.Name}");
+                    System.Diagnostics.Debug.WriteLine($"Material.Unit: {material.Unit}");
+                    System.Diagnostics.Debug.WriteLine($"Material.BaseUnit: {material.BaseUnit}");
+                    System.Diagnostics.Debug.WriteLine($"Material.Stock: {material.Stock}");
+                    System.Diagnostics.Debug.WriteLine($"Recipe.Quantity: {recipe.Quantity}");
+                    System.Diagnostics.Debug.WriteLine($"Recipe.UnitUsed: {recipe.UnitUsed}");
+                    System.Diagnostics.Debug.WriteLine($"OrderItem.Quantity: {orderItem.Quantity}");
+                    System.Diagnostics.Debug.WriteLine($"==============================");
+
                     if (material == null) continue;
 
-                    decimal totalInBaseUnit = recipe.Quantity * orderItem.Quantity;
-                    decimal totalForBatch = totalInBaseUnit;
+                    decimal totalNeeded = recipe.Quantity * orderItem.Quantity;
+                    decimal totalForBatch = totalNeeded;
 
-                    if (material.BaseUnit == "g" && material.Unit == "kg")
-                        totalForBatch = totalInBaseUnit / 1000;
-                    else if (material.BaseUnit == "mL" && material.Unit == "L")
-                        totalForBatch = totalInBaseUnit / 1000;
+                    System.Diagnostics.Debug.WriteLine($"=== UNIT CONVERSION DEBUG ===");
+                    System.Diagnostics.Debug.WriteLine($"Ingredient: {material.Name}");
+                    System.Diagnostics.Debug.WriteLine($"Recipe Unit: {recipe.UnitUsed}, Recipe Qty: {recipe.Quantity}");
+                    System.Diagnostics.Debug.WriteLine($"Material Unit: {material.Unit}, BaseUnit: {material.BaseUnit}");
+                    System.Diagnostics.Debug.WriteLine($"Total needed (original): {totalNeeded} {recipe.UnitUsed}");
+
+                    // ✅ CONVERSION: I-convert ang recipe unit sa unit ng batch (BaseUnit)
+                    // Ang batch ay naka-store sa BaseUnit (grams or mL)
+                    // Ang FIFO service ay nag-e-expect ng value sa BaseUnit
+
+                    if (recipe.UnitUsed == "g" && material.BaseUnit == "g")
+                    {
+                        // Recipe is in grams, batch is in grams - no conversion
+                        totalForBatch = totalNeeded;
+                        System.Diagnostics.Debug.WriteLine($"No conversion: {totalForBatch} g (batch is in g)");
+                    }
+                    else if (recipe.UnitUsed == "kg" && material.BaseUnit == "g")
+                    {
+                        // Recipe is in kg, batch is in grams - convert kg to g
+                        totalForBatch = totalNeeded * 1000;
+                        System.Diagnostics.Debug.WriteLine($"Converted kg → g: {totalNeeded} kg = {totalForBatch} g");
+                    }
+                    else if (recipe.UnitUsed == "g" && material.BaseUnit == "g" && material.Unit == "kg")
+                    {
+                        // Recipe is in grams, batch is stored in grams, but displayed as kg
+                        totalForBatch = totalNeeded;
+                        System.Diagnostics.Debug.WriteLine($"Keep in grams: {totalForBatch} g (batch will convert to kg for display)");
+                    }
+                    else if (recipe.UnitUsed == "mL" && material.BaseUnit == "mL")
+                    {
+                        // Recipe is in mL, batch is in mL - no conversion
+                        totalForBatch = totalNeeded;
+                        System.Diagnostics.Debug.WriteLine($"No conversion: {totalForBatch} mL");
+                    }
+                    else if (recipe.UnitUsed == "L" && material.BaseUnit == "mL")
+                    {
+                        // Recipe is in L, batch is in mL - convert L to mL
+                        totalForBatch = totalNeeded * 1000;
+                        System.Diagnostics.Debug.WriteLine($"Converted L → mL: {totalNeeded} L = {totalForBatch} mL");
+                    }
+                    else if (recipe.UnitUsed == "mL" && material.BaseUnit == "mL" && material.Unit == "L")
+                    {
+                        // Recipe is in mL, batch is stored in mL, but displayed as L
+                        totalForBatch = totalNeeded;
+                        System.Diagnostics.Debug.WriteLine($"Keep in mL: {totalForBatch} mL (batch will convert to L for display)");
+                    }
+                    else if (recipe.UnitUsed == "pcs" && material.BaseUnit == "pcs")
+                    {
+                        // For pieces
+                        totalForBatch = totalNeeded;
+                        System.Diagnostics.Debug.WriteLine($"No conversion for pieces: {totalForBatch} pcs");
+                    }
+                    else
+                    {
+                        // Default: no conversion
+                        totalForBatch = totalNeeded;
+                        System.Diagnostics.Debug.WriteLine($"Unknown conversion: keeping as {totalForBatch}");
+                    }
+
+                    System.Diagnostics.Debug.WriteLine($"Total for batch deduction: {totalForBatch} {material.BaseUnit}");
+                    System.Diagnostics.Debug.WriteLine($"Will deduct: {totalForBatch / 1000} {material.Unit} (display unit)");
 
                     var (success, cost, usedBatches) = await _fifoService.DeductStockWithCostAsync(
                         recipe.RawMaterialId,
-                        totalForBatch,
+                        totalForBatch,  // ✅ ITO AY NASA BASEUNIT (grams or mL)
                         productSize.ProductId,
                         order.OrderNumber,
                         orderId: order.OrderId,
@@ -829,7 +859,7 @@ namespace Infoman.Controllers
                         return Json(new
                         {
                             success = false,
-                            message = $"Failed to deduct {material.Name}. Need {totalForBatch:F4} {material.Unit}, check batch stock."
+                            message = $"Failed to deduct {material.Name}. Need {totalForBatch:F4} {material.BaseUnit} ({totalForBatch / 1000:F4} {material.Unit}), check batch stock."
                         });
                     }
 
@@ -840,12 +870,13 @@ namespace Infoman.Controllers
                 totalActualCost += itemCost;
             }
 
+            order.Status = "COMPLETED";
             await _db.SaveChangesAsync();
 
             return Json(new
             {
                 success = true,
-                message = $"✅ Order #{order.OrderNumber} ingredients deducted!",
+                message = $"✅ Order #{order.OrderNumber} ingredients deducted! Order is now COMPLETED.",
                 actualCost = totalActualCost
             });
         }

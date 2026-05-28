@@ -1284,51 +1284,61 @@
         </div>
     </div>
 
-    <!-- Receipt Modal — UPDATED with Void Transaction button -->
-    <div id="receiptModal" class="modal-qty" style="display: none;">
-        <div class="modal-qty-content" style="width: 380px; max-width: 90%;">
-            <div style="text-align: center; margin-bottom: 16px;">
-                <h3 style="margin: 5px 0; font-size: 18px;">Neldie's Mango & More</h3>
-                <small style="color: #888;">Official Receipt</small>
-                <hr style="margin: 10px 0;">
-            </div>
-
-            <div id="receiptContent">
-                <!-- Dynamic receipt content injected here -->
-            </div>
-
+  
+<!-- Receipt Modal - Ilagay ito AFTER reviewOrderModal at BEFORE paymentModal -->
+<div id="receiptModal" class="modal-qty" style="display: none;">
+    <div class="modal-qty-content" style="width: 380px; max-width: 90%;">
+        <div style="text-align: center; margin-bottom: 16px;">
+            <h3 style="margin: 5px 0; font-size: 18px;">Neldie's Mango & More</h3>
+            <small style="color: #888;">Official Receipt</small>
             <hr style="margin: 10px 0;">
-            <div style="text-align: center;">
-                <small style="color: #aaa;">Thank you for your purchase!</small>
-            </div>
+        </div>
 
-            <!-- Action area: Start Blending + Void (hidden after blending starts) -->
-            <div class="receipt-action-area" id="receiptActionArea">
-                <button id="startBlendingBtn" class="btn-start-blending" onclick="startBlending(window.currentOrderId)">
-                     START BLENDING (Deduct Ingredients)
-                </button>
-                <p class="blending-warning">
-                    ⚠️ Click only when you start preparing/blending.<br>
-                    Ingredients will be deducted and cannot be undone without Owner approval.
-                </p>
-                  <!-- VOID ITEM — before blending, remove specific item -->
-                <button id="voidItemReceiptBtn" class="btn-void-item-receipt" onclick="voidItemFromReceipt()">
-                         Void Item
-                 </button>
-                <!-- VOID TRANSACTION — visible before blending, hidden after -->
-                <button id="voidReceiptBtn" class="btn-void-receipt" onclick="voidFromReceipt()">
-                     Void Transaction
-                </button>
-            </div>
+        <div id="receiptContent">
+            <!-- Dynamic receipt content injected here -->
+        </div>
 
-            <!-- Close button — always visible -->
-            <div style="margin-top: 10px;">
-                <button onclick="closeReceiptModal()" style="width:100%; padding: 8px; background: #f5f5f5; color: #555; border: none; border-radius: 8px; cursor: pointer; font-size: 13px;">
-                    Close
-                </button>
-            </div>
+        <hr style="margin: 10px 0;">
+        <div style="text-align: center;">
+            <small style="color: #aaa;">Thank you for your purchase!</small>
+        </div>
+
+        <!-- Action area -->
+        <div class="receipt-action-area" id="receiptActionArea">
+            <!-- GCash Pay Button - lalabas lang kapag PENDING_PAYMENT -->
+            <button id="gcashPayBtnInside" class="btn-start-blending" style="background: #007bff; color: white; display: none;" onclick="payWithGCashFromReceipt(window.currentOrderId)">
+                💳 Pay with GCash
+            </button>
+            
+            <!-- Start Blending Button -->
+            <button id="startBlendingBtn" class="btn-start-blending" style="display: none;" onclick="startBlending(window.currentOrderId)">
+                🥤 START BLENDING (Deduct Ingredients)
+            </button>
+            
+            <p class="blending-warning" id="blendingWarningMsg" style="display: none;">
+                ⚠️ Click only when you start preparing/blending.<br>
+                Ingredients will be deducted and cannot be undone without Owner approval.
+            </p>
+            
+            <!-- VOID ITEM — before blending, remove specific item -->
+            <button id="voidItemReceiptBtn" class="btn-void-item-receipt" style="display: none;" onclick="voidItemFromReceipt()">
+                ✕ Void Item
+            </button>
+            
+            <!-- VOID TRANSACTION — visible before blending, hidden after -->
+            <button id="voidReceiptBtn" class="btn-void-receipt" style="display: none;" onclick="voidFromReceipt()">
+                ✕ Void Transaction
+            </button>
+        </div>
+
+        <!-- Close button — always visible -->
+        <div style="margin-top: 10px;">
+            <button onclick="closeReceiptModal()" style="width:100%; padding: 8px; background: #f5f5f5; color: #555; border: none; border-radius: 8px; cursor: pointer; font-size: 13px;">
+                Close
+            </button>
         </div>
     </div>
+</div>
 
     <!-- Payment Method Modal -->
     <div id="paymentModal" class="modal-qty" style="display: none;">
@@ -1642,6 +1652,9 @@
     </div>
 </div>
 
+    <input type="hidden" id="showReceiptFlag" value="@(ViewBag.ShowReceipt == true ? "True" : "False")" />
+    <input type="hidden" id="pendingOrderId" value="@ViewBag.PendingOrderId" />
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
@@ -1653,7 +1666,7 @@
         let currentCartTotal = 0;
         let currentDiscountedTotal = 0;
         let tempSelectedSize = null;
-        let pendingPaymentMethod = null;
+        //let pendingPaymentMethod = null;
         let currentVoidOrderId = null;
         let currentRefundOrderId = null;
         let pendingOwnerAction = null;
@@ -2014,11 +2027,8 @@
     }
 }
 
-        // ============================================================
-        // CHECKOUT FLOW
-        // ============================================================
-     async function confirmOrder() {
-    console.log('confirmOrder called');
+async function confirmOrder() {
+    console.log('=== confirmOrder called ===');
     console.log('cart.length:', cart.length);
     console.log('window.pendingPaymentMethod:', window.pendingPaymentMethod);
     
@@ -2146,7 +2156,16 @@ async function processFinalOrder() {
 }
 
 async function createNewOrder() {
-    const paymentMethod = pendingPaymentMethod;
+    const paymentMethod = window.pendingPaymentMethod;
+    
+    console.log('=== createNewOrder ===');
+    console.log('paymentMethod:', paymentMethod);
+    
+    if (!paymentMethod) {
+        await showAlert('No payment method selected!', 'Error', '❌');
+        return;
+    }
+    
     const token = getToken();
     let orderDetails = [];
     let lastOrderId = null;
@@ -2192,7 +2211,7 @@ async function createNewOrder() {
     if (allSuccessful && orderDetails.length > 0) {
         const discountSavings = currentCartTotal - currentDiscountedTotal;
         
-        // ✅ Use 'PENDING_BLENDING' - para visible ang void buttons at start blending
+        // ✅ SIMPLE: I-HARDCODE ANG STATUS PARA SA CASH
         showReceiptModal(
             orderDetails, 
             paymentMethod, 
@@ -2201,7 +2220,7 @@ async function createNewOrder() {
             discountSavings, 
             currentDiscountedTotal, 
             lastOrderId, 
-            'PENDING_BLENDING'  // ✅ Changed from 'COMPLETED' to 'PENDING_BLENDING'
+            'PENDING_BLENDING'  // ✅ HARDCODED
         );
         
         window.lastClosedOrderId = lastOrderId;
@@ -2209,7 +2228,7 @@ async function createNewOrder() {
         cart = [];
         currentDiscountType = 'None';
         currentDiscountPercent = 0;
-        pendingPaymentMethod = null;
+        window.pendingPaymentMethod = null;
         window.isEditingMode = false;
         
         document.querySelectorAll('.payment-btn').forEach(b => b.classList.remove('active'));
@@ -2222,14 +2241,22 @@ async function createNewOrder() {
     }
 }
 
+
         // ============================================================
         // RECEIPT MODAL — with Void Transaction button
         // ============================================================
-      function showReceiptModal(orderDetails, paymentMethod, discountType, discountPercent, discountSavings, total, orderId, orderStatus) {
+    function showReceiptModal(orderDetails, paymentMethod, discountType, discountPercent, discountSavings, total, orderId, orderStatus) {
+
+         console.log('========== SHOW RECEIPT MODAL ==========');
+    console.log('orderStatus param:', orderStatus);
+    console.log('paymentMethod param:', paymentMethod);
+    console.log('========================================');
+
     const receiptDiv = document.getElementById('receiptContent');
     const now = new Date();
 
     if (orderId) window.currentOrderId = orderId;
+    if (orderId) window.currentOrderTotal = total;
 
     let itemsHtml = '';
     let computedSubtotal = 0;
@@ -2254,47 +2281,8 @@ async function createNewOrder() {
             </div>`;
     }
 
-    // Check if this is an exchange replacement order
-    let exchangeInfoHtml = '';
-    if (window.isExchangeReplacement) {
-        let adjustmentText = '';
-        let storeCreditText = '';
-        
-        if (window.exchangeStoreCreditApplied && window.exchangeStoreCreditApplied > 0) {
-            storeCreditText = `Store credit applied: -₱${window.exchangeStoreCreditApplied.toFixed(2)}<br>`;
-        }
-        
-        if (window.exchangeAdjustmentAmount > 0) {
-            adjustmentText = `Additional payment: +₱${window.exchangeAdjustmentAmount.toFixed(2)}`;
-        } else if (window.exchangeAdjustmentAmount < 0) {
-            adjustmentText = `Store credit remaining: ₱${Math.abs(window.exchangeAdjustmentAmount).toFixed(2)}`;
-        } else {
-            adjustmentText = 'No additional payment';
-        }
-        
-        exchangeInfoHtml = `
-            <div style="background: #fff3cd; padding: 10px; border-radius: 8px; margin: 10px 0; font-size: 11px; border-left: 4px solid #ffc107;">
-                <i class="fas fa-exchange-alt"></i> <strong>EXCHANGE ORDER</strong><br>
-                This order replaces Order #${window.exchangeOriginalOrderId}<br>
-                ${storeCreditText}
-                ${adjustmentText}
-                <div class="mt-1 fw-bold">TOTAL PAYABLE: ₱${total.toFixed(2)}</div>
-            </div>
-        `;
-        
-        setTimeout(() => {
-            if (window.isExchangeReplacement) {
-                window.isExchangeReplacement = false;
-                window.exchangeOriginalOrderId = null;
-                window.exchangeStoreCreditApplied = null;
-                window.exchangeAdjustmentAmount = null;
-            }
-        }, 3000);
-    }
-
     const shortOrderId = orderId ? orderId.toString().substring(orderId.toString().length - 6) : 'N/A';
     
-    // ✅ Determine badge class and text based on orderStatus
     let badgeClass = 'bg-warning';
     let statusText = '⏳ PENDING BLENDING';
     
@@ -2307,12 +2295,6 @@ async function createNewOrder() {
     } else if (orderStatus === 'PENDING_PAYMENT') {
         badgeClass = 'bg-danger';
         statusText = '⚠️ PENDING PAYMENT';
-    } else if (orderStatus === 'VOIDED') {
-        badgeClass = 'bg-danger';
-        statusText = '❌ VOIDED';
-    } else if (orderStatus === 'REFUNDED') {
-        badgeClass = 'bg-info';
-        statusText = '💰 REFUNDED';
     }
 
     receiptDiv.innerHTML = `
@@ -2323,7 +2305,6 @@ async function createNewOrder() {
             <div style="font-size: 12px; color: #17a2b8;">Order #: ${shortOrderId}</div>
         </div>
         <hr style="margin: 8px 0;">
-        ${exchangeInfoHtml}
         <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
             <strong style="font-size: 14px;">Order Summary</strong>
             <span class="badge ${badgeClass} text-dark" style="font-size: 10px; padding: 2px 8px;">
@@ -2338,54 +2319,120 @@ async function createNewOrder() {
         </div>
         ${discountHtml}
         <div class="receipt-total" style="margin-top: 8px; padding-top: 8px; border-top: 2px solid #333;">
-            <span><strong>TOTAL PAID</strong></span>
+            <span><strong>TOTAL AMOUNT</strong></span>
             <span><strong>₱${total.toFixed(2)}</strong></span>
         </div>
-        <div style="margin-top: 12px; padding: 10px; background: #f9f9f9; border-radius: 8px; font-size: 13px;">
+        
+        <div style="margin-top: 12px; padding: 10px; background: #f9f9f9; border-radius: 8px;">
             <div>Payment: <strong>${paymentMethod}</strong></div>
-            <div style="margin-top: 4px; color: #28a745;">✅ Payment Received: ₱${total.toFixed(2)}</div>
+            <div style="margin-top: 4px; color: ${orderStatus === 'PENDING_PAYMENT' ? '#dc3545' : '#28a745'};">
+                ${orderStatus === 'PENDING_PAYMENT' ? '⚠️ AWAITING PAYMENT' : '✅ PAYMENT RECEIVED'}
+            </div>
         </div>
-        <hr style="margin: 10px 0;">
-        <div style="text-align: center; font-size: 12px; color: #aaa;">
-            Thank you for your purchase!
-        </div>
+        <hr>
+        <div style="text-align: center; font-size: 12px; color: #aaa;">Thank you for your purchase!</div>
     `;
 
+    // ✅ I-manage ang button visibility
     const actionArea = document.getElementById('receiptActionArea');
     const startBtn = document.getElementById('startBlendingBtn');
+    const gcashPayBtnInside = document.getElementById('gcashPayBtnInside');
     const voidBtn = document.getElementById('voidReceiptBtn');
     const voidItemBtn = document.getElementById('voidItemReceiptBtn');
+    const warningMsg = document.getElementById('blendingWarningMsg');
     
     if (actionArea) actionArea.style.display = 'flex';
     
-    // ✅ Start Blending button - enabled for PENDING_BLENDING only
-    if (startBtn) {
-        if (orderStatus === 'COMPLETED') {
-            startBtn.disabled = true;
-            startBtn.innerHTML = '✅ Already Blended';
-            startBtn.style.background = '#28a745';
-            startBtn.style.color = 'white';
-        } else if (orderStatus === 'PENDING_BLENDING') {
+    // I-hide lahat muna
+    if (startBtn) startBtn.style.display = 'none';
+    if (gcashPayBtnInside) gcashPayBtnInside.style.display = 'none';
+    if (voidBtn) voidBtn.style.display = 'none';
+    if (voidItemBtn) voidItemBtn.style.display = 'none';
+    if (warningMsg) warningMsg.style.display = 'none';
+    
+    // ✅ Para sa PENDING_PAYMENT na GCash, ipakita ang Pay button sa LOOB ng receipt
+    if (orderStatus === 'PENDING_PAYMENT' && paymentMethod === 'GCash') {
+        if (gcashPayBtnInside) {
+            gcashPayBtnInside.style.display = 'block';
+            gcashPayBtnInside.onclick = function() { 
+                payWithGCashFromReceipt(orderId);
+            };
+        }
+        if (warningMsg) warningMsg.style.display = 'none';
+    } 
+    else if (orderStatus === 'PENDING_BLENDING') {
+        if (startBtn) {
+            startBtn.style.display = 'block';
             startBtn.disabled = false;
             startBtn.innerHTML = '🥤 START BLENDING (Deduct Ingredients)';
             startBtn.style.background = '#ffc107';
             startBtn.style.color = '#212529';
-        } else {
-            startBtn.disabled = true;
-            startBtn.innerHTML = '❌ Cannot Blend';
-            startBtn.style.background = '#6c757d';
-            startBtn.style.color = 'white';
+            startBtn.onclick = function() { startBlending(orderId); };
         }
+        if (voidBtn) voidBtn.style.display = 'block';
+        if (voidItemBtn) voidItemBtn.style.display = 'block';
+        if (warningMsg) warningMsg.style.display = 'block';
     }
-    
-    // ✅ Void buttons - visible for PENDING_BLENDING only (hindi kapag COMPLETED)
-    const showVoidButtons = (orderStatus === 'PENDING_BLENDING');
-    
-    if (voidBtn) voidBtn.style.display = showVoidButtons ? 'block' : 'none';
-    if (voidItemBtn) voidItemBtn.style.display = showVoidButtons ? 'block' : 'none';
 
     document.getElementById('receiptModal').style.display = 'flex';
     loadOrderQueue();
+}
+
+
+async function payWithGCashFromReceipt(orderId) {
+    // Kunin ang total amount mula sa receipt display
+    const totalElement = document.querySelector('#receiptContent .receipt-total span:last-child');
+    let amount = 0;
+    
+    if (totalElement) {
+        const amountText = totalElement.innerText.replace('₱', '');
+        amount = parseFloat(amountText);
+    }
+    
+    console.log(`payWithGCashFromReceipt called - OrderId: ${orderId}, Amount: ${amount}`);
+    
+    if (!orderId) {
+        await showAlert('No order found.', 'Error', '❌');
+        return;
+    }
+    
+    showLoading('Initializing GCash payment...');
+    
+    const token = getToken();
+    
+    try {
+        const response = await fetch('/Payment/InitiateGCashPayment', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': token
+            },
+            body: JSON.stringify({
+                orderId: orderId,
+                amount: amount
+            })
+        });
+        
+        const data = await response.json();
+        hideLoading();
+        
+        console.log('InitiateGCashPayment response:', data);
+        
+        if (data.success) {
+            // ✅ I-save sa session storage na may pending payment
+            sessionStorage.setItem('pendingPaymentOrderId', orderId);
+            sessionStorage.setItem('pendingPaymentAmount', amount);
+            
+            // ✅ I-redirect sa GCash payment page
+            window.location.href = data.checkoutUrl;
+        } else {
+            await showAlert(data.message || 'Payment initialization failed', 'Payment Error', '❌');
+        }
+    } catch (error) {
+        hideLoading();
+        console.error('Payment error:', error);
+        await showAlert('Error: ' + error.message, 'Payment Error', '❌');
+    }
 }
 
         function closeReceiptModal() {
@@ -2444,16 +2491,15 @@ async function createNewOrder() {
         
         window.currentOrderId = orderId;
         
-        showReceiptModalWithValues(
+        showReceiptModal(
             orderDetails, 
             data.order.paymentMethod || 'Cash', 
             data.order.discountType || 'None', 
             discountPercent, 
             discountSavings, 
-            discountedTotal,
-            subtotal,
+            discountedTotal, 
             orderId, 
-            data.order.status
+            data.order.status  // DAPAT "PENDING_BLENDING" NA ITO PAGKATAPOS NG GCASH
         );
         
     } catch (error) {
@@ -3607,50 +3653,47 @@ async function submitVoidFromReceipt() {
     await voidFromReceipt();
 }
 
-// ============================================================
-        // REVIEW MODAL
-        // ============================================================
-        function showReviewModal() {
-            const reviewDiv = document.getElementById('reviewOrderContent');
-            const now = new Date();
-            let itemsHtml = '';
-            cart.forEach(item => {
-                itemsHtml += `
-                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;">
-                        <div>
-                            <strong>${escapeHtml(item.productName)}</strong><br>
-                            <small>${item.sizeName} × ${item.quantity}</small>
-                        </div>
-                        <div>₱${(item.price * item.quantity).toFixed(2)}</div>
-                    </div>`;
-            });
-            let discountHtml = '';
-            if (currentDiscountPercent > 0) {
-                const discountSavings = currentCartTotal - currentDiscountedTotal;
-                discountHtml = `
-                    <div style="display: flex; justify-content: space-between; padding: 8px 0; color: #dc3545;">
-                        <span>Discount (${currentDiscountType} ${currentDiscountPercent * 100}%):</span>
-                        <span>-₱${discountSavings.toFixed(2)}</span>
-                    </div>`;
-            }
-            reviewDiv.innerHTML = `
-                <div style="margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #ddd;">
-                    <small>${now.toLocaleDateString()} ${now.toLocaleTimeString()}</small>
-                    <div><strong>Payment:</strong> ${pendingPaymentMethod}</div>
+function showReviewModal() {
+    const reviewDiv = document.getElementById('reviewOrderContent');
+    const now = new Date();
+    let itemsHtml = '';
+    cart.forEach(item => {
+        itemsHtml += `
+            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;">
+                <div>
+                    <strong>${escapeHtml(item.productName)}</strong><br>
+                    <small>${item.sizeName} × ${item.quantity}</small>
                 </div>
-                ${itemsHtml}
-                <div style="margin-top: 10px; padding-top: 10px; border-top: 2px solid #ddd;">
-                    <div style="display: flex; justify-content: space-between;">
-                        <strong>Subtotal:</strong><strong>₱${currentCartTotal.toFixed(2)}</strong>
-                    </div>
-                    ${discountHtml}
-                    <div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 2px solid #333;">
-                        <strong style="font-size: 16px;">TOTAL:</strong>
-                        <strong style="font-size: 16px; color: #28a745;">₱${currentDiscountedTotal.toFixed(2)}</strong>
-                    </div>
-                </div>`;
-            document.getElementById('reviewOrderModal').style.display = 'flex';
-        }
+                <div>₱${(item.price * item.quantity).toFixed(2)}</div>
+            </div>`;
+    });
+    let discountHtml = '';
+    if (currentDiscountPercent > 0) {
+        const discountSavings = currentCartTotal - currentDiscountedTotal;
+        discountHtml = `
+            <div style="display: flex; justify-content: space-between; padding: 8px 0; color: #dc3545;">
+                <span>Discount (${currentDiscountType} ${currentDiscountPercent * 100}%):</span>
+                <span>-₱${discountSavings.toFixed(2)}</span>
+            </div>`;
+    }
+    reviewDiv.innerHTML = `
+        <div style="margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #ddd;">
+            <small>${now.toLocaleDateString()} ${now.toLocaleTimeString()}</small>
+            <div><strong>Payment:</strong> ${window.pendingPaymentMethod}</div>
+        </div>
+        ${itemsHtml}
+        <div style="margin-top: 10px; padding-top: 10px; border-top: 2px solid #ddd;">
+            <div style="display: flex; justify-content: space-between;">
+                <strong>Subtotal:</strong><strong>₱${currentCartTotal.toFixed(2)}</strong>
+            </div>
+            ${discountHtml}
+            <div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 2px solid #333;">
+                <strong style="font-size: 16px;">TOTAL:</strong>
+                <strong style="font-size: 16px; color: #28a745;">₱${currentDiscountedTotal.toFixed(2)}</strong>
+            </div>
+        </div>`;
+    document.getElementById('reviewOrderModal').style.display = 'flex';
+}
 
         function closeReviewModal() { document.getElementById('reviewOrderModal').style.display = 'none'; }
     
@@ -3743,19 +3786,59 @@ function switchVoidTab(tab) {
     }
     
     // ========== ATTENDANCE & POS INITIALIZATION ==========
-    // Check attendance status first (this will enable/disable POS accordingly)
     checkAttendanceStatus();
-    
-    // Initialize other POS functions
     updateDateTime();
     loadOrderQueue();
     
-    // Set intervals for real-time updates
-    setInterval(loadOrderQueue, 5000);      // Refresh order queue every 5 seconds
-    setInterval(updateDateTime, 1000);      // Update clock every second
-    
-    // Check attendance status every 30 seconds (para mag-update ang UI kung may nag-time out sa ibang device)
+    setInterval(loadOrderQueue, 5000);
+    setInterval(updateDateTime, 1000);
     setInterval(checkAttendanceStatus, 30000);
+    
+    // ✅ ✅ ✅ CHECK KUNG MAY PENDING ORDER NA KAILANGANG I-LOAD ANG RECEIPT
+    const showReceiptHidden = document.getElementById('showReceiptFlag');
+    const pendingOrderIdHidden = document.getElementById('pendingOrderId');
+    
+    let showReceipt = false;
+    let pendingOrderId = '';
+    
+    if (showReceiptHidden) {
+        showReceipt = showReceiptHidden.value === 'True';
+    }
+    if (pendingOrderIdHidden) {
+        pendingOrderId = pendingOrderIdHidden.value;
+    }
+    
+    console.log(`Receipt loading check - showReceipt: ${showReceipt}, pendingOrderId: ${pendingOrderId}`);
+    
+    if (showReceipt && pendingOrderId && pendingOrderId !== '') {
+        console.log('Loading receipt for pending order:', pendingOrderId);
+        
+        // Maghintay ng konti para mag-load ang buong page
+        setTimeout(async function() {
+            try {
+                // Subukan munang hanapin ang order ID
+                const response = await fetch('/VoidRefund/GetOrderIdByPaymentReference?paymentRef=' + encodeURIComponent(pendingOrderId));
+                const data = await response.json();
+                
+                if (data.success && data.orderId) {
+                    console.log('Found order ID:', data.orderId);
+                    await showReceiptPopup(data.orderId);
+                } else {
+                    // Subukan direktang gamitin ang pendingOrderId bilang order ID
+                    console.log('Trying direct order ID:', pendingOrderId);
+                    await showReceiptPopup(pendingOrderId);
+                }
+            } catch (error) {
+                console.error('Error loading receipt:', error);
+                // Subukan direktang gamitin ang pendingOrderId
+                try {
+                    await showReceiptPopup(pendingOrderId);
+                } catch (e) {
+                    console.error('Fallback also failed:', e);
+                }
+            }
+        }, 500);
+    }
 });
 
         function getToken() {
@@ -4446,7 +4529,7 @@ async function processRefund() {
     const itemIds = Array.from(selectedItems).map(cb => parseInt(cb.value));
     
     try {
-        const response = await fetch('/VoidRefund/ProcessRefund', {
+        const response = await fetch('/VoidRefund/RequestRefund', {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json', 
@@ -5843,7 +5926,10 @@ async function createOrderForGCash() {
     let lastOrderId = null;
     let allSuccessful = true;
     let orderDetails = [];
-
+    
+    // ✅ GAMITIN ANG IISANG ORDER NUMBER PARA SA LAHAT NG ITEMS
+    const sharedOrderNumber = `POS-${Date.now()}`;
+    
     for (const item of cart) {
         const response = await fetch('/Staff/PlaceOrder', {
             method: 'POST',
@@ -5854,8 +5940,8 @@ async function createOrderForGCash() {
             body: JSON.stringify({
                 productSizeId: item.productSizeId,
                 quantity: item.quantity,
-                orderNumber: `POS-${Date.now()}`,
-                paymentMethod: 'GCash',  // ✅ Explicitly set to GCash
+                orderNumber: sharedOrderNumber,  // ✅ IISA LANG PARA SA LAHAT
+                paymentMethod: 'GCash',
                 discountType: currentDiscountType,
                 discountPercent: currentDiscountPercent
             })
@@ -5870,7 +5956,11 @@ async function createOrderForGCash() {
             break;
         }
         
-        lastOrderId = data.orderId;
+        // ✅ I-save ang orderId mula sa unang item (parehas lang dapat ito)
+        if (lastOrderId === null) {
+            lastOrderId = data.orderId;
+        }
+        
         orderDetails.push({
             name: item.productName,
             size: item.sizeName,
@@ -5884,11 +5974,12 @@ async function createOrderForGCash() {
         window.currentOrderId = lastOrderId;
         window.currentOrderTotal = currentDiscountedTotal;
         
-        // Show receipt modal with GCash
         const discountSavings = currentCartTotal - currentDiscountedTotal;
+        
+        // Show receipt with PENDING_PAYMENT status
         showReceiptModal(
             orderDetails, 
-            'GCash',  // ✅ Explicitly set to GCash
+            'GCash',
             currentDiscountType, 
             currentDiscountPercent, 
             discountSavings, 
@@ -5897,18 +5988,24 @@ async function createOrderForGCash() {
             'PENDING_PAYMENT'
         );
         
-        document.getElementById('gcashPayBtn').style.display = 'block';
-
-        hideLoading();
-        await showAlert('Order created! Click "Pay with GCash" to complete payment.', 'Order Ready', '✅');
-        
         // Clear cart
         cart = [];
         currentDiscountType = 'None';
         currentDiscountPercent = 0;
         updateCartDisplay();
         updateDiscountBtnHighlight();
-        await loadOrderQueue();
+        
+        hideLoading();
+        
+        // ✅ Auto-click ang GCash pay button sa loob ng receipt
+        const gcashPayBtnInside = document.getElementById('gcashPayBtnInside');
+        if (gcashPayBtnInside && gcashPayBtnInside.style.display === 'block') {
+            // Optional: auto-click or manual
+        }
+        
+    } else if (!allSuccessful) {
+        hideLoading();
+        await showAlert('❌ Order failed. Please try again.', 'Order Failed', '❌');
     }
 }
 
@@ -6033,8 +6130,14 @@ async function payWithGCash() {
         console.log('Payment response:', data);
         
         if (data.success) {
-            // Redirect to PayMongo checkout page
-            window.location.href = data.checkoutUrl;
+            // ✅ I-save ang checkout URL para sa redirect
+            const checkoutUrl = data.checkoutUrl;
+            
+            // ✅ I-close muna ang receipt modal
+            closeReceiptModal();
+            
+            // ✅ I-redirect sa GCash payment page
+            window.location.href = checkoutUrl;
         } else {
             await showAlert(data.message || 'Payment initialization failed', 'Payment Error', '❌');
         }
@@ -6224,14 +6327,8 @@ function showErrorMessage(msg) {
     alert(msg); // or gamitin ang toast/notification mo
 }
 
-// ========== PAYMENT METHOD SELECTION ==========
-// ========== PAYMENT METHOD SELECTION ==========
-let selectedPaymentMethod = null;
-
 function setPaymentMethod(method, buttonElement) {
-    selectedPaymentMethod = method;
-    
-    // ✅ IMPORTANT: I-save din sa window.pendingPaymentMethod
+    // ✅ I-save sa window object (global)
     window.pendingPaymentMethod = method;
     
     // Remove active class from all payment buttons

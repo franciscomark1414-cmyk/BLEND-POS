@@ -1312,7 +1312,7 @@
             
             <!-- Start Blending Button -->
             <button id="startBlendingBtn" class="btn-start-blending" style="display: none;" onclick="startBlending(window.currentOrderId)">
-                🥤 START BLENDING (Deduct Ingredients)
+                 START BLENDING (Deduct Ingredients)
             </button>
             
             <p class="blending-warning" id="blendingWarningMsg" style="display: none;">
@@ -1413,8 +1413,8 @@
         <div style="padding: 20px;">
             <!-- Tabs -->
 <div style="display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid #eee;">
-    <button id="refundTabBtn" class="void-tab-btn-custom" onclick="switchVoidTab('refund')" style="padding: 10px 30px; border: none; background: #e9ecef; font-weight: 600; cursor: pointer; border-radius: 8px 8px 0 0;">💰 REFUND</button>
-    <button id="exchangeTabBtn" class="void-tab-btn-custom" onclick="switchVoidTab('exchange')" style="padding: 10px 30px; border: none; background: #e9ecef; font-weight: 600; cursor: pointer; border-radius: 8px 8px 0 0;">🔄 CHANGE</button>
+    <button id="refundTabBtn" class="void-tab-btn-custom" onclick="switchVoidTab('refund')" style="padding: 10px 30px; border: none; background: #e9ecef; font-weight: 600; cursor: pointer; border-radius: 8px 8px 0 0;"> REFUND</button>
+    <button id="exchangeTabBtn" class="void-tab-btn-custom" onclick="switchVoidTab('exchange')" style="padding: 10px 30px; border: none; background: #e9ecef; font-weight: 600; cursor: pointer; border-radius: 8px 8px 0 0;"> CHANGE</button>
 </div>
 
            <!-- EXCHANGE TAB CONTENT - REDESIGNED UI -->
@@ -1569,7 +1569,7 @@
                     <span style="font-size: 12px; color: #856404;"> Refund requires Owner approval.</span>
                 </div>
                 
-                <button class="btn-refund" onclick="processRefund()">💰 Process Refund</button>
+                <button class="btn-refund" onclick="processRefund()"> Process Refund</button>
             </div>
 
             <!-- Owner Approval Modal -->
@@ -1735,10 +1735,10 @@
                         <span class="queue-total" style="font-size: 12px; font-weight: bold; color: #28a745;">₱${totalAmount.toFixed(2)}</span>
                         <div class="d-flex gap-1">
                             <button class="btn btn-sm btn-outline-info" style="font-size: 10px; padding: 2px 8px;" onclick="event.stopPropagation(); showReceiptPopup(${order.orderId})">
-                                👁️ View
+                                 View
                             </button>
                             <button class="btn btn-sm btn-warning" style="font-size: 10px; padding: 2px 8px;" onclick="event.stopPropagation(); startBlendingFromQueue(${order.orderId})">
-                                🥤 Start Blending
+                                 Start Blending
                             </button>
                         </div>
                     </div>

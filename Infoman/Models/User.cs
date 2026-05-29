@@ -43,5 +43,6 @@ namespace Infoman.Models
         public decimal AverageRating { get; set; } = 0;  // Average rating ng employee
 
         public int TotalOrdersProcessed { get; set; } = 0;  // Lifetime orders
+        public bool IsDeleted { get; set; } = false;
     }
 }

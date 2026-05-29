@@ -21,9 +21,10 @@ namespace Infoman.Controllers
         {
             try
             {
-                // Case-insensitive filter
                 var employees = await _db.Users
-                    .Where(u => u.Role.ToLower() == "employee")
+                    .Where(u => u.Role.ToLower() == "employee"
+                        && !u.IsDeleted  // ✅ I-filter ang mga deleted
+                        && u.Status != "Inactive")  // ✅ O i-filter ang inactive
                     .Select(u => new
                     {
                         id = u.Id,
@@ -245,10 +246,13 @@ namespace Infoman.Controllers
                     return Json(new { success = false, message = "Employee not found" });
                 }
 
-                _db.Users.Remove(employee);
+                // ✅ SOFT DELETE - set IsDeleted = true
+              //  employee.IsDeleted = true;
+                employee.Status = "Inactive";
+
                 await _db.SaveChangesAsync();
 
-                return Json(new { success = true, message = "Employee deleted successfully!" });
+                return Json(new { success = true, message = "Employee deactivated successfully" });
             }
             catch (Exception ex)
             {

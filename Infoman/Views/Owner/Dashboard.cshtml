@@ -689,8 +689,6 @@
 </head>
 <body>
 <div class="dashboard-container">
-    <!-- Sidebar -->
-    <!-- Sidebar - Dark Blue Design -->
     <div class="sidebar">
         <div class="logo-area">
             <div class="logo-icon mx-auto">🍹</div>
@@ -730,18 +728,11 @@
         <div class="nav-item" onclick="showModule('employees')">
             <i class="fas fa-users"></i> Employees
         </div>
-        <div class="nav-item" onclick="showModule('settings')">
-            <i class="fas fa-cog"></i> Settings
-        </div>
     </div>
 
-    <!-- Main Content -->
     <div class="main-content">
 
-
-<!-- Dashboard Module - REDESIGNED -->
 <div id="dashboardModule" class="module active">
-    <!-- STATS CARDS ROW - mas maganda ang spacing -->
     <div class="row g-4 mb-4">
         <div class="col-md-3">
             <div class="stat-card">
@@ -805,9 +796,7 @@
         </div>
     </div>
 
-    <!-- TWO COLUMN LAYOUT: Sales Trend (Left) + Best Selling (Right) -->
     <div class="row g-4">
-        <!-- LEFT: Sales Trend Chart -->
         <div class="col-md-7">
             <div class="card h-100">
                 <div class="card-header bg-white">
@@ -819,7 +808,7 @@
             </div>
         </div>
 
-      <!-- RIGHT: Best Selling Products -->
+      <!--  Best Selling Products -->
 <div class="col-md-5">
     <div class="card h-100">
         <div class="card-header bg-white">
@@ -832,7 +821,7 @@
                     foreach (var item in Model.BestSellingProducts)
                     {
                         <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <!-- ✅ IMAGE SECTION - IDAGDAG DITO -->
+                            <!-- ✅ IMAGE SECTION  -->
                             <div class="d-flex align-items-center gap-3">
                                 @if (!string.IsNullOrEmpty(item.ImagePath))
                                 {
@@ -869,8 +858,7 @@
     </div>
 </div>
 
-       
-<!-- Inventory Module -->
+
 <div id="inventoryModule" class="module">
     <div class="d-flex justify-content-between align-items-center mb-2">
         <h3>STOCK IN (Add Delivery Batch)</h3>
@@ -883,9 +871,8 @@
         <input type="text" id="searchRawMaterial" class="form-control" placeholder="Search raw materials..." onkeyup="filterTable()">
     </div>
 
-    <!-- TWO COLUMN LAYOUT - gaya ng Raw Materials module -->
     <div class="d-flex gap-3">
-        <!-- LEFT: Raw Material Table -->
+
         <div style="flex: 2;">
             <table class="table table-bordered" id="rawMaterialTable">
                 <thead>
@@ -927,7 +914,6 @@
             </table>
         </div>
 
-        <!-- RIGHT: Add Delivery Panel (inline, hindi overlay) -->
         <div id="addDeliveryPanel" style="flex: 1; display: none; border: 2px solid #28a745; padding: 15px; border-radius: 10px; background-color: #f0fff0; height: fit-content;">
             <h5 style="color: #28a745;">
                 <i class="fas fa-truck-loading"></i> Add New Delivery (Stock Batch)
@@ -992,7 +978,7 @@
         </div>
     </div>
 </div>
-        <!-- ========== RAW MATERIALS MODULE (BAGO) ========== -->
+
         <div id="rawMaterialsModule" class="module">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h3> Raw Materials</h3>
@@ -1002,7 +988,6 @@
             </div>
 
             <div class="d-flex gap-3">
-                <!-- LEFT: Raw Materials Table -->
                 <div style="flex: 2;">
                     <div class="mb-3">
                         <input type="text" id="searchRawMaterial2" class="form-control" placeholder="Search raw materials..." onkeyup="filterRawMaterialsTable()">
@@ -1040,7 +1025,6 @@
                     </table>
                 </div>
 
-                <!-- RIGHT: Add Raw Material Box (katabi ng table, sa GILID) -->
                 <div id="addRawMaterialBox" style="flex: 1; display:none; border:1px solid #ccc; padding:15px; border-radius:8px; background:#f9f9f9; height: fit-content;">
     <h5 id="formHeader">
         <i class="fas fa-box"></i> Add Raw Material
@@ -1108,7 +1092,6 @@
             </div>
         </div>
 
-        <!-- Products Module -->
 <div id="productsModule" class="module">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="mb-0"> PRODUCTS LISTING</h2>
@@ -1117,7 +1100,7 @@
         </button>
     </div>
 
-<!-- Search and Filter Bar - COMPACT -->
+
 <div class="d-flex gap-3 mb-4 align-items-center flex-wrap">
     <div style="width: 280px;">
         <div class="input-group">
@@ -1143,14 +1126,13 @@
     </div>
 </div>
 
-    <!-- Products List Container -->
+
     <div id="productsList">
         @if (Model.Products != null && Model.Products.Any())
         {
             foreach (var product in Model.Products)
             {
                 <div class="product-card card mb-4" data-product-id="@product.ProductId" data-category="@product.Category">
-                    <!-- CARD HEADER WITH DROPDOWN ARROW -->
                     <div class="card-header bg-white d-flex justify-content-between align-items-center" style="cursor: pointer;" onclick="toggleProductCard(this)">
                         <div>
                             <i class="fas fa-chevron-down me-2 toggle-icon" style="transition: transform 0.2s;"></i>
@@ -1168,7 +1150,6 @@
                         </div>
                     </div>
                     
-                    <!-- CARD BODY (COLLAPSIBLE) -->
                     <div class="card-body product-card-body">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h5 class="mb-0">📊 Sizes & Inventory</h5>
@@ -1215,23 +1196,23 @@
                                                 </td>
                                                 <td>
                                                     <button class="btn btn-sm btn-info me-1" onclick="viewRecipe(@size.ProductSizeId)">
-                                                        👁️ View Recipe
+                                                         View Recipe
                                                     </button>
                                                     <button class="btn btn-sm btn-warning" onclick="editRecipe(@size.ProductSizeId)">
-                                                        ✏️ Edit Recipe
+                                                         Edit Recipe
                                                     </button>
                                                 </td>
                                                 <td>
                                                     @if (size.IsAvailableInPOS)
                                                     {
                                                         <button class="btn btn-sm btn-warning" onclick="hideFromPOS(@size.ProductSizeId, '@product.Name', '@size.SizeName')">
-                                                            🙈 Hide from POS
+                                                             Hide from POS
                                                         </button>
                                                     }
                                                     else
                                                     {
                                                         <button class="btn btn-sm btn-success" onclick="displayInPOS(@size.ProductSizeId, '@product.Name', '@size.SizeName')">
-                                                            🖥️ Display in POS
+                                                             Display in POS
                                                         </button>
                                                     }
                                                 </td>
@@ -1260,7 +1241,7 @@
         }
     </div>
 </div>
-        <!-- Modal para sa Affected Products -->
+
         <div class="modal fade" id="affectedProductsModal" tabindex="-1">
             <div class="modal-dialog">
                 <div class="modal-content">
@@ -1271,7 +1252,6 @@
                     <div class="modal-body">
                         <p>The following products are using this raw material:</p>
                         <div id="affectedProductsList" class="list-group">
-                            <!-- Laman dito ay manggagaling sa JavaScript -->
                         </div>
                         <hr>
                         <p class="text-muted small">Please remove this ingredient from these products' recipes before deleting.</p>
@@ -1351,7 +1331,7 @@
             </div>
         </div>
 
-        <!-- Edit Recipe Modal -->
+      
         <div class="modal fade" id="editRecipeModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
@@ -1441,7 +1421,7 @@
             </div>
         </div>
 
-        <!-- View Recipe Modal -->
+
         <div class="modal fade" id="viewRecipeModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
@@ -1558,7 +1538,7 @@
             </div>
         </div>
 
-        <!-- Inventory Alerts Module -->
+     
         <div id="inventoryAlertsModule" class="module">
             <div class="container-fluid">
                 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -1598,17 +1578,17 @@
                 <ul class="nav nav-tabs mb-3">
                     <li class="nav-item">
                         <button class="nav-link active" onclick="switchAlertTab('lowstock', event)">
-                            📦 Low Stock Items <span class="badge bg-warning ms-1" id="lowStockBadge">0</span>
+                             Low Stock Items <span class="badge bg-warning ms-1" id="lowStockBadge">0</span>
                         </button>
                     </li>
                     <li class="nav-item">
                         <button class="nav-link" onclick="switchAlertTab('expiring', event)">
-                            ⏰ Expiring Soon <span class="badge bg-info ms-1" id="expiringBadge">0</span>
+                             Expiring Soon <span class="badge bg-info ms-1" id="expiringBadge">0</span>
                         </button>
                     </li>
                     <li class="nav-item">
                         <button class="nav-link" onclick="switchAlertTab('waste', event)">
-                            🗑️ Waste Logs <span class="badge bg-secondary ms-1" id="wasteBadge">0</span>
+                             Waste Logs <span class="badge bg-secondary ms-1" id="wasteBadge">0</span>
                         </button>
                     </li>
                 </ul>
@@ -1627,7 +1607,7 @@
             </div>
         </div>
 
-        <!-- Restock Modal -->
+    
         <div class="modal fade" id="restockModal" tabindex="-1">
             <div class="modal-dialog">
                 <div class="modal-content">
@@ -1671,7 +1651,7 @@
             </div>
         </div>
 
-        <!-- Add Waste Modal -->
+   
         <div class="modal fade" id="addWasteModal" tabindex="-1">
             <div class="modal-dialog">
                 <div class="modal-content">
@@ -1731,10 +1711,9 @@
             </div>
         </div>
 
-       <!-- Reports Module -->
 <div id="reportsModule" class="module">
     <div class="container-fluid">
-        <!-- Header -->
+      
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
                 <h2 class="mb-1" style="color: var(--dark);">📊 Reports & Analytics</h2>
@@ -1742,9 +1721,8 @@
             </div>
         </div>
 
-        <!-- Three Cards Row - Professional Style (walang gradient) -->
         <div class="row g-4 mb-4">
-            <!-- Total Revenue Card -->
+         
             <div class="col-md-4">
                 <div class="card-revenue">
                     <div class="stat-card-simple">
@@ -1758,7 +1736,7 @@
                 </div>
             </div>
 
-            <!-- Estimated Profit Card -->
+    
             <div class="col-md-4">
                 <div class="card-profit">
                     <div class="stat-card-simple">
@@ -1772,7 +1750,6 @@
                 </div>
             </div>
 
-            <!-- Total Waste Cost Card -->
             <div class="col-md-4">
                 <div class="card-waste">
                     <div class="stat-card-simple">
@@ -1787,7 +1764,6 @@
             </div>
         </div>
 
-        <!-- Rest of Reports Module (tabs, charts, etc.) - unchanged -->
         <ul class="nav nav-tabs mb-3">
             <li class="nav-item"><button class="nav-link active" onclick="switchReportTab('sales', event)"><i class="fas fa-chart-bar me-1"></i> Sales Reports</button></li>
             <li class="nav-item"><button class="nav-link" onclick="switchReportTab('bestselling', event)"><i class="fas fa-trophy me-1"></i> Best Selling</button></li>
@@ -1823,7 +1799,7 @@
                     </div>
                 </div>
             </div>
-            <!-- Rest of tabs remain unchanged -->
+           
             <div id="bestSellingTab" class="tab-pane fade">
                 <div class="card shadow-sm">
                     <div class="card-header bg-white">
@@ -1912,7 +1888,7 @@
     </div>
 </div>
 
-        <!-- ========== RECEIPT MODAL (POPUP) ========== -->
+    
         <div id="receiptModalForReports" class="modal-qty" style="display: none;">
             <div class="modal-qty-content" style="width: 380px; max-width: 90%;">
                 <div style="text-align: center; margin-bottom: 20px;">
@@ -1922,7 +1898,7 @@
                 </div>
 
                 <div id="receiptContentForReports" style="margin-bottom: 20px;">
-                    <!-- Dynamic receipt content -->
+                   
                 </div>
 
                 <hr style="margin: 10px 0;">
@@ -1937,7 +1913,7 @@
 
         </div>
 
-        <!-- Employees Module - COMPLETE WORKING VERSION (gaya sa images) -->
+    
         <div id="employeesModule" class="module">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
@@ -1949,7 +1925,7 @@
                 </button>
             </div>
 
-            <!-- Tabs -->
+     
             <ul class="nav nav-tabs mb-4">
                 <li class="nav-item">
                     <button class="nav-link active" onclick="switchEmployeeTab('list')">Employee List</button>
@@ -1962,10 +1938,9 @@
                 </li>
             </ul>
 
-            <!-- ==================== EMPLOYEE LIST TAB ==================== -->
             <div id="employeeListTab">
                 <div id="employeesContainer" class="row g-4">
-                    <!-- Dynamic employee cards will be injected here -->
+                  
                     <div class="col-12 text-center py-5">
                         <div class="spinner-border text-warning"></div>
                         <p class="mt-2">Loading employees...</p>
@@ -1973,7 +1948,7 @@
                 </div>
             </div>
 
-           <!-- ==================== PERFORMANCE TAB (UPDATED - WITH VIEW BUTTON) ==================== -->
+         
 <div id="employeePerformanceTab" style="display:none;">
     <div class="row mb-4 g-3">
         <div class="col-md-4">
@@ -2004,7 +1979,7 @@
         </div>
     </div>
 
-    <!-- PERFORMANCE HISTORY TABLE (with new Actions column) -->
+
     <div class="card border-0 shadow-sm rounded-4">
         <div class="card-header bg-white fw-semibold border-0 pt-3 pb-2">
             <i class="fas fa-chart-line me-2" style="color:#f59e0b;"></i> Performance History
@@ -2018,7 +1993,7 @@
                             <th>Sales</th>
                             <th>Orders</th>
                             <th>Notes</th>
-                            <th>Actions</th>  <!-- ✅ BAGONG COLUMN -->
+                            <th>Actions</th>  
                         </tr>
                     </thead>
                     <tbody id="performanceTableBody">
@@ -2032,7 +2007,7 @@
     </div>
 </div>
 
-<!-- MODAL FOR DAILY ORDERS (lalabas pag click ng View button) -->
+
 <div class="modal fade" id="dailyOrdersModal" tabindex="-1" data-bs-backdrop="static">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
@@ -2044,7 +2019,7 @@
             </div>
             <div class="modal-body" style="max-height: 500px; overflow-y: auto;">
                 <div id="dailyOrdersList" class="list-group">
-                    <!-- Dynamic orders will appear here -->
+                    
                 </div>
             </div>
             <div class="modal-footer">
@@ -2054,8 +2029,7 @@
     </div>
 </div>
 
-            <!-- ==================== ATTENDANCE TAB ==================== -->
-          <!-- ==================== ATTENDANCE TAB - SIMPLE VERSION ==================== -->
+       
 <div id="employeeAttendanceTab" style="display:none;">
     <div class="row mb-4">
         <div class="col-md-4">
@@ -2098,7 +2072,7 @@
 </div>
 </div>
 
-        <!-- Employee Add/Edit Modal -->
+     
         <div class="modal fade" id="employeeModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
             <div class="modal-dialog">
                 <div class="modal-content">
@@ -2162,13 +2136,8 @@
             </div>
         </div>
       
-        <!-- Settings Module -->
-        <div id="settingsModule" class="module">
-            <h3>Settings Module</h3>
-            <p>Coming soon...</p>
-        </div>
 
-        <!-- Suppliers Module -->
+
         <div id="suppliersModule" class="module">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h3><i class="fas fa-truck text-primary me-2"></i> Suppliers</h3>
@@ -2202,7 +2171,6 @@
             </div>
         </div>
 
-        <!-- Receipt Modal for Supplier Return -->
 <div id="supplierReturnReceiptModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 10004;">
     <div style="background: white; border-radius: 12px; width: 400px; max-width: 90%; padding: 25px;">
         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -2210,7 +2178,7 @@
             <button onclick="closeSupplierReturnReceipt()" style="background: none; border: none; font-size: 24px;">&times;</button>
         </div>
         <div id="receiptContent" style="font-family: monospace; font-size: 14px;">
-            <!-- Dynamic receipt content -->
+          
         </div>
         <hr>
         <div class="text-center">
@@ -2222,7 +2190,7 @@
     </div>
 </div>
 
-        <!-- Receive Delivery Module -->
+     
         <div id="receivingModule" class="module">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h3><i class="fas fa-clipboard-list text-success me-2"></i> Receive Delivery</h3>
@@ -2236,7 +2204,6 @@
                     <form id="receivingForm">
                         @Html.AntiForgeryToken()
 
-                        <!-- Delivery Info -->
                         <div class="row mb-3">
                             <div class="col-md-4">
                                 <label class="form-label fw-bold">Supplier <span class="text-danger">*</span></label>
@@ -2267,7 +2234,7 @@
 
                         <hr />
 
-                        <!-- Items Table -->
+                     
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h5 class="mb-0">📦 Items Received</h5>
                             <button type="button" class="btn btn-sm btn-success" onclick="addReceivingRow()">
@@ -2311,7 +2278,7 @@
             </div>
         </div>
 
-        <!-- Delivery History Module -->
+        
         <div id="receivingHistoryModule" class="module">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h3><i class="fas fa-history text-info me-2"></i> Delivery History</h3>
@@ -2341,13 +2308,12 @@
                 </div>
             </div>
         </div>
-                        <!-- Returns Module - COMPLETE VERSION with Supplier Returns -->
+                      
                         <div id="returnsModule" class="module">
                             <div class="d-flex justify-content-between align-items-center mb-4">
                                 <h3><i class="fas fa-undo-alt text-warning me-2"></i> Returns & Void Management</h3>
                             </div>
 
-                            <!-- ========== TABS ========== -->
                             <ul class="nav nav-tabs mb-3">
                                 <li class="nav-item">
                                     <button class="nav-link active" onclick="switchReturnTab('pending', event)">
@@ -2373,7 +2339,7 @@
                                 </li>
                             </ul>
 
- <!-- ========== PENDING REFUNDS TAB ========== -->
+ 
 <div id="pendingTab" class="return-tab-content active">
     <div class="card border-warning">
         <div class="card-header bg-warning">
@@ -2401,7 +2367,7 @@
     </div>
 </div>
 
-<!-- ========== REFUND HISTORY TAB ========== -->
+
 <div id="refundHistoryTab" class="return-tab-content" style="display:none;">
     <div class="card">
         <div class="card-header bg-info text-white">
@@ -2464,9 +2430,6 @@
                                     <div class="card-header bg-warning">
                                         <h5 class="mb-0">
                                             <i class="fas fa-exchange-alt"></i> Supplier Returns
-                                            <button class="btn btn-sm btn-outline-primary ms-3" onclick="exportSupplierReturns()">
-                                                <i class="fas fa-download"></i> Export
-                                            </button>
                                         </h5>
                                     </div>
                                     <div class="card-body">
@@ -3210,11 +3173,10 @@ async function rejectRequest(requestId) {
     }
 }
 
-
-                      function showModule(module) {
+ function showModule(module) {
     
     // Hide all modules
-    var modules = ['dashboard', 'rawMaterials', 'inventory', 'products', 'inventoryAlerts', 'reports', 'employees', 'settings', 'suppliers', 'receiving', 'receivingHistory', 'returns'];
+    var modules = ['dashboard', 'rawMaterials', 'inventory', 'products', 'inventoryAlerts', 'reports', 'employees', 'suppliers', 'receiving', 'receivingHistory', 'returns'];
     modules.forEach(function(m) {
         var el = document.getElementById(m + 'Module');
         if (el) el.classList.remove('active');
@@ -8874,7 +8836,7 @@ function hideLoading() {
 function saveAndReload() {
     let currentModule = 'dashboard';
     const modules = ['dashboard', 'rawMaterials', 'inventory', 'products', 
-                     'inventoryAlerts', 'reports', 'employees', 'settings', 
+                     'inventoryAlerts', 'reports', 'employees',  
                      'suppliers', 'receiving', 'receivingHistory', 'returns'];
     
     for (let i = 0; i < modules.length; i++) {

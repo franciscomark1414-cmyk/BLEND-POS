@@ -1136,6 +1136,9 @@ namespace Infoman.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsLoggedIn")
                         .HasColumnType("bit");
 

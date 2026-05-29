@@ -246,11 +246,16 @@ namespace Infoman.Controllers
                     return Json(new { success = false, message = "Material is already deleted" });
                 }
 
-                // ✅ CHECK KUNG GINAGAMIT SA KAHIT ANONG RECIPE
+                // BAGONG CODE (may filter sa IsDeleted)
                 var recipeItems = await _context.RecipeItems
                     .Include(ri => ri.ProductSize)
                         .ThenInclude(ps => ps.Product)
-                    .Where(ri => ri.RawMaterialId == id)
+                    .Where(ri => ri.RawMaterialId == id
+                        && !ri.IsDeleted  // ✅ I-ignore ang mga deleted recipe items
+                        && ri.ProductSize != null
+                        && !ri.ProductSize.IsDeleted  // ✅ I-ignore ang mga deleted product sizes
+                        && ri.ProductSize.Product != null
+                        && !ri.ProductSize.Product.IsDeleted)  // ✅ I-ignore ang mga deleted products
                     .ToListAsync();
 
                 if (recipeItems.Any())

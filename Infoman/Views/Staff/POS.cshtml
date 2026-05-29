@@ -4495,6 +4495,46 @@ async function showUpdatedReceiptAfterVoid(orderId, refundAmount, newTotal, isPa
         await showAlert('Error updating receipt: ' + error.message, 'Error', '❌');
     }
 }
+// ✅ BAGONG FUNCTION: I-refresh ang order items after refund
+async function refreshRefundOrderItems(orderId) {
+    if (!orderId) return;
+    
+    try {
+        const response = await fetch(`/VoidRefund/GetOrderDetails?orderId=${orderId}`);
+        const data = await response.json();
+        
+        if (data.success && data.order) {
+            // I-filter ang items na available for refund
+            const availableItems = data.order.items.filter(item => 
+                !item.isRefunded && !item.isVoided && !item.hasPendingRefund
+            );
+            
+            const container = document.getElementById('refundOrderItems');
+            
+            if (availableItems.length === 0) {
+                container.innerHTML = '<div class="text-muted text-center p-3">No items available for refund</div>';
+            } else {
+                let html = '<table class="table table-sm table-bordered"><thead><tr><th>Select</th><th>Product</th><th>Qty</th><th>Price</th><th>Subtotal</th></tr></thead><tbody>';
+                availableItems.forEach(item => {
+                    const subtotal = item.price * item.quantity;
+                    html += `
+                        <tr>
+                            <td class="text-center"><input type="checkbox" class="refund-item-checkbox" value="${item.orderItemId}"></td>
+                            <td><strong>${escapeHtml(item.productName)}</strong><br><small>${item.sizeName}</small></td>
+                            <td>${item.quantity}</td>
+                            <td>₱${item.price.toFixed(2)}</td>
+                            <td>₱${subtotal.toFixed(2)}</td>
+                        </tr>
+                    `;
+                });
+                html += '</tbody></td>';
+                container.innerHTML = html;
+            }
+        }
+    } catch (error) {
+        console.error('Error refreshing order items:', error);
+    }
+}
 
 async function processRefund() {
     // ✅ PREVENT DUPLICATE SUBMISSION
@@ -4547,18 +4587,22 @@ async function processRefund() {
         
         if (data.requiresOwner) { 
             await showAlert(data.message, 'Owner Approval Required', '⚠️');
-            // ✅ CLEAR SELECTION PARA HINDI NA MA-REFUND ULIT
             document.querySelectorAll('.refund-item-checkbox').forEach(cb => cb.checked = false);
-            // ✅ RESET SELECT DROPDOWN
             document.getElementById('refundOrderSelect').value = '';
             document.getElementById('refundOrderItems').innerHTML = '';
         } else if (data.success) {
             await showAlert(data.message, 'Success', '✅');
-            // ✅ REFRESH ORDERS LIST
+            
+            // ✅✅✅ ITO ANG FIX ✅✅✅
+            // I-reload ang order items para mawala ang ni-refund na item
+            await refreshRefundOrderItems(currentRefundOrderId);
+            
+            // I-refresh ang orders list
             await loadCompletedOrdersForRefund();
-            // ✅ CLEAR SELECTION AND DISPLAY
+            
+            // I-clear ang selection
             document.getElementById('refundOrderSelect').value = '';
-            document.getElementById('refundOrderItems').innerHTML = '';
+            
         } else {    
             await showAlert('❌ ' + data.message, 'Error', '❌');
         }
@@ -4573,7 +4617,7 @@ async function processRefund() {
         // ✅ RESET PROCESSING FLAG
         window.isProcessingRefund = false;
         
-        // ✅ REMOVE CHECKED ITEMS PARA IWAS DUPLICATE SA SUSUNOD
+        // ✅ REMOVE CHECKED ITEMS
         document.querySelectorAll('.refund-item-checkbox:checked').forEach(cb => cb.checked = false);
         
         // ✅ RESET REASON SELECTORS
@@ -4584,6 +4628,47 @@ async function processRefund() {
             otherReason.style.display = 'none';
             otherReason.value = '';
         }
+    }
+}
+
+// ✅ BAGONG FUNCTION: I-refresh ang order items pagkatapos ng refund
+async function refreshOrderItemsAfterRefund(orderId) {
+    try {
+        const response = await fetch(`/VoidRefund/GetOrderDetails?orderId=${orderId}`);
+        const data = await response.json();
+        
+        if (data.success && data.order) {
+            // I-update ang container ng order items
+            const container = document.getElementById('refundOrderItems');
+            if (container) {
+                // I-filter ang items na available pa for refund
+                const availableItems = data.order.items.filter(item => 
+                    !item.isRefunded && !item.isVoided && !item.hasPendingRefund
+                );
+                
+                if (availableItems.length === 0) {
+                    container.innerHTML = '<div class="text-muted text-center p-3">No items available for refund</div>';
+                } else {
+                    let html = '<table class="table table-sm table-bordered"><thead><tr><th>Select</th><th>Product</th><th>Qty</th><th>Price</th><th>Subtotal</th></tr></thead><tbody>';
+                    availableItems.forEach(item => {
+                        const subtotal = item.price * item.quantity;
+                        html += `
+                            <tr>
+                                <td class="text-center"><input type="checkbox" class="refund-item-checkbox" value="${item.orderItemId}"></td>
+                                <td><strong>${escapeHtml(item.productName)}</strong><br><small>${item.sizeName}</small></td>
+                                <td>${item.quantity}</td>
+                                <td>₱${item.price.toFixed(2)}</td>
+                                <td>₱${subtotal.toFixed(2)}</td>
+                            </tr>
+                        `;
+                    });
+                    html += '</tbody></table>';
+                    container.innerHTML = html;
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error refreshing order items:', error);
     }
 }
 

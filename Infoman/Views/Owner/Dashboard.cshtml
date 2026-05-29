@@ -3132,8 +3132,26 @@ async function approveRequest(requestId) {
         
         if (data.success) {
             await showAlert('✅ ' + data.message, 'Success');
-            loadPendingRequests();
-            saveAndReload();
+            
+            // ✅✅✅ ITO ANG TAMANG PARAAN ✅✅✅
+            // I-refresh ang lahat ng tabs para mag-sync ang display
+            
+            // 1. I-refresh ang Pending Requests tab (para mawala ang approved request)
+            await loadPendingRequests();
+            
+            // 2. I-refresh ang Refund History tab (para lumabas ang approved request dito)
+            await loadRefundHistory();
+            
+            // 3. I-refresh din ang Approved Returns kung meron
+            await loadApprovedReturns();
+            
+            // 4. OPTIONAL: I-close ang modal kung bukas
+            const modal = bootstrap.Modal.getInstance(document.getElementById('returnDetailModal'));
+            if (modal) modal.hide();
+            
+            // 5. HUWAG GAMITIN ANG saveAndReload() DAHIL MAGRE-RELOAD NG PAGE
+            // saveAndReload();  // ← TANGGALIN ITO!
+            
         } else {
             await showAlert('❌ Error: ' + data.message, 'Error');
         }
@@ -3163,7 +3181,13 @@ async function rejectRequest(requestId) {
         
         if (data.success) {
             await showAlert('✅ Request rejected', 'Success', '✅');
-            loadPendingRequests();
+            
+            // I-refresh ang pending requests (para mawala ang rejected)
+            await loadPendingRequests();
+            
+            // Hindi na kailangan i-refresh ang refund history kasi rejected naman
+            // saveAndReload(); // ← TANGGALIN ITO!
+            
         } else {
             await showAlert('❌ Error: ' + data.message, 'Error', '❌');
         }
@@ -7686,7 +7710,7 @@ function viewDeliveryDetails(receivingId) {
         }
     });
     
-    // Remove existing modal if any
+   
     const existingModal = document.getElementById('deliveryDetailsModal');
     if (existingModal) {
         existingModal.remove();
@@ -7884,8 +7908,6 @@ function closeReceiptModalForReports() {
             }
         }
 
-            // Toggle disposition options
-       // Toggle Disposition dropdown (lumalabas lang kapag may rejected qty)
     function toggleDisposition(rowId) {
         const rejectedQty = parseFloat(document.querySelector(`.rejected-qty[data-row="${rowId}"]`).value) || 0;
         const dispositionSelect = document.querySelector(`.disposition-select[data-row="${rowId}"]`);
@@ -8213,11 +8235,7 @@ async function loadPendingRequests() {
     }
 }
 
-// ========== APPROVED VOIDS/REFUNDS ==========
-                   // ========== APPROVED VOIDS/REFUNDS ==========
-// ========== APPROVED VOIDS/REFUNDS ==========
-// ========== APPROVED VOIDS/REFUNDS ==========
-// ========== APPROVED VOIDS/REFUNDS ==========
+
 async function loadApprovedReturns() {
     try {
         const response = await fetch('/Owner/GetApprovedReturns');
@@ -8374,8 +8392,7 @@ function updateSupplierSummary(summary) {
 }
 
 
-// ========== SUPPLIER RETURN ACTIONS ==========
-                    async function markReturnCompleted(returnId) {
+async function markReturnCompleted(returnId) {
     const confirmed = await showConfirm('Mark this as returned to supplier? This will finalize the return.', 'Mark Returned');
     if (!confirmed) return;
     
@@ -8424,7 +8441,6 @@ async function viewSupplierReturnReceipt(returnId) {
     }
 }
 
-// Display supplier return receipt - SIMPLIFIED VERSION (walang credit amount)
 function displaySupplierReturnReceipt(returnData) {
     const receiptDiv = document.getElementById('receiptContent');
     const modal = document.getElementById('supplierReturnReceiptModal');
@@ -8632,7 +8648,7 @@ function closeSupplierReturnReceipt() {
     await showAlert('Export feature coming soon!', 'Notice', 'ℹ️');
 }
 
-// Toggle product card expansion/collapse
+
 function toggleProductCard(headerElement) {
     const cardBody = headerElement.nextElementSibling;
     const icon = headerElement.querySelector('.toggle-icon');
@@ -8650,7 +8666,7 @@ function toggleProductCard(headerElement) {
     }
 }
 
-// Update filterProducts function para hindi naapektuhan ang visibility
+
 function filterProducts() {
     const searchTerm = document.getElementById('searchProduct').value.toLowerCase();
     const categoryFilter = document.getElementById('filterCategory').value;
@@ -8686,9 +8702,9 @@ function filterProducts() {
     });
 }
 
-// ========== CUSTOM MODAL FUNCTIONS (gaya sa POS) ==========
 
-// Custom Alert Function
+
+
 function showAlert(message, title = "Notice", icon = "ℹ️") {
     return new Promise((resolve) => {
         const modal = document.getElementById('customAlertModal');
@@ -8739,7 +8755,7 @@ function showAlert(message, title = "Notice", icon = "ℹ️") {
     });
 }
 
-// Custom Confirm Function
+
 function showConfirm(message, title = "Confirm Action") {
     return new Promise((resolve) => {
         const modal = document.getElementById('customConfirmModal');
@@ -8806,7 +8822,7 @@ function showConfirm(message, title = "Confirm Action") {
     });
 }
 
-// Loading Modal
+
 function showLoading(message = "Processing...") {
     let loadingModal = document.getElementById('loadingModal');
     if (!loadingModal) {
@@ -8832,7 +8848,7 @@ function hideLoading() {
     if (loadingModal) loadingModal.style.display = 'none';
 }
 
-// TAMA - sessionStorage ONLY
+
 function saveAndReload() {
     let currentModule = 'dashboard';
     const modules = ['dashboard', 'rawMaterials', 'inventory', 'products', 
@@ -8853,7 +8869,7 @@ function saveAndReload() {
     location.reload();
 }
 
-let currentBatchMaterialId = null;  // Add this at the top with other variables
+let currentBatchMaterialId = null; 
 
 function showEditStockModal(batchId, currentRemainingInBaseUnit, materialName, unit, materialId) {
     // Store material ID for later refresh
@@ -9084,7 +9100,7 @@ async function exportAdjustmentHistory() {
     await showAlert('Export feature coming soon!', 'Notice', 'ℹ️');
 }
 
-// Load Refund History (approved refunds only)
+
 async function loadRefundHistory() {
     try {
         const response = await fetch('/Owner/GetApprovedRefunds');
@@ -9101,7 +9117,7 @@ async function loadRefundHistory() {
         if (badge) badge.innerText = refunds.length;
         
         if (refunds.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No refund records found<\/td><\/tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No refund records found</td></tr>';
             return;
         }
         
@@ -9124,14 +9140,13 @@ async function loadRefundHistory() {
                 </tr>
             `;
         });
-        tbody.innerHTML = html;
+        if (tbody) tbody.innerHTML = html;
     } catch (error) {
         console.error('Error loading refund history:', error);
     }
 }
 
-// Load Void History (direct voids - automatic)
-// Load Void History (direct voids - automatic)
+
 async function loadVoidHistory() {
     try {
         const response = await fetch('/Owner/GetVoidHistory');
@@ -9181,7 +9196,7 @@ async function loadVoidHistory() {
     }
 }
 
-// ✅ BAGONG FUNCTION: View voided order receipt
+
 async function viewVoidOrderReceipt(orderId) {
     console.log("Viewing voided order receipt for orderId:", orderId);
     

@@ -75,5 +75,7 @@ namespace Infoman.Models
 
         [ForeignKey("DispositionProcessedBy")]
         public virtual User DispositionProcessedByUser { get; set; }
+
+        
     }
 }

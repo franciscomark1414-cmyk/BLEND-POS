@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infoman.Migrations
 {
     [DbContext(typeof(ConnectionDatabase))]
-    [Migration("20260527034624_AddIsManualPriceToProductSize")]
-    partial class AddIsManualPriceToProductSize
+    [Migration("20261020160404_AddItemDispositionStatusToModel")]
+    partial class AddItemDispositionStatusToModel
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -52,10 +52,12 @@ namespace Infoman.Migrations
                         .HasColumnType("bit");
 
                     b.Property<string>("LeaveReason")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("Notes")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -85,7 +87,8 @@ namespace Infoman.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Notes")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<int>("OrdersProcessed")
                         .HasColumnType("int");
@@ -123,6 +126,9 @@ namespace Infoman.Migrations
                     b.Property<int>("ExchangeId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("ExchangeTransactionExchangeId")
+                        .HasColumnType("int");
+
                     b.Property<int>("OriginalOrderItemId")
                         .HasColumnType("int");
 
@@ -144,6 +150,8 @@ namespace Infoman.Migrations
                     b.HasKey("ExchangeItemId");
 
                     b.HasIndex("ExchangeId");
+
+                    b.HasIndex("ExchangeTransactionExchangeId");
 
                     b.HasIndex("OriginalOrderItemId");
 
@@ -167,7 +175,8 @@ namespace Infoman.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("AdjustmentType")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -191,7 +200,8 @@ namespace Infoman.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("PaymentMethod")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<decimal>("PriceDifference")
                         .HasColumnType("decimal(18,2)");
@@ -234,11 +244,13 @@ namespace Infoman.Migrations
 
                     b.Property<string>("Details")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("MovementType")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<int?>("ProductId")
                         .HasColumnType("int");
@@ -251,7 +263,8 @@ namespace Infoman.Migrations
 
                     b.Property<string>("ReferenceId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("datetime2");
@@ -269,6 +282,25 @@ namespace Infoman.Migrations
                     b.ToTable("InventoryMovements");
                 });
 
+            modelBuilder.Entity("Infoman.Models.ItemDispositionStatus", b =>
+                {
+                    b.Property<int>("DispositionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("StatusName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("DispositionId");
+
+                    b.ToTable("ItemDispositionStatus");
+                });
+
             modelBuilder.Entity("Infoman.Models.OrderAdjustment", b =>
                 {
                     b.Property<int>("AdjustmentId")
@@ -279,8 +311,8 @@ namespace Infoman.Migrations
 
                     b.Property<string>("AdjustmentType")
                         .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<decimal>("Amount")
                         .HasColumnType("decimal(18,2)");
@@ -295,6 +327,9 @@ namespace Infoman.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<int>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("OrderId")
                         .HasColumnType("int");
 
                     b.Property<int>("OriginalOrderId")
@@ -316,14 +351,16 @@ namespace Infoman.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.HasKey("AdjustmentId");
 
                     b.HasIndex("ApprovedBy");
 
                     b.HasIndex("CreatedBy");
+
+                    b.HasIndex("OrderId");
 
                     b.HasIndex("OriginalOrderId");
 
@@ -395,6 +432,8 @@ namespace Infoman.Migrations
 
                     b.HasIndex("DispositionProcessedBy");
 
+                    b.HasIndex("DispositionStatusId");
+
                     b.HasIndex("OrderId");
 
                     b.HasIndex("ProductId");
@@ -431,11 +470,13 @@ namespace Infoman.Migrations
 
                     b.Property<string>("PaymentReference")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.HasKey("PaymentId");
 
@@ -459,21 +500,25 @@ namespace Infoman.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("ItemIds")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<int>("OrderId")
                         .HasColumnType("int");
 
                     b.Property<string>("Reason")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<string>("RejectionReason")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("RequestType")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<DateTime>("RequestedAt")
                         .HasColumnType("datetime2");
@@ -483,7 +528,8 @@ namespace Infoman.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.HasKey("Id");
 
@@ -506,11 +552,13 @@ namespace Infoman.Migrations
 
                     b.Property<string>("Category")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<string>("ImagePath")
                         .HasColumnType("nvarchar(max)");
@@ -520,7 +568,8 @@ namespace Infoman.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<decimal>("Price")
                         .HasPrecision(10, 2)
@@ -528,7 +577,8 @@ namespace Infoman.Migrations
 
                     b.Property<string>("SKU")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.HasKey("ProductId");
 
@@ -565,11 +615,13 @@ namespace Infoman.Migrations
 
                     b.Property<string>("SKU")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("SizeName")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.HasKey("ProductSizeId");
 
@@ -618,7 +670,7 @@ namespace Infoman.Migrations
 
                     b.HasIndex("ProductSizeId");
 
-                    b.ToTable("ProductionUsages", (string)null);
+                    b.ToTable("ProductionUsages");
                 });
 
             modelBuilder.Entity("Infoman.Models.RawMaterial", b =>
@@ -631,7 +683,8 @@ namespace Infoman.Migrations
 
                     b.Property<string>("BaseUnit")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<int>("Category")
                         .HasColumnType("int");
@@ -653,14 +706,16 @@ namespace Infoman.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<decimal>("Price")
                         .HasPrecision(10, 2)
                         .HasColumnType("decimal(10,2)");
 
                     b.Property<string>("SKU")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<decimal>("Stock")
                         .HasPrecision(10, 2)
@@ -668,7 +723,8 @@ namespace Infoman.Migrations
 
                     b.Property<string>("Unit")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.HasKey("RawMaterialId");
 
@@ -708,7 +764,7 @@ namespace Infoman.Migrations
 
                     b.HasIndex("RawMaterialId");
 
-                    b.ToTable("RawMaterialBatches", (string)null);
+                    b.ToTable("RawMaterialBatches");
                 });
 
             modelBuilder.Entity("Infoman.Models.Receiving", b =>
@@ -743,13 +799,13 @@ namespace Infoman.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Remarks")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<int>("SupplierId")
                         .HasColumnType("int");
@@ -794,14 +850,15 @@ namespace Infoman.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("RejectionReason")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<int?>("ReturnId")
                         .HasColumnType("int");
 
                     b.Property<string>("ReturnStatus")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<decimal>("UnitPrice")
                         .HasColumnType("decimal(18,2)");
@@ -838,7 +895,8 @@ namespace Infoman.Migrations
 
                     b.Property<string>("UnitUsed")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.HasKey("RecipeItemId");
 
@@ -874,11 +932,13 @@ namespace Infoman.Migrations
 
                     b.Property<string>("Reason")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<string>("RefundReference")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.HasKey("RefundId");
 
@@ -1008,8 +1068,8 @@ namespace Infoman.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -1035,7 +1095,8 @@ namespace Infoman.Migrations
 
                     b.Property<string>("Notes")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<decimal>("Quantity")
                         .HasColumnType("decimal(18,2)");
@@ -1045,7 +1106,8 @@ namespace Infoman.Migrations
 
                     b.Property<string>("Reason")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<int>("ReceivingId")
                         .HasColumnType("int");
@@ -1058,11 +1120,13 @@ namespace Infoman.Migrations
 
                     b.Property<string>("ReturnNumber")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<int>("SupplierId")
                         .HasColumnType("int");
@@ -1098,11 +1162,16 @@ namespace Infoman.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Email")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("FullName")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
 
                     b.Property<bool>("IsLoggedIn")
                         .HasColumnType("bit");
@@ -1115,18 +1184,22 @@ namespace Infoman.Migrations
 
                     b.Property<string>("Password")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Phone")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("Role")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<int>("TotalOrdersProcessed")
                         .HasColumnType("int");
@@ -1136,7 +1209,8 @@ namespace Infoman.Migrations
 
                     b.Property<string>("Username")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.HasKey("Id");
 
@@ -1154,6 +1228,9 @@ namespace Infoman.Migrations
                     b.Property<int?>("ApprovedBy")
                         .HasColumnType("int");
 
+                    b.Property<bool>("IsRefundProcessed")
+                        .HasColumnType("bit");
+
                     b.Property<int?>("ItemId")
                         .HasColumnType("int");
 
@@ -1166,7 +1243,11 @@ namespace Infoman.Migrations
 
                     b.Property<string>("Reason")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<decimal>("RefundAmount")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("datetime2");
@@ -1179,7 +1260,8 @@ namespace Infoman.Migrations
 
                     b.Property<string>("VoidType")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.HasKey("VoidLogId");
 
@@ -1212,7 +1294,8 @@ namespace Infoman.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Notes")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<int?>("ProductId")
                         .HasColumnType("int");
@@ -1257,7 +1340,8 @@ namespace Infoman.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("AdjustmentType")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -1276,13 +1360,15 @@ namespace Infoman.Migrations
 
                     b.Property<string>("DiscountType")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<DateTime?>("ExchangeDate")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("ExchangeReason")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<int?>("ExchangeTransactionId")
                         .HasColumnType("int");
@@ -1292,7 +1378,8 @@ namespace Infoman.Migrations
 
                     b.Property<string>("OrderNumber")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<int?>("OriginalOrderId")
                         .HasColumnType("int");
@@ -1302,27 +1389,34 @@ namespace Infoman.Migrations
 
                     b.Property<string>("PaymentMethod")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("ReceiptNumber")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("ReturnStatus")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<int?>("StaffUserId")
                         .HasColumnType("int");
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<decimal>("StoreCreditApplied")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("TotalAmount")
                         .HasPrecision(10, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalRefundAmount")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime?>("UpdatedAt")
@@ -1332,7 +1426,8 @@ namespace Infoman.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("VoidReason")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<DateTime?>("VoidedAt")
                         .HasColumnType("datetime2");
@@ -1374,21 +1469,25 @@ namespace Infoman.Migrations
             modelBuilder.Entity("Infoman.Models.ExchangeItem", b =>
                 {
                     b.HasOne("Infoman.Models.ExchangeTransaction", "ExchangeTransaction")
-                        .WithMany("ExchangeItems")
+                        .WithMany()
                         .HasForeignKey("ExchangeId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("Infoman.Models.ExchangeTransaction", null)
+                        .WithMany("ExchangeItems")
+                        .HasForeignKey("ExchangeTransactionExchangeId");
 
                     b.HasOne("Infoman.Models.OrderItem", "OriginalOrderItem")
                         .WithMany()
                         .HasForeignKey("OriginalOrderItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Infoman.Models.ProductSize", "ReplacementProductSize")
                         .WithMany()
                         .HasForeignKey("ReplacementProductSizeId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("ExchangeTransaction");
@@ -1403,7 +1502,7 @@ namespace Infoman.Migrations
                     b.HasOne("Infoman.Models.User", "CreatedByUser")
                         .WithMany()
                         .HasForeignKey("CreatedBy")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Order", "NewOrder")
@@ -1413,7 +1512,7 @@ namespace Infoman.Migrations
                     b.HasOne("Order", "OriginalOrder")
                         .WithMany()
                         .HasForeignKey("OriginalOrderId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("CreatedByUser");
@@ -1441,13 +1540,17 @@ namespace Infoman.Migrations
                     b.HasOne("Infoman.Models.User", "CreatedByUser")
                         .WithMany()
                         .HasForeignKey("CreatedBy")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Order", "OriginalOrder")
+                    b.HasOne("Order", null)
                         .WithMany("Adjustments")
+                        .HasForeignKey("OrderId");
+
+                    b.HasOne("Order", "OriginalOrder")
+                        .WithMany()
                         .HasForeignKey("OriginalOrderId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("ApprovedByUser");
@@ -1463,6 +1566,12 @@ namespace Infoman.Migrations
                         .WithMany()
                         .HasForeignKey("DispositionProcessedBy");
 
+                    b.HasOne("Infoman.Models.ItemDispositionStatus", "DispositionStatus")
+                        .WithMany()
+                        .HasForeignKey("DispositionStatusId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Order", "Order")
                         .WithMany("Items")
                         .HasForeignKey("OrderId")
@@ -1472,16 +1581,18 @@ namespace Infoman.Migrations
                     b.HasOne("Infoman.Models.Product", "Product")
                         .WithMany()
                         .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Infoman.Models.ProductSize", "ProductSize")
                         .WithMany()
                         .HasForeignKey("ProductSizeId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("DispositionProcessedByUser");
+
+                    b.Navigation("DispositionStatus");
 
                     b.Navigation("Order");
 
@@ -1625,19 +1736,19 @@ namespace Infoman.Migrations
                     b.HasOne("Infoman.Models.OrderAdjustment", "Adjustment")
                         .WithMany()
                         .HasForeignKey("AdjustmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Order", "OriginalOrder")
                         .WithMany()
                         .HasForeignKey("OriginalOrderId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Infoman.Models.User", "ProcessedByUser")
                         .WithMany()
                         .HasForeignKey("ProcessedBy")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Adjustment");
@@ -1696,13 +1807,13 @@ namespace Infoman.Migrations
                     b.HasOne("Infoman.Models.Receiving", "Receiving")
                         .WithMany()
                         .HasForeignKey("ReceivingId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Infoman.Models.ReceivingItem", "ReceivingItem")
                         .WithMany()
                         .HasForeignKey("ReceivingItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Infoman.Models.Supplier", "Supplier")

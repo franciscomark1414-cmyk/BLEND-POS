@@ -42,11 +42,11 @@ namespace Infoman.Models
         [StringLength(100)]
         public string? RecordedBy { get; set; }
         [StringLength(500)]
-
         public string? Notes { get; set; }
 
-        // ✅ REGULAR PROPERTY - pwede i-set manually
         public decimal TotalCost { get; set; }
+
+        // ✅ IBALIK SA ExpiryDate (WAG NANG GAMITIN ANG WasteExpiryDate)
         public DateTime? ExpiryDate { get; set; }
 
         public int? BatchId { get; set; }

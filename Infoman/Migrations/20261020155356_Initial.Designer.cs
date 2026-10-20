@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infoman.Migrations
 {
     [DbContext(typeof(ConnectionDatabase))]
-    [Migration("20260529004044_AddIsDeletedtoUser")]
-    partial class AddIsDeletedtoUser
+    [Migration("20261020155356_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -126,6 +126,9 @@ namespace Infoman.Migrations
                     b.Property<int>("ExchangeId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("ExchangeTransactionExchangeId")
+                        .HasColumnType("int");
+
                     b.Property<int>("OriginalOrderItemId")
                         .HasColumnType("int");
 
@@ -147,6 +150,8 @@ namespace Infoman.Migrations
                     b.HasKey("ExchangeItemId");
 
                     b.HasIndex("ExchangeId");
+
+                    b.HasIndex("ExchangeTransactionExchangeId");
 
                     b.HasIndex("OriginalOrderItemId");
 
@@ -305,6 +310,9 @@ namespace Infoman.Migrations
                     b.Property<int>("CreatedBy")
                         .HasColumnType("int");
 
+                    b.Property<int?>("OrderId")
+                        .HasColumnType("int");
+
                     b.Property<int>("OriginalOrderId")
                         .HasColumnType("int");
 
@@ -332,6 +340,8 @@ namespace Infoman.Migrations
                     b.HasIndex("ApprovedBy");
 
                     b.HasIndex("CreatedBy");
+
+                    b.HasIndex("OrderId");
 
                     b.HasIndex("OriginalOrderId");
 
@@ -469,8 +479,8 @@ namespace Infoman.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("ItemIds")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<int>("OrderId")
                         .HasColumnType("int");
@@ -639,7 +649,7 @@ namespace Infoman.Migrations
 
                     b.HasIndex("ProductSizeId");
 
-                    b.ToTable("ProductionUsages", (string)null);
+                    b.ToTable("ProductionUsages");
                 });
 
             modelBuilder.Entity("Infoman.Models.RawMaterial", b =>
@@ -733,7 +743,7 @@ namespace Infoman.Migrations
 
                     b.HasIndex("RawMaterialId");
 
-                    b.ToTable("RawMaterialBatches", (string)null);
+                    b.ToTable("RawMaterialBatches");
                 });
 
             modelBuilder.Entity("Infoman.Models.Receiving", b =>
@@ -819,8 +829,8 @@ namespace Infoman.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("RejectionReason")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<int?>("ReturnId")
                         .HasColumnType("int");
@@ -1336,8 +1346,8 @@ namespace Infoman.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("ExchangeReason")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<int?>("ExchangeTransactionId")
                         .HasColumnType("int");
@@ -1395,8 +1405,8 @@ namespace Infoman.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("VoidReason")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<DateTime?>("VoidedAt")
                         .HasColumnType("datetime2");
@@ -1438,21 +1448,25 @@ namespace Infoman.Migrations
             modelBuilder.Entity("Infoman.Models.ExchangeItem", b =>
                 {
                     b.HasOne("Infoman.Models.ExchangeTransaction", "ExchangeTransaction")
-                        .WithMany("ExchangeItems")
+                        .WithMany()
                         .HasForeignKey("ExchangeId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("Infoman.Models.ExchangeTransaction", null)
+                        .WithMany("ExchangeItems")
+                        .HasForeignKey("ExchangeTransactionExchangeId");
 
                     b.HasOne("Infoman.Models.OrderItem", "OriginalOrderItem")
                         .WithMany()
                         .HasForeignKey("OriginalOrderItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Infoman.Models.ProductSize", "ReplacementProductSize")
                         .WithMany()
                         .HasForeignKey("ReplacementProductSizeId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("ExchangeTransaction");
@@ -1467,7 +1481,7 @@ namespace Infoman.Migrations
                     b.HasOne("Infoman.Models.User", "CreatedByUser")
                         .WithMany()
                         .HasForeignKey("CreatedBy")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Order", "NewOrder")
@@ -1477,7 +1491,7 @@ namespace Infoman.Migrations
                     b.HasOne("Order", "OriginalOrder")
                         .WithMany()
                         .HasForeignKey("OriginalOrderId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("CreatedByUser");
@@ -1505,13 +1519,17 @@ namespace Infoman.Migrations
                     b.HasOne("Infoman.Models.User", "CreatedByUser")
                         .WithMany()
                         .HasForeignKey("CreatedBy")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Order", "OriginalOrder")
+                    b.HasOne("Order", null)
                         .WithMany("Adjustments")
+                        .HasForeignKey("OrderId");
+
+                    b.HasOne("Order", "OriginalOrder")
+                        .WithMany()
                         .HasForeignKey("OriginalOrderId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("ApprovedByUser");
@@ -1536,13 +1554,13 @@ namespace Infoman.Migrations
                     b.HasOne("Infoman.Models.Product", "Product")
                         .WithMany()
                         .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Infoman.Models.ProductSize", "ProductSize")
                         .WithMany()
                         .HasForeignKey("ProductSizeId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("DispositionProcessedByUser");
@@ -1689,19 +1707,19 @@ namespace Infoman.Migrations
                     b.HasOne("Infoman.Models.OrderAdjustment", "Adjustment")
                         .WithMany()
                         .HasForeignKey("AdjustmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Order", "OriginalOrder")
                         .WithMany()
                         .HasForeignKey("OriginalOrderId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Infoman.Models.User", "ProcessedByUser")
                         .WithMany()
                         .HasForeignKey("ProcessedBy")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Adjustment");
@@ -1760,13 +1778,13 @@ namespace Infoman.Migrations
                     b.HasOne("Infoman.Models.Receiving", "Receiving")
                         .WithMany()
                         .HasForeignKey("ReceivingId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Infoman.Models.ReceivingItem", "ReceivingItem")
                         .WithMany()
                         .HasForeignKey("ReceivingItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Infoman.Models.Supplier", "Supplier")

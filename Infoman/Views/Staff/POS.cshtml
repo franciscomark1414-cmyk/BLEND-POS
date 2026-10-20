@@ -5555,81 +5555,82 @@ async function processExchange() {
     showLoading('Processing exchange...');
     
     const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
-    
-    try {
-        const response = await fetch('/ReturnExchange/ProcessExchange', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'RequestVerificationToken': token
-            },
-            body: JSON.stringify(requestData)
-        });
-        
-        const data = await response.json();
-        hideLoading();
-        
-        if (data.success) {
-            // ✅ SET FLAGS FOR EXCHANGE INFO IN RECEIPT
-            window.isExchangeReplacement = true;
-            window.exchangeOriginalOrderId = currentExchangeOrderId;
-            window.exchangeStoreCreditApplied = returnTotal;
-            window.exchangeAdjustmentAmount = priceDiff;
-            window.exchangeNewOrderId = data.newOrderId;
-            
-            // ✅ SHOW EXCHANGE SUMMARY MODAL
-            await showExchangeSummaryModal({
-                originalOrderId: currentExchangeOrderId,
-                newOrderId: data.newOrderId,
-                itemsReturned: itemsToReturn,
-                itemsReplaced: exchangeReplaceItemsData,
-                returnTotal: returnTotal,
-                replaceTotal: replaceTotal,
-                priceDiff: priceDiff,
-                paymentMethod: exchangePaymentMethod,
-                reason: reason,
-                exchangeMessage: data.message
-            });
-            
-            // ✅ SHOW RECEIPT FOR THE NEW ORDER
-            if (data.newOrderId) {
-                await showReceiptPopup(data.newOrderId);
-            }
-            
-            // ✅ RESET CART
-            cart = [];
-            currentCartTotal = 0;
-            currentDiscountedTotal = 0;
-            updateCartDisplay();
-            
-            // Close the exchange modal
-            closeVoidRefundModal();
-            
-            // Reset exchange data
-            exchangeReplaceItemsData = [];
-            selectedExchangePayment = null;
-            document.getElementById('exchangeOrderSelect').value = '';
-            document.getElementById('exchangeReturnItems').innerHTML = '<div class="text-muted text-center" style="padding: 20px;">Select an order first</div>';
-            renderReplacementItems();
-            updateExchangeSummary();
-            
-            // Reset payment button highlights
-            document.querySelectorAll('#exchangeTabContent .exchange-payment-btn').forEach(btn => {
-                btn.style.background = 'white';
-                btn.style.color = '#333';
-            });
-            
-            // Refresh orders queue
-            await loadOrderQueue();
-            
-        } else {
-            await showAlert('❌ ' + data.message, 'Exchange Failed', '❌');
-        }
-    } catch (error) {
-        hideLoading();
-        console.error('Exchange error:', error);
-        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
-    }
+          try {
+                    const response = await fetch('/ReturnExchange/ProcessExchange', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': token
+                        },
+                        body: JSON.stringify(requestData)
+                    });
+
+                    const data = await response.json();
+                    hideLoading();
+
+                    if (data.success) {
+                        // ✅ SET FLAGS FOR EXCHANGE INFO IN RECEIPT
+                        window.isExchangeReplacement = true;
+                        window.exchangeOriginalOrderId = currentExchangeOrderId;
+                        window.exchangeStoreCreditApplied = returnTotal;
+                        window.exchangeAdjustmentAmount = priceDiff;
+                        window.exchangeNewOrderId = data.newOrderId;
+
+                        // ✅ SHOW EXCHANGE SUMMARY MODAL
+                        await showExchangeSummaryModal({
+                            originalOrderId: currentExchangeOrderId,
+                            newOrderId: data.newOrderId,
+                            itemsReturned: itemsToReturn,
+                            itemsReplaced: exchangeReplaceItemsData,
+                            returnTotal: returnTotal,
+                            replaceTotal: replaceTotal,
+                            priceDiff: priceDiff,
+                            paymentMethod: exchangePaymentMethod,
+                            reason: reason,
+                            exchangeMessage: data.message
+                        });
+
+                        // ✅ SHOW RECEIPT FOR THE NEW ORDER
+                        if (data.newOrderId) {
+                            await showReceiptPopup(data.newOrderId);
+                        }
+
+                        // ✅ RESET CART
+                        cart = [];
+                        currentCartTotal = 0;
+                        currentDiscountedTotal = 0;
+                        updateCartDisplay();
+
+                        // Close the exchange modal
+                        closeVoidRefundModal();
+
+                        // Reset exchange data
+                        exchangeReplaceItemsData = [];
+                        selectedExchangePayment = null;
+                        document.getElementById('exchangeOrderSelect').value = '';
+                        document.getElementById('exchangeReturnItems').innerHTML = '<div class="text-muted text-center" style="padding: 20px;">Select an order first</div>';
+                        renderReplacementItems();
+                        updateExchangeSummary();
+
+                        // Reset payment button highlights
+                        document.querySelectorAll('#exchangeTabContent .exchange-payment-btn').forEach(btn => {
+                            btn.style.background = 'white';
+                            btn.style.color = '#333';
+                        });
+
+                        // Refresh orders queue
+                        await loadOrderQueue();
+
+                    } else {
+                        // ✅ GAMITIN ANG CUSTOM MODAL IMBES NA alert()
+                        // Ito ang magpapakita ng magandang error modal kapag kulang ang stock
+                        await showAlert('❌ ' + data.message, 'Exchange Failed', '❌');
+                    }
+                } catch (error) {
+                    hideLoading();
+                    console.error('Exchange error:', error);
+                    await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+                }
 }
 async function showExchangeSummaryModal(data) {
     return new Promise(async (resolve) => {

@@ -72,7 +72,7 @@ namespace Infoman.Models
         public decimal RejectedQty { get; set; }
 
 
-        [StringLength(200)]
+        [StringLength(500)]
         public string? RejectionReason { get; set; }
 
         [Required]

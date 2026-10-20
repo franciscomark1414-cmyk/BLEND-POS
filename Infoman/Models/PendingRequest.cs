@@ -13,7 +13,7 @@ namespace Infoman.Models
         public int OrderId { get; set; }
         [ForeignKey("OrderId")]
         public virtual Order Order { get; set; }
-        [StringLength(50)]
+        [StringLength(500)]
 
         public string? ItemIds { get; set; } // Comma-separated list of item IDs
 

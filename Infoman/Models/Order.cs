@@ -29,7 +29,7 @@ public class Order
     [StringLength(100)]
 
     public string ReceiptNumber { get; set; }
-    [StringLength(200)]
+    [StringLength(500)]
     public string? VoidReason { get; set; }
     public int? VoidedBy { get; set; }
     public DateTime? VoidedAt { get; set; }
@@ -60,7 +60,7 @@ public class Order
     [StringLength(50)]
     public string? ReturnStatus { get; set; } = "ACTIVE";
     public DateTime? ExchangeDate { get; set; }
-    [StringLength(100)]
+    [StringLength(500)]
     public string? ExchangeReason { get; set; }
 
     // Navigation properties

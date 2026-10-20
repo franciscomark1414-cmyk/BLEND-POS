@@ -126,8 +126,9 @@ namespace Infoman.Controllers
             ViewBag.EstimatedProfit = allTimeNetRevenue * 0.3m;
 
             // ========== CRITICAL STOCK ALERT ==========
+            // ✅ GAMITIN ANG MinQtyInBaseUnit PARA TUGMA SA STOCK (BASE UNIT)
             int criticalStockCount = await _db.RawMaterials
-                .Where(r => r.IsDeleted == false && r.Stock <= r.MinQty)
+                .Where(r => !r.IsDeleted && r.Stock <= r.MinQtyInBaseUnit)
                 .CountAsync();
             ViewBag.CriticalStockCount = criticalStockCount;
 
@@ -270,11 +271,14 @@ namespace Infoman.Controllers
                     Name = r.Name,
                     Category = r.Category,
                     MinQty = displayMinQty,
+                    MinQtyInBaseUnit = r.MinQtyInBaseUnit, // ✅ I-SAVE PARA MAY REFERENCE
                     Price = r.Price,
                     Unit = r.Unit,
                     SKU = r.SKU,
                     ExpirationDate = r.ExpirationDate,
-                    Stock = displayStock
+                    Stock = displayStock,
+                    BaseUnit = r.Unit, // ✅ I-SET ANG BASEUNIT SA DISPLAY UNIT PARA HINDI NA MAG-DIVIDE ULIT ANG WASTE DROPDOWN
+                    ConversionFactor = 1
                 });
             }
 
@@ -295,26 +299,27 @@ namespace Infoman.Controllers
 
 
             var products = await _db.Products
-                 .Where(p => !p.IsDeleted)
-                .Include(p => p.Sizes)
-                .Select(p => new ProductViewModel
-                {
-                    ProductId = p.ProductId,
-                    Name = p.Name,
-                    SKU = p.SKU,
-                    Category = p.Category,
-                    Description = p.Description,
-                    ImagePath = p.ImagePath,
-                    Sizes = p.Sizes.Select(s => new ProductSizeViewModel
-                    {
-                        ProductSizeId = s.ProductSizeId,
-                        SizeName = s.SizeName,
-                        Price = s.Price,
-                        IsAvailableInPOS = s.IsAvailableInPOS,
-                        SKU = s.SKU
-                    }).ToList()
-                })
-                .ToListAsync();
+      .Where(p => !p.IsDeleted)
+     .Include(p => p.Sizes)
+     .Select(p => new ProductViewModel
+     {
+         ProductId = p.ProductId,
+         Name = p.Name,
+         SKU = p.SKU,
+         Category = p.Category,
+         Description = p.Description,
+         ImagePath = p.ImagePath,
+         // ✅ I-FILTER ANG MGA DELETED NA SIZES
+         Sizes = p.Sizes.Where(s => !s.IsDeleted).Select(s => new ProductSizeViewModel
+         {
+             ProductSizeId = s.ProductSizeId,
+             SizeName = s.SizeName,
+             Price = s.Price,
+             IsAvailableInPOS = s.IsAvailableInPOS,
+             SKU = s.SKU
+         }).ToList()
+     })
+     .ToListAsync();
 
             var dashboardViewModel = new DashboardViewModel
             {
@@ -340,12 +345,13 @@ namespace Infoman.Controllers
             return View(dashboardViewModel);
         }
 
-         
+
 
         public IActionResult LowStockRawMaterials()
         {
+            // ✅ GAMITIN ANG MinQtyInBaseUnit
             var lowStockMaterials = _db.RawMaterials
-                .Where(c => c.Stock <= c.MinQty)
+                .Where(c => !c.IsDeleted && c.Stock <= c.MinQtyInBaseUnit)
                 .ToList();
 
             return View(lowStockMaterials);
@@ -360,25 +366,24 @@ namespace Infoman.Controllers
         {
 
             var products = await _db.Products
-                 .Where(p => !p.IsDeleted)
-                .Include(p => p.Sizes)
-                .Select(p => new
-                {
-                    p.ProductId,
-                    p.Name,
-                    p.SKU,
-                    p.Category,
-                    p.Description,
-                    p.ImagePath,
-                    // TotalStock = p.Sizes.Sum(s => s.Stock),  // ← TANGGALIN! Wala nang Stock column
-                    Sizes = p.Sizes.Select(s => new
-                    {
-                        s.SizeName,
-                        s.Price,
-                        // s.Stock  // ← TANGGALIN DIN!
-                    })
-                })
-                .ToListAsync();
+      .Where(p => !p.IsDeleted)
+     .Include(p => p.Sizes)
+     .Select(p => new
+     {
+         p.ProductId,
+         p.Name,
+         p.SKU,
+         p.Category,
+         p.Description,
+         p.ImagePath,
+         // ✅ I-FILTER DIN DITO
+         Sizes = p.Sizes.Where(s => !s.IsDeleted).Select(s => new
+         {
+             s.SizeName,
+             s.Price
+         }).ToList()
+     })
+     .ToListAsync();
 
             return Json(products);
         }
@@ -500,46 +505,91 @@ namespace Infoman.Controllers
                             var rawMat = await _db.RawMaterials.FindAsync(recipeVM.RawMaterialId);
                             if (rawMat == null) continue;
 
+                            // ✅ SERVER-SIDE UNIT VALIDATION
+                            var weightUnits = new[] { "kg", "g" };
+                            var volumeUnits = new[] { "L", "mL" };
+                            var countUnits = new[] { "pcs" };
+
+                            bool isWeightRecipe = weightUnits.Contains(recipeVM.UnitUsed);
+                            bool isVolumeRecipe = volumeUnits.Contains(recipeVM.UnitUsed);
+                            bool isCountRecipe = countUnits.Contains(recipeVM.UnitUsed);
+
+                            bool isWeightMaterial = weightUnits.Contains(rawMat.Unit);
+                            bool isVolumeMaterial = volumeUnits.Contains(rawMat.Unit);
+                            bool isCountMaterial = countUnits.Contains(rawMat.Unit);
+
+                            bool isCompatible = (isWeightRecipe && isWeightMaterial) ||
+                                                (isVolumeRecipe && isVolumeMaterial) ||
+                                                (isCountRecipe && isCountMaterial);
+
+                            if (!isCompatible)
+                            {
+                                return Json(new { success = false, message = $"Incompatible unit: Cannot use '{recipeVM.UnitUsed}' for material '{rawMat.Name}' which uses '{rawMat.Unit}'." });
+                            }
+
                             var latestPrice = await _db.RawMaterialBatches
                                 .Where(b => b.RawMaterialId == recipeVM.RawMaterialId)
                                 .OrderByDescending(b => b.ReceivedDate)
                                 .Select(b => b.UnitPrice)
                                 .FirstOrDefaultAsync();
 
-                            if (latestPrice >= 0)
+                            // ✅ FLAW #3: BLOCK KUNG WALANG BATCH PRICE
+                            if (latestPrice <= 0)
                             {
-                                decimal quantityInBaseUnit = recipeVM.Quantity;
-
-                                if (recipeVM.UnitUsed == "kg" && rawMat.BaseUnit == "g")
-                                {
-                                    quantityInBaseUnit = recipeVM.Quantity * 1000;
-                                }
-                                else if (recipeVM.UnitUsed == "L" && rawMat.BaseUnit == "mL")
-                                {
-                                    quantityInBaseUnit = recipeVM.Quantity * 1000;
-                                }
-
-                                decimal quantityForCost = recipeVM.Quantity;
-                                if (recipeVM.UnitUsed == "kg")
-                                {
-                                    quantityForCost = recipeVM.Quantity;
-                                }
-                                else if (recipeVM.UnitUsed == "g")
-                                {
-                                    quantityForCost = recipeVM.Quantity / 1000;
-                                }
-
-                                var cost = quantityForCost * latestPrice;
-                                totalCost += cost;
-                                validRecipeCount++;
-
-                                productSize.RecipeItems.Add(new RecipeItem
-                                {
-                                    RawMaterialId = recipeVM.RawMaterialId,
-                                    Quantity = quantityInBaseUnit,
-                                    UnitUsed = recipeVM.UnitUsed
-                                });
+                                return Json(new { success = false, message = $"No batch price found for '{rawMat.Name}'. Please receive a delivery first." });
                             }
+
+                            decimal quantityInBaseUnit = recipeVM.Quantity;
+
+                            if (recipeVM.UnitUsed == "kg" && rawMat.BaseUnit == "g")
+                            {
+                                quantityInBaseUnit = recipeVM.Quantity * 1000;
+                            }
+                            else if (recipeVM.UnitUsed == "L" && rawMat.BaseUnit == "mL")
+                            {
+                                quantityInBaseUnit = recipeVM.Quantity * 1000;
+                            }
+
+                            // ✅ FLAW #1 & #2: TAMANG COST COMPUTATION
+                            decimal quantityForCost = recipeVM.Quantity;
+
+                            // I-convert sa display unit ng material bago mag-multiply
+                            if (rawMat.Unit == "kg")
+                            {
+                                if (recipeVM.UnitUsed == "g") quantityForCost = recipeVM.Quantity / 1000;
+                                else if (recipeVM.UnitUsed == "kg") quantityForCost = recipeVM.Quantity;
+                            }
+                            else if (rawMat.Unit == "L")
+                            {
+                                if (recipeVM.UnitUsed == "mL") quantityForCost = recipeVM.Quantity / 1000;
+                                else if (recipeVM.UnitUsed == "L") quantityForCost = recipeVM.Quantity;
+                            }
+                            else if (rawMat.Unit == "g")
+                            {
+                                if (recipeVM.UnitUsed == "kg") quantityForCost = recipeVM.Quantity * 1000;
+                                else if (recipeVM.UnitUsed == "g") quantityForCost = recipeVM.Quantity;
+                            }
+                            else if (rawMat.Unit == "mL")
+                            {
+                                if (recipeVM.UnitUsed == "L") quantityForCost = recipeVM.Quantity * 1000;
+                                else if (recipeVM.UnitUsed == "mL") quantityForCost = recipeVM.Quantity;
+                            }
+
+                            var cost = quantityForCost * latestPrice;
+                            totalCost += cost;
+                            validRecipeCount++;
+
+                            // ✅ I-SAVE ANG UNIT SA BASE UNIT DIN PARA TUGMA SA QUANTITY
+                            string finalUnitUsed = recipeVM.UnitUsed;
+                            if (recipeVM.UnitUsed == "kg" && rawMat.BaseUnit == "g") finalUnitUsed = "g";
+                            else if (recipeVM.UnitUsed == "L" && rawMat.BaseUnit == "mL") finalUnitUsed = "mL";
+
+                            productSize.RecipeItems.Add(new RecipeItem
+                            {
+                                RawMaterialId = recipeVM.RawMaterialId,
+                                Quantity = quantityInBaseUnit,
+                                UnitUsed = finalUnitUsed // ✅ BASE UNIT NA
+                            });
                         }
                     }
 
@@ -620,17 +670,15 @@ namespace Infoman.Controllers
                     if (rawMat != null)
                     {
                         decimal quantityInBaseUnit = ingredient.Quantity;
-                        string unitToSave = ingredient.UnitUsed;
+                        string unitToSave = rawMat.BaseUnit; // ✅ LAGING BASE UNIT ANG I-SAVE
 
                         if (ingredient.UnitUsed == "kg" && rawMat.BaseUnit == "g")
                         {
                             quantityInBaseUnit = ingredient.Quantity * 1000;
-                            unitToSave = "g";
                         }
                         else if (ingredient.UnitUsed == "L" && rawMat.BaseUnit == "mL")
                         {
                             quantityInBaseUnit = ingredient.Quantity * 1000;
-                            unitToSave = "mL";
                         }
 
                         productSize.RecipeItems.Add(new RecipeItem
@@ -730,8 +778,15 @@ namespace Infoman.Controllers
 
             if (!string.IsNullOrEmpty(date))
             {
-                var filterDate = DateTime.Parse(date);
-                query = query.Where(o => o.Date.Date == filterDate.Date);
+                // ✅ GAMITIN ANG TryParse PARA HINDI MAG-CRASH
+                if (DateTime.TryParse(date, out var filterDate))
+                {
+                    query = query.Where(o => o.Date.Date == filterDate.Date);
+                }
+                else
+                {
+                    return Json(new { success = false, message = "Invalid date format. Please use 'yyyy-MM-dd'." });
+                }
             }
 
             var receipts = await query
@@ -1129,6 +1184,7 @@ namespace Infoman.Controllers
                 if (rawMat != null)
                 {
                     decimal quantityInBaseUnit = ingredient.Quantity;
+                    string finalUnitUsed = rawMat.BaseUnit; // ✅ LAGING BASE UNIT
 
                     if (ingredient.UnitUsed == "kg" && rawMat.BaseUnit == "g")
                     {
@@ -1143,7 +1199,7 @@ namespace Infoman.Controllers
                     {
                         RawMaterialId = ingredient.RawMaterialId,
                         Quantity = quantityInBaseUnit,
-                        UnitUsed = ingredient.UnitUsed,
+                        UnitUsed = finalUnitUsed, // ✅ BASE UNIT NA
                         ProductSizeId = productSize.ProductSizeId
                     });
                 }
@@ -1880,7 +1936,8 @@ namespace Infoman.Controllers
                 wasteLogs = wasteLogs,
                 discountRecords = discountRecords,
                 categoryRevenue = categoryRevenue,
-                receipts = receipts
+                receipts = receipts,
+                totalWasteCost = totalWasteCost
             });
         }
         public async Task<ActionResult> Reports()
@@ -2260,17 +2317,21 @@ namespace Infoman.Controllers
         }
         private async Task UpdateStockFromBatches(int rawMaterialId)
         {
-            var totalStockInBaseUnit = await _db.RawMaterialBatches
+            // ✅ KUNIN ANG STOCK MULA SA IN-MEMORY BATCHES
+            var batches = await _db.RawMaterialBatches
                 .Where(b => b.RawMaterialId == rawMaterialId)
-                .SumAsync(b => (decimal?)b.QuantityRemaining) ?? 0;
+                .ToListAsync();
+
+            decimal totalStockInBaseUnit = batches.Sum(b => b.QuantityRemaining);
 
             var material = await _db.RawMaterials.FindAsync(rawMaterialId);
             if (material != null)
             {
-                material.Stock = totalStockInBaseUnit;  // This stores in base unit (grams)
+                material.Stock = totalStockInBaseUnit;
                 await _db.SaveChangesAsync();
             }
         }
+
         [HttpGet]
         public async Task<IActionResult> GetReceivingHistory()
         {
@@ -2481,8 +2542,8 @@ namespace Infoman.Controllers
                     r.RequestType,
                     r.Reason,
                     RequesterName = r.Requester.Username,  // ← Requested By column
-                    RequestedAt = r.RequestedAt.ToString("yyyy-MM-dd, h:mm:ss tt")  // ← Date column
-                                                                                    // ✅ ALISIN ANG ItemCount - hindi ginagamit sa table
+                    RequestedAt = r.RequestedAt.ToString("yyyy-MM-ddTHH:mm:ss") // ✅ ISO 8601 FORMAT // ← Date column
+                                                                                // ✅ ALISIN ANG ItemCount - hindi ginagamit sa table
                 })
                 .ToListAsync();
 
@@ -2522,9 +2583,18 @@ namespace Infoman.Controllers
                 {
                     // ========== PROCESS VOID ==========
                     var order = pendingRequest.Order;
-                    var itemIds = string.IsNullOrEmpty(pendingRequest.ItemIds)
-                        ? new List<int>()
-                        : pendingRequest.ItemIds.Split(',').Select(int.Parse).ToList();
+                    // ✅ SAFE PARSING
+                    var itemIds = new List<int>();
+                    if (!string.IsNullOrEmpty(pendingRequest.ItemIds))
+                    {
+                        foreach (var idStr in pendingRequest.ItemIds.Split(','))
+                        {
+                            if (int.TryParse(idStr.Trim(), out var id))
+                            {
+                                itemIds.Add(id);
+                            }
+                        }
+                    }
 
                     foreach (var item in order.Items.Where(i => !i.IsVoided))
                     {
@@ -2566,7 +2636,23 @@ namespace Infoman.Controllers
                         order.OriginalTotalAmount = order.TotalAmount;
                     }
 
-                    var itemIds = pendingRequest.ItemIds.Split(',').Select(int.Parse).ToList();
+                    // ✅ SAFE PARSING KUNG NULL O EMPTY
+                    var itemIds = new List<int>();
+                    if (!string.IsNullOrEmpty(pendingRequest.ItemIds))
+                    {
+                        foreach (var idStr in pendingRequest.ItemIds.Split(','))
+                        {
+                            if (int.TryParse(idStr.Trim(), out var id))
+                            {
+                                itemIds.Add(id);
+                            }
+                        }
+                    }
+
+                    if (itemIds.Count == 0)
+                    {
+                        return Json(new { success = false, message = "No valid items to refund" });
+                    }
                     decimal refundAmount = 0;
 
                     foreach (var itemId in itemIds)
@@ -2751,6 +2837,10 @@ namespace Infoman.Controllers
 
                 _db.SupplierReturns.Add(supplierReturn);
 
+                // ✅ I-SAVE MUNA PARA MAGKAROON NG VALID ReturnId
+                await _db.SaveChangesAsync();
+
+                // ✅ I-ASSIGN NA ANG ReturnId NGAYON
                 receivingItem.ReturnStatus = "PENDING";
                 receivingItem.ReturnId = supplierReturn.ReturnId;
 
@@ -3440,7 +3530,10 @@ namespace Infoman.Controllers
 
                 _db.SupplierReturns.Add(supplierReturn);
 
-                // Update receiving item
+                // ✅ I-SAVE MUNA PARA MAGKAROON NG VALID ReturnId
+                await _db.SaveChangesAsync();
+
+                // ✅ I-ASSIGN NA ANG ReturnId NGAYON
                 receivingItem.ReturnStatus = "PENDING";
                 receivingItem.ReturnId = supplierReturn.ReturnId;
 
@@ -3728,17 +3821,22 @@ namespace Infoman.Controllers
                 if (productSize == null)
                     return Json(new { success = false, message = "Size not found" });
 
-                // Delete associated recipe items first
+                // ✅ SOFT DELETE NA LANG, WAG HARD DELETE
+                productSize.IsDeleted = true;
+                productSize.IsAvailableInPOS = false;
+
+                // ✅ I-soft delete din ang recipe items
                 if (productSize.RecipeItems != null && productSize.RecipeItems.Any())
                 {
-                    _db.RecipeItems.RemoveRange(productSize.RecipeItems);
+                    foreach (var recipe in productSize.RecipeItems)
+                    {
+                        recipe.IsDeleted = true;
+                    }
                 }
 
-                // Delete the product size
-                _db.ProductSizes.Remove(productSize);
                 await _db.SaveChangesAsync();
 
-                return Json(new { success = true, message = "Size variant deleted successfully" });
+                return Json(new { success = true, message = "Size variant archived successfully" });
             }
             catch (Exception ex)
             {
@@ -3766,17 +3864,22 @@ namespace Infoman.Controllers
                 product.ImagePath = request.ImagePath ?? "";
 
                 // Delete sizes that are marked for deletion
+                // ✅ SOFT DELETE NA LANG, WAG HARD DELETE
                 if (request.DeleteSizeIds != null && request.DeleteSizeIds.Any())
                 {
                     var sizesToDelete = product.Sizes.Where(s => request.DeleteSizeIds.Contains(s.ProductSizeId)).ToList();
                     foreach (var size in sizesToDelete)
                     {
-                        // Delete recipe items first
-                        var recipeItems = _db.RecipeItems.Where(ri => ri.ProductSizeId == size.ProductSizeId);
-                        _db.RecipeItems.RemoveRange(recipeItems);
+                        // I-soft delete ang size
+                        size.IsDeleted = true;
+                        size.IsAvailableInPOS = false;
 
-                        // Then delete the size
-                        product.Sizes.Remove(size);
+                        // I-soft delete din ang recipe items
+                        var recipeItems = _db.RecipeItems.Where(ri => ri.ProductSizeId == size.ProductSizeId).ToList();
+                        foreach (var recipe in recipeItems)
+                        {
+                            recipe.IsDeleted = true;
+                        }
                     }
                 }
 

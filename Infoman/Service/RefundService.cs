@@ -102,23 +102,35 @@ namespace Infoman.Service
                 var rawMaterial = recipe.RawMaterial;
                 if (rawMaterial == null) continue;
 
-                decimal wasteQuantity = recipe.Quantity * orderItem.Quantity;
+                // ✅ BASE UNIT ANG ITATAGO
+                decimal wasteQuantityInBaseUnit = recipe.Quantity * orderItem.Quantity;
 
-                decimal displayQuantity = wasteQuantity;
+                // ✅ COMPUTE COST GAMIT ANG DISPLAY UNIT
+                decimal wasteQuantityInDisplayUnit = wasteQuantityInBaseUnit;
                 if (rawMaterial.BaseUnit == "g" || rawMaterial.BaseUnit == "mL")
                 {
-                    displayQuantity = wasteQuantity / 1000;
+                    wasteQuantityInDisplayUnit = wasteQuantityInBaseUnit / 1000;
                 }
+
+                var batch = await _db.RawMaterialBatches
+                    .Where(b => b.RawMaterialId == recipe.RawMaterialId && b.QuantityRemaining > 0)
+                    .OrderBy(b => b.ExpiryDate ?? DateTime.MaxValue)
+                    .FirstOrDefaultAsync();
+
+                decimal unitPrice = batch?.UnitPrice ?? rawMaterial.Price;
+                decimal totalCost = wasteQuantityInDisplayUnit * unitPrice; // ✅ TAMANG COST
 
                 var wasteLog = new WasteLog
                 {
                     RawMaterialId = recipe.RawMaterialId,
                     ProductId = orderItem.ProductId,
-                    Quantity = displayQuantity,
+                    Quantity = wasteQuantityInBaseUnit, // ✅ BASE UNIT
                     Reason = WasteLog.WasteReason.CustomerCancel,
                     Date = DateTime.Today,
                     RecordedBy = userId.ToString(),
-                    Notes = $"REFUND from {orderItem.Order?.OrderNumber}: {reason}"
+                    Notes = $"REFUND from {orderItem.Order?.OrderNumber}: {reason}",
+                    TotalCost = totalCost,              // ✅ MAY COST NA
+                    BatchId = batch?.BatchId            // ✅ MAY BATCH ID
                 };
                 _db.WasteLogs.Add(wasteLog);
             }

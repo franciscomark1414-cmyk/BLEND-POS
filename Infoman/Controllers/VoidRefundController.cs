@@ -35,7 +35,7 @@ namespace Infoman.Controllers
                 if (order == null)
                     return Json(new { success = false, message = "Order not found" });
 
-                // Compute subtotal from active items
+                // ✅ I-COMPUTE ANG DISCOUNTED PRICE PER ITEM
                 var allItems = order.Items.Select(oi => new
                 {
                     oi.OrderItemId,
@@ -44,27 +44,23 @@ namespace Infoman.Controllers
                     ProductName = oi.Product != null ? oi.Product.Name : "Unknown Product",
                     SizeName = oi.ProductSize != null ? oi.ProductSize.SizeName : "Regular",
                     oi.Quantity,
-                    oi.Price,
-                    Subtotal = oi.Price * oi.Quantity,
+                    Price = order.DiscountPercent > 0 ? oi.Price * (1 - order.DiscountPercent) : oi.Price,
+                    Subtotal = (order.DiscountPercent > 0 ? oi.Price * (1 - order.DiscountPercent) : oi.Price) * oi.Quantity,
                     IsVoided = oi.DispositionStatusId == 2,
                     IsRefunded = oi.DispositionStatusId == 3,
                     DispositionStatusId = oi.DispositionStatusId
                 }).ToList();
 
-                // Compute total subtotal from active items (not voided/refunded)
+                // ✅ Ang subtotal ay sum ng discounted subtotals
                 decimal subtotal = allItems
                     .Where(i => !i.IsVoided && !i.IsRefunded)
                     .Sum(i => i.Subtotal);
 
-                decimal total = subtotal * (1 - (order.DiscountPercent / 100));
+                // ✅ TAMA NA: Hindi na kailangang i-multiply sa (1 - DiscountPercent) kasi discounted na ang items
+                decimal total = subtotal;
 
-                // ✅ FIXED: No ?? operator needed if these are non-nullable
                 decimal adjustmentAmount = order.AdjustmentAmount;
                 decimal storeCreditApplied = order.StoreCreditApplied;
-
-                // Or if they are nullable, use this:
-                // decimal adjustmentAmount = order.AdjustmentAmount ?? 0;
-                // decimal storeCreditApplied = order.StoreCreditApplied ?? 0;
 
                 return Json(new
                 {

@@ -125,11 +125,8 @@ namespace Infoman.Controllers
                 }
 
                 // ✅ FIX: Convert recipeItem.Quantity to kg/L to match availableQty
+                // ✅ TAMA NA: Parehong base unit (grams/mL) ang availableQty at recipeItem.Quantity
                 decimal quantityPerOrder = recipeItem.Quantity;
-                if (recipeItem.RawMaterial.BaseUnit == "g" || recipeItem.RawMaterial.BaseUnit == "mL")
-                {
-                    quantityPerOrder = recipeItem.Quantity / 1000;  // grams/mL → kg/L
-                }
 
                 int possibleOrders = (int)(availableQty / quantityPerOrder);
                 if (possibleOrders < maxPossibleOrders)
@@ -202,6 +199,12 @@ namespace Infoman.Controllers
 
                 if (request.Quantity <= 0)
                     return Json(new { success = false, message = "Invalid quantity" });
+
+                // ✅ I-VALIDATE ANG DISCOUNT PERCENT
+                if (request.DiscountPercent < 0 || request.DiscountPercent > 1)
+                {
+                    return Json(new { success = false, message = "Invalid discount percent. Must be between 0 and 1." });
+                }
 
                 // ✅ CHECK KUNG MAY EXISTING ORDER NA MAY SAME ORDER NUMBER
                 Order order = null;
@@ -497,22 +500,14 @@ namespace Infoman.Controllers
                             .SumAsync(b => b.QuantityRemaining);
 
                         // ✅ CONVERT availableQty to KG or L (display unit)
+                        // ✅ TAMA NA: Parehong base unit (grams/mL) ang availableQty at recipe.Quantity
                         decimal availableQtyInDisplayUnit = availableQtyInBaseUnit;
-                        if (recipe.RawMaterial.BaseUnit == "g" && recipe.RawMaterial.Unit == "kg")
-                        {
-                            availableQtyInDisplayUnit = availableQtyInBaseUnit / 1000;  // 150,000g → 150 kg
-                        }
-                        else if (recipe.RawMaterial.BaseUnit == "mL" && recipe.RawMaterial.Unit == "L")
-                        {
-                            availableQtyInDisplayUnit = availableQtyInBaseUnit / 1000;  // mL → L
-                        }
-
-                        // ✅ CONVERT recipe quantity to KG or L
                         decimal quantityPerOrder = recipe.Quantity;
-                        if (recipe.RawMaterial.BaseUnit == "g" || recipe.RawMaterial.BaseUnit == "mL")
-                        {
-                            quantityPerOrder = recipe.Quantity / 1000;  // 1000g → 1 kg
-                        }
+
+                        // ✅ I-validate para iwas divide by zero
+                        if (quantityPerOrder <= 0) continue;
+
+                        
 
                         System.Diagnostics.Debug.WriteLine($"=== DEBUG ===");
                         System.Diagnostics.Debug.WriteLine($"Available (base): {availableQtyInBaseUnit} {recipe.RawMaterial.BaseUnit}");
@@ -762,155 +757,171 @@ namespace Infoman.Controllers
         [HttpPost]
         public async Task<IActionResult> StartBlending([FromBody] StartBlendingRequest request)
         {
-            var order = await _db.Orders
-                .Include(o => o.Items)
-                    .ThenInclude(oi => oi.ProductSize)
-                        .ThenInclude(ps => ps.RecipeItems)
-                            .ThenInclude(ri => ri.RawMaterial)
-                .FirstOrDefaultAsync(o => o.OrderId == request.OrderId);
+            // ✅ UMRELLA TRANSACTION PARA SA BUONG PROCESS
+            using var umbrellaTransaction = await _db.Database.BeginTransactionAsync();
 
-            if (order == null)
-                return Json(new { success = false, message = "Order not found" });
-
-            if (order.Status != "PENDING_BLENDING" && order.Status != "PREPARING")
-                return Json(new { success = false, message = $"Cannot start blending. Order status is '{order.Status}'" });
-
-            if (order.Items.All(i => i.ActualCost > 0))
+            try
             {
-                return Json(new { success = false, message = "Order already blended!" });
-            }
+                var order = await _db.Orders
+                    .Include(o => o.Items)
+                        .ThenInclude(oi => oi.ProductSize)
+                            .ThenInclude(ps => ps.RecipeItems)
+                                .ThenInclude(ri => ri.RawMaterial)
+                    .FirstOrDefaultAsync(o => o.OrderId == request.OrderId);
 
-            decimal totalActualCost = 0;
-            var activeItems = order.Items.Where(i => i.DispositionStatusId == 1).ToList();
-
-            if (activeItems.Count == 0)
-                return Json(new { success = false, message = "No active items to blend." });
-
-            foreach (var orderItem in activeItems)
-            {
-                var productSize = orderItem.ProductSize;
-                decimal itemCost = 0;
-
-                foreach (var recipe in productSize.RecipeItems)
+                if (order == null)
                 {
-                    var material = await _db.RawMaterials.FindAsync(recipe.RawMaterialId);
-
-                    // ✅ ILIPAT ANG NULL CHECK DITO PARA HINDI MAG-CRASH
-                    if (material == null)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"⚠️ WARNING: Material with ID {recipe.RawMaterialId} not found. Skipping...");
-                        continue;
-                    }
-
-                    System.Diagnostics.Debug.WriteLine($"=== ACTUAL DATABASE VALUES ===");
-                    System.Diagnostics.Debug.WriteLine($"Raw Material: {material.Name}");
-                    System.Diagnostics.Debug.WriteLine($"Material.Unit: {material.Unit}");
-                    System.Diagnostics.Debug.WriteLine($"Material.BaseUnit: {material.BaseUnit}");
-                    System.Diagnostics.Debug.WriteLine($"Material.Stock: {material.Stock}");
-                    System.Diagnostics.Debug.WriteLine($"Recipe.Quantity: {recipe.Quantity}");
-                    System.Diagnostics.Debug.WriteLine($"Recipe.UnitUsed: {recipe.UnitUsed}");
-                    System.Diagnostics.Debug.WriteLine($"OrderItem.Quantity: {orderItem.Quantity}");
-                    System.Diagnostics.Debug.WriteLine($"==============================");
-
-                    decimal totalNeeded = recipe.Quantity * orderItem.Quantity;
-                    decimal totalForBatch = totalNeeded;
-
-                    System.Diagnostics.Debug.WriteLine($"=== UNIT CONVERSION DEBUG ===");
-                    System.Diagnostics.Debug.WriteLine($"Ingredient: {material.Name}");
-                    System.Diagnostics.Debug.WriteLine($"Recipe Unit: {recipe.UnitUsed}, Recipe Qty: {recipe.Quantity}");
-                    System.Diagnostics.Debug.WriteLine($"Material Unit: {material.Unit}, BaseUnit: {material.BaseUnit}");
-                    System.Diagnostics.Debug.WriteLine($"Total needed (original): {totalNeeded} {recipe.UnitUsed}");
-
-                    // ✅ CONVERSION: I-convert ang recipe unit sa unit ng batch (BaseUnit)
-                    // Ang batch ay naka-store sa BaseUnit (grams or mL)
-                    // Ang FIFO service ay nag-e-expect ng value sa BaseUnit
-
-                    if (recipe.UnitUsed == "g" && material.BaseUnit == "g")
-                    {
-                        // Recipe is in grams, batch is in grams - no conversion
-                        totalForBatch = totalNeeded;
-                        System.Diagnostics.Debug.WriteLine($"No conversion: {totalForBatch} g (batch is in g)");
-                    }
-                    else if (recipe.UnitUsed == "kg" && material.BaseUnit == "g")
-                    {
-                        // Recipe is in kg, batch is in grams - convert kg to g
-                        totalForBatch = totalNeeded * 1000;
-                        System.Diagnostics.Debug.WriteLine($"Converted kg → g: {totalNeeded} kg = {totalForBatch} g");
-                    }
-                    else if (recipe.UnitUsed == "g" && material.BaseUnit == "g" && material.Unit == "kg")
-                    {
-                        // Recipe is in grams, batch is stored in grams, but displayed as kg
-                        totalForBatch = totalNeeded;
-                        System.Diagnostics.Debug.WriteLine($"Keep in grams: {totalForBatch} g (batch will convert to kg for display)");
-                    }
-                    else if (recipe.UnitUsed == "mL" && material.BaseUnit == "mL")
-                    {
-                        // Recipe is in mL, batch is in mL - no conversion
-                        totalForBatch = totalNeeded;
-                        System.Diagnostics.Debug.WriteLine($"No conversion: {totalForBatch} mL");
-                    }
-                    else if (recipe.UnitUsed == "L" && material.BaseUnit == "mL")
-                    {
-                        // Recipe is in L, batch is in mL - convert L to mL
-                        totalForBatch = totalNeeded * 1000;
-                        System.Diagnostics.Debug.WriteLine($"Converted L → mL: {totalNeeded} L = {totalForBatch} mL");
-                    }
-                    else if (recipe.UnitUsed == "mL" && material.BaseUnit == "mL" && material.Unit == "L")
-                    {
-                        // Recipe is in mL, batch is stored in mL, but displayed as L
-                        totalForBatch = totalNeeded;
-                        System.Diagnostics.Debug.WriteLine($"Keep in mL: {totalForBatch} mL (batch will convert to L for display)");
-                    }
-                    else if (recipe.UnitUsed == "pcs" && material.BaseUnit == "pcs")
-                    {
-                        // For pieces
-                        totalForBatch = totalNeeded;
-                        System.Diagnostics.Debug.WriteLine($"No conversion for pieces: {totalForBatch} pcs");
-                    }
-                    else
-                    {
-                        // Default: no conversion
-                        totalForBatch = totalNeeded;
-                        System.Diagnostics.Debug.WriteLine($"Unknown conversion: keeping as {totalForBatch}");
-                    }
-
-                    System.Diagnostics.Debug.WriteLine($"Total for batch deduction: {totalForBatch} {material.BaseUnit}");
-                    System.Diagnostics.Debug.WriteLine($"Will deduct: {totalForBatch / 1000} {material.Unit} (display unit)");
-
-                    var (success, cost, usedBatches) = await _fifoService.DeductStockWithCostAsync(
-                        recipe.RawMaterialId,
-                        totalForBatch,  // ✅ ITO AY NASA BASEUNIT (grams or mL)
-                        productSize.ProductId,
-                        order.OrderNumber,
-                        orderId: order.OrderId,
-                        productSizeId: orderItem.ProductSizeId
-                    );
-
-                    if (!success)
-                    {
-                        return Json(new
-                        {
-                            success = false,
-                            message = $"Failed to deduct {material.Name}. Need {totalForBatch:F4} {material.BaseUnit} ({totalForBatch / 1000:F4} {material.Unit}), check batch stock."
-                        });
-                    }
-
-                    itemCost += cost;
+                    await umbrellaTransaction.RollbackAsync();
+                    return Json(new { success = false, message = "Order not found" });
                 }
 
-                orderItem.ActualCost = itemCost;
-                totalActualCost += itemCost;
+                if (order.Status != "PENDING_BLENDING" && order.Status != "PREPARING")
+                {
+                    await umbrellaTransaction.RollbackAsync();
+                    return Json(new { success = false, message = $"Cannot start blending. Order status is '{order.Status}'" });
+                }
+
+                if (order.Items.All(i => i.ActualCost > 0))
+                {
+                    await umbrellaTransaction.RollbackAsync();
+                    return Json(new { success = false, message = "Order already blended!" });
+                }
+
+                decimal totalActualCost = 0;
+                var activeItems = order.Items.Where(i => i.DispositionStatusId == 1).ToList();
+
+                if (activeItems.Count == 0)
+                {
+                    await umbrellaTransaction.RollbackAsync();
+                    return Json(new { success = false, message = "No active items to blend." });
+                }
+
+                foreach (var orderItem in activeItems)
+                {
+                    var productSize = orderItem.ProductSize;
+                    decimal itemCost = 0;
+
+                    foreach (var recipe in productSize.RecipeItems)
+                    {
+                        var material = await _db.RawMaterials.FindAsync(recipe.RawMaterialId);
+
+                        // ✅ NULL CHECK
+                        if (material == null)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"⚠️ WARNING: Material with ID {recipe.RawMaterialId} not found. Skipping...");
+                            continue;
+                        }
+
+                        System.Diagnostics.Debug.WriteLine($"=== ACTUAL DATABASE VALUES ===");
+                        System.Diagnostics.Debug.WriteLine($"Raw Material: {material.Name}");
+                        System.Diagnostics.Debug.WriteLine($"Material.Unit: {material.Unit}");
+                        System.Diagnostics.Debug.WriteLine($"Material.BaseUnit: {material.BaseUnit}");
+                        System.Diagnostics.Debug.WriteLine($"Material.Stock: {material.Stock}");
+                        System.Diagnostics.Debug.WriteLine($"Recipe.Quantity: {recipe.Quantity}");
+                        System.Diagnostics.Debug.WriteLine($"Recipe.UnitUsed: {recipe.UnitUsed}");
+                        System.Diagnostics.Debug.WriteLine($"OrderItem.Quantity: {orderItem.Quantity}");
+                        System.Diagnostics.Debug.WriteLine($"==============================");
+
+                        decimal totalNeeded = recipe.Quantity * orderItem.Quantity;
+                        decimal totalForBatch = totalNeeded;
+
+                        System.Diagnostics.Debug.WriteLine($"=== UNIT CONVERSION DEBUG ===");
+                        System.Diagnostics.Debug.WriteLine($"Ingredient: {material.Name}");
+                        System.Diagnostics.Debug.WriteLine($"Recipe Unit: {recipe.UnitUsed}, Recipe Qty: {recipe.Quantity}");
+                        System.Diagnostics.Debug.WriteLine($"Material Unit: {material.Unit}, BaseUnit: {material.BaseUnit}");
+                        System.Diagnostics.Debug.WriteLine($"Total needed (original): {totalNeeded} {recipe.UnitUsed}");
+
+                        // ✅ CONVERSION LOGIC (PAREHO NG DATI)
+                        if (recipe.UnitUsed == "g" && material.BaseUnit == "g")
+                        {
+                            totalForBatch = totalNeeded;
+                            System.Diagnostics.Debug.WriteLine($"No conversion: {totalForBatch} g (batch is in g)");
+                        }
+                        else if (recipe.UnitUsed == "kg" && material.BaseUnit == "g")
+                        {
+                            totalForBatch = totalNeeded * 1000;
+                            System.Diagnostics.Debug.WriteLine($"Converted kg → g: {totalNeeded} kg = {totalForBatch} g");
+                        }
+                        else if (recipe.UnitUsed == "g" && material.BaseUnit == "g" && material.Unit == "kg")
+                        {
+                            totalForBatch = totalNeeded;
+                            System.Diagnostics.Debug.WriteLine($"Keep in grams: {totalForBatch} g (batch will convert to kg for display)");
+                        }
+                        else if (recipe.UnitUsed == "mL" && material.BaseUnit == "mL")
+                        {
+                            totalForBatch = totalNeeded;
+                            System.Diagnostics.Debug.WriteLine($"No conversion: {totalForBatch} mL");
+                        }
+                        else if (recipe.UnitUsed == "L" && material.BaseUnit == "mL")
+                        {
+                            totalForBatch = totalNeeded * 1000;
+                            System.Diagnostics.Debug.WriteLine($"Converted L → mL: {totalNeeded} L = {totalForBatch} mL");
+                        }
+                        else if (recipe.UnitUsed == "mL" && material.BaseUnit == "mL" && material.Unit == "L")
+                        {
+                            totalForBatch = totalNeeded;
+                            System.Diagnostics.Debug.WriteLine($"Keep in mL: {totalForBatch} mL (batch will convert to L for display)");
+                        }
+                        else if (recipe.UnitUsed == "pcs" && material.BaseUnit == "pcs")
+                        {
+                            totalForBatch = totalNeeded;
+                            System.Diagnostics.Debug.WriteLine($"No conversion for pieces: {totalForBatch} pcs");
+                        }
+                        else
+                        {
+                            totalForBatch = totalNeeded;
+                            System.Diagnostics.Debug.WriteLine($"Unknown conversion: keeping as {totalForBatch}");
+                        }
+
+                        System.Diagnostics.Debug.WriteLine($"Total for batch deduction: {totalForBatch} {material.BaseUnit}");
+                        System.Diagnostics.Debug.WriteLine($"Will deduct: {totalForBatch / 1000} {material.Unit} (display unit)");
+
+                        var (success, cost, usedBatches) = await _fifoService.DeductStockWithCostAsync(
+                            recipe.RawMaterialId,
+                            totalForBatch,
+                            productSize.ProductId,
+                            order.OrderNumber,
+                            orderId: order.OrderId,
+                            productSizeId: orderItem.ProductSizeId
+                        );
+
+                        if (!success)
+                        {
+                            // ✅ I-ROLLBACK LAHAT KUNG MAY MAG-FAIL
+                            await umbrellaTransaction.RollbackAsync();
+                            return Json(new
+                            {
+                                success = false,
+                                message = $"Failed to deduct {material.Name}. Need {totalForBatch:F4} {material.BaseUnit} ({totalForBatch / 1000:F4} {material.Unit}), check batch stock. All changes rolled back."
+                            });
+                        }
+
+                        itemCost += cost;
+                    }
+
+                    orderItem.ActualCost = itemCost;
+                    totalActualCost += itemCost;
+                }
+
+                order.Status = "COMPLETED";
+                await _db.SaveChangesAsync();
+
+                // ✅ I-COMMIT LANG KUNG TAGUMPAY LAHAT
+                await umbrellaTransaction.CommitAsync();
+
+                return Json(new
+                {
+                    success = true,
+                    message = $"✅ Order #{order.OrderNumber} ingredients deducted! Order is now COMPLETED.",
+                    actualCost = totalActualCost
+                });
             }
-
-            order.Status = "COMPLETED";
-            await _db.SaveChangesAsync();
-
-            return Json(new
+            catch (Exception ex)
             {
-                success = true,
-                message = $"✅ Order #{order.OrderNumber} ingredients deducted! Order is now COMPLETED.",
-                actualCost = totalActualCost
-            });
+                // ✅ I-ROLLBACK KAPAG MAY BIGLANG ERROR
+                await umbrellaTransaction.RollbackAsync();
+                return Json(new { success = false, message = $"Error: {ex.Message}" });
+            }
         }
 
         // POST: Staff/AddItemToExistingOrder
@@ -922,6 +933,12 @@ namespace Infoman.Controllers
                 var userId = GetCurrentUserId();
                 if (userId == 0)
                     return Json(new { success = false, message = "User not logged in" });
+
+                // ✅ I-VALIDATE ANG DISCOUNT PERCENT
+                if (request.DiscountPercent < 0 || request.DiscountPercent > 1)
+                {
+                    return Json(new { success = false, message = "Invalid discount percent. Must be between 0 and 1." });
+                }
 
                 // ✅ Allow BOTH PENDING_PAYMENT and PENDING_BLENDING
                 var order = await _db.Orders
@@ -978,6 +995,13 @@ namespace Infoman.Controllers
         {
             try
             {
+
+                // ✅ I-VALIDATE ANG DISCOUNT PERCENT
+                if (request.DiscountPercent < 0 || request.DiscountPercent > 1)
+                {
+                    return Json(new { success = false, message = "Invalid discount percent. Must be between 0 and 1." });
+                }
+
                 var order = await _db.Orders
                     .Include(o => o.Items)
                     .FirstOrDefaultAsync(o => o.OrderId == request.OrderId);

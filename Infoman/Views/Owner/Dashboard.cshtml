@@ -1183,7 +1183,7 @@
                                                     @emoji @size.SizeName
                                                 </td>
                                                 <td><code>@(string.IsNullOrEmpty(size.SKU) ? "—" : size.SKU)</code></td>
-                                                <td>₱@((int)size.Price)</td>
+                                                            <td>₱@size.Price.ToString("N2")</td>
                                                 <td id="pos-status-@size.ProductSizeId">
                                                     @if (size.IsAvailableInPOS)
                                                     {
@@ -3716,6 +3716,14 @@ function showAddProductModal() {
         submitBtn.disabled = true;
         
         try {
+
+                                                            const unitsValid = await validateIngredientsUnits();
+                                                            if (!unitsValid) {
+                                                                submitBtn.innerHTML = originalText;
+                                                                submitBtn.disabled = false;
+                                                                return; // Stop submission
+                                                            }
+
             // Reindex all size rows bago mag-submit
             reindexSizeRows();
             
@@ -4788,16 +4796,26 @@ function closeQuantityModal() {
     const quantity = parseFloat(row.querySelector('.quantity-input').value || 0);
     
     // Convert to base unit (kg or L) for costing
+       // ✅ TAMANG CONVERSION BASE SA UNIT NG MATERIAL, HINDI BASE UNIT
     let quantityForCost = quantity;
     
-    switch(selectedUnit) {
-        case 'g': quantityForCost = quantity / 1000; break;
-        case 'kg': quantityForCost = quantity; break;
-        case 'mL': quantityForCost = quantity / 1000; break;
-        case 'L': quantityForCost = quantity; break;
-        case 'pcs': quantityForCost = quantity; break;
-        default: quantityForCost = quantity;
+    // Kunin ang display unit ng material (e.g., "kg", "L", "g", "mL", "pcs")
+    const materialUnit = selectedOption?.getAttribute('data-unit') || 'kg'; // default to kg kung wala
+    
+    if (materialUnit === 'kg') {
+        if (selectedUnit === 'g') quantityForCost = quantity / 1000;
+        else if (selectedUnit === 'kg') quantityForCost = quantity;
+    } else if (materialUnit === 'L') {
+        if (selectedUnit === 'mL') quantityForCost = quantity / 1000;
+        else if (selectedUnit === 'L') quantityForCost = quantity;
+    } else if (materialUnit === 'g') {
+        if (selectedUnit === 'kg') quantityForCost = quantity * 1000;
+        else if (selectedUnit === 'g') quantityForCost = quantity;
+    } else if (materialUnit === 'mL') {
+        if (selectedUnit === 'L') quantityForCost = quantity * 1000;
+        else if (selectedUnit === 'mL') quantityForCost = quantity;
     }
+    // pcs - walang conversion
     
     if (price === 0 && select.value) {
         fetch(`/RawMaterial/GetPrice/${select.value}`)
@@ -5241,12 +5259,13 @@ function loadLowStockTab(items) {
                 'Content-Type': 'application/json',
                 'RequestVerificationToken': token
             },
-            body: JSON.stringify({
-                rawMaterialId: parseInt(materialId),
-                quantity: quantityForBackend, // ✅ GAMITIN ANG CONVERTED VALUE
-                unitPrice: parseFloat(unitPrice),
-                expiryDate: expiryDate || null
-            })
+                                                            body: JSON.stringify({
+                                                                rawMaterialId: parseInt(materialId),
+                                                                quantity: quantity, // ✅ IPADALA ANG ORIGINAL INPUT (hindi na converted, server na ang bahala)
+                                                                unit: currentRestockUnit, // ✅ IPADALA ANG UNIT
+                                                                unitPrice: parseFloat(unitPrice),
+                                                                expiryDate: expiryDate || null
+                                                            })
         });
 
         const data = await response.json();
@@ -5660,48 +5679,61 @@ async function displayInPOS(productSizeId, productName, sizeName) {
             }, 100);
         }
     }
-                    function loadReportsData() {
-        showReportsLoading();
+                                                function loadReportsData() {
+                                                    showReportsLoading();
 
-        fetch('/Owner/GetReportsData')
-            .then(function(response) {
-                if (!response.ok) throw new Error('Network error');
-                return response.json();
-            })
-            .then(function(data) {
+                                                    fetch('/Owner/GetReportsData')
+                                                        .then(function(response) {
+                                                            if (!response.ok) throw new Error('Network error');
+                                                            return response.json();
+                                                        })
+                                                        .then(function(data) {
 
-                // ✅ VALIDATION (important)
-                if (!data || !data.salesPerformance) {
-                    console.warn('Invalid or empty data received');
-                    showReportsError();
-                    return;
-                }
+                                                            // ✅ VALIDATION (important)
+                                                            if (!data || !data.salesPerformance) {
+                                                                console.warn('Invalid or empty data received');
+                                                                showReportsError();
+                                                                return;
+                                                            }
 
-                // ✅ store safely
-                lastReportsData = data;
+                                                            // ✅ store safely
+                                                            lastReportsData = data;
 
-                // ✅ update UI
-                updateTopSelling(data.topSellingProducts);
-                updateWasteSummary(data.wasteLogs);
-                updateDiscountRecords(data.discountRecords || []);
-                updateCategoryRevenue(data.categoryRevenue);
-                renderSalesChart(data.salesPerformance);
-                renderCategoryPieChart(data.categoryDistribution);
+                                                            // ✅ update UI
+                                                            updateTopSelling(data.topSellingProducts);
+                                                            updateWasteSummary(data.wasteLogs);
+                                                            updateDiscountRecords(data.discountRecords || []);
+                                                            updateCategoryRevenue(data.categoryRevenue);
+                                                            renderSalesChart(data.salesPerformance);
+                                                            renderCategoryPieChart(data.categoryDistribution);
 
-                reportsDataLoaded = true;
-            })
-            .catch(function(error) {
-                console.error('Error loading reports:', error);
+                                                            // ✅ I-UPDATE ANG TOTAL WASTE COST CARD SA ITAAS
+                                                            const topWasteCard = document.querySelector('.card-waste .stat-value');
+                                                            if (topWasteCard) {
+                                                                // Gamitin ang data.totalWasteCost na galing sa GetReportsData JSON
+                                                                topWasteCard.innerHTML = '₱' + (data.totalWasteCost || 0).toFixed(2);
+                                                            }
 
-                // ✅ fallback if may old data
-                if (lastReportsData) {
-                    renderSalesChart(lastReportsData.salesPerformance);
-                    renderCategoryPieChart(lastReportsData.categoryDistribution);
-                } else {
-                    showReportsError();
-                }
-            });
-            }
+                                                            reportsDataLoaded = true;
+                                                        })
+                                                        .catch(function(error) {
+                                                            console.error('Error loading reports:', error);
+
+                                                            // ✅ fallback if may old data
+                                                            if (lastReportsData) {
+                                                                renderSalesChart(lastReportsData.salesPerformance);
+                                                                renderCategoryPieChart(lastReportsData.categoryDistribution);
+
+                                                                // ✅ I-update din ang card kahit nag-error, gamit ang lumang data
+                                                                const topWasteCard = document.querySelector('.card-waste .stat-value');
+                                                                if (topWasteCard && lastReportsData.totalWasteCost !== undefined) {
+                                                                    topWasteCard.innerHTML = '₱' + (lastReportsData.totalWasteCost || 0).toFixed(2);
+                                                                }
+                                                            } else {
+                                                                showReportsError();
+                                                            }
+                                                        });
+                                                }
 
              function loadReceiptHistory() {
     const filterDate = document.getElementById('receiptFilterDate')?.value || '';
@@ -6509,7 +6541,7 @@ async function loadEmployeeDailyOrders() {
         document.getElementById('perfTotalSales').innerHTML = '₱0.00';
         document.getElementById('perfTotalOrders').innerHTML = '0';
         document.getElementById('dailyOrdersBody').innerHTML = `
-            <tr><td colspan="4" class="text-center text-muted">Select an employee to view orders</td><\/tr>
+            <tr><td colspan="4" class="text-center text-muted">Select an employee to view orders</td></tr>
         `;
         return;
     }
@@ -6529,23 +6561,40 @@ async function loadEmployeeDailyOrders() {
                 totalSales += day.totalSales;
                 totalOrders += day.orderCount;
                 
-                const formattedDate = new Date(day.date).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                });
+                // ✅ TIMEZONE-SAFE DATE PARSING
+                // Kung string format "2026-10-20T00:00:00", i-parse as LOCAL date
+                let formattedDate;
+                if (typeof day.date === 'string') {
+                    // Kunin lang ang date part (YYYY-MM-DD) at i-parse as local
+                    const datePart = day.date.split('T')[0]; // "2026-10-20"
+                    const [year, month, dayNum] = datePart.split('-').map(Number);
+                    const localDate = new Date(year, month - 1, dayNum); // Local timezone
+                    
+                    formattedDate = localDate.toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                    });
+                } else {
+                    const dateObj = new Date(day.date);
+                    formattedDate = dateObj.toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                    });
+                }
                 
                 html += `
                     <tr>
-                        <td class="fw-bold">${formattedDate}<\/td>
-                        <td>${day.orderCount} order(s)<\/td>
-                        <td class="text-primary fw-bold">₱${day.totalSales.toFixed(2)}<\/td>
+                        <td class="fw-bold">${formattedDate}</td>
+                        <td>${day.orderCount} order(s)</td>
+                        <td class="text-primary fw-bold">₱${day.totalSales.toFixed(2)}</td>
                         <td>
                             <button class="btn btn-sm btn-info" onclick='showDailyOrdersModal(${JSON.stringify(day.orders)}, "${formattedDate}")'>
                                 <i class="fas fa-eye me-1"></i> View All (${day.orderCount})
                             </button>
-                        <\/td>
-                    <\/tr>
+                        </td>
+                    </tr>
                 `;
             });
             
@@ -6955,13 +7004,20 @@ function loadPerformanceData() {
         return;
     }
 
-    // Get last 30 days by default
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 30);
+   // ✅ GUMAMIT NG LOCAL DATE, HINDI UTC
+function getLocalDateString(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
 
-    const startDateStr = startDate.toISOString().split('T')[0];
-    const endDateStr = endDate.toISOString().split('T')[0];
+const endDate = new Date();
+const startDate = new Date();
+startDate.setDate(startDate.getDate() - 30);
+
+const startDateStr = getLocalDateString(startDate);
+const endDateStr = getLocalDateString(endDate);
 
     showLoading('Loading performance data...');
 
@@ -8218,8 +8274,9 @@ async function loadPendingRequests() {
                 '<span class="badge bg-danger">VOID</span>' :
                 '<span class="badge bg-warning">REFUND</span>';
             
-            const date = new Date(req.requestedAt);
-            const formattedDate = `${date.getMonth()+1}/${date.getDate()}/${date.getFullYear()}, ${date.toLocaleTimeString()}`;
+           const date = new Date(req.requestedAt);
+const formattedDate = isNaN(date.getTime()) ? req.requestedAt : 
+    `${date.getMonth()+1}/${date.getDate()}/${date.getFullYear()}, ${date.toLocaleTimeString()}`;
             
             // ✅ CORRECTED ORDER NG COLUMNS
             html += `

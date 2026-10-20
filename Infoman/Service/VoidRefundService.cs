@@ -116,12 +116,14 @@ namespace Infoman.Service
                 var rawMaterial = recipe.RawMaterial;
                 if (rawMaterial == null) continue;
 
-                decimal wasteQuantity = recipe.Quantity * orderItem.Quantity;
+                // ✅ BASE UNIT ANG ITATAGO
+                decimal wasteQuantityInBaseUnit = recipe.Quantity * orderItem.Quantity;
 
-                decimal displayQuantity = wasteQuantity;
+                // ✅ COMPUTE COST GAMIT ANG DISPLAY UNIT
+                decimal wasteQuantityInDisplayUnit = wasteQuantityInBaseUnit;
                 if (rawMaterial.BaseUnit == "g" || rawMaterial.BaseUnit == "mL")
                 {
-                    displayQuantity = wasteQuantity / 1000;
+                    wasteQuantityInDisplayUnit = wasteQuantityInBaseUnit / 1000;
                 }
 
                 var batch = await _db.RawMaterialBatches
@@ -130,6 +132,7 @@ namespace Infoman.Service
                     .FirstOrDefaultAsync();
 
                 decimal unitPrice = batch?.UnitPrice ?? rawMaterial.Price;
+                decimal totalCost = wasteQuantityInDisplayUnit * unitPrice; // ✅ TAMANG COST
 
                 var wasteReason = reason.Contains("void") ? WasteLog.WasteReason.BlendedButCancelled : WasteLog.WasteReason.CustomerCancel;
 
@@ -137,18 +140,20 @@ namespace Infoman.Service
                 {
                     RawMaterialId = recipe.RawMaterialId,
                     ProductId = orderItem.ProductId,
-                    Quantity = displayQuantity,
+                    Quantity = wasteQuantityInBaseUnit, // ✅ BASE UNIT
                     Reason = wasteReason,
                     Date = DateTime.Today,
                     RecordedBy = userId.ToString(),
-                    Notes = $"From {orderItem.Order?.OrderNumber}: {reason}"
+                    Notes = $"From {orderItem.Order?.OrderNumber}: {reason}",
+                    TotalCost = totalCost,              // ✅ MAY COST NA
+                    BatchId = batch?.BatchId            // ✅ MAY BATCH ID
                 };
                 _db.WasteLogs.Add(wasteLog);
 
                 await LogInventoryMovement(
                     rawMaterialId: recipe.RawMaterialId,
                     productId: orderItem.ProductId,
-                    quantity: wasteQuantity,
+                    quantity: wasteQuantityInBaseUnit, // ✅ BASE UNIT DIN
                     movementType: "WASTE",
                     referenceId: orderItem.Order?.OrderNumber,
                     details: $"Waste from {reason} - {orderItem.Product?.Name} (Already prepared/blended)",
@@ -320,6 +325,9 @@ namespace Infoman.Service
                 if (newTotal < 0) newTotal = 0;
                 order.TotalAmount = newTotal;
                 order.TotalRefundAmount = order.TotalRefundAmount + refundAmount;
+
+                // ✅ I-SAVE MUNA BAGO MAG-QUERY PARA MAKITA ANG TAMANG DISPOSITION STATUS
+                await _db.SaveChangesAsync();
 
                 // 6. Recompute discount if needed
                 await RecomputeOrderDiscount(order);

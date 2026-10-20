@@ -25,7 +25,7 @@ namespace Infoman.Models
         public decimal Stock { get; set; }
 
         [Required]
-        public decimal MinQty { get; set; } // minimum quantity para sa low stock alert
+        public decimal MinQty { get; set; } // minimum quantity para sa low stock alert (DISPLAY UNIT)
 
         [Required]
         public decimal Price { get; set; }
@@ -36,33 +36,47 @@ namespace Infoman.Models
 
         [DataType(DataType.Date)]
         [Display(Name = "Expiration Date")]
-        public DateTime? ExpirationDate { get; set; } // nullable kung walang expiration
+        public DateTime? ExpirationDate { get; set; }
 
         [Required]
-        public RawMaterialCategory Category { get; set; } // Fruits, Dairy, etc.
+        public RawMaterialCategory Category { get; set; }
+
         [Required]
         [Display(Name = "Unit")]
         [StringLength(50)]
         public string Unit { get; set; }
-        [Required]
-        [StringLength(50)]
-        public string BaseUnit { get; set; } = "g";  // grams, milliliters, pieces
 
         [Required]
-        public decimal ConversionFactor { get; set; } = 1;  // 1 kg = 1000 g → factor = 1000
+        [StringLength(50)]
+        public string BaseUnit { get; set; } = "g";
+
+        [Required]
+        public decimal ConversionFactor { get; set; } = 1;
 
         // Computed property for total value
         public decimal TotalValue => Stock * Price;
 
+        public bool IsDeleted { get; set; } = false;
+
+        public virtual ICollection<RawMaterialBatch> Batches { get; set; }
+
+        public RawMaterial()
+        {
+            Batches = new HashSet<RawMaterialBatch>();
+        }
+
+        // ✅ ITO ANG FIX SA STATUS
+        // Dapat i-compare ang Stock (base unit) sa MinQtyInBaseUnit
         [StringLength(50)]
         public string Status
         {
             get
             {
-                if (Stock == 0)
+                if (Stock <= 0)
                     return "No Stock";
 
-                if (Stock <= MinQty)
+                // ✅ GAMITIN ANG MinQtyInBaseUnit PARA TUGMA SA STOCK
+                if (Stock <= MinQtyInBaseUnit)
                     return "Low Stock";
 
                 if (ExpirationDate.HasValue && ExpirationDate.Value <= DateTime.Today.AddDays(3))
@@ -71,48 +85,56 @@ namespace Infoman.Models
                 return "In Stock";
             }
         }
-        public bool IsDeleted { get; set; } = false;
 
-       
-        public virtual ICollection<RawMaterialBatch> Batches { get; set; }
-
-        public RawMaterial()
-        {
-            Batches = new HashSet<RawMaterialBatch>();
-        }
+        // ✅ ITO ANG FIX SA STOCKWITHUNIT
+        // Wag mag-divide kung ang BaseUnit ay pareho na sa Unit (e.g., g -> g)
         [StringLength(50)]
         public string StockWithUnit
         {
             get
             {
-                if (Unit == "kg" && BaseUnit == "g")
+                // ✅ KUNG BASE UNIT AT UNIT AY PAREHO, WAG MAG-DIVIDE
+                if (BaseUnit == Unit)
                 {
-                    decimal displayStock = Stock / 1000;
-                    return $"{displayStock:F2} {Unit}";
+                    return $"{Stock:F2} {Unit}";
                 }
-                else if (Unit == "L" && BaseUnit == "mL")
+
+                // ✅ KUNG BASE UNIT (g/mL) AT DISPLAY UNIT (kg/L)
+                if (BaseUnit == "g" && Unit == "kg")
                 {
-                    decimal displayStock = Stock / 1000;
-                    return $"{displayStock:F2} {Unit}";
+                    return $"{Stock / 1000:F2} {Unit}";
                 }
+                if (BaseUnit == "mL" && Unit == "L")
+                {
+                    return $"{Stock / 1000:F2} {Unit}";
+                }
+
                 return $"{Stock:F2} {Unit}";
             }
         }
+
+        // ✅ ITO ANG FIX SA MINQTYWITHUNIT
+        // Gamitin ang MinQtyInBaseUnit imbes na MinQty (na naka-display unit na)
         [StringLength(50)]
         public string MinQtyWithUnit
         {
             get
             {
-                decimal displayMinQty = MinQty;
+                decimal displayMinQty = MinQtyInBaseUnit;
 
-                // I-convert kung ang base unit ay g/mL at display unit ay kg/L
-                if (BaseUnit == "g" && Unit == "kg")
+                // ✅ KUNG BASE UNIT AT UNIT AY PAREHO, WAG MAG-DIVIDE
+                if (BaseUnit == Unit)
                 {
-                    displayMinQty = MinQty / 1000;  // 10,000 g → 10 kg
+                    displayMinQty = MinQtyInBaseUnit;
+                }
+                // ✅ KUNG BASE UNIT (g/mL) AT DISPLAY UNIT (kg/L)
+                else if (BaseUnit == "g" && Unit == "kg")
+                {
+                    displayMinQty = MinQtyInBaseUnit / 1000;
                 }
                 else if (BaseUnit == "mL" && Unit == "L")
                 {
-                    displayMinQty = MinQty / 1000;  // 10,000 mL → 10 L
+                    displayMinQty = MinQtyInBaseUnit / 1000;
                 }
 
                 return $"{displayMinQty:N1} {Unit}";

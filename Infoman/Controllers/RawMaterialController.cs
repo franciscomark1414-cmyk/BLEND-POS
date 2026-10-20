@@ -190,8 +190,6 @@ namespace Infoman.Controllers
 
             foreach (var psId in affectedProductSizeIds)
             {
-                // ✅ I-correct ang spelling: ProductSizes, hindi ProductsSizes
-                // ✅ I-correct ang spelling: RecipeItems, hindi Recipients
                 var productSize = await _context.ProductSizes
                     .Include(ps => ps.RecipeItems)
                         .ThenInclude(ri => ri.RawMaterial)
@@ -199,16 +197,41 @@ namespace Infoman.Controllers
 
                 if (productSize != null)
                 {
-                    // ✅ Tamang formula: Quantity * Price ng bawat raw material
-                    decimal totalCost = productSize.RecipeItems.Sum(ri => ri.Quantity * ri.RawMaterial.Price);
+                    // ✅ LAKTAWAN KUNG MANUAL ANG PRICE
+                    if (productSize.IsManualPrice)
+                    {
+                        continue;
+                    }
 
-                    // ✅ Kunin ang margin na naka-store sa product size
-                    decimal margin = productSize.Margin; // Default 0.3 kung wala pa
+                    decimal totalCost = 0;
+                    foreach (var ri in productSize.RecipeItems)
+                    {
+                        // ✅ I-CONVERT SA DISPLAY UNIT BAGO MAG-MULTIPLY
+                        decimal quantityForCost = ri.Quantity;
+                        if (ri.RawMaterial?.BaseUnit == "g" || ri.RawMaterial?.BaseUnit == "mL")
+                        {
+                            quantityForCost = ri.Quantity / 1000;
+                        }
 
-                    // ✅ Tamang formula: totalCost / (1 - margin)
-                    decimal newPrice = Math.Round(totalCost / (1 - margin), 2);
+                        totalCost += quantityForCost * ri.RawMaterial.Price;
+                    }
 
-                    productSize.Price = newPrice;
+                    // ✅ I-VALIDATE ANG MARGIN
+                    if (productSize.Margin <= 0 || productSize.Margin >= 1)
+                    {
+                        continue;
+                    }
+
+                    // ✅ I-ROUND SA ENDING 9
+                    decimal computedPrice = totalCost / (1 - productSize.Margin);
+                    decimal rounded = Math.Round(computedPrice, 0, MidpointRounding.AwayFromZero);
+                    decimal basePrice = Math.Floor(rounded / 10) * 10;
+                    decimal finalPrice = basePrice + 9;
+
+                    if (finalPrice < rounded) finalPrice += 10;
+                    if (finalPrice < 10 && finalPrice > 0) finalPrice = 9;
+
+                    productSize.Price = finalPrice;
                 }
             }
 
@@ -478,21 +501,28 @@ namespace Infoman.Controllers
                 System.Diagnostics.Debug.WriteLine($"IsExpired: {isExpired}");
                 System.Diagnostics.Debug.WriteLine($"WarningMessage: {warningMessage}");
 
-                decimal quantityInBaseUnit = request.Quantity;
+            decimal quantityInBaseUnit = request.Quantity;
 
-                // Conversion
-                if (rawMaterial.BaseUnit == "g" && request.Unit == "kg")
-                {
-                    quantityInBaseUnit = request.Quantity * 1000;
-                    System.Diagnostics.Debug.WriteLine($"Converted: {request.Quantity} kg → {quantityInBaseUnit} g");
-                }
-                else if (rawMaterial.BaseUnit == "mL" && request.Unit == "L")
-                {
-                    quantityInBaseUnit = request.Quantity * 1000;
-                    System.Diagnostics.Debug.WriteLine($"Converted: {request.Quantity} L → {quantityInBaseUnit} mL");
-                }
+            // ✅ FALLBACK: Kung walang ipinadala na Unit, gamitin ang Unit ng RawMaterial
+            string inputUnit = string.IsNullOrEmpty(request.Unit) ? rawMaterial.Unit : request.Unit;
 
-                var batch = new RawMaterialBatch
+            // ✅ TAMANG CONVERSION BASE SA UNIT
+            if (rawMaterial.BaseUnit == "g" && inputUnit == "kg")
+            {
+                quantityInBaseUnit = request.Quantity * 1000;
+            }
+            else if (rawMaterial.BaseUnit == "mL" && inputUnit == "L")
+            {
+                quantityInBaseUnit = request.Quantity * 1000;
+            }
+            else if (rawMaterial.BaseUnit == "g" && inputUnit == "g")
+            {
+                // 1:1 conversion, no change needed
+                quantityInBaseUnit = request.Quantity;
+            }
+            // Add other units if necessary (pcs, etc.)
+
+            var batch = new RawMaterialBatch
                 {
                     RawMaterialId = request.RawMaterialId,
                     QuantityReceived = quantityInBaseUnit,
@@ -558,6 +588,7 @@ namespace Infoman.Controllers
         }
 
         // Helper method para mag-update ng product prices
+        // Helper method para mag-update ng product prices
         private async Task UpdateProductPricesForRawMaterial(int rawMaterialId)
         {
             // Hanapin ang lahat ng recipe items na gumagamit ng raw material na ito
@@ -581,17 +612,44 @@ namespace Infoman.Controllers
 
                 if (productSize != null)
                 {
-                    // Compute total cost gamit ang ACTIVE BATCH PRICE (FEFO)
+                    // ✅ LAKTAWAN KUNG MANUAL ANG PRICE
+                    if (productSize.IsManualPrice)
+                    {
+                        continue;
+                    }
+
                     decimal totalCost = 0;
                     foreach (var ri in productSize.RecipeItems)
                     {
                         decimal activePrice = await GetActiveBatchPrice(ri.RawMaterialId);
-                        totalCost += ri.Quantity * activePrice;
+
+                        // ✅ I-CONVERT SA DISPLAY UNIT BAGO MAG-MULTIPLY
+                        decimal quantityForCost = ri.Quantity;
+                        if (ri.RawMaterial?.BaseUnit == "g" || ri.RawMaterial?.BaseUnit == "mL")
+                        {
+                            quantityForCost = ri.Quantity / 1000;
+                        }
+
+                        totalCost += quantityForCost * activePrice;
                     }
 
-                    // Compute new selling price gamit ang existing margin
-                    decimal newPrice = Math.Round(totalCost / (1 - productSize.Margin), 2);
-                    productSize.Price = newPrice;
+                    // ✅ I-VALIDATE ANG MARGIN
+                    if (productSize.Margin <= 0 || productSize.Margin >= 1)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"⚠️ WARNING: Invalid margin ({productSize.Margin}) for ProductSize #{productSize.ProductSizeId}. Skipping price update.");
+                        continue;
+                    }
+
+                    // ✅ I-COMPUTE AT I-ROUND SA ENDING 9
+                    decimal computedPrice = totalCost / (1 - productSize.Margin);
+                    decimal rounded = Math.Round(computedPrice, 0, MidpointRounding.AwayFromZero);
+                    decimal basePrice = Math.Floor(rounded / 10) * 10;
+                    decimal finalPrice = basePrice + 9;
+
+                    if (finalPrice < rounded) finalPrice += 10;
+                    if (finalPrice < 10 && finalPrice > 0) finalPrice = 9;
+
+                    productSize.Price = finalPrice;
                 }
             }
 

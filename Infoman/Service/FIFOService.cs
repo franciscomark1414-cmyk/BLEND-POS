@@ -1,6 +1,7 @@
 ﻿using Infoman.Data;
 using Infoman.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -31,17 +32,24 @@ namespace Infoman.Service
 
             foreach (var batch in expiredBatches)
             {
-                // I-move ang stock sa waste
+               
+                // ✅ I-CONVERT SA DISPLAY UNIT BAGO MAG-COMPUTE NG COST
+                decimal qtyInDisplayUnit = batch.QuantityRemaining;
+                if (batch.RawMaterial.BaseUnit == "g" || batch.RawMaterial.BaseUnit == "mL")
+                {
+                    qtyInDisplayUnit = batch.QuantityRemaining / 1000;
+                }
+
                 var wasteLog = new WasteLog
                 {
                     RawMaterialId = batch.RawMaterialId,
-                    Quantity = batch.QuantityRemaining,
+                    Quantity = batch.QuantityRemaining, // Base unit pa rin ang i-save sa DB
                     Reason = WasteReason.Expired,
                     Date = DateTime.Today,
                     RecordedBy = "System",
                     Notes = $"Auto-generated from expired batch received on {batch.ReceivedDate}",
-                    BatchId = batch.BatchId,  // ✅ SAVE THE BATCH ID
-                    TotalCost = batch.QuantityRemaining * batch.UnitPrice
+                    BatchId = batch.BatchId,
+                    TotalCost = qtyInDisplayUnit * batch.UnitPrice // ✅ TAMA NA
                 };
 
                 _context.WasteLogs.Add(wasteLog);
@@ -183,14 +191,22 @@ namespace Infoman.Service
 
         // ========== 4. DEDUCT STOCK WITH COST TRACKING ==========
         public async Task<(bool success, decimal totalCost, List<BatchUsageDetail> usedBatches)> DeductStockWithCostAsync(
-     int rawMaterialId,
-     decimal quantity,
-     int productId,
-     string referenceNo,
-     int? orderId = null,
-     int? productSizeId = null)
+        int rawMaterialId,
+        decimal quantity,
+        int productId,
+        string referenceNo,
+        int? orderId = null,
+        int? productSizeId = null)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            // ✅ CHECK KUNG MAY EXISTING TRANSACTION NA (e.g., galing sa ExchangeService)
+            var currentTransaction = _context.Database.CurrentTransaction;
+            bool shouldCreateTransaction = currentTransaction == null;
+            IDbContextTransaction transaction = null;
+
+            if (shouldCreateTransaction)
+            {
+                transaction = await _context.Database.BeginTransactionAsync();
+            }
 
             try
             {
@@ -216,7 +232,15 @@ namespace Infoman.Service
                     if (remainingToDeduct <= 0) break;
 
                     decimal deductFromBatch = Math.Min(remainingToDeduct, batch.QuantityRemaining);
-                    decimal batchCost = deductFromBatch * batch.UnitPrice;
+
+                    // ✅ I-CONVERT SA DISPLAY UNIT PARA SA COSTING
+                    decimal deductInDisplayUnit = deductFromBatch;
+                    if (batch.RawMaterial?.BaseUnit == "g" || batch.RawMaterial?.BaseUnit == "mL")
+                    {
+                        deductInDisplayUnit = deductFromBatch / 1000;
+                    }
+
+                    decimal batchCost = deductInDisplayUnit * batch.UnitPrice;
 
                     usedBatches.Add(new BatchUsageDetail
                     {
@@ -243,20 +267,30 @@ namespace Infoman.Service
                         DateUsed = DateTime.Now,
                         ReferenceNo = referenceNo,
                         ProductId = productId,
-                        OrderId = orderId,           // ✅ IDAGDAG ITO
-                        ProductSizeId = productSizeId  // ✅ IDAGDAG ITO
+                        OrderId = orderId,
+                        ProductSizeId = productSizeId
                     });
                 }
 
                 await UpdateMainStockColumn(rawMaterialId);
                 await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
+
+                // ✅ I-COMMIT LANG KUNG TAYO ANG NAG-OPEN NG TRANSACTION
+                if (shouldCreateTransaction && transaction != null)
+                {
+                    await transaction.CommitAsync();
+                }
 
                 return (true, totalCost, usedBatches);
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                // ✅ I-ROLLBACK LANG KUNG TAYO ANG NAG-OPEN NG TRANSACTION
+                // Kung galing sa ExchangeService, hahayaan natin sila ang mag-rollback
+                if (shouldCreateTransaction && transaction != null)
+                {
+                    await transaction.RollbackAsync();
+                }
                 throw;
             }
         }
@@ -343,9 +377,12 @@ namespace Infoman.Service
         // ========== 9. HELPER: UPDATE MAIN STOCK COLUMN ==========
         private async Task UpdateMainStockColumn(int rawMaterialId)
         {
-            var totalRemaining = await _context.RawMaterialBatches
+            // ✅ KUNIN ANG STOCK MULA SA IN-MEMORY BATCHES, HINDI SA DATABASE
+            var batches = await _context.RawMaterialBatches
                 .Where(b => b.RawMaterialId == rawMaterialId)
-                .SumAsync(b => (decimal?)b.QuantityRemaining) ?? 0;
+                .ToListAsync();
+
+            decimal totalRemaining = batches.Sum(b => b.QuantityRemaining);
 
             var rawMaterial = await _context.RawMaterials.FindAsync(rawMaterialId);
             if (rawMaterial != null)
@@ -375,14 +412,22 @@ namespace Infoman.Service
                     // May nabawas (spoilage/damage) - gumawa ng waste log
                     decimal wastedQty = oldQuantity - newQuantity;
 
+                    // ✅ I-CONVERT SA DISPLAY UNIT PARA SA COSTING
+                    decimal wastedQtyInDisplayUnit = wastedQty;
+                    if (batch.RawMaterial?.BaseUnit == "g" || batch.RawMaterial?.BaseUnit == "mL")
+                    {
+                        wastedQtyInDisplayUnit = wastedQty / 1000;
+                    }
+
                     var wasteLog = new WasteLog
                     {
                         RawMaterialId = batch.RawMaterialId,
-                        Quantity = wastedQty,
+                        Quantity = wastedQty, // Base unit sa DB
                         Reason = WasteReason.Damaged,
                         Date = DateTime.Today,
                         RecordedBy = "Owner",
-                        Notes = $"Manual adjustment from batch #{batchId}: {reason}"
+                        Notes = $"Manual adjustment from batch #{batchId}: {reason}",
+                        TotalCost = wastedQtyInDisplayUnit * batch.UnitPrice // ✅ IDINAGDAG ANG COST
                     };
                     _context.WasteLogs.Add(wasteLog);
                 }

@@ -117,6 +117,14 @@ namespace Infoman.Controllers
                     .SumAsync(b => b.QuantityRemaining);
 
                 // ✅ FIX: Convert recipeItem.Quantity to kg/L to match availableQty
+                // ✅ I-VALIDATE ANG RECIPE QUANTITY
+                if (recipeItem.Quantity <= 0)
+                {
+                    System.Diagnostics.Debug.WriteLine($"⚠️ WARNING: Recipe quantity is 0 for {recipeItem.RawMaterial.Name}. Skipping...");
+                    continue; // I-skip kung zero para hindi mag-crash
+                }
+
+                // ✅ FIX: Convert recipeItem.Quantity to kg/L to match availableQty
                 decimal quantityPerOrder = recipeItem.Quantity;
                 if (recipeItem.RawMaterial.BaseUnit == "g" || recipeItem.RawMaterial.BaseUnit == "mL")
                 {
@@ -180,6 +188,18 @@ namespace Infoman.Controllers
                 if (productSize == null)
                     return Json(new { success = false, message = "Product not found" });
 
+                // ✅ BAGONG VALIDATION PARA SA FOREIGN KEY ERROR
+                // Hanapin ang "Available" status dynamically imbes na hardcoded na 1
+                var availableStatus = await _db.ItemDispositionStatuses
+                    .FirstOrDefaultAsync(s => s.StatusName == "Available");
+
+                if (availableStatus == null)
+                {
+                    return Json(new { success = false, message = "System Error: 'Available' status is missing in the database. Please run the SQL script to seed ItemDispositionStatus." });
+                }
+
+                int targetDispositionStatusId = availableStatus.DispositionId;
+
                 if (request.Quantity <= 0)
                     return Json(new { success = false, message = "Invalid quantity" });
 
@@ -221,7 +241,7 @@ namespace Infoman.Controllers
 
                 orderId = order.OrderId;
 
-                // ✅ I-add ang item sa existing order
+                // ✅ I-add ang item sa existing order (GINAMIT NA ANG DYNAMIC ID)
                 var orderItem = new OrderItem
                 {
                     OrderId = orderId,
@@ -230,14 +250,14 @@ namespace Infoman.Controllers
                     Quantity = request.Quantity,
                     Price = productSize.Price,
                     ActualCost = 0,
-                    DispositionStatusId = 1
+                    DispositionStatusId = targetDispositionStatusId // ✅ DITO IPINASOK ANG VARIABLE
                 };
                 _db.OrderItems.Add(orderItem);
                 await _db.SaveChangesAsync();  // ✅ I-save muna ang item
 
                 // ✅ I-recompute ang order total (i-reload ang items)
                 var allItems = await _db.OrderItems
-                    .Where(oi => oi.OrderId == orderId && oi.DispositionStatusId == 1)
+                    .Where(oi => oi.OrderId == orderId && oi.DispositionStatusId == targetDispositionStatusId) // ✅ GINAMIT DIN DITO
                     .ToListAsync();
 
                 decimal newSubtotal = allItems.Sum(i => i.Price * i.Quantity);
@@ -499,6 +519,13 @@ namespace Infoman.Controllers
                         System.Diagnostics.Debug.WriteLine($"Available (display): {availableQtyInDisplayUnit} {recipe.RawMaterial.Unit}");
                         System.Diagnostics.Debug.WriteLine($"Recipe Quantity: {recipe.Quantity} {recipe.UnitUsed}");
                         System.Diagnostics.Debug.WriteLine($"Per Order (display): {quantityPerOrder} {recipe.RawMaterial.Unit}");
+
+                        // ✅ I-VALIDATE ANG RECIPE QUANTITY
+                        if (quantityPerOrder <= 0)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"⚠️ WARNING: Recipe quantity is 0 for {recipe.RawMaterial.Name}. Skipping...");
+                            continue; // I-skip kung zero para hindi mag-crash
+                        }
 
                         // ✅ NOW both are in the SAME UNIT (kg or L)
                         int possibleOrders = (int)(availableQtyInDisplayUnit / quantityPerOrder);
@@ -768,6 +795,13 @@ namespace Infoman.Controllers
                 {
                     var material = await _db.RawMaterials.FindAsync(recipe.RawMaterialId);
 
+                    // ✅ ILIPAT ANG NULL CHECK DITO PARA HINDI MAG-CRASH
+                    if (material == null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"⚠️ WARNING: Material with ID {recipe.RawMaterialId} not found. Skipping...");
+                        continue;
+                    }
+
                     System.Diagnostics.Debug.WriteLine($"=== ACTUAL DATABASE VALUES ===");
                     System.Diagnostics.Debug.WriteLine($"Raw Material: {material.Name}");
                     System.Diagnostics.Debug.WriteLine($"Material.Unit: {material.Unit}");
@@ -777,8 +811,6 @@ namespace Infoman.Controllers
                     System.Diagnostics.Debug.WriteLine($"Recipe.UnitUsed: {recipe.UnitUsed}");
                     System.Diagnostics.Debug.WriteLine($"OrderItem.Quantity: {orderItem.Quantity}");
                     System.Diagnostics.Debug.WriteLine($"==============================");
-
-                    if (material == null) continue;
 
                     decimal totalNeeded = recipe.Quantity * orderItem.Quantity;
                     decimal totalForBatch = totalNeeded;

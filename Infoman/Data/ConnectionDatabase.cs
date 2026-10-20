@@ -35,6 +35,7 @@ namespace Infoman.Data
         public DbSet<ExchangeItem> ExchangeItems { get; set; }
         public DbSet<Payment> Payments { get; set; }
         public DbSet<StockAdjustmentLog> StockAdjustmentLogs { get; set; }
+        public DbSet<ItemDispositionStatus> ItemDispositionStatuses { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -88,8 +89,6 @@ namespace Infoman.Data
 
             modelBuilder.Entity<ProductionUsage>()
                 .ToTable("ProductionUsages");
-
-            modelBuilder.Ignore<ItemDispositionStatus>();
 
 
         }

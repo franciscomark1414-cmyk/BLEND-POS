@@ -1646,7 +1646,7 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="button" class="btn btn-success" onclick="confirmRestock()">✅ Add Stock</button>
+                        <button type="button" class="btn btn-success" onclick="confirmRestock(event)">✅ Add Stock</button>
                     </div>
                 </div>
             </div>
@@ -5166,22 +5166,28 @@ function loadLowStockTab(items) {
     function showAddWasteModal() { document.getElementById('wasteForm').reset(); new bootstrap.Modal(document.getElementById('addWasteModal')).show(); }
         let currentRestockMaterialId = null;
 
-    async function restockMaterial(materialId) {
-        // Hanapin ang material details mula sa table
-        const row = document.querySelector(`#lowStockContent table tbody tr td:first-child`); // Need i-improve
+     let currentRestockUnit = ''; // ✅ IDINAGDAG ITO SA TAAS NG FUNCTION O SA GLOBAL SCOPE
 
-        // Alternative: Fetch material details from server
+    async function restockMaterial(materialId) {
         fetch(`/RawMaterial/GetMaterialDetails/${materialId}`)
             .then(response => response.json())
             .then(async (data) => {
                 if (data.success) {
                     currentRestockMaterialId = materialId;
+                    currentRestockUnit = data.unit; // ✅ I-SAVE ANG UNIT
+                    
                     document.getElementById('restockMaterialId').value = materialId;
                     document.getElementById('restockMaterialName').value = data.name;
                     document.getElementById('restockCurrentStock').value = `${data.stock} ${data.unit}`;
                     document.getElementById('restockQuantity').value = '';
                     document.getElementById('restockUnitPrice').value = data.price;
                     document.getElementById('restockExpiryDate').value = '';
+
+                    // ✅ I-UPDATE ANG LABEL PARA MAKITA NG USER ANG UNIT
+                    const qtyLabel = document.querySelector('label[for="restockQuantity"]');
+                    if (qtyLabel) {
+                        qtyLabel.innerHTML = `Quantity to Add (${data.unit}) <span class="text-danger">*</span>`;
+                    }
 
                     new bootstrap.Modal(document.getElementById('restockModal')).show();
                 } else {
@@ -5190,13 +5196,15 @@ function loadLowStockTab(items) {
             })
             .catch(error => {
                 console.error('Error:', error);
-                  showAlert('Error loading material details', 'Error');
+                showAlert('Error loading material details', 'Error');
             });
     }
 
-  async function confirmRestock(event) {  // ← IDAGDAG ANG 'event' PARAMETER
+  async function confirmRestock(event) {  
+    if (event) event.preventDefault();
+
     const materialId = document.getElementById('restockMaterialId').value;
-    const quantity = document.getElementById('restockQuantity').value;
+    const quantity = parseFloat(document.getElementById('restockQuantity').value);
     const unitPrice = document.getElementById('restockUnitPrice').value;
     const expiryDate = document.getElementById('restockExpiryDate').value;
 
@@ -5215,10 +5223,16 @@ function loadLowStockTab(items) {
 
     const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
 
-    const submitBtn = event.target;  // ← Ngayon may event na
+    const submitBtn = event.target;
     const originalText = submitBtn.innerHTML;
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
     submitBtn.disabled = true;
+
+    // ✅ CONVERT TO BASE UNIT (g or mL) BAGO IPASA SA SERVER
+    let quantityForBackend = quantity;
+    if (typeof currentRestockUnit !== 'undefined' && (currentRestockUnit === 'kg' || currentRestockUnit === 'L')) {
+        quantityForBackend = quantity * 1000; 
+    }
 
     try {
         const response = await fetch('/RawMaterial/AddDelivery', {
@@ -5229,7 +5243,7 @@ function loadLowStockTab(items) {
             },
             body: JSON.stringify({
                 rawMaterialId: parseInt(materialId),
-                quantity: parseFloat(quantity),
+                quantity: quantityForBackend, // ✅ GAMITIN ANG CONVERTED VALUE
                 unitPrice: parseFloat(unitPrice),
                 expiryDate: expiryDate || null
             })

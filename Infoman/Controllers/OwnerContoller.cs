@@ -1180,6 +1180,11 @@ namespace Infoman.Controllers
                 totalCost += quantityForCost * unitPrice;
             }
 
+            if (productSize.Margin <= 0 || productSize.Margin >= 1)
+            {
+                return Json(new { success = false, message = "Invalid margin value. Margin must be between 0 and 1 (e.g., 0.3 for 30%)." });
+            }
+
             // ✅ APPLY FIXED ENDING 9 PRICING
             decimal computedPrice = totalCost / (1 - productSize.Margin);
             decimal newAutoPrice = RoundToPriceEnding(computedPrice);
@@ -3063,8 +3068,8 @@ namespace Infoman.Controllers
                         employeeId = a.UserId,
                         employeeName = a.Employee != null ? a.Employee.FullName : "Unknown",
                         date = a.Date,
-                        checkInTime = a.CheckInTime.HasValue ? a.CheckInTime.Value.ToString(@"hh\:mm tt") : null,
-                        checkOutTime = a.CheckOutTime.HasValue ? a.CheckOutTime.Value.ToString(@"hh\:mm tt") : null,
+                        checkInTime = a.CheckInTime.HasValue ? DateTime.Today.Add(a.CheckInTime.Value).ToString("hh:mm tt") : null,
+                        checkOutTime = a.CheckOutTime.HasValue ? DateTime.Today.Add(a.CheckOutTime.Value).ToString("hh:mm tt") : null,
                         hoursWorked = a.HoursWorked,
                         status = a.Status.ToString(),
                         isPresent = a.Status == AttendanceStatus.Present,
@@ -3209,8 +3214,8 @@ namespace Infoman.Controllers
                     .Select(a => new
                     {
                         a.Date,
-                        checkInTime = a.CheckInTime.HasValue ? a.CheckInTime.Value.ToString(@"hh\:mm tt") : null,
-                        checkOutTime = a.CheckOutTime.HasValue ? a.CheckOutTime.Value.ToString(@"hh\:mm tt") : null,
+                        checkInTime = a.CheckInTime.HasValue ? DateTime.Today.Add(a.CheckInTime.Value).ToString("hh:mm tt") : null,
+                        checkOutTime = a.CheckOutTime.HasValue ? DateTime.Today.Add(a.CheckOutTime.Value).ToString("hh:mm tt") : null,
                         a.HoursWorked,
                         status = a.Status.ToString()
                     })
@@ -3318,19 +3323,18 @@ namespace Infoman.Controllers
                 string checkOutTimeStr = null;
                 decimal hoursWorked = 0;
                 bool isOnline = false;
-
                 if (attendance != null)
                 {
                     if (attendance.CheckInTime.HasValue)
                     {
-                        var checkIn = attendance.CheckInTime.Value;
-                        checkInTimeStr = $"{checkIn.Hours:D2}:{checkIn.Minutes:D2}";
+                        // ✅ GINAWANG 12-HOUR FORMAT (AM/PM)
+                        checkInTimeStr = DateTime.Today.Add(attendance.CheckInTime.Value).ToString("hh:mm tt");
                     }
 
                     if (attendance.CheckOutTime.HasValue)
                     {
-                        var checkOut = attendance.CheckOutTime.Value;
-                        checkOutTimeStr = $"{checkOut.Hours:D2}:{checkOut.Minutes:D2}";
+                        // ✅ GINAWANG 12-HOUR FORMAT (AM/PM)
+                        checkOutTimeStr = DateTime.Today.Add(attendance.CheckOutTime.Value).ToString("hh:mm tt");
                     }
 
                     hoursWorked = attendance.HoursWorked;

@@ -19,7 +19,7 @@ namespace Infoman.Controllers
         public IActionResult Login()
         {
             // ✅ NO AUTO-REDIRECT - para makapag-login sa kabilang tab
-            ViewBag.Layout = "_LoginLayout";
+          
             return View();
         }
 

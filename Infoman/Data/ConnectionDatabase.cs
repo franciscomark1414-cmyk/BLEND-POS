@@ -36,6 +36,7 @@ namespace Infoman.Data
         public DbSet<Payment> Payments { get; set; }
         public DbSet<StockAdjustmentLog> StockAdjustmentLogs { get; set; }
         public DbSet<ItemDispositionStatus> ItemDispositionStatuses { get; set; }
+        public DbSet<Category> Categories { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -208,6 +209,37 @@ namespace Infoman.Data
             modelBuilder.Entity<EmployeeAttendance>()
                 .HasIndex(a => new { a.UserId, a.Date })
                 .IsUnique();
+
+            var seedDate = new DateTime(2026, 1, 1);
+
+            modelBuilder.Entity<Category>(e =>
+            {
+                // Type naka-store bilang text: 'RawMaterial' / 'Product'
+                e.Property(c => c.Type).HasConversion<string>().HasMaxLength(20);
+
+                // Walang duplicate name sa loob ng iisang Type (case-insensitive dahil sa SQL collation)
+                e.HasIndex(c => new { c.Type, c.Name }).IsUnique();
+
+                // Default categories. Ang Id 1-5 ay sinadyang kapareho ng lumang enum order + 1
+                // (Fruits=0 -> 1, Dairy=1 -> 2, ...) para ma-backfill ang existing raw materials.
+                e.HasData(
+                    new Category { CategoryId = 1, Name = "Fruits", Type = CategoryType.RawMaterial, IsActive = true, CreatedAt = seedDate },
+                    new Category { CategoryId = 2, Name = "Dairy", Type = CategoryType.RawMaterial, IsActive = true, CreatedAt = seedDate },
+                    new Category { CategoryId = 3, Name = "Others", Type = CategoryType.RawMaterial, IsActive = true, CreatedAt = seedDate },
+                    new Category { CategoryId = 4, Name = "Sweeteners", Type = CategoryType.RawMaterial, IsActive = true, CreatedAt = seedDate },
+                    new Category { CategoryId = 5, Name = "Toppings", Type = CategoryType.RawMaterial, IsActive = true, CreatedAt = seedDate },
+                    new Category { CategoryId = 6, Name = "Fruit Shake", Type = CategoryType.Product, IsActive = true, CreatedAt = seedDate },
+                    new Category { CategoryId = 7, Name = "Milk Shake", Type = CategoryType.Product, IsActive = true, CreatedAt = seedDate },
+                    new Category { CategoryId = 8, Name = "Specialty", Type = CategoryType.Product, IsActive = true, CreatedAt = seedDate }
+                );
+            });
+
+            // Restrict = hindi pwedeng i-delete ang category kung may raw material na gumagamit (extra proteksyon sa DB level)
+            modelBuilder.Entity<RawMaterial>()
+                .HasOne(r => r.CategoryInfo)
+                .WithMany(c => c.RawMaterials)
+                .HasForeignKey(r => r.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
 
 
         }

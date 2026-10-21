@@ -1,16 +1,9 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Infoman.Models
 {
-    public enum RawMaterialCategory
-    {
-        Fruits,
-        Dairy,
-        Others,
-        Sweeteners,
-        Toppings
-    }
 
     public class RawMaterial
     {
@@ -38,8 +31,13 @@ namespace Infoman.Models
         [Display(Name = "Expiration Date")]
         public DateTime? ExpirationDate { get; set; }
 
-        [Required]
-        public RawMaterialCategory Category { get; set; }
+        public int? CategoryId { get; set; }
+        [ForeignKey("CategoryId")]
+        public virtual Category? CategoryInfo { get; set; }     // sinadyang HINDI "Category" para mag-error ang lumang code, hindi tahimik na magkamali
+
+        [NotMapped]
+        public string? CategoryName { get; set; }                // pang-display lang
+
 
         [Required]
         [Display(Name = "Unit")]

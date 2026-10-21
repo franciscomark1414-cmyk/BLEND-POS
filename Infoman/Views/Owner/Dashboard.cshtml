@@ -728,6 +728,9 @@
         <div class="nav-item" onclick="showModule('employees')">
             <i class="fas fa-users"></i> Employees
         </div>
+        <div class="nav-item" onclick="showModule('settings')">
+            <i class="fas fa-cog"></i> Settings
+        </div>
     </div>
 
     <div class="main-content">
@@ -894,7 +897,7 @@
                             <tr data-id="@item.RawMaterialId">
                                 <td class="sku-column">@(string.IsNullOrEmpty(item.SKU) ? "—" : item.SKU)</td>
                                 <td>@item.Name</td>
-                                <td data-value="@((int)item.Category)">@item.Category</td>
+                                <td data-value="@item.CategoryId">@item.CategoryName</td>
                                 <td data-stock="@item.Stock" data-unit="@item.Unit">@($"{item.Stock:F2} {item.Unit}")</td>
                                 <td data-minqty="@item.MinQty" data-unit="@item.Unit">@($"{item.MinQty:F2} {item.Unit}")</td>
                                 <td>@item.Status</td>
@@ -1011,7 +1014,7 @@
                                     <tr data-id="@item.RawMaterialId">
                                         <td>@(string.IsNullOrEmpty(item.SKU) ? "—" : item.SKU)</td>
                                         <td>@item.Name</td>
-                                        <td>@item.Category</td>
+                                        <td>@item.CategoryName</td>
                                         <td>@item.Unit</td>
                                         <td>@item.Status</td>
                                         <td>
@@ -1043,16 +1046,13 @@
             <input type="text" name="Name" id="Name" class="form-control" required placeholder="e.g., Apple, Mango, Flour">
         </div>
 
-        <div class="mb-3">
-            <label class="form-label fw-bold">Category <span class="text-danger">*</span></label>
-            <select name="Category" id="Category" class="form-control" required>
-                @foreach (var cat in Enum.GetValues(typeof(Infoman.Models.RawMaterialCategory)))
-                {
-                    var intValue = (int)cat;
-                    <option value="@intValue">@cat</option>
-                }
-            </select>
-        </div>
+                            <div class="mb-3">
+    <label class="form-label fw-bold">Category <span class="text-danger">*</span></label>
+    <select name="CategoryId" id="CategoryId" class="form-control" required>
+        <option value="">-- Select Category --</option>
+    </select>
+    <small class="text-muted">Manage categories in Settings → Category Management</small>
+</div>
 
         <div class="mb-3">
             <label class="form-label fw-bold">Unit <span class="text-danger">*</span></label>
@@ -1297,9 +1297,11 @@
                                     </select>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label">Category (Optional)</label>
-                                    <input type="text" name="Category" class="form-control" placeholder="e.g., Fruit Shake" />
-                                </div>
+    <label class="form-label">Category (Optional)</label>
+    <select name="Category" id="addProductCategory" class="form-control">
+        <option value="">-- Select Category (optional) --</option>
+    </select>
+</div>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Description (Optional)</label>
@@ -2136,6 +2138,98 @@
                 </div>
             </div>
         </div>
+
+        <!-- ================= SETTINGS MODULE ================= -->
+<div id="settingsModule" class="module">
+    <div class="mb-4">
+        <h2 class="mb-1">⚙️ Settings</h2>
+        <p class="text-muted">Manage system configuration</p>
+    </div>
+
+    <ul class="nav nav-tabs mb-3">
+        <li class="nav-item">
+            <button type="button" class="nav-link active">
+                <i class="fas fa-tags me-1"></i> Category Management
+            </button>
+        </li>
+    </ul>
+
+    <div class="row g-4">
+        <!-- LEFT: Category table -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Categories</h5>
+                    <select id="categoryTypeFilter" class="form-select form-select-sm" style="width: 180px;" onchange="loadCategories()">
+                        <option value="">All Types</option>
+                        <option value="RawMaterial">Raw Material</option>
+                        <option value="Product">Product</option>
+                    </select>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th style="width:130px;">Type</th>
+                                    <th style="width:100px;">Status</th>
+                                    <th style="width:150px;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="categoryTableBody">
+                                <tr><td colspan="4" class="text-center text-muted">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Add / Edit form -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0" id="categoryFormTitle">➕ Add Category</h5>
+                </div>
+                <div class="card-body">
+                    <form id="categoryForm" onsubmit="saveCategory(event)">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" id="catEditId" value="0">
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Name <span class="text-danger">*</span></label>
+                            <input type="text" id="catName" class="form-control" maxlength="100" placeholder="e.g., Frozen Fruits" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Type <span class="text-danger">*</span></label>
+                            <select id="catType" class="form-control">
+                                <option value="RawMaterial">Raw Material</option>
+                                <option value="Product">Product</option>
+                            </select>
+                            <small class="text-muted" id="catTypeHint">Decides which dropdown this category appears in.</small>
+                        </div>
+
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="catIsActive" checked>
+                            <label class="form-check-label" for="catIsActive">Active (shown in dropdowns)</label>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success flex-grow-1">
+                                <i class="fas fa-save"></i> Save
+                            </button>
+                            <button type="button" id="catCancelBtn" class="btn btn-secondary" style="display:none;" onclick="resetCategoryForm()">
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
       
 
 
@@ -3074,6 +3168,197 @@ function updateUnitDropdown(selectElement) {
     }
 }
 
+// ================= CATEGORY MANAGEMENT =================
+let categoryCache = [];
+
+function getCategoryToken() {
+    return document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+}
+
+// ---- Load + render table ----
+async function loadCategories() {
+    const tbody = document.getElementById('categoryTableBody');
+    const type = document.getElementById('categoryTypeFilter').value;
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Loading...</td></tr>';
+
+    try {
+        const res = await fetch('/Category/GetAll' + (type ? '?type=' + encodeURIComponent(type) : ''));
+        const data = await res.json();
+        categoryCache = data.categories || [];
+        renderCategoryTable();
+    } catch (err) {
+        console.error(err);
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">Error loading categories (session expired?)</td></tr>';
+    }
+}
+
+function renderCategoryTable() {
+    const tbody = document.getElementById('categoryTableBody');
+
+    if (categoryCache.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No categories yet. Add one on the right.</td></tr>';
+        return;
+    }
+
+    // Walang pangalan sa onclick (iwas apostrophe bug) - id lang ang ipinapasa
+    tbody.innerHTML = categoryCache.map(c => `
+        <tr>
+            <td>
+                <strong>${escapeHtml(c.name)}</strong><br>
+                <small class="text-muted">Used by ${c.usageCount} item(s)</small>
+            </td>
+            <td><span class="badge ${c.type === 'RawMaterial' ? 'bg-info' : 'bg-primary'}">${c.type === 'RawMaterial' ? 'Raw Material' : 'Product'}</span></td>
+            <td><span class="badge ${c.isActive ? 'bg-success' : 'bg-secondary'}">${c.isActive ? 'Active' : 'Inactive'}</span></td>
+            <td>
+                <button class="btn btn-sm btn-primary" onclick="editCategory(${c.id})"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-sm btn-danger" onclick="deleteCategory(${c.id})"><i class="fas fa-trash"></i></button>
+            </td>
+        </tr>`).join('');
+}
+
+// ---- Form helpers ----
+function resetCategoryForm() {
+    document.getElementById('catEditId').value = 0;
+    document.getElementById('catName').value = '';
+    document.getElementById('catType').value = 'RawMaterial';
+    document.getElementById('catType').disabled = false;
+    document.getElementById('catIsActive').checked = true;
+    document.getElementById('catTypeHint').innerText = 'Decides which dropdown this category appears in.';
+    document.getElementById('categoryFormTitle').innerText = '➕ Add Category';
+    document.getElementById('catCancelBtn').style.display = 'none';
+}
+
+function editCategory(id) {
+    const c = categoryCache.find(x => x.id === id);
+    if (!c) return;
+
+    document.getElementById('catEditId').value = c.id;
+    document.getElementById('catName').value = c.name;
+    document.getElementById('catType').value = c.type;
+    document.getElementById('catType').disabled = true;     // bawal palitan ang Type habang nag-e-edit
+    document.getElementById('catIsActive').checked = c.isActive;
+    document.getElementById('catTypeHint').innerText = 'Type cannot be changed once created.';
+    document.getElementById('categoryFormTitle').innerText = '✏️ Edit Category';
+    document.getElementById('catCancelBtn').style.display = 'inline-block';
+    document.getElementById('catName').focus();
+}
+
+// ---- Create / Update ----
+async function saveCategory(e) {
+    e.preventDefault();
+
+    const id = parseInt(document.getElementById('catEditId').value) || 0;
+    const payload = {
+        categoryId: id,
+        name: document.getElementById('catName').value.trim(),
+        type: document.getElementById('catType').value,
+        isActive: document.getElementById('catIsActive').checked
+    };
+
+    if (!payload.name) {
+        await showAlert('Please enter a category name.', 'Required', '⚠️');
+        return;
+    }
+
+    showLoading('Saving category...');
+    try {
+        const res = await fetch(id === 0 ? '/Category/Create' : '/Category/Update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getCategoryToken() },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        hideLoading();
+
+        if (data.success) {
+            await showAlert(data.message, 'Success', '✅');
+            resetCategoryForm();
+            await loadCategories();
+        } else {
+            await showAlert(data.message, 'Cannot Save', '❌');
+        }
+    } catch (err) {
+        hideLoading();
+        await showAlert('Error: ' + err.message, 'Error', '❌');
+    }
+}
+
+// ---- Delete (may in-use blocking modal) ----
+async function deleteCategory(id) {
+    const c = categoryCache.find(x => x.id === id);
+    if (!c) return;
+
+    const confirmed = await showConfirm(`Delete category "${c.name}"?`, 'Delete Category');
+    if (!confirmed) return;
+
+    showLoading('Deleting category...');
+    try {
+        const res = await fetch(`/Category/Delete?id=${id}`, {
+            method: 'POST',
+            headers: { 'RequestVerificationToken': getCategoryToken() }
+        });
+        const data = await res.json();
+        hideLoading();
+
+        if (data.success) {
+            await showAlert(data.message, 'Deleted', '✅');
+            resetCategoryForm();
+            await loadCategories();
+        } else if (data.inUse) {
+            // Blocking error: ipakita ang message + bilang ng apektado
+            await showAlert(data.message, 'Cannot Delete Category', '🚫');
+        } else {
+            await showAlert(data.message, 'Error', '❌');
+        }
+    } catch (err) {
+        hideLoading();
+        await showAlert('Error: ' + err.message, 'Error', '❌');
+    }
+}
+
+// ================= REUSABLE DROPDOWN LOADER =================
+// valueKey: 'id'   -> value ay CategoryId (Raw Material)
+//           'name' -> value ay pangalan   (Product, dahil string ang Product.Category)
+// selected / selectedLabel: kung na-deactivate na ang kasalukuyang category ng record,
+//                           idinadagdag pa rin ito para hindi mawala sa edit form.
+async function loadCategoryDropdown(selectId, type, opts = {}) {
+    const { valueKey = 'id', selected = null, selectedLabel = null, placeholder = '-- Select Category --' } = opts;
+    const select = document.getElementById(selectId);
+    if (!select) return;
+
+    try {
+        const res = await fetch(`/Category/GetOptions?type=${encodeURIComponent(type)}`);
+        const list = await res.json();
+
+        select.innerHTML = '';
+        const ph = document.createElement('option');
+        ph.value = '';
+        ph.textContent = placeholder;
+        select.appendChild(ph);
+
+        list.forEach(c => {
+            const o = document.createElement('option');
+            o.value = valueKey === 'name' ? c.name : String(c.id);
+            o.textContent = c.name;                      // textContent = safe sa special characters
+            select.appendChild(o);
+        });
+
+        if (selected !== null && selected !== '') {
+            const sel = String(selected);
+            if (![...select.options].some(o => o.value === sel)) {
+                const o = document.createElement('option');
+                o.value = sel;
+                o.textContent = (selectedLabel || sel) + ' (inactive)';
+                select.appendChild(o);
+            }
+            select.value = sel;
+        }
+    } catch (err) {
+        console.error('Error loading categories:', err);
+        select.innerHTML = '<option value="">-- Failed to load categories --</option>';
+    }
+}
+
 // Validation bago mag-save
 async function validateIngredientsUnits() {
     const ingredientRows = document.querySelectorAll('#ingredientsBody tr');
@@ -3201,7 +3486,7 @@ async function rejectRequest(requestId) {
  async function showModule(module) {
     
     // Hide all modules
-    var modules = ['dashboard', 'rawMaterials', 'inventory', 'products', 'inventoryAlerts', 'reports', 'employees', 'suppliers', 'receiving', 'receivingHistory', 'returns'];
+    var modules = ['dashboard', 'rawMaterials', 'inventory', 'products', 'inventoryAlerts', 'reports', 'employees', 'suppliers', 'receiving', 'receivingHistory', 'returns', 'settings'];
     modules.forEach(function(m) {
         var el = document.getElementById(m + 'Module');
         if (el) el.classList.remove('active');
@@ -3263,6 +3548,20 @@ async function rejectRequest(requestId) {
         loadApprovedReturns();
         loadSupplierReturns();
     }
+
+    if (module === 'settings') {
+    loadCategories();
+}
+if (module === 'rawMaterials') {
+    loadCategoryDropdown('CategoryId', 'RawMaterial');
+}
+if (module === 'products') {
+    loadCategoryDropdown('filterCategory', 'Product', {
+        valueKey: 'name',
+        placeholder: 'All Categories',
+        selected: document.getElementById('filterCategory')?.value || null
+    });
+}
 }
    // Toggle Add Delivery Panel (gaya ng toggleRawMaterialForm)
 function toggleAddDeliveryPanel() {
@@ -3462,7 +3761,10 @@ async function refreshDeliveryMaterialDropdown() {
         // Set form values
         document.getElementById('RawMaterialId').value = id;
         document.getElementById('Name').value = name;
-        document.getElementById('Category').value = categoryInt;
+        await loadCategoryDropdown('CategoryId', 'RawMaterial', { 
+    selected: categoryInt, 
+    selectedLabel: row.children[2]?.innerText || '' 
+});
 
         // ✅ IMPORTANT: Set the dropdown value for Unit
         var unitDropdown = document.getElementById('Unit');
@@ -3555,19 +3857,19 @@ async function refreshDeliveryMaterialDropdown() {
 
         var id = document.getElementById('RawMaterialId').value;
         var name = document.getElementById('Name').value.trim();
-        var category = parseInt(document.getElementById('Category').value);
+        var categoryId = parseInt(document.getElementById('CategoryId').value);
         var minQty = parseFloat(document.getElementById('MinQty').value) || 0;
         var unit = document.getElementById('Unit').value.trim();
 
         if (!name) { await showAlert('Please enter a name', 'Required'); return; }
 if (!unit) { await showAlert('Please enter a unit', 'Required'); return; }
-if (isNaN(category)) { await showAlert('Please select a valid category', 'Required'); return; }
+if (isNaN(categoryId)) { await showAlert('Please select a valid category', 'Required'); return; }
 
         // ✅ Hindi na kasama ang Stock, Price, at ExpirationDate
         var formData = new FormData();
         formData.append('RawMaterialId', id || '0');
         formData.append('Name', name);
-        formData.append('Category', category);
+        formData.append('CategoryId', categoryId);
         formData.append('MinQty', minQty);
         formData.append('Unit', unit);
         // Stock at Price ay hindi na isinasama
@@ -3680,6 +3982,9 @@ function showAddProductModal() {
     }
     
     form.reset();
+
+    loadCategoryDropdown('addProductCategory', 'Product', { valueKey: 'name', placeholder: '-- Select Category (optional) --' });
+
     const sizesContainer = document.getElementById('sizesContainer');
     if (sizesContainer) sizesContainer.innerHTML = '';
     sizeCounter = 0;
@@ -4121,7 +4426,11 @@ function addSizeRow(predefinedName = null) {
             document.getElementById('editProductId').value = product.productId;
             document.getElementById('editProductName').innerText = product.name;
             document.getElementById('editProductNameInput').value = product.name;
-            document.getElementById('editProductCategory').value = product.category || '';
+            await loadCategoryDropdown('editProductCategory', 'Product', {
+    valueKey: 'name',
+    selected: product.category || null,
+    placeholder: '-- No category --'
+});
             document.getElementById('editProductDescription').value = product.description || '';
             document.getElementById('editProductImagePath').value = product.imagePath || '';
             
@@ -7075,7 +7384,7 @@ const endDateStr = getLocalDateString(endDate);
         });
 }
 
-    function toggleRawMaterialForm() {
+   async function toggleRawMaterialForm() {
     var box = document.getElementById('addRawMaterialBox');
     if (box) {
         if (box.style.display === 'none' || box.style.display === '') {
@@ -7083,6 +7392,9 @@ const endDateStr = getLocalDateString(endDate);
             document.getElementById('formHeader').innerHTML = '<i class="fas fa-box"></i> Add Raw Material';
             document.getElementById('addRawMaterialForm').reset();
             document.getElementById('RawMaterialId').value = '';
+            
+            // ✅ Load categories sa dropdown
+            await loadCategoryDropdown('CategoryId', 'RawMaterial');
         } else {
             box.style.display = 'none';
         }
@@ -8930,7 +9242,7 @@ function saveAndReload() {
     let currentModule = 'dashboard';
     const modules = ['dashboard', 'rawMaterials', 'inventory', 'products', 
                      'inventoryAlerts', 'reports', 'employees',  
-                     'suppliers', 'receiving', 'receivingHistory', 'returns'];
+                     'suppliers', 'receiving', 'receivingHistory', 'returns', 'settings'];
     
     for (let i = 0; i < modules.length; i++) {
         const moduleEl = document.getElementById(modules[i] + 'Module');
@@ -9478,6 +9790,7 @@ function escapeHtml(str) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    loadCategoryDropdown('filterCategory', 'Product', { valueKey: 'name', placeholder: 'All Categories' });
     // ✅ I-CLEAR muna ang localStorage (cleanup ng dati)
     localStorage.removeItem('activeModule');
     

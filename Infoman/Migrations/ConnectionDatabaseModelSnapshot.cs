@@ -22,6 +22,104 @@ namespace Infoman.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("Infoman.Models.Category", b =>
+                {
+                    b.Property<int>("CategoryId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CategoryId"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("CategoryId");
+
+                    b.HasIndex("Type", "Name")
+                        .IsUnique();
+
+                    b.ToTable("Categories");
+
+                    b.HasData(
+                        new
+                        {
+                            CategoryId = 1,
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            IsActive = true,
+                            Name = "Fruits",
+                            Type = "RawMaterial"
+                        },
+                        new
+                        {
+                            CategoryId = 2,
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            IsActive = true,
+                            Name = "Dairy",
+                            Type = "RawMaterial"
+                        },
+                        new
+                        {
+                            CategoryId = 3,
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            IsActive = true,
+                            Name = "Others",
+                            Type = "RawMaterial"
+                        },
+                        new
+                        {
+                            CategoryId = 4,
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            IsActive = true,
+                            Name = "Sweeteners",
+                            Type = "RawMaterial"
+                        },
+                        new
+                        {
+                            CategoryId = 5,
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            IsActive = true,
+                            Name = "Toppings",
+                            Type = "RawMaterial"
+                        },
+                        new
+                        {
+                            CategoryId = 6,
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            IsActive = true,
+                            Name = "Fruit Shake",
+                            Type = "Product"
+                        },
+                        new
+                        {
+                            CategoryId = 7,
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            IsActive = true,
+                            Name = "Milk Shake",
+                            Type = "Product"
+                        },
+                        new
+                        {
+                            CategoryId = 8,
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            IsActive = true,
+                            Name = "Specialty",
+                            Type = "Product"
+                        });
+                });
+
             modelBuilder.Entity("Infoman.Models.EmployeeAttendance", b =>
                 {
                     b.Property<int>("Id")
@@ -691,7 +789,7 @@ namespace Infoman.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<int>("Category")
+                    b.Property<int?>("CategoryId")
                         .HasColumnType("int");
 
                     b.Property<decimal>("ConversionFactor")
@@ -732,6 +830,8 @@ namespace Infoman.Migrations
                         .HasColumnType("nvarchar(50)");
 
                     b.HasKey("RawMaterialId");
+
+                    b.HasIndex("CategoryId");
 
                     b.HasIndex("SKU")
                         .IsUnique()
@@ -1690,6 +1790,16 @@ namespace Infoman.Migrations
                     b.Navigation("ProductSize");
                 });
 
+            modelBuilder.Entity("Infoman.Models.RawMaterial", b =>
+                {
+                    b.HasOne("Infoman.Models.Category", "CategoryInfo")
+                        .WithMany("RawMaterials")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CategoryInfo");
+                });
+
             modelBuilder.Entity("Infoman.Models.RawMaterialBatch", b =>
                 {
                     b.HasOne("Infoman.Models.RawMaterial", "RawMaterial")
@@ -1915,6 +2025,11 @@ namespace Infoman.Migrations
                     b.Navigation("OriginalOrder");
 
                     b.Navigation("Staff");
+                });
+
+            modelBuilder.Entity("Infoman.Models.Category", b =>
+                {
+                    b.Navigation("RawMaterials");
                 });
 
             modelBuilder.Entity("Infoman.Models.ExchangeTransaction", b =>

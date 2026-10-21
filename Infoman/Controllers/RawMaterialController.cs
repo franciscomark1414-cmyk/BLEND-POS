@@ -85,6 +85,9 @@ namespace Infoman.Controllers
                 return Json(new { success = false, message = "Minimum quantity cannot be negative. Please enter 0 or a positive number." });
             }
 
+            if (!await IsValidRawMaterialCategory(material.CategoryId))
+                return Json(new { success = false, message = "Please select a valid, active category." });
+
             if (ModelState.IsValid)
             {
                 SetConversionFields(material);
@@ -197,8 +200,11 @@ namespace Infoman.Controllers
                 return Json(new { success = false, message = "Minimum quantity cannot be negative. Please enter 0 or a positive number." });
             }
 
+            if (!await IsValidRawMaterialCategory(model.CategoryId, rawMaterial.CategoryId))
+                return Json(new { success = false, message = "Please select a valid, active category." });
+
             rawMaterial.Name = model.Name;
-            rawMaterial.Category = model.Category;
+            rawMaterial.CategoryId = model.CategoryId;
             rawMaterial.MinQty = model.MinQty;
             rawMaterial.Unit = model.Unit;
             rawMaterial.Price = model.Price;
@@ -769,7 +775,7 @@ namespace Infoman.Controllers
                     r.Unit,
                     r.Price,
                     r.MinQty,
-                    r.Category,
+                    CategoryName = r.CategoryInfo != null ? r.CategoryInfo.Name : "Uncategorized",
                     r.BaseUnit,
                     r.ConversionFactor
                 })
@@ -1065,6 +1071,14 @@ namespace Infoman.Controllers
                 ("mL", "L") => quantity / 1000,
                 _ => quantity
             };
+        }
+
+        private async Task<bool> IsValidRawMaterialCategory(int? categoryId, int? currentCategoryId = null)
+        {
+            if (!categoryId.HasValue) return false;
+            if (categoryId == currentCategoryId) return true;   // hindi binago, kahit inactive na
+            return await _context.Categories.AnyAsync(c =>
+                c.CategoryId == categoryId.Value && c.Type == CategoryType.RawMaterial && c.IsActive);
         }
 
     }

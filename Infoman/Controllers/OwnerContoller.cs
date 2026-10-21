@@ -238,7 +238,8 @@ namespace Infoman.Controllers
                 {
                     r.RawMaterialId,
                     r.Name,
-                    r.Category,
+                    r.CategoryId,
+                    CategoryName = r.CategoryInfo != null ? r.CategoryInfo.Name : "Uncategorized",
                     r.MinQty,
                     r.Price,
                     r.Unit,
@@ -269,7 +270,8 @@ namespace Infoman.Controllers
                 {
                     RawMaterialId = r.RawMaterialId,
                     Name = r.Name,
-                    Category = r.Category,
+                    CategoryId = r.CategoryId,
+                    CategoryName = r.CategoryName,
                     MinQty = displayMinQty,
                     MinQtyInBaseUnit = r.MinQtyInBaseUnit, // ✅ I-SAVE PARA MAY REFERENCE
                     Price = r.Price,
@@ -289,7 +291,7 @@ namespace Infoman.Controllers
             {
                 r.RawMaterialId,
                 r.Name,
-                r.Category,
+                r.CategoryName,
                 r.Unit,
                 r.SKU,
                 Status = r.Stock <= r.MinQty ? "Low Stock" : "In Stock"
@@ -456,6 +458,9 @@ namespace Infoman.Controllers
                         );
                     return Json(new { success = false, errors = errors, message = "Please fix validation errors" });
                 }
+
+                if (!await IsValidProductCategory(model.Category))
+                    return Json(new { success = false, message = "Please select a valid product category." });
 
                 string userPrefix = model.SKU?.Trim().ToUpperInvariant() ?? "PRD";
                 string generatedProductSKU = await GenerateUniqueProductSkuAsync(userPrefix);
@@ -1321,6 +1326,7 @@ namespace Infoman.Controllers
             var today = DateTime.Today;
 
             var allMaterials = await _db.RawMaterials
+                .Include(r => r.CategoryInfo)
                 .Where(r => !r.IsDeleted)
                 .ToListAsync();
 
@@ -1353,7 +1359,7 @@ namespace Infoman.Controllers
                     {
                         r.RawMaterialId,
                         r.Name,
-                        Category = r.Category.ToString(),
+                        Category = r.CategoryInfo?.Name ?? "Uncategorized",
                         Stock = totalStockInDisplayUnit,
                         MinQty = minQtyInDisplayUnit,
                         r.Unit,
@@ -1372,6 +1378,7 @@ namespace Infoman.Controllers
 
             var expiringItems = await _db.RawMaterialBatches
                 .Include(b => b.RawMaterial)
+                .ThenInclude(r => r.CategoryInfo)
                 .Where(b => b.ExpiryDate.HasValue &&
                             b.ExpiryDate.Value >= today &&
                             b.ExpiryDate.Value <= expiringDateThreshold &&
@@ -1381,7 +1388,7 @@ namespace Infoman.Controllers
                 {
                     RawMaterialId = b.RawMaterial.RawMaterialId,
                     Name = b.RawMaterial.Name,
-                    Category = b.RawMaterial.Category.ToString(),
+                    Category = b.RawMaterial.CategoryInfo != null ? b.RawMaterial.CategoryInfo.Name : "Uncategorized",
                     ExpiringStockQuantity = (b.RawMaterial.BaseUnit == "g" && b.RawMaterial.Unit == "kg") ||
                                            (b.RawMaterial.BaseUnit == "mL" && b.RawMaterial.Unit == "L")
                         ? b.QuantityRemaining / 1000
@@ -1401,6 +1408,7 @@ namespace Infoman.Controllers
             // ========== EXPIRED ==========
             var expiredBatches = await _db.RawMaterialBatches
                 .Include(b => b.RawMaterial)
+                .ThenInclude(r => r.CategoryInfo)
                 .Where(b => b.ExpiryDate.HasValue &&
                             b.ExpiryDate.Value < today &&
                             b.QuantityRemaining > 0 &&
@@ -1413,7 +1421,7 @@ namespace Infoman.Controllers
                 {
                     RawMaterialId = g.Key.RawMaterialId,
                     Name = g.Key.Name,
-                    Category = g.Key.Category.ToString(),
+                    Category = g.Key.CategoryInfo?.Name ?? "Uncategorized",
                     ExpiredStockQuantity = g.Sum(b => b.QuantityRemaining),
                     ExpiredStockWithUnit = ((g.Key.BaseUnit == "g" && g.Key.Unit == "kg") ||
                                            (g.Key.BaseUnit == "mL" && g.Key.Unit == "L"))
@@ -3627,12 +3635,14 @@ namespace Infoman.Controllers
         public async Task<IActionResult> GetInventoryData()
         {
             var rawMaterialsData = await _db.RawMaterials
+                .Include(r => r.CategoryInfo)
                 .Where(r => !r.IsDeleted)
                 .Select(r => new
                 {
                     r.RawMaterialId,
                     r.Name,
-                    r.Category,
+                    r.CategoryId,
+                    CategoryName = r.CategoryInfo != null ? r.CategoryInfo.Name : "Uncategorized",
                     r.MinQty,
                     r.Price,
                     r.Unit,
@@ -3662,7 +3672,7 @@ namespace Infoman.Controllers
                 {
                     r.RawMaterialId,
                     Name = r.Name,
-                    Category = r.Category.ToString(),
+                    Category = r.CategoryName,
                     Stock = displayStock,
                     MinQty = displayMinQty,
                     Unit = r.Unit,
@@ -3911,6 +3921,9 @@ namespace Infoman.Controllers
                 if (product == null)
                     return Json(new { success = false, message = "Product not found" });
 
+                if (!await IsValidProductCategory(request.Category, product.Category))
+                    return Json(new { success = false, message = "Please select a valid product category." });
+
                 // Update basic info
                 product.Name = request.Name;
                 product.Category = request.Category ?? "";
@@ -4143,6 +4156,16 @@ namespace Infoman.Controllers
         {
             return ex.InnerException is Microsoft.Data.SqlClient.SqlException sql
                 && (sql.Number == 2601 || sql.Number == 2627);
+        }
+
+        private async Task<bool> IsValidProductCategory(string? name, string? currentName = null)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return true; // optional pa rin
+            name = name.Trim();
+            if (currentName != null && string.Equals(name, currentName.Trim(), StringComparison.OrdinalIgnoreCase))
+                return true; // hindi binago
+            return await _db.Categories.AnyAsync(c =>
+                c.Type == CategoryType.Product && c.IsActive && c.Name == name);
         }
 
 

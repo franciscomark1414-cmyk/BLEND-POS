@@ -36,11 +36,37 @@ namespace Infoman.Controllers
         {
             return View();
         }
-        private string GenerateRawMaterialSKU(string name)
+        private async Task<string> GenerateRawMaterialSKUAsync(string name)
         {
             string prefix = "RM";
-            string code = name.Length >= 3 ? name.Substring(0, 3).ToUpper() : name.ToUpper();
-            return $"{prefix}-{code}";
+            string code = name.Length >= 3
+                ? name.Substring(0, 3).ToUpperInvariant()
+                : name.ToUpperInvariant();
+
+            // Base SKU
+            string baseSku = $"{prefix}-{code}";
+
+            // Check kung existing na
+            bool exists = await _context.RawMaterials
+                .AnyAsync(r => r.SKU == baseSku && !r.IsDeleted);
+
+            if (!exists) return baseSku;
+
+            // Collision → append numeric suffix (RM-MAN-01, RM-MAN-02, ...)
+            // Kunin ang lahat ng existing with same prefix
+            var existingSkus = await _context.RawMaterials
+                .Where(r => r.SKU != null && r.SKU.StartsWith(baseSku + "-") && !r.IsDeleted)
+                .Select(r => r.SKU)
+                .ToListAsync();
+
+            int max = 0;
+            foreach (var sku in existingSkus)
+            {
+                var suffix = sku.Substring((baseSku + "-").Length);
+                if (int.TryParse(suffix, out var n) && n > max) max = n;
+            }
+
+            return $"{baseSku}-{(max + 1):D2}";
         }
 
         // CREATE - POST
@@ -80,13 +106,33 @@ namespace Infoman.Controllers
                     material.ExpirationDate = null;
 
                 if (string.IsNullOrEmpty(material.SKU))
-                    material.SKU = GenerateRawMaterialSKU(material.Name);
+                    material.SKU = await GenerateRawMaterialSKUAsync(material.Name);
 
                 material.IsDeleted = false;
                 material.Stock = 0;
 
                 _context.Add(material);
-                await _context.SaveChangesAsync();
+                const int maxRetries = 3;
+                for (int attempt = 1; attempt <= maxRetries; attempt++)
+                {
+                    try
+                    {
+                        await _context.SaveChangesAsync();
+                        break;
+                    }
+                    catch (DbUpdateException ex) when (IsUniqueViolation(ex) && attempt < maxRetries)
+                    {
+                        // Race condition — may nag-save ng parehong SKU
+                        if (string.IsNullOrEmpty(material.SKU) || material.SKU.StartsWith("RM-"))
+                        {
+                            material.SKU = await GenerateRawMaterialSKUAsync(material.Name);
+                        }
+                        else
+                        {
+                            throw;
+                        }
+                    }
+                }
                 return Json(new { success = true, material });
             }
 
@@ -999,6 +1045,12 @@ namespace Infoman.Controllers
             public decimal NewQuantity { get; set; }
             public string Reason { get; set; }
             public string Notes { get; set; }
+        }
+
+        private static bool IsUniqueViolation(DbUpdateException ex)
+        {
+            return ex.InnerException is Microsoft.Data.SqlClient.SqlException sql
+                && (sql.Number == 2601 || sql.Number == 2627);
         }
 
         private decimal ConvertToBaseUnit(decimal quantity, string fromUnit, string toBaseUnit)

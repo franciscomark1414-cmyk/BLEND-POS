@@ -233,13 +233,28 @@ namespace Infoman.Controllers
                         DiscountType = string.IsNullOrEmpty(request.DiscountType) ? "None" : request.DiscountType,
                         DiscountPercent = request.DiscountPercent,
                         DiscountAmount = 0,
-                        ReceiptNumber = $"RC-{DateTime.Now:yyyyMMdd}-{new Random().Next(1000, 9999)}",
+                        ReceiptNumber = await GenerateUniqueReceiptNumberAsync(),
                         OriginalTotalAmount = 0,
                         CreatedAt = DateTime.Now,
                         StaffUserId = userId
                     };
                     _db.Orders.Add(order);
-                    await _db.SaveChangesAsync();
+                    const int maxRetries = 3;
+                    for (int attempt = 1; attempt <= maxRetries; attempt++)
+                    {
+                        try
+                        {
+                            await _db.SaveChangesAsync();
+                            break; // ✅ Tagumpay
+                        }
+                        catch (DbUpdateException ex) when (IsUniqueViolation(ex) && attempt < maxRetries)
+                        {
+                            // Race condition — may nag-save ng parehong ReceiptNumber
+                            _db.Entry(order).State = EntityState.Detached;
+                            order.ReceiptNumber = await GenerateUniqueReceiptNumberAsync();
+                            _db.Orders.Add(order);
+                        }
+                    }
                 }
 
                 orderId = order.OrderId;
@@ -346,6 +361,27 @@ namespace Infoman.Controllers
             });
         }
 
+        private async Task<string> GenerateUniqueReceiptNumberAsync()
+        {
+            string datePart = DateTime.Now.ToString("yyyyMMdd");
+            string prefix = $"RC-{datePart}-";
+
+            // Kunin lahat ng existing receipts ngayong araw
+            var existing = await _db.Orders
+                .Where(o => o.ReceiptNumber != null && o.ReceiptNumber.StartsWith(prefix))
+                .Select(o => o.ReceiptNumber)
+                .ToListAsync();
+
+            int max = 0;
+            foreach (var rn in existing)
+            {
+                var numPart = rn.Substring(prefix.Length);
+                if (int.TryParse(numPart, out var n) && n > max) max = n;
+            }
+
+            return $"{prefix}{(max + 1):D4}";
+        }
+
         // ========== ATTENDANCE METHODS FOR STAFF ==========
 
         // GET: Staff/GetTodayAttendance
@@ -382,7 +418,6 @@ namespace Infoman.Controllers
         }
 
         // POST: Staff/TimeIn
-        // POST: Staff/TimeIn - Modified to allow multiple time in/out
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> TimeIn()
@@ -391,39 +426,54 @@ namespace Infoman.Controllers
             if (userId == 0) return Json(new { success = false, message = "User not logged in" });
 
             var today = DateTime.Today;
-            var existing = await _db.EmployeeAttendances
-                .FirstOrDefaultAsync(a => a.UserId == userId && a.Date == today);
 
-            // ✅ Allow new time in even if already clocked out (for multiple shifts)
-            if (existing != null && existing.CheckInTime.HasValue && !existing.CheckOutTime.HasValue)
+            // ✅ RETRY LOOP para sa race condition (double-click, mobile latency)
+            for (int attempt = 1; attempt <= 3; attempt++)
             {
-                return Json(new { success = false, message = "Already clocked in today!" });
-            }
+                var existing = await _db.EmployeeAttendances
+                    .FirstOrDefaultAsync(a => a.UserId == userId && a.Date == today);
 
-            if (existing == null)
-            {
-                var attendance = new EmployeeAttendance
+                if (existing != null && existing.CheckInTime.HasValue && !existing.CheckOutTime.HasValue)
                 {
-                    UserId = userId,
-                    Date = today,
-                    CheckInTime = DateTime.Now.TimeOfDay,
-                    Status = AttendanceStatus.Present,
-                    HoursWorked = 0
-                };
-                _db.EmployeeAttendances.Add(attendance);
-            }
-            else
-            {
-                // ✅ If already clocked out, create a new record or update existing?
-                // For simplicity, allow updating the same record
-                existing.CheckInTime = DateTime.Now.TimeOfDay;
-                existing.CheckOutTime = null; // Clear previous timeout
-                existing.Status = AttendanceStatus.Present;
+                    return Json(new { success = false, message = "Already clocked in today!" });
+                }
+
+                if (existing == null)
+                {
+                    var attendance = new EmployeeAttendance
+                    {
+                        UserId = userId,
+                        Date = today,
+                        CheckInTime = DateTime.Now.TimeOfDay,
+                        Status = AttendanceStatus.Present,
+                        HoursWorked = 0
+                    };
+                    _db.EmployeeAttendances.Add(attendance);
+                }
+                else
+                {
+                    existing.CheckInTime = DateTime.Now.TimeOfDay;
+                    existing.CheckOutTime = null;
+                    existing.Status = AttendanceStatus.Present;
+                }
+
+                try
+                {
+                    await _db.SaveChangesAsync();
+                    return Json(new { success = true, message = $"✅ Time in recorded at {DateTime.Now:hh:mm tt}" });
+                }
+                catch (DbUpdateException ex) when (IsUniqueViolation(ex) && attempt < 3)
+                {
+                    // Race condition — may nag-create ng parehong (UserId, Date)
+                    foreach (var entry in _db.ChangeTracker.Entries<EmployeeAttendance>().ToList())
+                    {
+                        if (entry.State == EntityState.Added) entry.State = EntityState.Detached;
+                    }
+                    // Loop ulit — makuha na ang existing row ngayon
+                }
             }
 
-            await _db.SaveChangesAsync();
-
-            return Json(new { success = true, message = $"✅ Time in recorded at {DateTime.Now:hh:mm tt}" });
+            return Json(new { success = false, message = "System busy, please try again." });
         }
 
         // POST: Staff/TimeOut
@@ -436,7 +486,9 @@ namespace Infoman.Controllers
 
             var today = DateTime.Today;
             var attendance = await _db.EmployeeAttendances
-                .FirstOrDefaultAsync(a => a.UserId == userId && a.Date == today);
+    .Where(a => a.UserId == userId && a.Date == today)
+    .OrderByDescending(a => a.CheckInTime)
+    .FirstOrDefaultAsync();
 
             if (attendance == null || !attendance.CheckInTime.HasValue)
             {
@@ -1115,6 +1167,12 @@ namespace Infoman.Controllers
         public class StartBlendingRequest
         {
             public int OrderId { get; set; }
+        }
+
+        private static bool IsUniqueViolation(DbUpdateException ex)
+        {
+            return ex.InnerException is Microsoft.Data.SqlClient.SqlException sql
+                && (sql.Number == 2601 || sql.Number == 2627);
         }
         public class PlaceOrderRequest
         {

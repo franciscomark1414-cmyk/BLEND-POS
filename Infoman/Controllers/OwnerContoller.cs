@@ -457,10 +457,8 @@ namespace Infoman.Controllers
                     return Json(new { success = false, errors = errors, message = "Please fix validation errors" });
                 }
 
-                string userPrefix = model.SKU?.Trim().ToUpper() ?? "PRD";
-                int existingCount = await _db.Products.CountAsync(p => p.SKU.StartsWith(userPrefix));
-                string productNumber = (existingCount + 1).ToString("D3");
-                string generatedProductSKU = $"{userPrefix}{productNumber}";
+                string userPrefix = model.SKU?.Trim().ToUpperInvariant() ?? "PRD";
+                string generatedProductSKU = await GenerateUniqueProductSkuAsync(userPrefix);
 
                 var product = new Product
                 {
@@ -623,7 +621,28 @@ namespace Infoman.Controllers
                 }
 
                 _db.Products.Add(product);
-                await _db.SaveChangesAsync();
+                const int maxRetries = 3;
+                for (int attempt = 1; attempt <= maxRetries; attempt++)
+                {
+                    try
+                    {
+                        await _db.SaveChangesAsync();
+                        break;
+                    }
+                    catch (DbUpdateException ex) when (IsUniqueViolation(ex) && attempt < maxRetries)
+                    {
+                        _db.Entry(product).State = EntityState.Detached;
+                        product.SKU = await GenerateUniqueProductSkuAsync(userPrefix);
+
+                        // Kailangan i-update din ang SKU ng mga sizes dahil naka-depende sila sa product SKU
+                        foreach (var size in product.Sizes)
+                        {
+                            size.SKU = GenerateSizeSKU(product.SKU, size.SizeName);
+                        }
+
+                        _db.Products.Add(product);
+                    }
+                }
 
                 return Json(new
                 {
@@ -2136,6 +2155,13 @@ namespace Infoman.Controllers
                     }
                 }
 
+                // ✅ DUPLICATE CHECK
+                if (await _db.Receivings.AnyAsync(r => r.DRNumber == model.DRNumber))
+                {
+                    return Json(new { success = false, message = $"DR Number '{model.DRNumber}' already exists. Please refresh to generate a new one." });
+                }
+
+
                 // Create receiving header
                 var receiving = new Receiving
                 {
@@ -2822,7 +2848,7 @@ namespace Infoman.Controllers
 
                 var supplierReturn = new SupplierReturn
                 {
-                    ReturnNumber = GenerateReturnNumber(),
+                    ReturnNumber = await GenerateReturnNumberAsync(),
                     ReceivingId = receivingItem.ReceivingId,
                     ReceivingItemId = request.ReceivingItemId,
                     SupplierId = receivingItem.Receiving.SupplierId,
@@ -2837,8 +2863,17 @@ namespace Infoman.Controllers
 
                 _db.SupplierReturns.Add(supplierReturn);
 
-                // ✅ I-SAVE MUNA PARA MAGKAROON NG VALID ReturnId
-                await _db.SaveChangesAsync();
+                // ✅ I-SAVE MUNA PARA MAGKAROON NG VALID ReturnId (may retry loop)
+                for (int attempt = 1; attempt <= 3; attempt++)
+                {
+                    try { await _db.SaveChangesAsync(); break; }
+                    catch (DbUpdateException ex) when (IsUniqueViolation(ex) && attempt < 3)
+                    {
+                        _db.Entry(supplierReturn).State = EntityState.Detached;
+                        supplierReturn.ReturnNumber = await GenerateReturnNumberAsync();
+                        _db.SupplierReturns.Add(supplierReturn);
+                    }
+                }
 
                 // ✅ I-ASSIGN NA ANG ReturnId NGAYON
                 receivingItem.ReturnStatus = "PENDING";
@@ -3074,13 +3109,23 @@ namespace Infoman.Controllers
 
             return Json(sortedReturns);
         }
-        private string GenerateReturnNumber()
+        private async Task<string> GenerateReturnNumberAsync()
         {
-            string prefix = "RET";
-            int year = DateTime.Now.Year;
-            int month = DateTime.Now.Month;
-            int count = _db.SupplierReturns.Count(r => r.ReturnDate.Year == year && r.ReturnDate.Month == month) + 1;
-            return $"{prefix}-{year}{month:D2}-{count:D4}";
+            string prefix = $"RET-{DateTime.Now:yyyyMM}-";
+
+            var existing = await _db.SupplierReturns
+                .Where(r => r.ReturnNumber != null && r.ReturnNumber.StartsWith(prefix))
+                .Select(r => r.ReturnNumber)
+                .ToListAsync();
+
+            int max = 0;
+            foreach (var rn in existing)
+            {
+                var numPart = rn.Substring(prefix.Length);
+                if (int.TryParse(numPart, out var n) && n > max) max = n;
+            }
+
+            return $"{prefix}{(max + 1):D4}";
         }
 
         // Idagdag sa OwnerController.cs
@@ -3514,7 +3559,7 @@ namespace Infoman.Controllers
 
                 var supplierReturn = new SupplierReturn
                 {
-                    ReturnNumber = GenerateReturnNumber(),
+                    ReturnNumber = await GenerateReturnNumberAsync(),
                     ReceivingId = receivingItem.ReceivingId,
                     ReceivingItemId = request.ReceivingItemId,
                     SupplierId = receivingItem.Receiving.SupplierId,
@@ -3530,8 +3575,17 @@ namespace Infoman.Controllers
 
                 _db.SupplierReturns.Add(supplierReturn);
 
-                // ✅ I-SAVE MUNA PARA MAGKAROON NG VALID ReturnId
-                await _db.SaveChangesAsync();
+                // ✅ I-SAVE MUNA PARA MAGKAROON NG VALID ReturnId (may retry loop)
+                for (int attempt = 1; attempt <= 3; attempt++)
+                {
+                    try { await _db.SaveChangesAsync(); break; }
+                    catch (DbUpdateException ex) when (IsUniqueViolation(ex) && attempt < 3)
+                    {
+                        _db.Entry(supplierReturn).State = EntityState.Detached;
+                        supplierReturn.ReturnNumber = await GenerateReturnNumberAsync();
+                        _db.SupplierReturns.Add(supplierReturn);
+                    }
+                }
 
                 // ✅ I-ASSIGN NA ANG ReturnId NGAYON
                 receivingItem.ReturnStatus = "PENDING";
@@ -3893,6 +3947,100 @@ namespace Infoman.Controllers
             }
         }
 
+        private async Task<string> GenerateUniqueProductSkuAsync(string prefix)
+        {
+            // Kunin lahat ng existing SKU na may prefix
+            var existingSkus = await _db.Products
+                .Where(p => p.SKU != null && p.SKU.StartsWith(prefix))
+                .Select(p => p.SKU)
+                .ToListAsync();
+
+            int max = 0;
+            foreach (var sku in existingSkus)
+            {
+                var numPart = sku.Substring(prefix.Length);
+                if (int.TryParse(numPart, out var n) && n > max) max = n;
+            }
+
+            string candidate = $"{prefix}{(max + 1):D3}";
+
+            // Safety: kung existing pa rin (may manual na prefix+number), increment
+            while (await _db.Products.AnyAsync(p => p.SKU == candidate))
+            {
+                max++;
+                candidate = $"{prefix}{(max + 1):D3}";
+            }
+
+            return candidate;
+        }
+
+        private async Task SaveWithSkuRetryAsync(Product product, string prefix)
+        {
+            const int maxRetries = 3;
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
+            {
+                try
+                {
+                    await _db.SaveChangesAsync();
+                    return;
+                }
+                catch (DbUpdateException ex) when (IsUniqueViolation(ex) && attempt < maxRetries)
+                {
+                    // Remove the failed entity and re-add with a new SKU
+                    _db.Entry(product).State = EntityState.Detached;
+                    product.SKU = await GenerateUniqueProductSkuAsync(prefix);
+                    _db.Products.Add(product);
+                }
+            }
+        }
+
+        private async Task<string> GenerateDRNumberInternalAsync()
+        {
+            string datePart = DateTime.Now.ToString("yyyyMM");
+            string prefix = $"DR-{datePart}-";
+
+            var existing = await _db.Receivings
+                .Where(r => r.DRNumber != null && r.DRNumber.StartsWith(prefix))
+                .Select(r => r.DRNumber)
+                .ToListAsync();
+
+            int max = 0;
+            foreach (var dr in existing)
+            {
+                var numPart = dr.Substring(prefix.Length);
+                if (int.TryParse(numPart, out var n) && n > max) max = n;
+            }
+
+            return $"{prefix}{(max + 1):D4}";
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GenerateDRNumber()
+        {
+            return Json(new { drNumber = await GenerateDRNumberInternalAsync() });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GenerateInvoiceNumber()
+        {
+            string datePart = DateTime.Now.ToString("yyyyMM");
+            string prefix = $"INV-{datePart}-";
+
+            var existing = await _db.Receivings
+                .Where(r => r.InvoiceNumber != null && r.InvoiceNumber.StartsWith(prefix))
+                .Select(r => r.InvoiceNumber)
+                .ToListAsync();
+
+            int max = 0;
+            foreach (var inv in existing)
+            {
+                var numPart = inv.Substring(prefix.Length);
+                if (int.TryParse(numPart, out var n) && n > max) max = n;
+            }
+
+            return Json(new { invoiceNumber = $"{prefix}{(max + 1):D5}" });
+        }
+
         public class UpdateProductRequest
         {
             public int ProductId { get; set; }
@@ -3989,6 +4137,12 @@ namespace Infoman.Controllers
         public class CancelSupplierReturnRequest
         {
             public int ReturnId { get; set; }
+        }
+
+        private static bool IsUniqueViolation(DbUpdateException ex)
+        {
+            return ex.InnerException is Microsoft.Data.SqlClient.SqlException sql
+                && (sql.Number == 2601 || sql.Number == 2627);
         }
 
 

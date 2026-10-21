@@ -166,7 +166,50 @@ namespace Infoman.Data
             modelBuilder.Entity<RawMaterialBatch>().Property(b => b.UnitPrice).HasPrecision(18, 2);
             modelBuilder.Entity<ProductionUsage>().Property(p => p.QuantityUsed).HasPrecision(18, 2);
 
-            
+            // ==========================================
+            // ✅ ISSUE #27 — UNIQUE INDEXES
+            // ==========================================
+
+            // RawMaterial.SKU — unique, pero allow NULL (soft-deleted/legacy rows)
+            modelBuilder.Entity<RawMaterial>()
+                .HasIndex(r => r.SKU)
+                .IsUnique()
+                .HasFilter("[SKU] IS NOT NULL AND [SKU] <> ''");
+
+            // Product.SKU — unique
+            modelBuilder.Entity<Product>()
+                .HasIndex(p => p.SKU)
+                .IsUnique();
+
+            // ProductSize.SKU — unique din (may GeneratedSizeSKU din)
+            modelBuilder.Entity<ProductSize>()
+                .HasIndex(ps => ps.SKU)
+                .IsUnique()
+                .HasFilter("[SKU] IS NOT NULL AND [SKU] <> ''");
+
+            // Order.ReceiptNumber — unique
+            modelBuilder.Entity<Order>()
+                .HasIndex(o => o.ReceiptNumber)
+                .IsUnique()
+                .HasFilter("[ReceiptNumber] IS NOT NULL AND [ReceiptNumber] <> ''");
+
+            // SupplierReturn.ReturnNumber — unique
+            modelBuilder.Entity<SupplierReturn>()
+                .HasIndex(sr => sr.ReturnNumber)
+                .IsUnique();
+
+            // Receiving.DRNumber — unique per supplier (hindi globally unique)
+            // Kung globally unique ang gusto mo, tanggalin ang HasFilter at hayaan lang IsUnique()
+            modelBuilder.Entity<Receiving>()
+                .HasIndex(r => r.DRNumber)
+                .IsUnique();
+
+            // EmployeeAttendance (UserId, Date) — one record per employee per day
+            modelBuilder.Entity<EmployeeAttendance>()
+                .HasIndex(a => new { a.UserId, a.Date })
+                .IsUnique();
+
+
         }
 
     }

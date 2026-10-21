@@ -64,7 +64,8 @@ namespace Infoman.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId", "Date")
+                        .IsUnique();
 
                     b.ToTable("EmployeeAttendances");
                 });
@@ -579,6 +580,9 @@ namespace Infoman.Migrations
 
                     b.HasKey("ProductId");
 
+                    b.HasIndex("SKU")
+                        .IsUnique();
+
                     b.ToTable("Products");
                 });
 
@@ -623,6 +627,10 @@ namespace Infoman.Migrations
                     b.HasKey("ProductSizeId");
 
                     b.HasIndex("ProductId");
+
+                    b.HasIndex("SKU")
+                        .IsUnique()
+                        .HasFilter("[SKU] IS NOT NULL AND [SKU] <> ''");
 
                     b.ToTable("ProductSizes");
                 });
@@ -725,6 +733,10 @@ namespace Infoman.Migrations
 
                     b.HasKey("RawMaterialId");
 
+                    b.HasIndex("SKU")
+                        .IsUnique()
+                        .HasFilter("[SKU] IS NOT NULL AND [SKU] <> ''");
+
                     b.ToTable("RawMaterials");
                 });
 
@@ -808,6 +820,9 @@ namespace Infoman.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("ReceivingId");
+
+                    b.HasIndex("DRNumber")
+                        .IsUnique();
 
                     b.HasIndex("SupplierId");
 
@@ -1139,6 +1154,9 @@ namespace Infoman.Migrations
 
                     b.HasIndex("ReceivingItemId");
 
+                    b.HasIndex("ReturnNumber")
+                        .IsUnique();
+
                     b.HasIndex("SupplierId");
 
                     b.ToTable("SupplierReturns");
@@ -1435,6 +1453,10 @@ namespace Infoman.Migrations
                     b.HasKey("OrderId");
 
                     b.HasIndex("OriginalOrderId");
+
+                    b.HasIndex("ReceiptNumber")
+                        .IsUnique()
+                        .HasFilter("[ReceiptNumber] IS NOT NULL AND [ReceiptNumber] <> ''");
 
                     b.HasIndex("StaffUserId");
 

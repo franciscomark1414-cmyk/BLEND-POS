@@ -3198,7 +3198,7 @@ async function rejectRequest(requestId) {
     }
 }
 
- function showModule(module) {
+ async function showModule(module) {
     
     // Hide all modules
     var modules = ['dashboard', 'rawMaterials', 'inventory', 'products', 'inventoryAlerts', 'reports', 'employees', 'suppliers', 'receiving', 'receivingHistory', 'returns'];
@@ -7269,7 +7269,7 @@ function loadReceivingFormData() {
     
     fetch('/Owner/GetReceivingFormData')
         .then(r => r.json())
-        .then(data => {
+        .then(async data => {
             console.log('Raw data received:', data);
             console.log('Suppliers:', data.suppliers);
             console.log('Raw materials:', data.rawMaterials);
@@ -7301,8 +7301,8 @@ function loadReceivingFormData() {
                 rawMaterialsList = [];
             }
             
-            document.getElementById('drNumber').value = generateDRNumber();
-            document.getElementById('invoiceNumber').value = generateInvoiceNumber();
+            document.getElementById('drNumber').value = await generateDRNumberFromServer();
+            document.getElementById('invoiceNumber').value = await generateInvoiceNumberFromServer();
             
             // I-clear at mag-add ng row
             const tbody = document.getElementById('receivingItemsBody');
@@ -7317,20 +7317,25 @@ function loadReceivingFormData() {
             await showAlert('Error loading form data: ' + error.message, 'Error');
         });
 }
-function generateDRNumber() {
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const random = Math.floor(Math.random() * 1000).toString().padStart(4, '0');
-        return `DR-${year}${month}-${random}`;
+async function generateDRNumberFromServer() {
+    try {
+        const res = await fetch('/Owner/GenerateDRNumber');
+        const data = await res.json();
+        return data.drNumber;
+    } catch {
+        return `DR-${new Date().toISOString().slice(0,7).replace('-','')}-TMP`;
     }
-        function generateInvoiceNumber() {
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const random = Math.floor(Math.random() * 10000).toString().padStart(5, '0');
-        return `INV-${year}${month}-${random}`;
+}
+
+async function generateInvoiceNumberFromServer() {
+    try {
+        const res = await fetch('/Owner/GenerateInvoiceNumber');
+        const data = await res.json();
+        return data.invoiceNumber;
+    } catch {
+        return `INV-${new Date().toISOString().slice(0,7).replace('-','')}-TMP`;
     }
+}
 
        function addReceivingRow() {
     const tbody = document.getElementById('receivingItemsBody');
@@ -7621,8 +7626,8 @@ function validateRow(rowId) {
             document.getElementById('receivingItemsBody').innerHTML = '';
             receivingRowCount = 0;
             addReceivingRow();
-            document.getElementById('drNumber').value = generateDRNumber();
-            document.getElementById('invoiceNumber').value = generateInvoiceNumber();
+            document.getElementById('drNumber').value = await generateDRNumberFromServer();
+            document.getElementById('invoiceNumber').value = await generateInvoiceNumberFromServer();
             
             // ✅ REFRESH INVENTORY TABLE DATA (without reloading page)
             await refreshInventoryTableData();
@@ -9489,7 +9494,7 @@ document.addEventListener('DOMContentLoaded', function() {
     } else if (savedModule) {
         showModule(savedModule); // reload lang ito within same session
     } else {
-        showModule('dashboard'); // ✅ bagong login = laging dashboard
+         showModule('dashboard'); // ✅ bagong login = laging dashboard
     }
 });
 

@@ -731,6 +731,9 @@
         <div class="nav-item" onclick="showModule('settings')">
             <i class="fas fa-cog"></i> Settings
         </div>
+        <div class="nav-item" onclick="handleLogout()" style="border-top: 1px solid rgba(255,255,255,0.2); margin-top: 10px; padding-top: 15px;">
+    <i class="fas fa-sign-out-alt"></i> Logout
+</div>
     </div>
 
     <div class="main-content">
@@ -3274,6 +3277,10 @@ async function saveCategory(e) {
             await showAlert(data.message, 'Success', '✅');
             resetCategoryForm();
             await loadCategories();
+
+              await refreshInventoryTable();
+              await refreshRawMaterialsTable(); 
+    await refreshAllCategoryDropdowns();
         } else {
             await showAlert(data.message, 'Cannot Save', '❌');
         }
@@ -3304,6 +3311,10 @@ async function deleteCategory(id) {
             await showAlert(data.message, 'Deleted', '✅');
             resetCategoryForm();
             await loadCategories();
+
+            await refreshInventoryTable();
+            await refreshRawMaterialsTable(); 
+    await refreshAllCategoryDropdowns();
         } else if (data.inUse) {
             // Blocking error: ipakita ang message + bilang ng apektado
             await showAlert(data.message, 'Cannot Delete Category', '🚫');
@@ -3315,6 +3326,45 @@ async function deleteCategory(id) {
         await showAlert('Error: ' + err.message, 'Error', '❌');
     }
 }
+
+// ✅ Function para i-refresh ang RAW MATERIALS table (Master List)
+async function refreshRawMaterialsTable() {
+    try {
+        const response = await fetch('/Owner/GetInventoryData');
+        const data = await response.json();
+        
+        if (data.success && data.rawMaterials) {
+            const tbody = document.getElementById('rawMaterialsTableBody');
+            if (!tbody) return;
+            
+            if (data.rawMaterials.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center">No raw materials yet.</td></tr>';
+                return;
+            }
+            
+            let html = '';
+            data.rawMaterials.forEach(item => {
+                html += `
+                    <tr data-id="${item.rawMaterialId}">
+                        <td>${item.sku || '—'}</td>
+                        <td>${escapeHtml(item.name)}</td>
+                        <td>${escapeHtml(item.category)}</td>
+                        <td>${escapeHtml(item.unit)}</td>
+                        <td>${item.status}</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="editRawMaterial(${item.rawMaterialId})">Edit</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteRawMaterial(${item.rawMaterialId})">Delete</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+    } catch (error) {
+        console.error('Error refreshing raw materials table:', error);
+    }
+}
+
 
 // ================= REUSABLE DROPDOWN LOADER =================
 // valueKey: 'id'   -> value ay CategoryId (Raw Material)
@@ -6841,6 +6891,40 @@ function initEmployeeModule() {
     }
 }
 
+async function handleLogout() {
+    const confirmed = await showConfirm('Are you sure you want to logout?', 'Logout');
+    if (!confirmed) return;
+    
+    showLoading('Logging out...');
+    
+    try {
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+        
+        const response = await fetch('/Account/Logout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': token
+            }
+        });
+        
+        const data = await response.json();
+        hideLoading();
+        
+        if (data.success) {
+             sessionStorage.removeItem('activeModule');
+    sessionStorage.removeItem('pendingPaymentOrderId');
+    sessionStorage.removeItem('pendingPaymentAmount');
+            window.location.href = '/Account/Login';
+        } else {
+            await showAlert('Error: ' + data.message, 'Logout Failed', '❌');
+        }
+    } catch (error) {
+        hideLoading();
+        await showAlert('Error: ' + error.message, 'Error', '❌');
+    }
+}
+
 // ========== LOAD EMPLOYEE DAILY ORDERS ==========
 async function loadEmployeeDailyOrders() {
     const employeeSelect = document.getElementById('perfEmployeeSelect');
@@ -7980,7 +8064,7 @@ function updateInventoryTable(rawMaterials) {
     if (!tbody) return;
     
     if (!rawMaterials || rawMaterials.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="text-center">No raw materials yet.您</td><\/tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center">No raw materials yet.</td></tr>';
         return;
     }
     
@@ -7992,7 +8076,8 @@ function updateInventoryTable(rawMaterials) {
             <tr data-id="${item.rawMaterialId}">
                 <td class="sku-column">${item.sku || '—'}</td>
                 <td>${escapeHtml(item.name)}</td>
-                <td data-value="${item.category}">${escapeHtml(item.category)}</td>
+                <!-- ✅ DITO ANG FIX: data-value="${item.categoryId}" -->
+                <td data-value="${item.categoryId}">${escapeHtml(item.category)}</td>
                 <td data-stock="${item.stock}" data-unit="${item.unit}">${item.stock.toFixed(2)} ${item.unit}</td>
                 <td data-minqty="${item.minQty}" data-unit="${item.unit}">${item.minQty.toFixed(2)} ${item.unit}</td>
                 <td>${status}</td>
@@ -8005,6 +8090,65 @@ function updateInventoryTable(rawMaterials) {
         `;
     });
     tbody.innerHTML = html;
+}
+
+// ==========================================
+// ✅ BAGONG FUNCTIONS PARA SA AUTO-REFRESH
+// ==========================================
+
+// Function para i-refresh ang Inventory Table nang walang page reload
+async function refreshInventoryTable() {
+    try {
+        const response = await fetch('/Owner/GetInventoryData');
+        const data = await response.json();
+        
+        if (data.success && data.rawMaterials) {
+            updateInventoryTable(data.rawMaterials);
+        }
+    } catch (error) {
+        console.error('Error refreshing inventory table:', error);
+    }
+}
+
+// Function para i-refresh lahat ng Category Dropdowns
+async function refreshAllCategoryDropdowns() {
+    try {
+        // 1. Raw Material Form
+        if (document.getElementById('CategoryId')) {
+            await loadCategoryDropdown('CategoryId', 'RawMaterial', { 
+                selected: document.getElementById('CategoryId').value || null 
+            });
+        }
+
+        // 2. Add Product Form
+        if (document.getElementById('addProductCategory')) {
+            await loadCategoryDropdown('addProductCategory', 'Product', { 
+                valueKey: 'name',
+                selected: document.getElementById('addProductCategory').value || null,
+                placeholder: '-- Select Category (optional) --'
+            });
+        }
+
+        // 3. Edit Product Form
+        if (document.getElementById('editProductCategory')) {
+            await loadCategoryDropdown('editProductCategory', 'Product', { 
+                valueKey: 'name',
+                selected: document.getElementById('editProductCategory').value || null,
+                placeholder: '-- No category --'
+            });
+        }
+
+        // 4. Product Filter
+        if (document.getElementById('filterCategory')) {
+            await loadCategoryDropdown('filterCategory', 'Product', {
+                valueKey: 'name',
+                placeholder: 'All Categories',
+                selected: document.getElementById('filterCategory').value || null
+            });
+        }
+    } catch (error) {
+        console.error('Error refreshing category dropdowns:', error);
+    }
 }
 
 function validateMinQty(input) {

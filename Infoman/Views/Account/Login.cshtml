@@ -130,8 +130,8 @@
             <div class="form-group">
                 <label>Password</label>
                 <input asp-for="Password" type="password" placeholder="Enter password" />
+                <span asp-validation-for="Password" class="text-danger" style="font-size: 12px;"></span>
             </div>
-
             <button type="submit" class="login-btn">LogIn</button>
         </form>
 
@@ -141,4 +141,7 @@
         }
 
     </div>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/4.0.0/jquery.validate.unobtrusive.min.js"></script>
 </div>

@@ -28,7 +28,11 @@ namespace Infoman.Filters
 
             if (user == null || user.Role != "Owner")
             {
-                session.Clear();
+                // ✅ I-remove lang ang OWNER keys, wag ang buong session
+                session.Remove("Owner_UserId");
+                session.Remove("Owner_Username");
+                session.Remove("Owner_UserRole");
+
                 context.Result = new RedirectToActionResult("Login", "Account", null);
                 return;
             }

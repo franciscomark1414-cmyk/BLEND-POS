@@ -24,11 +24,14 @@ namespace Infoman.Filters
 
             if (user == null || (user.Role != "Employee" && user.Role != "Staff"))
             {
-                session.Clear();
+                // ✅ I-remove lang ang STAFF keys, wag ang buong session
+                session.Remove("Staff_UserId");
+                session.Remove("Staff_Username");
+                session.Remove("Staff_UserRole");
+
                 context.Result = new RedirectToActionResult("Login", "Account", null);
                 return;
             }
-
             await next();
         }
     }

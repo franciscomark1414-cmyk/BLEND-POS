@@ -177,6 +177,32 @@ namespace Infoman.Controllers
                     return Json(new { success = false, message = "Username already exists" });
                 }
 
+                // ✅ SERVER-SIDE PASSWORD VALIDATION
+                if (string.IsNullOrEmpty(model.Password) || model.Password.Length < 8)
+                {
+                    return Json(new { success = false, message = "Password must be at least 8 characters long." });
+                }
+
+                if (!System.Text.RegularExpressions.Regex.IsMatch(model.Password, @"[A-Z]"))
+                {
+                    return Json(new { success = false, message = "Password must contain at least 1 uppercase letter." });
+                }
+
+                if (!System.Text.RegularExpressions.Regex.IsMatch(model.Password, @"[a-z]"))
+                {
+                    return Json(new { success = false, message = "Password must contain at least 1 lowercase letter." });
+                }
+
+                if (!System.Text.RegularExpressions.Regex.IsMatch(model.Password, @"[0-9]"))
+                {
+                    return Json(new { success = false, message = "Password must contain at least 1 number." });
+                }
+
+                if (!System.Text.RegularExpressions.Regex.IsMatch(model.Password, @"[!@#$%^&*(),.?"":{}|<>]"))
+                {
+                    return Json(new { success = false, message = "Password must contain at least 1 special character." });
+                }
+
                 var employee = new User
                 {
                     Username = model.Username.Trim(),
@@ -218,9 +244,21 @@ namespace Infoman.Controllers
                 employee.Email = model.Email?.Trim();
                 employee.Status = model.Status ?? "Active";
 
+                // Sa Edit method, bago i-save:
                 if (!string.IsNullOrWhiteSpace(model.Password))
                 {
-                    employee.Password = model.Password;
+                    if (model.Password.Length < 8)
+                    {
+                        return Json(new { success = false, message = "Password must be at least 8 characters long." });
+                    }
+
+                    if (!System.Text.RegularExpressions.Regex.IsMatch(model.Password, @"[A-Z]") ||
+                        !System.Text.RegularExpressions.Regex.IsMatch(model.Password, @"[a-z]") ||
+                        !System.Text.RegularExpressions.Regex.IsMatch(model.Password, @"[0-9]") ||
+                        !System.Text.RegularExpressions.Regex.IsMatch(model.Password, @"[!@#$%^&*(),.?"":{}|<>]"))
+                    {
+                        return Json(new { success = false, message = "Password must contain uppercase, lowercase, number, and special character." });
+                    }
                 }
 
                 await _db.SaveChangesAsync();

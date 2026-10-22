@@ -27,7 +27,15 @@ namespace Infoman.Controllers
         public async Task<IActionResult> Login(LoginViewModel model)
         {
             if (!ModelState.IsValid)
+            {
+                var firstError = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .FirstOrDefault();
+
+                ViewBag.Error = firstError ?? "Please check your input.";
                 return View(model);
+            }
 
             var username = model.Username.Trim();
             var password = model.Password.Trim();
@@ -59,6 +67,11 @@ namespace Infoman.Controllers
             HttpContext.Session.SetString(sessionPrefix + "Username", user.Username);
             HttpContext.Session.SetString(sessionPrefix + "UserRole", user.Role);
 
+            // ✅ IDAGDAG ITO: Record login time
+            user.IsLoggedIn = true;
+            user.LastLoginTime = DateTime.Now;
+            await _context.SaveChangesAsync();
+
             // ✅ DO NOT clear the other role's session
 
             await HttpContext.Session.CommitAsync();
@@ -79,11 +92,26 @@ namespace Infoman.Controllers
         {
             try
             {
-                // ✅ UPDATE LOGOUT STATUS (kung may IsLoggedIn field ka)
-                var userId = HttpContext.Session.GetInt32("UserId");
-                if (userId.HasValue)
+                var ownerId = HttpContext.Session.GetInt32("Owner_UserId");
+                var staffId = HttpContext.Session.GetInt32("Staff_UserId");
+
+                int? userIdToLogout = null;
+                string sessionPrefixToClear = null;
+
+                if (ownerId.HasValue && ownerId.Value > 0)
                 {
-                    var user = await _context.Users.FindAsync(userId.Value);
+                    userIdToLogout = ownerId.Value;
+                    sessionPrefixToClear = "Owner_";
+                }
+                else if (staffId.HasValue && staffId.Value > 0)
+                {
+                    userIdToLogout = staffId.Value;
+                    sessionPrefixToClear = "Staff_";
+                }
+
+                if (userIdToLogout.HasValue)
+                {
+                    var user = await _context.Users.FindAsync(userIdToLogout.Value);
                     if (user != null)
                     {
                         user.IsLoggedIn = false;
@@ -92,11 +120,25 @@ namespace Infoman.Controllers
                     }
                 }
 
-                // Clear all session data
-                HttpContext.Session.Clear();
+                // ✅ I-REMOVE LANG ANG SPECIFIC ROLE'S KEYS
+                if (sessionPrefixToClear != null)
+                {
+                    HttpContext.Session.Remove(sessionPrefixToClear + "UserId");
+                    HttpContext.Session.Remove(sessionPrefixToClear + "Username");
+                    HttpContext.Session.Remove(sessionPrefixToClear + "UserRole");
+                }
 
-                // Remove session cookie
-                HttpContext.Response.Cookies.Delete(".AspNetCore.Session");
+                // ✅ HUWAG BURAHIN ANG COOKIE KUNG MAY IBANG ROLE PA
+                var stillHasOwner = HttpContext.Session.GetInt32("Owner_UserId").HasValue
+                                 && HttpContext.Session.GetInt32("Owner_UserId").Value > 0;
+                var stillHasStaff = HttpContext.Session.GetInt32("Staff_UserId").HasValue
+                                 && HttpContext.Session.GetInt32("Staff_UserId").Value > 0;
+
+                if (!stillHasOwner && !stillHasStaff)
+                {
+                    // Burahin lang ang cookie kung wala nang naka-login
+                    HttpContext.Response.Cookies.Delete(".AspNetCore.Session");
+                }
 
                 return Json(new { success = true, message = "Logged out successfully" });
             }

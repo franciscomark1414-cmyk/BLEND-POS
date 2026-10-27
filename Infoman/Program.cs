@@ -1,3 +1,4 @@
+using Infoman.Constants;
 using Infoman.Data;
 using Microsoft.EntityFrameworkCore;
 using Infoman.Service;
@@ -32,6 +33,9 @@ builder.Services.AddScoped<FIFOService>();
 builder.Services.AddScoped<VoidRefundService>();
 builder.Services.AddScoped<RefundService>();
 builder.Services.AddScoped<ExchangeService>();
+
+// PHASE 1: Payment feature flags (GCash/QRPh naka-OFF hangga't hindi naaayos ang PayMongo)
+builder.Services.Configure<PaymentOptions>(builder.Configuration.GetSection(PaymentOptions.SectionName));
 // ==============================================
 
 var app = builder.Build();

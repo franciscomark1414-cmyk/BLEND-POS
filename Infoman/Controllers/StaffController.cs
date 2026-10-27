@@ -1,8 +1,10 @@
-﻿using Infoman.Data;
+﻿using Infoman.Constants;
+using Infoman.Data;
 using Infoman.Models;
 using Infoman.Service;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Infoman.Controllers
 {
@@ -11,12 +13,20 @@ namespace Infoman.Controllers
     {
         private readonly ConnectionDatabase _db;
         private readonly FIFOService _fifoService;
+        private readonly PaymentOptions _paymentOptions;
 
 
-        public StaffController(ConnectionDatabase db)
+        public StaffController(ConnectionDatabase db, IOptions<PaymentOptions> paymentOptions)
         {
             _db = db;
             _fifoService = new FIFOService(_db);
+            _paymentOptions = paymentOptions.Value;
+        }
+
+        // PHASE 1: Payment gate. Cash lang ang tinatanggap kapag naka-OFF ang GCash/QRPh.
+        private bool IsPaymentMethodAvailable(string? paymentMethod)
+        {
+            return !string.IsNullOrWhiteSpace(paymentMethod) && _paymentOptions.IsEnabled(paymentMethod);
         }
         private async Task EnsureExpiredBatchesProcessed()
         {
@@ -166,6 +176,10 @@ namespace Infoman.Controllers
                 if (userId == 0)
                     return Json(new { success = false, message = "User not logged in", requiresTimeIn = true });
 
+                // PHASE 1: Payment gate
+                if (!IsPaymentMethodAvailable(request.PaymentMethod))
+                    return Json(new { success = false, message = "Payment method not available. Please use Cash." });
+
                 var today = DateTime.Today;
                 var attendance = await _db.EmployeeAttendances
                     .FirstOrDefaultAsync(a => a.UserId == userId && a.Date == today);
@@ -294,28 +308,32 @@ namespace Infoman.Controllers
                 System.Diagnostics.Debug.WriteLine($"New Subtotal: {newSubtotal}");
                 System.Diagnostics.Debug.WriteLine($"New Total: {newDiscountedTotal}");
 
-                // For Cash: gumawa ng payment record
+                // For Cash: gumawa o i-update ang payment record (Amount = kabuuan ng order)
                 if (request.PaymentMethod == "Cash")
                 {
                     var existingPayment = await _db.Payments
-                        .FirstOrDefaultAsync(p => p.OrderId == orderId);
+                        .FirstOrDefaultAsync(p => p.OrderId == orderId && p.PaymentMethod == "Cash");
 
                     if (existingPayment == null)
                     {
-                        var payment = new Payment
+                        _db.Payments.Add(new Payment
                         {
                             OrderId = orderId,
                             Amount = newDiscountedTotal,
                             PaymentMethod = "Cash",
-                            PaymentReference = $"PAY-{DateTime.Now:yyyyMMddHHmmss}",
+                            PaymentReference = $"PAY-{DateTime.Now:yyyyMMddHHmmss}-{orderId}",
                             Status = "PAID",
                             PaymentDate = DateTime.Now,
                             CreatedAt = DateTime.Now
-                        };
-                        _db.Payments.Add(payment);
-                        await _db.SaveChangesAsync();
+                        });
+                    }
+                    else
+                    {
+                        // PHASE 3: Kapag may dagdag na item, i-update ang amount ng payment.
+                        existingPayment.Amount = newDiscountedTotal;
                     }
 
+                    await _db.SaveChangesAsync();
                     await RecordEmployeePerformance(userId, newDiscountedTotal);
                 }
 
@@ -676,57 +694,27 @@ namespace Infoman.Controllers
         /// Update order status to PREPARING (starting to blend)
         /// </summary>
         [HttpPost]
-        public async Task<IActionResult> StartPreparing(int orderId)
+        public IActionResult StartPreparing(int orderId)
         {
-            var order = await _db.Orders.FindAsync(orderId);
-            if (order == null)
-                return Json(new { success = false, message = "Order not found" });
-
-            if(order.Status != "PENDING_PAYMENT")
-                return Json(new { success = false, message = $"Cannot start preparing order with status '{order.Status}'" });
-
-            order.Status = "PREPARING";
-            await _db.SaveChangesAsync();
-
-            return Json(new { success = true, message = $"Order #{order.OrderNumber} is now being prepared." });
+            return Json(new { success = false, message = "This step is no longer used. Use Start Blending." });
         }
 
         /// <summary>
         /// Update order status to COMPLETED (ready to serve)
         /// </summary>
         [HttpPost]
-        public async Task<IActionResult> CompleteOrder(int orderId)
+        public IActionResult CompleteOrder(int orderId)
         {
-            var order = await _db.Orders.FindAsync(orderId);
-            if (order == null)
-                return Json(new { success = false, message = "Order not found" });
-
-            if (order.Status != "PREPARING")
-                return Json(new { success = false, message = $"Cannot complete order with status '{order.Status}'" });
-
-            order.Status = "COMPLETED";
-            await _db.SaveChangesAsync();
-
-            return Json(new { success = true, message = $"Order #{order.OrderNumber} is now ready to serve." });
+            return Json(new { success = false, message = "This step is no longer used. Use Start Blending." });
         }
 
         /// <summary>
         /// Update order status to CLOSED (paid and finalized)
         /// </summary>
         [HttpPost]
-        public async Task<IActionResult> CloseOrder(int orderId)
+        public IActionResult CloseOrder(int orderId)
         {
-            var order = await _db.Orders.FindAsync(orderId);
-            if (order == null)
-                return Json(new { success = false, message = "Order not found" });
-
-            if (order.Status != "COMPLETED")
-                return Json(new { success = false, message = $"Cannot close order with status '{order.Status}'" });
-
-            order.Status = "CLOSED";
-            await _db.SaveChangesAsync();
-
-            return Json(new { success = true, message = $"Order #{order.OrderNumber} is now closed." });
+            return Json(new { success = false, message = "This step is no longer used." });
         }
 
         /// <summary>
@@ -740,7 +728,7 @@ namespace Infoman.Controllers
                     .ThenInclude(oi => oi.Product)
                 .Include(o => o.Items)
                     .ThenInclude(oi => oi.ProductSize)
-                .Where(o => (o.Status == "PENDING_BLENDING" || o.Status == "PREPARING") &&  // ✅ Updated
+                                .Where(o => o.Status == "PENDING_BLENDING" &&  // PHASE 2: queue = paid, waiting for blending
                             o.Items.Any(i => i.DispositionStatusId == 1))
                 .OrderBy(o => o.Date)
                 .Select(o => new
@@ -806,172 +794,107 @@ namespace Infoman.Controllers
             });
         }
 
+        // POST: Staff/StartBlending
+        // PHASE 2: Atomic na transition. Isang request lang ang makakapasa sa PENDING_BLENDING.
+        // Ang status change at ang deduction ay nasa iisang transaction.
+        // Kung may mag-fail, lahat ay mare-rollback (walang partial deduction, walang maling status).
         [HttpPost]
         public async Task<IActionResult> StartBlending([FromBody] StartBlendingRequest request)
         {
-            // ✅ UMRELLA TRANSACTION PARA SA BUONG PROCESS
-            using var umbrellaTransaction = await _db.Database.BeginTransactionAsync();
+            if (request == null || request.OrderId <= 0)
+                return Json(new { success = false, message = "Invalid order." });
+
+            await using var tx = await _db.Database.BeginTransactionAsync();
 
             try
             {
-                var order = await _db.Orders
-                    .Include(o => o.Items)
-                        .ThenInclude(oi => oi.ProductSize)
-                            .ThenInclude(ps => ps.RecipeItems)
-                                .ThenInclude(ri => ri.RawMaterial)
-                    .FirstOrDefaultAsync(o => o.OrderId == request.OrderId);
+                // 1. ATOMIC CLAIM: kung ibang request na ang nag-claim, zero rows ang maa-update.
+                int claimed = await _db.Orders
+                    .Where(o => o.OrderId == request.OrderId && o.Status == "PENDING_BLENDING")
+                    .ExecuteUpdateAsync(s => s.SetProperty(o => o.Status, "COMPLETED"));
 
-                if (order == null)
+                if (claimed == 0)
                 {
-                    await umbrellaTransaction.RollbackAsync();
-                    return Json(new { success = false, message = "Order not found" });
+                    await tx.RollbackAsync();
+                    return Json(new { success = false, message = "Order is not waiting for blending. It may be unpaid, already blended, or not found." });
                 }
 
-                if (order.Status != "PENDING_BLENDING" && order.Status != "PREPARING")
-                {
-                    await umbrellaTransaction.RollbackAsync();
-                    return Json(new { success = false, message = $"Cannot start blending. Order status is '{order.Status}'" });
-                }
+                var orderNumber = await _db.Orders
+                    .Where(o => o.OrderId == request.OrderId)
+                    .Select(o => o.OrderNumber)
+                    .FirstAsync();
 
-                if (order.Items.All(i => i.ActualCost > 0))
-                {
-                    await umbrellaTransaction.RollbackAsync();
-                    return Json(new { success = false, message = "Order already blended!" });
-                }
+                // 2. Kunin ang available items at ang kanilang recipe (hindi kasama ang deleted recipe)
+                var items = await _db.OrderItems
+                    .Include(oi => oi.ProductSize)
+                        .ThenInclude(ps => ps.RecipeItems)
+                            .ThenInclude(ri => ri.RawMaterial)
+                    .Where(oi => oi.OrderId == request.OrderId
+                              && oi.DispositionStatusId == ItemDispositionConstants.AVAILABLE)
+                    .ToListAsync();
 
-                decimal totalActualCost = 0;
-                var activeItems = order.Items.Where(i => i.DispositionStatusId == 1).ToList();
-
-                if (activeItems.Count == 0)
+                if (items.Count == 0)
                 {
-                    await umbrellaTransaction.RollbackAsync();
+                    await tx.RollbackAsync();
                     return Json(new { success = false, message = "No active items to blend." });
                 }
 
-                foreach (var orderItem in activeItems)
+                decimal totalActualCost = 0;
+
+                // 3. Deduction ayon sa recipe × quantity. Lahat ay nasa loob ng iisang transaction.
+                foreach (var item in items)
                 {
-                    var productSize = orderItem.ProductSize;
+                    var recipes = item.ProductSize?.RecipeItems?
+                        .Where(r => !r.IsDeleted)
+                        .ToList() ?? new List<RecipeItem>();
+
+                    if (recipes.Count == 0)
+                    {
+                        await tx.RollbackAsync();
+                        return Json(new { success = false, message = $"No active recipe found for {item.ProductSize?.SizeName ?? "this item"}. Nothing was deducted." });
+                    }
+
                     decimal itemCost = 0;
 
-                    foreach (var recipe in productSize.RecipeItems)
+                    foreach (var recipe in recipes)
                     {
-                        var material = await _db.RawMaterials.FindAsync(recipe.RawMaterialId);
+                        // Ang RecipeItem.Quantity ay naka-save na sa base unit (g o mL) ayon sa SaveRecipe at AddProduct.
+                        decimal neededBaseUnit = recipe.Quantity * item.Quantity;
 
-                        // ✅ NULL CHECK
-                        if (material == null)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"⚠️ WARNING: Material with ID {recipe.RawMaterialId} not found. Skipping...");
-                            continue;
-                        }
-
-                        System.Diagnostics.Debug.WriteLine($"=== ACTUAL DATABASE VALUES ===");
-                        System.Diagnostics.Debug.WriteLine($"Raw Material: {material.Name}");
-                        System.Diagnostics.Debug.WriteLine($"Material.Unit: {material.Unit}");
-                        System.Diagnostics.Debug.WriteLine($"Material.BaseUnit: {material.BaseUnit}");
-                        System.Diagnostics.Debug.WriteLine($"Material.Stock: {material.Stock}");
-                        System.Diagnostics.Debug.WriteLine($"Recipe.Quantity: {recipe.Quantity}");
-                        System.Diagnostics.Debug.WriteLine($"Recipe.UnitUsed: {recipe.UnitUsed}");
-                        System.Diagnostics.Debug.WriteLine($"OrderItem.Quantity: {orderItem.Quantity}");
-                        System.Diagnostics.Debug.WriteLine($"==============================");
-
-                        decimal totalNeeded = recipe.Quantity * orderItem.Quantity;
-                        decimal totalForBatch = totalNeeded;
-
-                        System.Diagnostics.Debug.WriteLine($"=== UNIT CONVERSION DEBUG ===");
-                        System.Diagnostics.Debug.WriteLine($"Ingredient: {material.Name}");
-                        System.Diagnostics.Debug.WriteLine($"Recipe Unit: {recipe.UnitUsed}, Recipe Qty: {recipe.Quantity}");
-                        System.Diagnostics.Debug.WriteLine($"Material Unit: {material.Unit}, BaseUnit: {material.BaseUnit}");
-                        System.Diagnostics.Debug.WriteLine($"Total needed (original): {totalNeeded} {recipe.UnitUsed}");
-
-                        // ✅ CONVERSION LOGIC (PAREHO NG DATI)
-                        if (recipe.UnitUsed == "g" && material.BaseUnit == "g")
-                        {
-                            totalForBatch = totalNeeded;
-                            System.Diagnostics.Debug.WriteLine($"No conversion: {totalForBatch} g (batch is in g)");
-                        }
-                        else if (recipe.UnitUsed == "kg" && material.BaseUnit == "g")
-                        {
-                            totalForBatch = totalNeeded * 1000;
-                            System.Diagnostics.Debug.WriteLine($"Converted kg → g: {totalNeeded} kg = {totalForBatch} g");
-                        }
-                        else if (recipe.UnitUsed == "g" && material.BaseUnit == "g" && material.Unit == "kg")
-                        {
-                            totalForBatch = totalNeeded;
-                            System.Diagnostics.Debug.WriteLine($"Keep in grams: {totalForBatch} g (batch will convert to kg for display)");
-                        }
-                        else if (recipe.UnitUsed == "mL" && material.BaseUnit == "mL")
-                        {
-                            totalForBatch = totalNeeded;
-                            System.Diagnostics.Debug.WriteLine($"No conversion: {totalForBatch} mL");
-                        }
-                        else if (recipe.UnitUsed == "L" && material.BaseUnit == "mL")
-                        {
-                            totalForBatch = totalNeeded * 1000;
-                            System.Diagnostics.Debug.WriteLine($"Converted L → mL: {totalNeeded} L = {totalForBatch} mL");
-                        }
-                        else if (recipe.UnitUsed == "mL" && material.BaseUnit == "mL" && material.Unit == "L")
-                        {
-                            totalForBatch = totalNeeded;
-                            System.Diagnostics.Debug.WriteLine($"Keep in mL: {totalForBatch} mL (batch will convert to L for display)");
-                        }
-                        else if (recipe.UnitUsed == "pcs" && material.BaseUnit == "pcs")
-                        {
-                            totalForBatch = totalNeeded;
-                            System.Diagnostics.Debug.WriteLine($"No conversion for pieces: {totalForBatch} pcs");
-                        }
-                        else
-                        {
-                            totalForBatch = totalNeeded;
-                            System.Diagnostics.Debug.WriteLine($"Unknown conversion: keeping as {totalForBatch}");
-                        }
-
-                        System.Diagnostics.Debug.WriteLine($"Total for batch deduction: {totalForBatch} {material.BaseUnit}");
-                        System.Diagnostics.Debug.WriteLine($"Will deduct: {totalForBatch / 1000} {material.Unit} (display unit)");
-
-                        var (success, cost, usedBatches) = await _fifoService.DeductStockWithCostAsync(
+                        var (ok, cost, _) = await _fifoService.DeductStockWithCostAsync(
                             recipe.RawMaterialId,
-                            totalForBatch,
-                            productSize.ProductId,
-                            order.OrderNumber,
-                            orderId: order.OrderId,
-                            productSizeId: orderItem.ProductSizeId
-                        );
+                            neededBaseUnit,
+                            item.ProductId,
+                            orderNumber,
+                            orderId: request.OrderId,
+                            productSizeId: item.ProductSizeId);
 
-                        if (!success)
+                        if (!ok)
                         {
-                            // ✅ I-ROLLBACK LAHAT KUNG MAY MAG-FAIL
-                            await umbrellaTransaction.RollbackAsync();
-                            return Json(new
-                            {
-                                success = false,
-                                message = $"Failed to deduct {material.Name}. Need {totalForBatch:F4} {material.BaseUnit} ({totalForBatch / 1000:F4} {material.Unit}), check batch stock. All changes rolled back."
-                            });
+                            await tx.RollbackAsync();
+                            return Json(new { success = false, message = $"Insufficient stock for {recipe.RawMaterial?.Name ?? "an ingredient"}. Nothing was deducted." });
                         }
 
                         itemCost += cost;
                     }
 
-                    orderItem.ActualCost = itemCost;
-                    totalActualCost += itemCost;
+                    item.ActualCost = Math.Round(itemCost, 2);
+                    totalActualCost += item.ActualCost;
                 }
 
-                order.Status = "COMPLETED";
                 await _db.SaveChangesAsync();
-
-                // ✅ I-COMMIT LANG KUNG TAGUMPAY LAHAT
-                await umbrellaTransaction.CommitAsync();
+                await tx.CommitAsync();
 
                 return Json(new
                 {
                     success = true,
-                    message = $"✅ Order #{order.OrderNumber} ingredients deducted! Order is now COMPLETED.",
+                    message = $"Order #{orderNumber} ingredients deducted. Order is now COMPLETED.",
                     actualCost = totalActualCost
                 });
             }
             catch (Exception ex)
             {
-                // ✅ I-ROLLBACK KAPAG MAY BIGLANG ERROR
-                await umbrellaTransaction.RollbackAsync();
+                await tx.RollbackAsync();
                 return Json(new { success = false, message = $"Error: {ex.Message}" });
             }
         }
@@ -992,10 +915,14 @@ namespace Infoman.Controllers
                     return Json(new { success = false, message = "Invalid discount percent. Must be between 0 and 1." });
                 }
 
+                // PHASE 1: Payment gate
+                if (!IsPaymentMethodAvailable(request.PaymentMethod))
+                    return Json(new { success = false, message = "Payment method not available. Please use Cash." });
+
                 // ✅ Allow BOTH PENDING_PAYMENT and PENDING_BLENDING
                 var order = await _db.Orders
                     .FirstOrDefaultAsync(o => o.OrderId == request.OrderId &&
-                        (o.Status == "PENDING_PAYMENT" || o.Status == "PENDING_BLENDING"));
+                                                o.Status == "PENDING_PAYMENT");  // PHASE 2: paid orders (PENDING_BLENDING) hindi na pwedeng dagdagan
 
                 if (order == null)
                     return Json(new { success = false, message = "Order not found" });
@@ -1042,17 +969,21 @@ namespace Infoman.Controllers
         }
 
         // POST: Staff/UpdateOrderTotals
+        // POST: Staff/UpdateOrderTotals
         [HttpPost]
         public async Task<IActionResult> UpdateOrderTotals([FromBody] UpdateOrderTotalsRequest request)
         {
             try
             {
-
                 // ✅ I-VALIDATE ANG DISCOUNT PERCENT
                 if (request.DiscountPercent < 0 || request.DiscountPercent > 1)
                 {
                     return Json(new { success = false, message = "Invalid discount percent. Must be between 0 and 1." });
                 }
+
+                // PHASE 1: Payment gate
+                if (!IsPaymentMethodAvailable(request.PaymentMethod))
+                    return Json(new { success = false, message = "Payment method not available. Please use Cash." });
 
                 var order = await _db.Orders
                     .Include(o => o.Items)
@@ -1060,6 +991,18 @@ namespace Infoman.Controllers
 
                 if (order == null)
                     return Json(new { success = false, message = "Order not found" });
+
+                // PHASE 2: Paid order (PENDING_BLENDING o COMPLETED) hindi na pwedeng baguhin ang discount o payment method.
+                var orderStatusCheck = await _db.Orders
+                    .Where(o => o.OrderId == request.OrderId)
+                    .Select(o => o.Status)
+                    .FirstOrDefaultAsync();
+
+                if (orderStatusCheck == null)
+                    return Json(new { success = false, message = "Order not found" });
+
+                if (orderStatusCheck != "PENDING_PAYMENT")
+                    return Json(new { success = false, message = "This order is already paid and cannot be edited." });
 
                 // ✅ Recompute total from active items (DispositionStatusId == 1 = AVAILABLE)
                 var activeItems = order.Items.Where(i => i.DispositionStatusId == 1).ToList();
@@ -1096,9 +1039,11 @@ namespace Infoman.Controllers
                     return Json(new { success = false, message = "Order item not found" });
 
                 // ✅ Check if order is still editable (not yet blended)
-                if (orderItem.Order.Status == "COMPLETED")
+                // PHASE 2: Hindi na pwedeng baguhin ang quantity ng paid order (D5).
+                // Ang void ng paid item ay dadaan sa Owner approval (Phase 3).
+                if (orderItem.Order.Status != "PENDING_PAYMENT")
                 {
-                    return Json(new { success = false, message = "Cannot modify - order already blended!" });
+                    return Json(new { success = false, message = "Cannot modify a paid order. Item voids require Owner approval." });
                 }
 
                 if (request.Quantity <= 0)

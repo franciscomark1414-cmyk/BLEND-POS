@@ -154,54 +154,16 @@ namespace Infoman.Controllers
             }
         }
 
-        // POST: VoidRefund/VoidItem
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> VoidItem([FromBody] VoidItemRequest request)
+       
+
+        // GET: VoidRefund/GetReports
+        [HttpGet]
+        public async Task<IActionResult> GetReports(DateTime startDate, DateTime endDate)
         {
             try
             {
-                if (request == null || request.OrderItemId == 0)
-                    return Json(new { success = false, message = "Invalid request" });
-
-                if (string.IsNullOrWhiteSpace(request.Reason))
-                    return Json(new { success = false, message = "Reason is required" });
-
-                var userId = GetCurrentUserId();
-                var userRole = GetCurrentUserRole();
-
-                var result = await _voidRefundService.VoidItem(
-                    request.OrderItemId,
-                    userId,
-                    userRole,
-                    request.Reason
-                );
-
-                if (result.needsOwner)
-                {
-                    return Json(new
-                    {
-                        success = false,
-                        requiresOwner = true,
-                        message = result.message
-                    });
-                }
-
-                if (!result.success)
-                {
-                    return Json(new { success = false, message = result.message });
-                }
-
-                return Json(new
-                {
-                    success = true,
-                    message = result.message,
-                    refundAmount = result.refundAmount,
-                    newOrderTotal = result.newOrderTotal,
-                    updatedItems = result.updatedItems,
-                    isPartialRefund = result.newOrderTotal > 0,
-                    isFullRefund = result.newOrderTotal == 0
-                });
+                var reports = await _voidRefundService.GetReports(startDate, endDate);
+                return Json(reports);
             }
             catch (Exception ex)
             {
@@ -209,7 +171,29 @@ namespace Infoman.Controllers
             }
         }
 
+        // ===== PHASE 3: Void at refund (Owner approval para sa paid) =====
+
+        // Owner session lang ang tinatanggap para sa approval (hindi Staff session).
+        private async Task<int> GetOwnerIdAsync()
+        {
+            int ownerId = HttpContext.Session.GetInt32("Owner_UserId") ?? 0;
+            if (ownerId <= 0) return 0;
+
+            var user = await _db.Users.FindAsync(ownerId);
+            return (user != null && user.Role == "Owner") ? ownerId : 0;
+        }
+
+        // POST: VoidRefund/VoidItem
+        // DISABLED: hindi na pwedeng direktang mag-void ng item. Gamitin ang Refund request.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult VoidItem([FromBody] VoidItemRequest request)
+        {
+            return Json(new { success = false, message = "Direct item void is disabled. Use the Refund button instead." });
+        }
+
         // POST: VoidRefund/VoidTransaction
+        // Unpaid: CANCELLED. Paid (staff): request lang, kailangan ng Owner approval. Paid (Owner): direct.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> VoidTransaction([FromBody] VoidTransactionRequest request)
@@ -222,38 +206,23 @@ namespace Infoman.Controllers
                 if (string.IsNullOrWhiteSpace(request.Reason))
                     return Json(new { success = false, message = "Reason is required" });
 
-                var userId = GetCurrentUserId();
-                var userRole = GetCurrentUserRole();
+                bool isOwner = false;
+                int userId = GetCurrentUserId();
 
-                var result = await _voidRefundService.VoidTransaction(
-                    request.OrderId,
-                    userId,
-                    userRole,
-                    request.Reason
-                );
+                if (userId == 0)
+                    return Json(new { success = false, message = "User not logged in" });
 
-                if (result.needsOwner)
-                {
-                    return Json(new
-                    {
-                        success = false,
-                        requiresOwner = true,
-                        message = result.message
-                    });
-                }
-
-                if (!result.success)
-                {
-                    return Json(new { success = false, message = result.message });
-                }
+                var result = await _voidRefundService.RequestTransactionVoidAsync(
+                    request.OrderId, userId, isOwner, request.Reason.Trim());
 
                 return Json(new
                 {
-                    success = true,
+                    success = result.success,
                     message = result.message,
+                    requiresOwner = result.requiresOwner,
                     refundAmount = result.refundAmount,
-                    updatedItems = result.updatedItems,
-                    isFullRefund = true
+                    updatedItems = new List<object>(),
+                    isFullRefund = result.success && !result.requiresOwner
                 });
             }
             catch (Exception ex)
@@ -262,14 +231,68 @@ namespace Infoman.Controllers
             }
         }
 
-        // GET: VoidRefund/GetReports
-        [HttpGet]
-        public async Task<IActionResult> GetReports(DateTime startDate, DateTime endDate)
+        // POST: VoidRefund/ApproveRefund (Owner only). Iisang approval path para sa VOID at REFUND.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ApproveRefund([FromBody] ApproveRefundRequest request)
         {
             try
             {
-                var reports = await _voidRefundService.GetReports(startDate, endDate);
-                return Json(reports);
+                int ownerId = await GetOwnerIdAsync();
+                if (ownerId == 0)
+                    return Json(new { success = false, message = "Only Owner can approve" });
+
+                var type = await _db.PendingRequests
+                    .Where(r => r.Id == request.RequestId)
+                    .Select(r => r.RequestType)
+                    .FirstOrDefaultAsync();
+
+                if (type == "VOID")
+                {
+                    var voidResult = await _voidRefundService.ApproveTransactionVoidAsync(request.RequestId, ownerId);
+                    return Json(new { success = voidResult.success, message = voidResult.message });
+                }
+
+                if (type == "REFUND")
+                {
+                    var refundResult = await _voidRefundService.ApproveItemRefundAsync(request.RequestId, ownerId);
+                    return Json(new { success = refundResult.success, message = refundResult.message });
+                }
+
+                return Json(new { success = false, message = "Request not found" });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        // POST: VoidRefund/RejectRefund (Owner only). Pending lang ang pwedeng i-reject.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RejectRefund([FromBody] RejectRefundRequest request)
+        {
+            try
+            {
+                int ownerId = await GetOwnerIdAsync();
+                if (ownerId == 0)
+                    return Json(new { success = false, message = "Only Owner can reject" });
+
+                var pending = await _db.PendingRequests
+                    .FirstOrDefaultAsync(r => r.Id == request.RequestId
+                        && (r.RequestType == "REFUND" || r.RequestType == "VOID")
+                        && r.Status == "PENDING");
+
+                if (pending == null)
+                    return Json(new { success = false, message = "Request not found or already processed" });
+
+                pending.Status = "REJECTED";
+                pending.RejectionReason = request.RejectionReason;
+                pending.ApprovedBy = ownerId;
+                pending.ApprovedAt = DateTime.Now;
+
+                await _db.SaveChangesAsync();
+                return Json(new { success = true, message = "Request rejected" });
             }
             catch (Exception ex)
             {
@@ -332,143 +355,7 @@ namespace Infoman.Controllers
             }
         }
 
-        // STEP 2: Approve Refund (Owner only)
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ApproveRefund([FromBody] ApproveRefundRequest request)
-        {
-            try
-            {
-                var userId = GetCurrentUserId();
-                var user = await _db.Users.FindAsync(userId);
-
-                if (user == null || user.Role != "Owner")
-                {
-                    return Json(new { success = false, message = "Only Owner can approve refunds" });
-                }
-
-                var pendingRequest = await _db.PendingRequests
-                    .Include(r => r.Order)
-                    .FirstOrDefaultAsync(r => r.Id == request.RequestId && r.RequestType == "REFUND" && r.Status == "PENDING");
-
-                if (pendingRequest == null)
-                {
-                    return Json(new { success = false, message = "Refund request not found" });
-                }
-
-                // Parse item IDs
-                var itemIds = pendingRequest.ItemIds.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                    .Select(int.Parse).ToList();
-
-                decimal totalRefundAmount = 0;
-                var order = pendingRequest.Order;
-
-                // Process each item
-                foreach (var itemId in itemIds)
-                {
-                    var orderItem = await _db.OrderItems
-                        .Include(oi => oi.ProductSize)
-                        .FirstOrDefaultAsync(oi => oi.OrderItemId == itemId);
-
-                    if (orderItem != null && !orderItem.IsRefunded && !orderItem.IsVoided)
-                    {
-                        orderItem.IsRefunded = true;
-                        orderItem.RefundReason = pendingRequest.Reason;
-                        orderItem.DispositionStatusId = 3; // REFUNDED
-
-                        totalRefundAmount += orderItem.Price * orderItem.Quantity;
-                    }
-                }
-
-                // Generate refund reference number
-                string refundReference = $"REF-{pendingRequest.OrderId}-{DateTime.Now:yyyyMMddHHmmss}";
-
-                // Create adjustment
-                var adjustment = new OrderAdjustment
-                {
-                    OriginalOrderId = pendingRequest.OrderId,
-                    AdjustmentType = "Refund",
-                    Amount = -totalRefundAmount,
-                    Reason = pendingRequest.Reason,
-                    ReferenceNumber = refundReference,
-                    Status = "COMPLETED",
-                    CreatedBy = userId,
-                    CreatedAt = DateTime.Now
-                };
-                _db.OrderAdjustments.Add(adjustment);
-                await _db.SaveChangesAsync();
-
-                // Create refund transaction
-                var refundTransaction = new RefundTransaction
-                {
-                    AdjustmentId = adjustment.AdjustmentId,
-                    OriginalOrderId = pendingRequest.OrderId,
-                    Amount = totalRefundAmount,
-                    Reason = pendingRequest.Reason,
-                    ProcessedBy = userId,
-                    RefundReference = refundReference,
-                    CreatedAt = DateTime.Now
-                };
-                _db.RefundTransactions.Add(refundTransaction);
-
-                // Update order totals
-                decimal newTotal = order.TotalAmount - totalRefundAmount;
-                order.TotalAmount = newTotal > 0 ? newTotal : 0;
-                order.TotalRefundAmount = order.TotalRefundAmount + totalRefundAmount;
-
-                // Update pending request status
-                pendingRequest.Status = "APPROVED";
-                pendingRequest.ApprovedBy = userId;
-                pendingRequest.ApprovedAt = DateTime.Now;
-
-                await _db.SaveChangesAsync();
-
-                return Json(new { success = true, message = $"Refund of ₱{totalRefundAmount:F2} processed successfully!" });
-            }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, message = ex.Message });
-            }
-        }
-
-        // STEP 3: Reject Refund
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RejectRefund([FromBody] RejectRefundRequest request)
-        {
-            try
-            {
-                var userId = GetCurrentUserId();
-                var user = await _db.Users.FindAsync(userId);
-
-                if (user == null || user.Role != "Owner")
-                {
-                    return Json(new { success = false, message = "Only Owner can reject refunds" });
-                }
-
-                // ITO ANG PINALITAN - gamit ang PendingRequest, hindi RefundRequest
-                var pendingRequest = await _db.PendingRequests
-                    .FirstOrDefaultAsync(r => r.Id == request.RequestId && r.RequestType == "REFUND" && r.Status == "PENDING");
-
-                if (pendingRequest == null)
-                {
-                    return Json(new { success = false, message = "Refund request not found" });
-                }
-
-                pendingRequest.Status = "REJECTED";
-                pendingRequest.RejectionReason = request.RejectionReason;
-                pendingRequest.ApprovedBy = userId;
-                pendingRequest.ApprovedAt = DateTime.Now;
-
-                await _db.SaveChangesAsync();
-
-                return Json(new { success = true, message = "Refund request rejected" });
-            }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, message = ex.Message });
-            }
-        }
+       
 
         // Request model
         public class ProcessRefundRequest

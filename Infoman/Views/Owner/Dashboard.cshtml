@@ -6,7 +6,7 @@
 }
 <!DOCTYPE html>
 <html>
-<head>
+<head>  
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Neldie's Mango & More - Owner Dashboard</title>
@@ -685,6 +685,65 @@
                 margin-bottom: 15px;
             }
         }
+        /* ========== PURCHASING MODULE STYLES ========== */
+#purchasingSubmenu .nav-item {
+    padding-top: 8px;
+    padding-bottom: 8px;
+    color: rgba(255,255,255,0.8);
+    border-left: none; /* Inalis ang default active border */
+}
+
+#purchasingSubmenu .nav-item:hover {
+    background: rgba(0,0,0,0.2);
+    color: #fff;
+}
+
+/* Tab styles para sa Purchasing Modules */
+.purchasing-tabs {
+    border-bottom: 2px solid #e0e8d0;
+    margin-bottom: 20px;
+    flex-wrap: wrap; /* Para hindi mag-overflow kapag maraming tabs */
+    gap: 5px;
+}
+
+.purchasing-tabs .nav-link {
+    border: none;
+    color: #6b6b68;
+    font-weight: 600;
+    padding: 10px 15px;
+    border-radius: 8px 8px 0 0;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.purchasing-tabs .nav-link:hover {
+    background: #f0f5e8;
+    color: var(--primary);
+}
+
+.purchasing-tabs .nav-link.active {
+    background: var(--primary);
+    color: white !important;
+    border-bottom: none;
+    box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+}
+
+/* Placeholder table style */
+.placeholder-table {
+    width: 100%;
+    text-align: center;
+    padding: 40px 20px;
+    background: #f9f9f9;
+    border: 2px dashed #ddd;
+    border-radius: 12px;
+    color: #888;
+}
+.placeholder-table i {
+    font-size: 40px;
+    margin-bottom: 15px;
+    color: #ccc;
+}
     </style>
 </head>
 <body>
@@ -710,9 +769,21 @@
         <div class="nav-item" onclick="showModule('suppliers')">
             <i class="fas fa-truck"></i> Suppliers
         </div>
-        <div class="nav-item" onclick="showModule('receiving')">
-            <i class="fas fa-clipboard-list"></i> Receive Delivery
-        </div>
+        <!-- BAGONG PURCHASING DROPDOWN -->
+<div class="nav-item" onclick="togglePurchasingMenu()" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <i class="fas fa-shopping-cart"></i> Purchasing
+    </div>
+    <i class="fas fa-chevron-down" id="purchasingChevron" style="font-size: 12px; transition: transform 0.3s;"></i>
+</div>
+<div id="purchasingSubmenu" style="display: none; background: rgba(0,0,0,0.1); border-left: 3px solid var(--primary);">
+    <div class="nav-item" onclick="showModule('directPurchase')" style="padding-left: 45px; font-size: 14px;">
+        <i class="fas fa-bolt"></i> Direct Purchase
+    </div>
+    <div class="nav-item" onclick="showModule('inquire')" style="padding-left: 45px; font-size: 14px;">
+        <i class="fas fa-search"></i> Inquire
+    </div>
+</div>
         <div class="nav-item" onclick="showModule('receivingHistory')">
             <i class="fas fa-history"></i> Delivery History
         </div>
@@ -3017,6 +3088,781 @@
     </div>
 </div>
 
+<!-- ==================================================== -->
+<!-- DIRECT PURCHASE MODULE -->
+<!-- ==================================================== -->
+<div id="directPurchaseModule" class="module">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="fas fa-bolt text-warning me-2"></i> Direct Purchase</h2>
+            <p class="text-muted">Quickly purchase items from suppliers without the inquiry process.</p>
+        </div>
+    </div>
+
+    <!-- TABS -->
+    <ul class="nav nav-tabs purchasing-tabs" id="directPurchaseTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#dp-supplier-items" type="button">
+                <i class="fas fa-list-alt me-1"></i> Supplier Items View
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#dp-purchase-order" type="button">
+                <i class="fas fa-file-invoice me-1"></i> Purchase Order
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#dp-delivery-receiving" type="button">
+                <i class="fas fa-truck-loading me-1"></i> Delivery / Receiving
+            </button>
+        </li>
+    </ul>
+
+    <!-- TAB CONTENTS -->
+    <div class="tab-content" id="directPurchaseTabsContent">
+        
+        <!-- Tab 1: Supplier Items View -->
+        <div class="tab-pane fade show active" id="dp-supplier-items">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Select Items to Purchase</h5>
+                    <select class="form-select w-auto">
+                        <option>Select Supplier...</option>
+                    </select>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 50px;">Select</th>
+                                    <th>Item Name</th>
+                                    <th>Unit</th>
+                                    <th>Stock</th>
+                                    <th>Unit Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">
+                                        <div class="placeholder-table">
+                                            <i class="fas fa-box-open"></i>
+                                            <p>Select a supplier to view available items.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Purchase Order -->
+        <div class="tab-pane fade" id="dp-purchase-order">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Draft Purchase Order</h5>
+                    <button class="btn btn-primary btn-sm"><i class="fas fa-save me-1"></i> Save PO</button>
+                </div>
+                <div class="card-body">
+                    <div class="placeholder-table">
+                        <i class="fas fa-file-signature"></i>
+                        <p>No items added to Purchase Order yet.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Delivery/Receiving -->
+        <div class="tab-pane fade" id="dp-delivery-receiving">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Receive Delivery (Direct)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> Delivery details and verification forms will appear here.
+                    </div>
+                    <div class="placeholder-table">
+                        <i class="fas fa-clipboard-check"></i>
+                        <p>Select a PO to receive items.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+
+<!-- ==================================================== -->
+<!-- INQUIRE MODULE -->
+<!-- ==================================================== -->
+<!-- ==================================================== -->
+<!-- INQUIRE MODULE -->
+<!-- ==================================================== -->
+<div id="inquireModule" class="module">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="fas fa-search text-info me-2"></i> Inquire</h2>
+            <p class="text-muted">Request quotations and compare prices from suppliers.</p>
+        </div>
+    </div>
+
+    <!-- TABS (Navigation Only) -->
+    <ul class="nav nav-tabs purchasing-tabs" id="inquireTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#inq-inquiries" type="button">
+                <i class="fas fa-question-circle me-1"></i> Inquiries
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#inq-quotations" type="button">
+                <i class="fas fa-file-invoice-dollar me-1"></i> Quotations
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#inq-purchase-order" type="button">
+                <i class="fas fa-file-invoice me-1"></i> Purchase Order
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#inq-delivery-receipt" type="button">
+                <i class="fas fa-receipt me-1"></i> Delivery Receipt
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#inq-received-delivery" type="button">
+                <i class="fas fa-truck me-1"></i> Received Delivery
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#inq-discrepancies" type="button">
+                <i class="fas fa-exclamation-triangle me-1"></i> Discrepancies & Replacements
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#inq-verify-invoice" type="button">
+                <i class="fas fa-check-double me-1"></i> Verify Invoice & Payments
+            </button>
+        </li>
+    </ul>
+
+    <!-- TAB CONTENTS -->
+    <div class="tab-content" id="inquireTabsContent">
+        
+        <!-- TAB 1: INQUIRIES (Dynamic Data Table) -->
+        <div class="tab-pane fade show active" id="inq-inquiries">
+            <div class="card shadow-sm border-0">
+                <!-- Top Bar -->
+                <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                    <div class="d-flex gap-2 w-50">
+                        <input type="text" id="searchInquiry" class="form-control" placeholder="Search inquiry..." onkeyup="filterInquiryTable()">
+                        <button class="btn btn-outline-secondary"><i class="fas fa-filter"></i></button>
+                    </div>
+                    <button class="btn btn-warning fw-bold" onclick="openAddInquiryModal()">
+                        <i class="fas fa-plus"></i> Add Inquiry
+                    </button>
+                </div>
+                <div class="card-body">
+    <!-- Status Tabs (Functional na ngayon) -->
+    <ul class="nav nav-tabs mb-3" id="inquiryStatusTabs">
+        <li class="nav-item">
+            <button class="nav-link active" onclick="filterInquiries('All', this)">All</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" onclick="filterInquiries('Draft', this)">Draft</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" onclick="filterInquiries('Sent', this)">Sent</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" onclick="filterInquiries('Responded', this)">Responded</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" onclick="filterInquiries('Closed', this)">Closed</button>
+        </li>
+    </ul>
+    
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover" id="inquiriesTable">
+            <thead class="table-light">
+                <tr>
+                    <th>Inquiry #</th>
+                    <th>Date Created</th>
+                    <th>Supplier</th>
+                    <th>Items</th>
+                    <th>Deadline</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="inquiriesBody">
+                <tr><td colspan="7" class="text-center text-muted">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+            </div>
+        </div>
+
+       <div class="tab-pane fade" id="inq-quotations">
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-light border-0 text-center p-3">
+                <h6 class="text-muted">Total Received</h6>
+                <h2 class="fw-bold mb-0" id="qtTotalReceived">0</h2>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-light border-0 text-center p-3">
+                <h6 class="text-muted">Pending</h6>
+                <h2 class="fw-bold mb-0 text-warning" id="qtPending">0</h2>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-light border-0 text-center p-3">
+                <h6 class="text-muted">Accepted</h6>
+                <h2 class="fw-bold mb-0 text-success" id="qtAccepted">0</h2>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-light border-0 text-center p-3">
+                <h6 class="text-muted">Expiring Soon</h6>
+                <h2 class="fw-bold mb-0 text-danger" id="qtExpiring">0</h2>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quotations Table -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white">
+            <ul class="nav nav-tabs card-header-tabs" id="quotationTabs">
+                <li class="nav-item"><button class="nav-link active" onclick="filterQuotations('All', this)">All</button></li>
+                <li class="nav-item"><button class="nav-link" onclick="filterQuotations('Received', this)">Received</button></li>
+                <li class="nav-item"><button class="nav-link" onclick="filterQuotations('Accepted', this)">Accepted</button></li>
+                <li class="nav-item"><button class="nav-link" onclick="filterQuotations('Rejected', this)">Rejected</button></li>
+                <li class="nav-item"><button class="nav-link" onclick="filterQuotations('Expired', this)">Expired</button></li>
+            </ul>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Quotation #</th>
+                            <th>Inquiry #</th>
+                            <th>Supplier</th>
+                            <th>Date Received</th>
+                            <th>Total Amount</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                   <tbody id="quotationsBody">
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">
+                                <i class="fas fa-file-invoice-dollar fa-3x mb-3 d-block text-secondary opacity-50"></i>
+                                No quotations received yet. <br>
+                                <small>Quotations from suppliers will appear here once they respond to your inquiries.</small>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+        <!-- TAB 3: Purchase Order -->
+       <!-- TAB 3: Purchase Order -->
+<div class="tab-pane fade" id="inq-purchase-order">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="mb-1">Purchase Orders</h3>
+            <p class="text-muted mb-0">Manage and track supplier orders.</p>
+        </div>
+        <button class="btn btn-success fw-bold" onclick="openCreatePOModal()">
+            <i class="fas fa-plus"></i> Create Purchase Order
+        </button>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-light border-0 text-center p-3">
+                <h6 class="text-muted">Total POs</h6>
+                <h2 class="fw-bold mb-0" id="poTotalCount">0</h2>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-light border-0 text-center p-3">
+                <h6 class="text-muted">Pending Acknowledgement</h6>
+                <h2 class="fw-bold mb-0 text-warning" id="poPendingCount">0</h2>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-light border-0 text-center p-3">
+                <h6 class="text-muted">Awaiting Delivery</h6>
+                <h2 class="fw-bold mb-0 text-info" id="poAwaitingCount">0</h2>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-light border-0 text-center p-3">
+                <h6 class="text-muted">Partially Received</h6>
+                <h2 class="fw-bold mb-0 text-success" id="poPartialCount">0</h2>
+            </div>
+        </div>
+    </div>
+
+    <!-- PO Table -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 class="mb-0">Purchase Order List</h5>
+                <div class="d-flex gap-2">
+                    <input type="text" class="form-control form-control-sm" placeholder="Search..." style="width: 200px;" onkeyup="filterPOTable()">
+                    <select class="form-select form-select-sm" style="width: 150px;">
+                        <option value="">All Status</option>
+                        <option value="Draft">Draft</option>
+                        <option value="Sent">Sent</option>
+                        <option value="Accepted">Accepted</option>
+                        <option value="Cancelled">Cancelled</option>
+                    </select>
+                </div>
+            </div>
+            <ul class="nav nav-tabs card-header-tabs" id="poTabs">
+                <li class="nav-item"><button class="nav-link active" onclick="filterPOTabs('All', this)">All</button></li>
+                <li class="nav-item"><button class="nav-link" onclick="filterPOTabs('Draft', this)">Draft</button></li>
+                <li class="nav-item"><button class="nav-link" onclick="filterPOTabs('Sent', this)">Sent</button></li>
+                <li class="nav-item"><button class="nav-link" onclick="filterPOTabs('Accepted', this)">Accepted</button></li>
+                <li class="nav-item"><button class="nav-link" onclick="filterPOTabs('Cancelled', this)">Cancelled</button></li>
+            </ul>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" id="poTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>PO No.</th>
+                            <th>Supplier</th>
+                            <th>Date</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="poTableBody">
+                        <tr><td colspan="6" class="text-center text-muted py-4">No Purchase Orders found.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+        <!-- TAB 4: Delivery Receipt -->
+        <div class="tab-pane fade" id="inq-delivery-receipt">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="placeholder-table">
+                        <i class="fas fa-receipt"></i>
+                        <p>Upload and track Delivery Receipts here.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 5: Received Delivery -->
+        <div class="tab-pane fade" id="inq-received-delivery">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="placeholder-table">
+                        <i class="fas fa-truck"></i>
+                        <p>Items received and verified will appear here.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 6: Discrepancies -->
+        <div class="tab-pane fade" id="inq-discrepancies">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="placeholder-table">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>Report and track missing or damaged items here.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 7: Verify Invoice -->
+        <div class="tab-pane fade" id="inq-verify-invoice">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="placeholder-table">
+                        <i class="fas fa-check-double"></i>
+                        <p>Final invoice matching and payment processing.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Add Inquiry Modal -->
+<div class="modal fade" id="addInquiryModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title fw-bold"><i class="fas fa-file-invoice"></i> Create New Inquiry</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- Inquiry Info -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Inquiry Number</label>
+                        <input type="text" id="inqNumber" class="form-control bg-light" readonly placeholder="Auto-generated on save">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Date Created</label>
+                        <input type="date" id="inqDate" class="form-control bg-light" readonly>
+                    </div>
+                </div>
+
+                <hr>
+                
+                <!-- Supplier & Dates -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Supplier <span class="text-danger">*</span></label>
+                        <select id="inqSupplier" class="form-select">
+                            <option value="">-- Select Supplier --</option>
+                            <!-- Mapupuno ito ng JS mula sa DB -->
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Quotation Deadline</label>
+                        <input type="date" id="inqDeadline" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Preferred Delivery</label>
+                        <input type="date" id="inqDeliveryDate" class="form-control">
+                    </div>
+                </div>
+
+                <hr>
+
+                <!-- Requested Items -->
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="fw-bold mb-0">Requested Raw Materials</h6>
+                    <button class="btn btn-sm btn-success" onclick="addInquiryItemRow()"><i class="fas fa-plus"></i> Add Item</button>
+                </div>
+                <div id="inquiryItemsContainer" class="mb-3">
+                    <!-- Dynamic rows dito -->
+                </div>
+
+                <hr>
+
+                <!-- Delivery & Terms -->
+                <div class="row mb-3">
+                    <div class="col-md-12 mb-2">
+                        <label class="form-label fw-bold">Delivery Location</label>
+                        <input type="text" id="inqLocation" class="form-control" placeholder="Enter delivery address">
+                    </div>
+                    <div class="col-md-12 mb-2">
+                        <label class="form-label fw-bold">Preferred Payment Terms</label>
+                        <select id="inqTerms" class="form-select">
+                            <option value="Cash on Delivery">Cash on Delivery</option>
+                            <option value="30 Days">30 Days</option>
+                            <option value="15 Days">15 Days</option>
+                        </select>
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label fw-bold">Notes/Instructions</label>
+                        <textarea id="inqNotes" class="form-control" rows="2" placeholder="Additional instructions..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-success rounded-pill px-4" onclick="saveInquiry('Draft')">Save as Draft</button>
+                <button type="button" class="btn btn-primary rounded-pill px-4" onclick="saveInquiry('Sent')">Send Inquiry</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Inquiry Document View Modal (Paper Look) -->
+<div class="modal fade" id="inquiryDocModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 0; padding: 40px; background: #fff;">
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <h2 class="fw-bold mb-0">Neldie's Mango & More</h2>
+                    <p class="mb-0 text-muted">Point of Sale System</p>
+                </div>
+                <div class="text-end">
+                    <h4 class="fw-bold text-uppercase">Inquiry</h4>
+                    <p class="mb-0" id="docInqNumber">INQ-XXXX</p>
+                    <p class="mb-0" id="docInqDate">Date</p>
+                </div>
+            </div>
+            <hr style="border-top: 2px solid #000;">
+            
+            <div class="row mb-4">
+                <div class="col-6">
+                    <h6 class="text-muted text-uppercase fw-bold">To Supplier:</h6>
+                    <p class="mb-0 fw-bold" id="docSupplierName">Supplier Name</p>
+                </div>
+                <div class="col-6 text-end">
+                    <h6 class="text-muted text-uppercase fw-bold">Delivery Details:</h6>
+                    <p class="mb-0" id="docLocation">Location</p>
+                    <p class="mb-0" id="docTerms">Terms</p>
+                </div>
+            </div>
+
+            <table class="table table-bordered mb-4">
+                <thead class="table-light">
+                    <tr>
+                        <th>Item Description</th>
+                        <th class="text-center">Quantity</th>
+                        <th class="text-center">Unit</th>
+                    </tr>
+                </thead>
+                <tbody id="docItemsBody">
+                    <!-- Items dito -->
+                </tbody>
+            </table>
+
+            <div class="mb-4">
+                <h6 class="text-muted text-uppercase fw-bold">Notes:</h6>
+                <p id="docNotes" class="fst-italic">No additional notes.</p>
+            </div>
+
+            <div class="text-end mt-5">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button class="btn btn-dark" onclick="window.print()"><i class="fas fa-print"></i> Print</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================================================== -->
+<!-- CREATE PURCHASE ORDER MODAL (Form View) -->
+<!-- ==================================================== -->
+<div class="modal fade" id="createPOModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title fw-bold"><i class="fas fa-file-invoice"></i> Create Purchase Order</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- Accepted Quotations Info -->
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> Selecting a quotation will automatically load its supplier, inquiry, items, and quoted prices.
+                </div>
+
+                <!-- PO Info -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">PO Number</label>
+                        <input type="text" id="poNumber" class="form-control bg-light" readonly placeholder="Auto-generated">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Order Date <span class="text-danger">*</span></label>
+                        <input type="date" id="poOrderDate" class="form-control" required>
+                    </div>
+                </div>
+
+                <!-- Accepted Quotation Dropdown -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Accepted Quotation <span class="text-danger">*</span></label>
+                    <select id="poAcceptedQuote" class="form-select" onchange="autoFillPOFields(this)">
+                        <option value="">-- No accepted quotations available --</option>
+                    </select>
+                    <small class="text-muted">Only accepted quotations can be converted to a Purchase Order.</small>
+                </div>
+
+                <!-- Auto-filled Fields -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Supplier</label>
+                        <input type="text" id="poSupplier" class="form-control bg-light" readonly placeholder="Auto-filled">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Related Inquiry</label>
+                        <input type="text" id="poInquiry" class="form-control bg-light" readonly placeholder="Auto-filled">
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Expected Delivery Date</label>
+                        <input type="date" id="poExpectedDelivery" class="form-control bg-light" readonly>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Delivery Location <span class="text-danger">*</span></label>
+                        <input type="text" id="poDeliveryLocation" class="form-control" placeholder="Select / Enter location" required>
+                    </div>
+                </div>
+
+                <hr>
+
+                <!-- Ordered Items Table -->
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="fw-bold mb-0">Ordered Items</h6>
+                    
+                </div>
+                <div class="table-responsive mb-3">
+                    <table class="table table-bordered" id="poItemsTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Material</th>
+                                <th>Quantity</th>
+                                <th>Unit</th>
+                                <th>Unit Price</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody id="poItemsBody">
+                            <tr><td colspan="5" class="text-center text-muted">Select an accepted quotation to load items.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pricing Summary -->
+                <div class="card bg-light mb-3">
+                    <div class="card-body p-3">
+                        <h6 class="fw-bold">Pricing Summary</h6>
+                        <div class="d-flex justify-content-between mb-1"><span>Items Subtotal:</span><span id="poSubtotal">₱0.00</span></div>
+                        <div class="d-flex justify-content-between mb-1"><span>Delivery Fee:</span><span id="poDeliveryFee">₱0.00</span></div>
+                        <div class="d-flex justify-content-between mb-1"><span>Taxes/Discount:</span><span id="poTaxDiscount">₱0.00</span></div>
+                        <hr class="my-2">
+                        <div class="d-flex justify-content-between fw-bold"><span>Grand Total:</span><span id="poGrandTotal" class="text-success">₱0.00</span></div>
+                    </div>
+                </div>
+
+                <!-- Terms and Instructions -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Payment Terms <span class="text-danger">*</span></label>
+                    <select id="poPaymentTerms" class="form-select" required>
+                        <option value="Cash on Delivery">Cash on Delivery</option>
+                        <option value="30 Days">30 Days</option>
+                        <option value="15 Days">15 Days</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Delivery Instructions</label>
+                    <textarea id="poDeliveryInstructions" class="form-control" rows="2" placeholder="Enter instructions for supplier..."></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Notes</label>
+                    <textarea id="poNotes" class="form-control" rows="2" placeholder="Additional details (optional)..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-outline-success rounded-pill px-4" onclick="savePO('Draft')">Save as Draft</button>
+                <button type="button" class="btn btn-warning rounded-pill px-4" onclick="previewPO()">Preview PO</button>
+                <button type="button" class="btn btn-primary rounded-pill px-4" onclick="savePO('Sent')">Send PO</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================================================== -->
+<!-- PO DOCUMENT VIEW MODAL (Paper Look) -->
+<!-- ==================================================== -->
+<div class="modal fade" id="poDocumentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 0; padding: 40px; background: #fff;">
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <h2 class="fw-bold mb-0">Neldie's Mango & More</h2>
+                    <p class="mb-0 text-muted">Point of Sale System</p>
+                </div>
+                <div class="text-end">
+                    <h4 class="fw-bold text-uppercase">Purchase Order</h4>
+                    <p class="mb-0" id="docPONumber">PO-XXXX</p>
+                    <p class="mb-0" id="docPODate">Date</p>
+                </div>
+            </div>
+            <hr style="border-top: 2px solid #000;">
+            
+            <div class="row mb-4">
+    <div class="col-6">
+        <h6 class="text-muted text-uppercase fw-bold">To Supplier:</h6>
+        <p class="mb-0 fw-bold" id="docPOSupplier">Supplier Name</p>
+        <p class="mb-0">Inquiry #: <span id="docPOInquiry">-</span></p>
+        <p class="mb-0">Quotation #: <span id="docPOQuotationNumber">-</span></p>
+    </div>
+   
+                <div class="col-6 text-end">
+                    <h6 class="text-muted text-uppercase fw-bold">Delivery Details:</h6>
+                    <p class="mb-0" id="docPOLocation">Location</p>
+                    <p class="mb-0" id="docPOTerms">Terms</p>
+                </div>
+            </div>
+
+            <table class="table table-bordered mb-4">
+                <thead class="table-light">
+                    <tr>
+                        <th>Material</th>
+                        <th class="text-center">Qty</th>
+                        <th class="text-center">Unit</th>
+                        <th class="text-end">Unit Price</th>
+                        <th class="text-end">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody id="docPOItemsBody">
+                    <!-- Items dito -->
+                </tbody>
+            </table>
+
+            <!-- Pricing Summary -->
+            <div class="row mb-4">
+                <div class="col-md-6 offset-md-6">
+                    <div class="d-flex justify-content-between mb-1"><span>Subtotal:</span><span id="docPOSubtotal">₱0.00</span></div>
+                    <div class="d-flex justify-content-between mb-1"><span>Delivery Fee:</span><span id="docPODeliveryFee">₱0.00</span></div>
+                    <hr class="my-2">
+                    <div class="d-flex justify-content-between fw-bold fs-5"><span>Grand Total:</span><span id="docPOGrandTotal">₱0.00</span></div>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <h6 class="text-muted text-uppercase fw-bold">Delivery Instructions:</h6>
+                <p id="docPOInstructions" class="fst-italic">No instructions.</p>
+            </div>
+            <div class="mb-4">
+                <h6 class="text-muted text-uppercase fw-bold">Notes:</h6>
+                <p id="docPONotes" class="fst-italic">No notes.</p>
+            </div>
+
+            <div class="row mt-5">
+                <div class="col-6">
+                    <p class="mb-0 text-muted">Prepared by:</p>
+                    <p class="fw-bold mt-4">Owner Signature</p>
+                </div>
+                <div class="col-6 text-end">
+                    <p class="mb-0 text-muted">Received by:</p>
+                    <p class="fw-bold mt-4">Supplier Signature</p>
+                </div>
+            </div>
+
+            <div class="text-end mt-5">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button class="btn btn-dark" onclick="window.print()"><i class="fas fa-print"></i> Print</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
     </div>
 </div>
@@ -3533,10 +4379,12 @@ async function rejectRequest(requestId) {
     }
 }
 
- async function showModule(module) {
+async function showModule(module) {
     
     // Hide all modules
-    var modules = ['dashboard', 'rawMaterials', 'inventory', 'products', 'inventoryAlerts', 'reports', 'employees', 'suppliers', 'receiving', 'receivingHistory', 'returns', 'settings'];
+    // ✅ IDINAGDAG: 'directPurchase' at 'inquire'
+    var modules = ['dashboard', 'rawMaterials', 'inventory', 'products', 'inventoryAlerts', 'reports', 'employees', 'suppliers', 'receiving', 'receivingHistory', 'returns', 'settings', 'directPurchase', 'inquire'];
+    
     modules.forEach(function(m) {
         var el = document.getElementById(m + 'Module');
         if (el) el.classList.remove('active');
@@ -3551,6 +4399,17 @@ async function rejectRequest(requestId) {
     navItems.forEach(function(item) {
         item.classList.remove('active');
     });
+
+    // ✅ IDINAGDAG: Logic para sa Parent Dropdown (Purchasing)
+    // Kapag directPurchase or inquire ang pinindot, i-highlight din ang parent "Purchasing" menu
+    var purchasingParent = document.querySelector('.nav-item[onclick*="togglePurchasingMenu"]');
+    if (purchasingParent) {
+        if (module === 'directPurchase' || module === 'inquire') {
+            purchasingParent.classList.add('active'); // Highlight parent
+        } else {
+            purchasingParent.classList.remove('active');
+        }
+    }
 
     var activeNavItem = document.querySelector('.sidebar .nav-item[onclick*="showModule(\'' + module + '\')"]');
     if (activeNavItem) {
@@ -3595,23 +4454,29 @@ async function rejectRequest(requestId) {
     }
     if (module === 'returns') {
         loadPendingRequests();
-        loadApprovedReturns();
+        loadRefundHistory(); 
+        loadVoidHistory();  
         loadSupplierReturns();
     }
 
     if (module === 'settings') {
-    loadCategories();
-}
-if (module === 'rawMaterials') {
-    loadCategoryDropdown('CategoryId', 'RawMaterial');
-}
-if (module === 'products') {
-    loadCategoryDropdown('filterCategory', 'Product', {
-        valueKey: 'name',
-        placeholder: 'All Categories',
-        selected: document.getElementById('filterCategory')?.value || null
-    });
-}
+        loadCategories();
+    }
+    if (module === 'rawMaterials') {
+        loadCategoryDropdown('CategoryId', 'RawMaterial');
+    }
+    if (module === 'products') {
+        loadCategoryDropdown('filterCategory', 'Product', {
+            valueKey: 'name',
+            placeholder: 'All Categories',
+            selected: document.getElementById('filterCategory')?.value || null
+        });
+    }
+    if (module === 'inquire') {
+        // ✅ I-load ang Inquiries table agad pagbukas ng Inquire module
+        loadInquiriesTable();
+         loadPurchaseOrders();
+    }
 }
    // Toggle Add Delivery Panel (gaya ng toggleRawMaterialForm)
 function toggleAddDeliveryPanel() {
@@ -9919,6 +10784,637 @@ async function saveNewSize() {
         await showAlert('Error: ' + error.message, 'Error', '❌');
     }
 }
+
+function togglePurchasingMenu() {
+    var submenu = document.getElementById('purchasingSubmenu');
+    var chevron = document.getElementById('purchasingChevron');
+    
+    if (submenu) {
+        if (submenu.style.display === 'none' || submenu.style.display === '') {
+            submenu.style.display = 'block';
+            if (chevron) chevron.style.transform = 'rotate(180deg)';
+        } else {
+            submenu.style.display = 'none';
+            if (chevron) chevron.style.transform = 'rotate(0deg)';
+        }
+    }
+}
+
+// ==========================================
+// INQUIRY MODULE (DATABASE CONNECTED)
+// ==========================================
+
+let inquiryItemCount = 0;
+let rawMaterialsData = []; 
+
+async function openAddInquiryModal() {
+    // 1. Generate temporary Inquiry Number for display
+    const now = new Date();
+    const tempInqNo = `INQ-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`;
+    document.getElementById('inqNumber').value = tempInqNo;
+    
+    // 2. Set default dates and MIN date (bawal ang past)
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('inqDate').value = today;
+    
+    const deadlineInput = document.getElementById('inqDeadline');
+    const deliveryInput = document.getElementById('inqDeliveryDate');
+    
+    deadlineInput.value = '';
+    deadlineInput.min = today; // ✅ BAWAL ANG PAST DATE
+    
+    deliveryInput.value = '';
+    deliveryInput.min = today; // ✅ BAWAL ANG PAST DATE
+    
+    // 3. Reset form fields
+    document.getElementById('inqSupplier').value = '';
+    document.getElementById('inqLocation').value = '';
+    document.getElementById('inqTerms').value = '30 Days';
+    document.getElementById('inqNotes').value = '';
+    
+    // 4. Clear items container
+    document.getElementById('inquiryItemsContainer').innerHTML = '';
+    inquiryItemCount = 0;
+
+    // 5. Load Suppliers
+    try {
+        const supRes = await fetch('/Owner/GetSuppliers'); 
+        const suppliers = await supRes.json();
+        const supSelect = document.getElementById('inqSupplier');
+        supSelect.innerHTML = '<option value="">-- Select Supplier --</option>';
+        suppliers.forEach(s => supSelect.innerHTML += `<option value="${s.supplierId}">${s.name}</option>`);
+
+        // 6. Load Raw Materials
+        const matRes = await fetch('/Owner/GetInventoryData'); 
+        const matData = await matRes.json();
+        if(matData.success) rawMaterialsData = matData.rawMaterials;
+
+        // 7. Add 1 default row
+        addInquiryItemRow(); 
+
+        // 8. Show Modal
+        new bootstrap.Modal(document.getElementById('addInquiryModal')).show();
+    } catch(err) {
+        console.error("Error loading form data:", err);
+        showAlert("Failed to load suppliers/materials. Please refresh.", "Error", "❌");
+    }
+}
+
+// Add dynamic row para sa items
+function addInquiryItemRow() {
+    const container = document.getElementById('inquiryItemsContainer');
+    const rowId = inquiryItemCount++;
+    
+    let matOptions = '<option value="">-- Select Material --</option>';
+    rawMaterialsData.forEach(m => {
+        matOptions += `<option value="${m.rawMaterialId}" data-unit="${m.unit}">${m.name}</option>`;
+    });
+
+    const html = `
+        <div class="row g-2 mb-2 item-row" id="inq-item-${rowId}">
+            <div class="col-5">
+                <select class="form-select inquiry-material" onchange="updateInqUnit(this)">
+                    ${matOptions}
+                </select>
+            </div>
+            <div class="col-3">
+                <input type="number" class="form-control inquiry-qty" placeholder="Qty" step="0.01" min="0.01">
+            </div>
+            <div class="col-3">
+                <input type="text" class="form-control inquiry-unit" placeholder="Unit" readonly>
+            </div>
+            <div class="col-1">
+                <button class="btn btn-danger w-100" onclick="document.getElementById('inq-item-${rowId}').remove()"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', html);
+}
+
+function updateInqUnit(selectElement) {
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+    const unit = selectedOption.getAttribute('data-unit') || '';
+    selectElement.closest('.item-row').querySelector('.inquiry-unit').value = unit;
+}
+
+// SAVE INQUIRY FUNCTION
+async function saveInquiry(status) {
+    const supplierId = document.getElementById('inqSupplier').value;
+    if (!supplierId) { showAlert('Please select a supplier.', 'Required', '⚠️'); return; }
+
+    // Collect Items
+    const items = [];
+    let isValid = true;
+    document.querySelectorAll('#inquiryItemsContainer .item-row').forEach(row => {
+        const matId = row.querySelector('.inquiry-material').value;
+        const qty = parseFloat(row.querySelector('.inquiry-qty').value);
+        const unit = row.querySelector('.inquiry-unit').value;
+        
+        if (matId && qty > 0) {
+            items.push({ rawMaterialId: parseInt(matId), quantity: qty, unit: unit });
+        } else if (matId || qty) {
+            isValid = false;
+        }
+    });
+
+    if (!isValid || items.length === 0) {
+        showAlert('Please fill in all item rows correctly.', 'Invalid Items', '⚠️');
+        return;
+    }
+
+    const payload = {
+        supplierId: parseInt(supplierId),
+        quotationDeadline: document.getElementById('inqDeadline').value || null,
+        preferredDeliveryDate: document.getElementById('inqDeliveryDate').value || null,
+        deliveryLocation: document.getElementById('inqLocation').value,
+        paymentTerms: document.getElementById('inqTerms').value,
+        notes: document.getElementById('inqNotes').value,
+        status: status,
+        items: items
+    };
+
+    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+
+    try {
+        const res = await fetch('/Inquiry/Create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            // 1. Isara ang Modal
+            bootstrap.Modal.getInstance(document.getElementById('addInquiryModal')).hide();
+            
+            // 2. Ipakita ang Document View (kung Send)
+            if (status === 'Sent') {
+                await showInquiryDocument(data.inquiryId);
+                showAlert('Inquiry sent successfully!', 'Success', '✅');
+            } else {
+                showAlert('Inquiry saved as draft.', 'Saved', '💾');
+            }
+            
+            // 3. ✅ I-REFRESH ANG TABLE PARA MAKITA AGAD ANG BAGO
+            await loadInquiriesTable();
+            
+        } else {
+            showAlert(data.message, 'Error', '❌');
+        }
+    } catch (err) {
+        showAlert('Error: ' + err.message, 'Error', '❌');
+    }
+}
+
+async function loadInquiriesTable() {
+    try {
+        const res = await fetch('/Inquiry/GetAll');
+        const data = await res.json();
+        const tbody = document.getElementById('inquiriesBody');
+        
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No inquiries found.</td></tr>';
+            return;
+        }
+
+        let html = '';
+        data.forEach(i => {
+            let statusBadge = i.status === 'Sent' ? 'bg-primary' : (i.status === 'Draft' ? 'bg-secondary' : 'bg-info');
+            
+            // ✅ IDINAGDAG ANG data-status PARA SA FILTER
+            html += `
+                <tr data-status="${i.status}">
+                    <td><strong>${i.inquiryNumber}</strong></td>
+                    <td>${new Date(i.dateCreated).toLocaleDateString()}</td>
+                    <td>${i.supplierName}</td>
+                    <td>${i.itemsCount} item(s)</td>
+                    <td>${i.quotationDeadline ? new Date(i.quotationDeadline).toLocaleDateString() : '-'}</td>
+                    <td><span class="badge ${statusBadge}">${i.status}</span></td>
+                    <td><button class="btn btn-sm btn-info" onclick="showInquiryDocument(${i.inquiryId})"><i class="fas fa-eye"></i> View</button></td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+// SHOW INQUIRY DOCUMENT (PAPER LOOK)
+async function showInquiryDocument(inquiryId) {
+    try {
+        const res = await fetch(`/Inquiry/GetDetails?id=${inquiryId}`);
+        const data = await res.json();
+        
+        if (!data.success) { showAlert('Cannot load document.', 'Error', '❌'); return; }
+        
+        const inq = data.data;
+        
+        document.getElementById('docInqNumber').innerText = inq.inquiryNumber;
+        document.getElementById('docInqDate').innerText = new Date(inq.dateCreated).toLocaleDateString();
+        document.getElementById('docSupplierName').innerText = inq.supplier.name;
+        document.getElementById('docLocation').innerText = inq.deliveryLocation || 'Not specified';
+        document.getElementById('docTerms').innerText = inq.paymentTerms || 'Not specified';
+        document.getElementById('docNotes').innerText = inq.notes || 'No additional notes.';
+
+        let itemsHtml = '';
+        inq.items.forEach(item => {
+            itemsHtml += `
+                <tr>
+                    <td>${item.rawMaterial.name}</td>
+                    <td class="text-center">${item.quantity}</td>
+                    <td class="text-center">${item.unit}</td>
+                </tr>
+            `;
+        });
+        document.getElementById('docItemsBody').innerHTML = itemsHtml;
+
+        new bootstrap.Modal(document.getElementById('inquiryDocModal')).show();
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+// MOCK QUOTATION VIEW
+function showMockQuotation() {
+    showAlert('This is a mock view. Supplier Portal is not yet built.', 'Coming Soon', '🔒');
+}
+
+// I-load ang table pagbukas ng module
+// Idagdag ito sa showModule function mo:
+// if (module === 'inquire') { loadInquiriesTable(); }
+
+// ==========================================
+// INQUIRY FILTER LOGIC
+// ==========================================
+
+// Function para sa Inquiries Tabs
+function filterInquiries(status, btnElement) {
+    // 1. Update active tab styling
+    document.querySelectorAll('#inquiryStatusTabs .nav-link').forEach(btn => btn.classList.remove('active'));
+    btnElement.classList.add('active');
+
+    // 2. Filter table rows
+    const rows = document.querySelectorAll('#inquiriesBody tr');
+    rows.forEach(row => {
+        // Kunin ang status text mula sa badge sa loob ng row
+        const statusBadge = row.querySelector('.badge');
+        if (!statusBadge) return; // Skip kung Loading row
+
+        const rowStatus = statusBadge.innerText.trim();
+
+        if (status === 'All') {
+            row.style.display = '';
+        } else {
+            row.style.display = (rowStatus === status) ? '' : 'none';
+        }
+    });
+}
+
+// Function para sa Quotations Tabs
+function filterQuotations(status, btnElement) {
+    // 1. Update active tab styling
+    document.querySelectorAll('#quotationTabs .nav-link').forEach(btn => btn.classList.remove('active'));
+    btnElement.classList.add('active');
+
+    // 2. Filter table rows
+    const rows = document.querySelectorAll('#quotationsBody tr');
+    rows.forEach(row => {
+        const rowStatus = row.getAttribute('data-status');
+        if (!rowStatus) return;
+
+        if (status === 'All') {
+            row.style.display = '';
+        } else {
+            row.style.display = (rowStatus === status) ? '' : 'none';
+        }
+    });
+}
+
+// ==========================================
+// PURCHASE ORDER MODULE (DATABASE CONNECTED)
+// ==========================================
+
+let currentPOItems = [];
+let currentAcceptedQuotations = [];
+
+// 1. LOAD ACCEPTED QUOTATIONS (Pagbukas ng Module)
+async function loadPurchaseOrders() {
+    try {
+        // Load POs table
+        const poRes = await fetch('/PurchaseOrder/GetAll');
+        const pos = await poRes.json();
+        renderPOTable(pos);
+
+        // Load Accepted Quotations for dropdown
+        const quoteRes = await fetch('/PurchaseOrder/GetAcceptedQuotations');
+        currentAcceptedQuotations = await quoteRes.json();
+        
+    } catch (err) {
+        console.error("Error loading POs:", err);
+    }
+}
+
+// 2. RENDER PO TABLE
+function renderPOTable(pos) {
+    const tbody = document.getElementById('poTableBody');
+    if (!pos || pos.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No Purchase Orders found.</td></tr>';
+        // Update summary counts to 0
+        document.getElementById('poTotalCount').innerText = '0';
+        document.getElementById('poPendingCount').innerText = '0';
+        document.getElementById('poAwaitingCount').innerText = '0';
+        document.getElementById('poPartialCount').innerText = '0';
+        return;
+    }
+
+    let html = '';
+    let counts = { total: pos.length, pending: 0, awaiting: 0, partial: 0 };
+    
+    pos.forEach(p => {
+        let statusBadge = '';
+        if (p.status === 'Draft') statusBadge = 'bg-secondary';
+        else if (p.status === 'Sent') statusBadge = 'bg-primary';
+        else if (p.status === 'Accepted') statusBadge = 'bg-success';
+        else if (p.status === 'Cancelled') statusBadge = 'bg-danger';
+        
+        // Counts
+        if (p.status === 'Sent') counts.pending++;
+        if (p.status === 'Accepted') counts.awaiting++;
+        
+        html += `
+            <tr data-status="${p.status}">
+                <td><strong>${p.poNumber}</strong></td>
+                <td>${p.supplierName || '-'}</td>
+                <td>${new Date(p.orderDate).toLocaleDateString()}</td>
+                <td class="fw-bold text-primary">₱${p.grandTotal.toFixed(2)}</td>
+                <td><span class="badge ${statusBadge}">${p.status}</span></td>
+                <td>
+                    <button class="btn btn-sm btn-info" onclick="viewPODocument(${p.poId})">
+                        <i class="fas fa-eye"></i> View
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+    
+    // Update summary cards
+    document.getElementById('poTotalCount').innerText = counts.total;
+    document.getElementById('poPendingCount').innerText = counts.pending;
+    document.getElementById('poAwaitingCount').innerText = counts.awaiting;
+    document.getElementById('poPartialCount').innerText = counts.partial;
+}
+
+// 3. OPEN CREATE PO MODAL
+function openCreatePOModal() {
+    // Reset form
+    document.getElementById('poOrderDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('poAcceptedQuote').value = '';
+    document.getElementById('poSupplier').value = '';
+    document.getElementById('poInquiry').value = '';
+    document.getElementById('poExpectedDelivery').value = '';
+    document.getElementById('poDeliveryLocation').value = '';
+    document.getElementById('poPaymentTerms').value = 'Cash on Delivery';
+    document.getElementById('poDeliveryInstructions').value = '';
+    document.getElementById('poNotes').value = '';
+    document.getElementById('poItemsBody').innerHTML = '<tr><td colspan="5" class="text-center text-muted">Select an accepted quotation to load items.</td></tr>';
+    document.getElementById('poSubtotal').innerText = '₱0.00';
+    document.getElementById('poDeliveryFee').innerText = '₱0.00';
+    document.getElementById('poGrandTotal').innerText = '₱0.00';
+    currentPOItems = [];
+
+    // Auto-generate PO Number (readonly)
+    const now = new Date();
+    const tempPONo = `PO-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`;
+    document.getElementById('poNumber').value = tempPONo;
+
+    // ✅ Load dropdown options (kung may accepted quotations)
+    const select = document.getElementById('poAcceptedQuote');
+    select.innerHTML = '';
+    
+    if (currentAcceptedQuotations.length === 0) {
+        // Blank/disabled dropdown kung walang accepted quotation
+        select.innerHTML = '<option value="">-- No accepted quotations available --</option>';
+        select.disabled = true;
+    } else {
+        select.innerHTML = '<option value="">-- Select Accepted Quotation --</option>';
+        currentAcceptedQuotations.forEach(q => {
+            select.innerHTML += `<option value="${q.quotationId}">${q.quotationNumber} - ${q.supplierName}</option>`;
+        });
+        select.disabled = false;
+    }
+
+    // ✅ Ipakita ang modal kahit walang laman ang dropdown
+    new bootstrap.Modal(document.getElementById('createPOModal')).show();
+}
+
+// 4. AUTO-FILL FIELDS WHEN QUOTATION IS SELECTED
+                                                function autoFillPOFields(selectElement) {
+                                                    const quotationId = parseInt(selectElement.value);
+                                                    const quote = currentAcceptedQuotations.find(q => q.quotationId === quotationId);
+
+                                                    if (!quote) {
+                                                        // Reset kung walang napili
+                                                        document.getElementById('poSupplier').value = '';
+                                                        document.getElementById('poInquiry').value = '';
+                                                        document.getElementById('poExpectedDelivery').value = '';
+                                                        document.getElementById('poItemsBody').innerHTML = '<tr><td colspan="5" class="text-center text-muted">Select an accepted quotation to load items.</td></tr>';
+                                                        document.getElementById('poSubtotal').innerText = '₱0.00';
+                                                        document.getElementById('poDeliveryFee').innerText = '₱0.00';
+                                                        document.getElementById('poGrandTotal').innerText = '₱0.00';
+                                                        currentPOItems = [];
+                                                        return;
+                                                    }
+
+                                                    // Auto-fill
+                                                    document.getElementById('poSupplier').value = quote.supplierName;
+                                                    document.getElementById('poInquiry').value = quote.inquiryNumber || '-';
+                                                    document.getElementById('poExpectedDelivery').value = quote.expectedDeliveryDate
+                                                        ? new Date(quote.expectedDeliveryDate).toISOString().split('T')[0]
+                                                        : '';
+
+                                                    // Load Items
+                                                    currentPOItems = quote.items || [];
+                                                    renderPOItems();
+
+                                                    // Update Pricing
+                                                    document.getElementById('poSubtotal').innerText = `₱${(quote.subtotal || 0).toFixed(2)}`;
+                                                    document.getElementById('poDeliveryFee').innerText = `₱${(quote.deliveryFee || 0).toFixed(2)}`;
+                                                    const grandTotal = (quote.subtotal || 0) + (quote.deliveryFee || 0);
+                                                    document.getElementById('poGrandTotal').innerText = `₱${grandTotal.toFixed(2)}`;
+                                                }
+
+// 5. RENDER ITEMS TABLE
+function renderPOItems() {
+    const tbody = document.getElementById('poItemsBody');
+    if (currentPOItems.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No items.</td></tr>';
+        return;
+    }
+    let html = '';
+    currentPOItems.forEach(item => {
+        html += `
+            <tr>
+                <td>${item.materialName}</td>
+                <td class="text-center">${item.quantity}</td>
+                <td class="text-center">${item.unit}</td>
+                <td class="text-end">₱${item.unitPrice.toFixed(2)}</td>
+                <td class="text-end fw-bold">₱${item.subtotal.toFixed(2)}</td>
+            </tr>
+        `;
+    });
+    tbody.innerHTML = html;
+}
+
+// 6. SAVE PO (Database)
+async function savePO(status) {
+    const quotationId = document.getElementById('poAcceptedQuote').value;
+    if (!quotationId) {
+        showAlert('Please select an accepted quotation first.', 'Required', '⚠️');
+        return;
+    }
+
+    const quote = currentAcceptedQuotations.find(q => q.quotationId === parseInt(quotationId));
+    if (!quote) {
+        showAlert('Quotation not found.', 'Error', '❌');
+        return;
+    }
+
+    if (currentPOItems.length === 0) {
+        showAlert('No items to save. Please check the quotation.', 'Error', '❌');
+        return;
+    }
+
+    const payload = {
+        poNumber: document.getElementById('poNumber').value,
+        quotationId: parseInt(quotationId),
+        quotationNumber: quote.quotationNumber,
+        supplierId: quote.supplierId,
+        inquiryId: quote.inquiryId,
+        orderDate: document.getElementById('poOrderDate').value,
+        expectedDeliveryDate: document.getElementById('poExpectedDelivery').value || null,
+        deliveryLocation: document.getElementById('poDeliveryLocation').value,
+        paymentTerms: document.getElementById('poPaymentTerms').value,
+        deliveryInstructions: document.getElementById('poDeliveryInstructions').value,
+        notes: document.getElementById('poNotes').value,
+        subtotal: parseFloat(document.getElementById('poSubtotal').innerText.replace('₱','').replace(',','')),
+        deliveryFee: parseFloat(document.getElementById('poDeliveryFee').innerText.replace('₱','').replace(',','')),
+        taxesDiscount: 0,
+        grandTotal: parseFloat(document.getElementById('poGrandTotal').innerText.replace('₱','').replace(',','')),
+        status: status,
+        items: currentPOItems
+    };
+
+    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+
+    try {
+        const res = await fetch('/PurchaseOrder/Create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('createPOModal')).hide();
+            
+            if (status === 'Sent') {
+                // Show Document View
+                await viewPODocument(data.poId);
+                showAlert('Purchase Order sent to supplier!', 'Success', '✅');
+            } else {
+                showAlert('Purchase Order saved as Draft.', 'Saved', '💾');
+            }
+            
+            // Refresh table
+            await loadPurchaseOrders();
+        } else {
+            showAlert(data.message, 'Error', '❌');
+        }
+    } catch (err) {
+        showAlert('Error: ' + err.message, 'Error', '❌');
+    }
+}
+
+// 7. PREVIEW PO
+function previewPO() {
+    const quotationId = parseInt(document.getElementById('poAcceptedQuote').value);
+    const quote = currentAcceptedQuotations.find(q => q.quotationId === quotationId);
+    if (!quote) {
+        showAlert('Please select a quotation first.', 'Required', '⚠️');
+        return;
+    }
+
+    // Populate document
+    document.getElementById('docPONumber').innerText = document.getElementById('poNumber').value;
+    document.getElementById('docPODate').innerText = new Date(document.getElementById('poOrderDate').value).toLocaleDateString();
+    document.getElementById('docPOSupplier').innerText = quote.supplierName;
+    document.getElementById('docPOInquiry').innerText = quote.inquiryNumber || '-';
+    document.getElementById('docPOQuotationNumber').innerText = quote.quotationNumber || '-';
+    document.getElementById('docPOLocation').innerText = document.getElementById('poDeliveryLocation').value || 'Not specified';
+    document.getElementById('docPOTerms').innerText = document.getElementById('poPaymentTerms').value;
+    document.getElementById('docPOInstructions').innerText = document.getElementById('poDeliveryInstructions').value || 'No instructions.';
+    document.getElementById('docPONotes').innerText = document.getElementById('poNotes').value || 'No notes.';
+
+    // Items
+    let itemsHtml = '';
+    currentPOItems.forEach(item => {
+        itemsHtml += `
+            <tr>
+                <td>${item.materialName}</td>
+                <td class="text-center">${item.quantity}</td>
+                <td class="text-center">${item.unit}</td>
+                <td class="text-end">₱${item.unitPrice.toFixed(2)}</td>
+                <td class="text-end">₱${item.subtotal.toFixed(2)}</td>
+            </tr>
+        `;
+    });
+    document.getElementById('docPOItemsBody').innerHTML = itemsHtml;
+
+    // Pricing
+    document.getElementById('docPOSubtotal').innerText = document.getElementById('poSubtotal').innerText;
+    document.getElementById('docPODeliveryFee').innerText = document.getElementById('poDeliveryFee').innerText;
+    document.getElementById('docPOGrandTotal').innerText = document.getElementById('poGrandTotal').innerText;
+
+    new bootstrap.Modal(document.getElementById('poDocumentModal')).show();
+}
+
+// 8. VIEW PO DOCUMENT (from database)
+async function viewPODocument(poId) {
+    try {
+        // TODO: Gumawa ng endpoint para kunin ang PO details by ID
+        // For now, since wala pang data, show alert
+        showAlert('PO details loading not yet implemented. Coming soon.', 'Notice', 'ℹ️');
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+// 9. FILTER PO TABS
+function filterPOTabs(status, btnElement) {
+    document.querySelectorAll('#poTabs .nav-link').forEach(btn => btn.classList.remove('active'));
+    btnElement.classList.add('active');
+    
+    const rows = document.querySelectorAll('#poTableBody tr');
+    rows.forEach(row => {
+        const rowStatus = row.getAttribute('data-status');
+        if (!rowStatus) return;
+        row.style.display = (status === 'All' || rowStatus === status) ? '' : 'none';
+    });
+}
+
+// 10. SEARCH PO TABLE
+function filterPOTable() {
+    const search = document.querySelector('#inq-purchase-order input[type="text"]').value.toLowerCase();
+    const rows = document.querySelectorAll('#poTableBody tr');
+    rows.forEach(row => {
+        if (!row.getAttribute('data-status')) return;
+        row.style.display = row.innerText.toLowerCase().includes(search) ? '' : 'none';
+    });
+}
+
 
 
        

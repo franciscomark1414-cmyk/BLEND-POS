@@ -2599,6 +2599,26 @@ namespace Infoman.Controllers
             if (user?.Role != "Owner")
                 return Json(new { success = false, message = "Only Owner can approve" });
 
+
+            // PHASE 3: VOID at REFUND ay sa VoidRefundService lang dadaan (iisang approval path).
+            // Hindi na gagamitin ang lumang logic sa ibaba para sa dalawang type na ito.
+            var pendingType = await _db.PendingRequests
+                .Where(r => r.Id == request.RequestId)
+                .Select(r => r.RequestType)
+                .FirstOrDefaultAsync();
+
+            if (pendingType == "VOID")
+            {
+                var voidResult = await new VoidRefundService(_db).ApproveTransactionVoidAsync(request.RequestId, userId);
+                return Json(new { success = voidResult.success, message = voidResult.message });
+            }
+
+            if (pendingType == "REFUND")
+            {
+                var refundResult = await new VoidRefundService(_db).ApproveItemRefundAsync(request.RequestId, userId);
+                return Json(new { success = refundResult.success, message = refundResult.message });
+            }
+
             var pendingRequest = await _db.PendingRequests
                 .Include(r => r.Order)
                 .ThenInclude(o => o.Items)
@@ -2779,21 +2799,19 @@ namespace Infoman.Controllers
                 return Json(new { success = false, message = "Only Owner can reject" });
 
             var pendingRequest = await _db.PendingRequests
-                .Include(r => r.Order)  // ✅ IDAGDAG ITO para makuha ang Order
+                .Include(r => r.Order)
                 .FirstOrDefaultAsync(r => r.Id == request.RequestId);
 
             if (pendingRequest == null)
                 return Json(new { success = false, message = "Request not found" });
 
+            // PHASE 3: Hindi na pwedeng i-reject ang request na na-approve na o na-reject na.
+            if (pendingRequest.Status != "PENDING")
+                return Json(new { success = false, message = "Request already processed" });
+
             pendingRequest.Status = "REJECTED";
             pendingRequest.ApprovedBy = userId;
             pendingRequest.ApprovedAt = DateTime.Now;
-
-            // ✅ IDAGDAG ITO: I-BALIK ANG ORDER STATUS SA COMPLETED
-            if (pendingRequest.Order != null && pendingRequest.Order.Status == "PENDING_REFUND")
-            {
-                pendingRequest.Order.Status = "COMPLETED";
-            }
 
             await _db.SaveChangesAsync();
 

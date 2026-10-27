@@ -1,13 +1,14 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Infoman.Constants;
 using Infoman.Data;
 using Infoman.Models;
 using Infoman.Service;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using System;
-using System.Net.Http.Headers;
-using System.Text;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace Infoman.Controllers
@@ -16,16 +17,33 @@ namespace Infoman.Controllers
     {
         private readonly ConnectionDatabase _db;
         private readonly PayMongoService _payMongoService;
+        private readonly PaymentOptions _paymentOptions;
 
-        public PaymentController(ConnectionDatabase db)
+        // PHASE 1: Naka-OFF ang webhook. Wala pa itong signature verification,
+        // kaya hindi ito dapat makapag-update ng order o payment kahit kailan.
+        // Huwag i-set sa true hangga't hindi naidadagdag ang verification.
+        private static readonly bool WebhookEnabled = false;
+
+        public PaymentController(ConnectionDatabase db, IOptions<PaymentOptions> paymentOptions)
         {
             _db = db;
             _payMongoService = new PayMongoService();
+            _paymentOptions = paymentOptions.Value;
         }
 
         private int GetCurrentUserId()
         {
             return HttpContext.Session.GetInt32("UserId") ?? 0;
+        }
+
+        private JsonResult GCashDisabledJson()
+        {
+            return Json(new { success = false, message = "GCash is temporarily unavailable. Please use Cash." });
+        }
+
+        private JsonResult QRPhDisabledJson()
+        {
+            return Json(new { success = false, message = "QRPh is temporarily unavailable. Please use Cash." });
         }
 
         public class GCashPaymentRequest
@@ -39,6 +57,10 @@ namespace Infoman.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> InitiateGCashPayment([FromBody] GCashPaymentRequest request)
         {
+            // PHASE 1: Gate. Walang PayMongo call at walang Payment record kapag naka-OFF.
+            if (!_paymentOptions.EnableGCash)
+                return GCashDisabledJson();
+
             try
             {
                 var order = await _db.Orders.FindAsync(request.OrderId);
@@ -96,6 +118,10 @@ namespace Infoman.Controllers
         [HttpGet]
         public async Task<IActionResult> CheckQRPhStatus(string paymentIntentId)
         {
+            // PHASE 1: Gate
+            if (!_paymentOptions.EnableQRPh)
+                return Json(new { status = "disabled" });
+
             try
             {
                 // Hanapin ang payment sa database
@@ -124,6 +150,13 @@ namespace Infoman.Controllers
         [HttpGet]
         public async Task<IActionResult> GCashSuccess()
         {
+            // PHASE 1: Gate. Walang status na mababago kapag naka-OFF ang GCash.
+            if (!_paymentOptions.EnableGCash)
+            {
+                TempData["Error"] = "GCash is temporarily unavailable. Please use Cash.";
+                return RedirectToAction("POS", "Staff");
+            }
+
             System.Diagnostics.Debug.WriteLine($"=== GCASHSUCCESS METHOD HIT ===");
             System.Diagnostics.Debug.WriteLine($"Query string: {Request.QueryString}");
 
@@ -178,7 +211,7 @@ namespace Infoman.Controllers
 
                     // ✅ IMPORTANTE: I-load ang order KASAMA ang ITEMS
                     var order = await _db.Orders
-                        .Include(o => o.Items)  // ✅ DAPAT MAY INCLUDE ITO!
+                        .Include(o => o.Items)
                         .ThenInclude(oi => oi.Product)
                         .Include(o => o.Items)
                         .ThenInclude(oi => oi.ProductSize)
@@ -212,8 +245,6 @@ namespace Infoman.Controllers
 
             return RedirectToAction("POS", "Staff", new { showReceipt = true });
         }
-
-        // PaymentController.cs - Idagdag ito sa loob ng PaymentController class
 
         private async Task RecordEmployeePerformance(int userId, decimal orderAmount)
         {
@@ -271,8 +302,16 @@ namespace Infoman.Controllers
                 Console.WriteLine($"Error recording performance: {ex.Message}");
             }
         }
+
         public async Task<IActionResult> GCashCancel(string source_id, string id)
         {
+            // PHASE 1: Gate
+            if (!_paymentOptions.EnableGCash)
+            {
+                TempData["Error"] = "GCash is temporarily unavailable. Please use Cash.";
+                return RedirectToAction("POS", "Staff");
+            }
+
             string sourceId = source_id ?? id;
 
             if (!string.IsNullOrEmpty(sourceId))
@@ -317,6 +356,10 @@ namespace Infoman.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CreateQRPhPayment([FromBody] QRPhPaymentRequest request)
         {
+            // PHASE 1: Gate. Walang PayMongo call at walang Payment record kapag naka-OFF.
+            if (!_paymentOptions.EnableQRPh)
+                return QRPhDisabledJson();
+
             try
             {
                 var order = await _db.Orders.FindAsync(request.OrderId);
@@ -373,6 +416,13 @@ namespace Infoman.Controllers
         [HttpPost("webhook/paymongo")]
         public async Task<IActionResult> HandlePayMongoWebhook()
         {
+            // PHASE 1: Hindi ito pinoproseso. Walang nababago sa order o payment.
+            // 503 para ma-retry ng PayMongo kung sakaling i-enable ito balang araw.
+            if (!WebhookEnabled)
+            {
+                return StatusCode(503);
+            }
+
             var json = await new StreamReader(Request.Body).ReadToEndAsync();
             Console.WriteLine($"Webhook received: {json}");
 
@@ -403,13 +453,9 @@ namespace Infoman.Controllers
                     }
 
                     await _db.SaveChangesAsync();
-
-                    // Optional: Mag-trigger ng SignalR para real-time update sa POS
-                    // await _signalRService.NotifyPaymentReceived(payment.OrderId);
                 }
             }
 
-            // Dapat mag-respond ng 200 OK [citation:2]
             return Ok();
         }
     }

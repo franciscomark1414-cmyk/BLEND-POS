@@ -1,7 +1,9 @@
-﻿using Infoman.Data;
+﻿using Infoman.Constants;
+using Infoman.Data;
 using Infoman.Service;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,12 +16,14 @@ namespace Infoman.Controllers
         private readonly ConnectionDatabase _db;
         private readonly ExchangeService _exchangeService;
         private readonly FIFOService _fifoService;
+        private readonly PaymentOptions _paymentOptions;
 
-        public ReturnExchangeController(ConnectionDatabase db)
+        public ReturnExchangeController(ConnectionDatabase db, IOptions<PaymentOptions> paymentOptions)
         {
             _db = db;
             _fifoService = new FIFOService(_db);
             _exchangeService = new ExchangeService(db, _fifoService);
+            _paymentOptions = paymentOptions.Value;
         }
 
         private int GetCurrentUserId()
@@ -119,6 +123,10 @@ namespace Infoman.Controllers
             var userId = GetCurrentUserId();
             if (userId == 0)
                 return Json(new { success = false, message = "User not logged in" });
+
+            // PHASE 1: Payment gate. Ang payment para sa difference ay dapat enabled method (Cash lang muna).
+            if (!string.IsNullOrEmpty(request.PaymentForDifference) && !_paymentOptions.IsEnabled(request.PaymentForDifference))
+                return Json(new { success = false, message = "Selected payment method is not available. Please use Cash." });
 
             if (request.ItemsToReturn.Sum(i => i.Quantity) == 0)
                 return Json(new { success = false, message = "No items selected to return" });

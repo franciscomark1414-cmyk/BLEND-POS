@@ -15,7 +15,7 @@ namespace Infoman.Models
 
         public int ReceivingId { get; set; }
         public int ReceivingItemId { get; set; }
-        public int SupplierId { get; set; }
+        public int? SupplierId { get; set; }
         public int RawMaterialId { get; set; }
 
         [Required]

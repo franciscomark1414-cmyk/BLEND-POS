@@ -2129,8 +2129,9 @@ namespace Infoman.Controllers
                 {
                     r.RawMaterialId,
                     r.Name,
-                    r.Unit,
-                    // ✅ CONVERT STOCK
+                    r.Unit,           // Display Unit (e.g., kg, pcs)
+                    r.BaseUnit,       // Base Unit (e.g., g, mL)
+                    r.ConversionFactor,
                     StockInDisplayUnit = r.BaseUnit == "g" && r.Unit == "kg" ? r.Stock / 1000 :
                                         (r.BaseUnit == "mL" && r.Unit == "L" ? r.Stock / 1000 : r.Stock)
                 })
@@ -2143,6 +2144,11 @@ namespace Infoman.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ReceiveDelivery([FromBody] ReceivingViewModel model)
         {
+            if (model == null || model.Items == null || !model.Items.Any())
+            {
+                return Json(new { success = false, message = "Invalid data received. Please refresh and try again." });
+            }
+
             try
             {
                 // Validate each item
@@ -2169,11 +2175,10 @@ namespace Infoman.Controllers
                     return Json(new { success = false, message = $"DR Number '{model.DRNumber}' already exists. Please refresh to generate a new one." });
                 }
 
-
                 // Create receiving header
                 var receiving = new Receiving
                 {
-                    SupplierId = model.SupplierId,
+                    SupplierId = model.SupplierId == 0 ? null : model.SupplierId,
                     DRNumber = model.DRNumber,
                     InvoiceNumber = model.InvoiceNumber,
                     DateReceived = model.DateReceived,
@@ -2199,40 +2204,45 @@ namespace Infoman.Controllers
                         RejectionReason = item.RejectedQty > 0 ? item.RejectionReason : null,
                         UnitPrice = item.UnitPrice,
                         ExpiryDate = item.ExpiryDate,
+                        StoreName = item.StoreName,
                         ReturnStatus = null,
                         ReturnId = null
                     };
                     _db.ReceivingItems.Add(receivingItem);
                     await _db.SaveChangesAsync();
 
-                    // ✅ CREATE STOCK BATCH for accepted quantity WITH CONVERSION
+                    // ✅ CREATE STOCK BATCH for accepted quantity
                     if (item.AcceptedQty > 0)
                     {
                         var rawMat = await _db.RawMaterials.FindAsync(item.RawMaterialId);
+                        if (rawMat == null) continue;
 
+                        // ✅ TAMANG CONVERSION: Ang JS ay nagpadala ng quantity sa DISPLAY UNIT (kg, L, pcs)
+                        // I-convert natin sa BASE UNIT (g, mL, pcs) para sa database
                         decimal quantityInBaseUnit = item.AcceptedQty;
 
-                        if (rawMat.BaseUnit == "g" && rawMat.Unit == "kg")
+                        // Kung ang unit ay kg at ang base unit ay g, i-multiply sa 1000
+                        if (rawMat.BaseUnit == "g" && item.Unit == "kg")
                         {
-                            quantityInBaseUnit = item.AcceptedQty * 1000;  // 20 kg → 20,000 g
+                            quantityInBaseUnit = item.AcceptedQty * 1000;
                         }
-                        else if (rawMat.BaseUnit == "mL" && rawMat.Unit == "L")
+                        // Kung ang unit ay L at ang base unit ay mL, i-multiply sa 1000
+                        else if (rawMat.BaseUnit == "mL" && item.Unit == "L")
                         {
-                            quantityInBaseUnit = item.AcceptedQty * 1000;  // 20 L → 20,000 mL
+                            quantityInBaseUnit = item.AcceptedQty * 1000;
                         }
+                        // Kung pareho ang unit (e.g., g -> g, pcs -> pcs), walang conversion (1:1)
 
                         var batch = new RawMaterialBatch
                         {
                             RawMaterialId = item.RawMaterialId,
-                            QuantityReceived = quantityInBaseUnit,
+                            QuantityReceived = quantityInBaseUnit, // ✅ 100,000 g (mula sa 100 kg)
                             QuantityRemaining = quantityInBaseUnit,
                             ReceivedDate = DateTime.Now,
                             ExpiryDate = item.ExpiryDate,
                             UnitPrice = item.UnitPrice
                         };
                         _db.RawMaterialBatches.Add(batch);
-
-                        // ✅ I-SAVE MUNA PARA MAGKAROON NG BATCH ID
                         await _db.SaveChangesAsync();
 
                         // ✅ CHECK KUNG EXPIRED ANG BATCH NA ITO
@@ -2244,6 +2254,7 @@ namespace Infoman.Controllers
                             System.Diagnostics.Debug.WriteLine($"Today: {DateTime.Today:yyyy-MM-dd}");
                             System.Diagnostics.Debug.WriteLine($"AcceptedQty: {item.AcceptedQty}");
                             System.Diagnostics.Debug.WriteLine($"UnitPrice: {item.UnitPrice}");
+
                             // Compute total cost (accepted quantity in display unit * unit price)
                             decimal totalCost = item.AcceptedQty * item.UnitPrice;
                             System.Diagnostics.Debug.WriteLine($"TotalCost: {totalCost}");
@@ -2279,13 +2290,13 @@ namespace Infoman.Controllers
                     {
                         var rawMat = await _db.RawMaterials.FindAsync(item.RawMaterialId);
 
-                        // Convert rejected quantity to base unit
+                        // ✅ Convert rejected quantity from display unit to base unit
                         decimal rejectedQtyInBaseUnit = item.RejectedQty;
-                        if (rawMat.BaseUnit == "g" && rawMat.Unit == "kg")
+                        if (rawMat.BaseUnit == "g" && item.Unit == "kg")
                         {
                             rejectedQtyInBaseUnit = item.RejectedQty * 1000;
                         }
-                        else if (rawMat.BaseUnit == "mL" && rawMat.Unit == "L")
+                        else if (rawMat.BaseUnit == "mL" && item.Unit == "L")
                         {
                             rejectedQtyInBaseUnit = item.RejectedQty * 1000;
                         }
@@ -2322,7 +2333,7 @@ namespace Infoman.Controllers
                             _db.RejectedForReturns.Add(rejectedForReturn);
                         }
                     }
-                }
+                } // ✅ DITO TAPOS ANG FOREACH LOOP PARA SA MGA ITEMS
 
                 await _db.SaveChangesAsync();
 
@@ -2379,7 +2390,7 @@ namespace Infoman.Controllers
                     r.ReceivingId,
                     r.DRNumber,
                     r.DateReceived,
-                    SupplierName = r.Supplier.Name,
+                    SupplierName = r.Supplier != null ? r.Supplier.Name : "—",
                     TotalItems = r.ReceivingItems.Count,
                     TotalAccepted = r.ReceivingItems.Sum(ri => ri.AcceptedQty),
                     TotalRejected = r.ReceivingItems.Sum(ri => ri.RejectedQty),
@@ -2390,7 +2401,8 @@ namespace Infoman.Controllers
                         ri.AcceptedQty,
                         ri.RejectedQty,
                         ri.RejectionReason,
-                        ri.ExpiryDate
+                        ri.ExpiryDate,
+                        ri.StoreName
                     })
                 })
                 .ToListAsync();
@@ -2848,6 +2860,7 @@ namespace Infoman.Controllers
                     rejectedQtyWithUnit = $"{ri.RejectedQty} {ri.RawMaterial?.Unit}",
                     unit = ri.RawMaterial?.Unit,
                     unitPrice = ri.UnitPrice,
+                    storeName = ri.StoreName,
                     returnStatus = ri.ReturnStatus,
                     returnId = ri.ReturnId
                 })
@@ -3154,30 +3167,7 @@ namespace Infoman.Controllers
             return $"{prefix}{(max + 1):D4}";
         }
 
-        // Idagdag sa OwnerController.cs
-        [HttpGet]
-        public async Task<IActionResult> GetRawMaterialsForProduct()
-        {
-            var rawMaterials = await _db.RawMaterials
-                .Where(r => !r.IsDeleted)
-                .Select(r => new
-                {
-                    id = r.RawMaterialId,
-                    name = r.Name,
-                    unit = r.Unit,
-                    price = r.Price,
-                    // ✅ TAMA: OrderBy (ascending) - PINAKAMATANDANG BATCH
-                    latestBatchPrice = _db.RawMaterialBatches
-                        .Where(b => b.RawMaterialId == r.RawMaterialId && b.QuantityRemaining > 0)
-                        .OrderBy(b => b.ExpiryDate)      // ✅ UNAHIN ANG MAAGANG EXPIRY (FEFO)
-                        .ThenBy(b => b.ReceivedDate)     // ✅ PAG SAME EXPIRY, UNAHIN ANG MATANDA (FIFO)
-                        .Select(b => b.UnitPrice)
-                        .FirstOrDefault()
-                })
-                .ToListAsync();
-
-            return Json(rawMaterials);
-        }
+     
 
         // Price rounding helper methods - FIXED ENDING 9 ONLY
         private decimal RoundToPriceEnding(decimal price)
@@ -4144,6 +4134,8 @@ namespace Infoman.Controllers
             public decimal ReceivedQty { get; set; }
             public decimal AcceptedQty { get; set; }
             public decimal RejectedQty { get; set; }
+            public string Unit { get; set; }
+            public string StoreName { get; set; }
             public string Disposition { get; set; }
             public string RejectionReason { get; set; }
             public decimal UnitPrice { get; set; }

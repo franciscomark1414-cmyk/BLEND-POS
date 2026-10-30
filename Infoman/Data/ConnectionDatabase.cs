@@ -37,10 +37,8 @@ namespace Infoman.Data
         public DbSet<StockAdjustmentLog> StockAdjustmentLogs { get; set; }
         public DbSet<ItemDispositionStatus> ItemDispositionStatuses { get; set; }
         public DbSet<Category> Categories { get; set; }
-        public DbSet<Inquiry> Inquiries { get; set; }
-        public DbSet<InquiryItem> InquiryItems { get; set; }
-        public DbSet<PurchaseOrder> PurchaseOrders { get; set; }
-        public DbSet<PurchaseOrderItem> PurchaseOrderItems { get; set; }
+        public DbSet<Expense> Expenses { get; set; }
+        public DbSet<CashWithdrawal> CashWithdrawals { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

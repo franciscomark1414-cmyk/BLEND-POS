@@ -43,19 +43,16 @@ namespace Infoman.Controllers
                 ? name.Substring(0, 3).ToUpperInvariant()
                 : name.ToUpperInvariant();
 
-            // Base SKU
             string baseSku = $"{prefix}-{code}";
 
-            // Check kung existing na
+            // ✅ TAMA: Isama ang lahat ng records (deleted man o hindi) para walang conflict
             bool exists = await _context.RawMaterials
-                .AnyAsync(r => r.SKU == baseSku && !r.IsDeleted);
+                .AnyAsync(r => r.SKU == baseSku);
 
             if (!exists) return baseSku;
 
-            // Collision → append numeric suffix (RM-MAN-01, RM-MAN-02, ...)
-            // Kunin ang lahat ng existing with same prefix
             var existingSkus = await _context.RawMaterials
-                .Where(r => r.SKU != null && r.SKU.StartsWith(baseSku + "-") && !r.IsDeleted)
+                .Where(r => r.SKU != null && r.SKU.StartsWith(baseSku + "-")) // ✅ Alisin din dito ang !r.IsDeleted
                 .Select(r => r.SKU)
                 .ToListAsync();
 

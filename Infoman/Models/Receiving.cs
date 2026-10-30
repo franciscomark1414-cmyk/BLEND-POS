@@ -10,8 +10,7 @@ namespace Infoman.Models
         [Key]
         public int ReceivingId { get; set; }
 
-        [Required]
-        public int SupplierId { get; set; }
+        public int? SupplierId { get; set; }
 
         [Required]
         [StringLength(100)]
@@ -84,6 +83,7 @@ namespace Infoman.Models
         public int? ReturnId { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public string StoreName { get; set; }
 
         [ForeignKey("ReceivingId")]
         public virtual Receiving Receiving { get; set; }

@@ -28,6 +28,8 @@ namespace Infoman.Models
         public decimal ReceivedQty { get; set; }
         public decimal AcceptedQty { get; set; }
         public decimal RejectedQty { get; set; }
+        public string Unit { get; set; }
+        public string StoreName { get; set; }
         [StringLength(50)]
         public string Disposition { get; set; }
         [StringLength(100)]

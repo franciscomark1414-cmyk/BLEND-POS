@@ -2191,16 +2191,39 @@ namespace Infoman.Controllers
                 await _db.SaveChangesAsync();
 
                 // Process each item
+                // Process each item
                 foreach (var item in model.Items)
                 {
+                    // 1. I-convert muna sa BASE UNIT gamit ang JS data (100 display unit -> 100,000 base unit)
+                    var rawMat = await _db.RawMaterials.FindAsync(item.RawMaterialId);
+                    if (rawMat == null) continue;
+
+                    decimal receivedInBaseUnit = item.ReceivedQty;
+                    decimal acceptedInBaseUnit = item.AcceptedQty;
+                    decimal rejectedInBaseUnit = item.RejectedQty;
+
+                    if (rawMat.BaseUnit == "g" && item.Unit == "kg")
+                    {
+                        receivedInBaseUnit = item.ReceivedQty * 1000;
+                        acceptedInBaseUnit = item.AcceptedQty * 1000;
+                        rejectedInBaseUnit = item.RejectedQty * 1000;
+                    }
+                    else if (rawMat.BaseUnit == "mL" && item.Unit == "L")
+                    {
+                        receivedInBaseUnit = item.ReceivedQty * 1000;
+                        acceptedInBaseUnit = item.AcceptedQty * 1000;
+                        rejectedInBaseUnit = item.RejectedQty * 1000;
+                    }
+
+                    // 2. I-save sa ReceivingItem (BASE UNIT)
                     var receivingItem = new ReceivingItem
                     {
                         ReceivingId = receiving.ReceivingId,
                         RawMaterialId = item.RawMaterialId,
                         OrderedQty = item.OrderedQty,
-                        ReceivedQty = item.ReceivedQty,
-                        AcceptedQty = item.AcceptedQty,
-                        RejectedQty = item.RejectedQty,
+                        ReceivedQty = receivedInBaseUnit,
+                        AcceptedQty = acceptedInBaseUnit,
+                        RejectedQty = rejectedInBaseUnit,
                         RejectionReason = item.RejectedQty > 0 ? item.RejectionReason : null,
                         UnitPrice = item.UnitPrice,
                         ExpiryDate = item.ExpiryDate,
@@ -2211,33 +2234,17 @@ namespace Infoman.Controllers
                     _db.ReceivingItems.Add(receivingItem);
                     await _db.SaveChangesAsync();
 
-                    // ✅ CREATE STOCK BATCH for accepted quantity
+                    // 3. CREATE STOCK BATCH (DAPAT BASE UNIT DIN ANG ITATAMA)
                     if (item.AcceptedQty > 0)
                     {
-                        var rawMat = await _db.RawMaterials.FindAsync(item.RawMaterialId);
-                        if (rawMat == null) continue;
-
-                        // ✅ TAMANG CONVERSION: Ang JS ay nagpadala ng quantity sa DISPLAY UNIT (kg, L, pcs)
-                        // I-convert natin sa BASE UNIT (g, mL, pcs) para sa database
-                        decimal quantityInBaseUnit = item.AcceptedQty;
-
-                        // Kung ang unit ay kg at ang base unit ay g, i-multiply sa 1000
-                        if (rawMat.BaseUnit == "g" && item.Unit == "kg")
-                        {
-                            quantityInBaseUnit = item.AcceptedQty * 1000;
-                        }
-                        // Kung ang unit ay L at ang base unit ay mL, i-multiply sa 1000
-                        else if (rawMat.BaseUnit == "mL" && item.Unit == "L")
-                        {
-                            quantityInBaseUnit = item.AcceptedQty * 1000;
-                        }
-                        // Kung pareho ang unit (e.g., g -> g, pcs -> pcs), walang conversion (1:1)
+                        // ✅ ITO ANG TAMANG VALUE NA DAPAT NAKA-SAVE SA BATCH
+                        decimal batchQtyInBaseUnit = acceptedInBaseUnit;
 
                         var batch = new RawMaterialBatch
                         {
                             RawMaterialId = item.RawMaterialId,
-                            QuantityReceived = quantityInBaseUnit, // ✅ 100,000 g (mula sa 100 kg)
-                            QuantityRemaining = quantityInBaseUnit,
+                            QuantityReceived = batchQtyInBaseUnit, // 100,000 g
+                            QuantityRemaining = batchQtyInBaseUnit,
                             ReceivedDate = DateTime.Now,
                             ExpiryDate = item.ExpiryDate,
                             UnitPrice = item.UnitPrice
@@ -2245,62 +2252,32 @@ namespace Infoman.Controllers
                         _db.RawMaterialBatches.Add(batch);
                         await _db.SaveChangesAsync();
 
-                        // ✅ CHECK KUNG EXPIRED ANG BATCH NA ITO
+                        // Expiry check para sa waste log
                         if (item.ExpiryDate.HasValue && item.ExpiryDate.Value.Date < DateTime.Today)
                         {
-                            System.Diagnostics.Debug.WriteLine($"=== EXPIRED BATCH DETECTED! ===");
-                            System.Diagnostics.Debug.WriteLine($"Material: {rawMat.Name}");
-                            System.Diagnostics.Debug.WriteLine($"ExpiryDate: {item.ExpiryDate.Value:yyyy-MM-dd}");
-                            System.Diagnostics.Debug.WriteLine($"Today: {DateTime.Today:yyyy-MM-dd}");
-                            System.Diagnostics.Debug.WriteLine($"AcceptedQty: {item.AcceptedQty}");
-                            System.Diagnostics.Debug.WriteLine($"UnitPrice: {item.UnitPrice}");
-
-                            // Compute total cost (accepted quantity in display unit * unit price)
-                            decimal totalCost = item.AcceptedQty * item.UnitPrice;
-                            System.Diagnostics.Debug.WriteLine($"TotalCost: {totalCost}");
-
-                            // Convert to base unit for storage
-                            decimal wastedQtyInBaseUnit = quantityInBaseUnit;
+                            decimal totalCost = item.AcceptedQty * item.UnitPrice; // Display unit cost
 
                             var wasteLog = new WasteLog
                             {
                                 RawMaterialId = item.RawMaterialId,
-                                Quantity = wastedQtyInBaseUnit,  // ✅ BASE UNIT (grams/mL)
+                                Quantity = batchQtyInBaseUnit, // Base unit
                                 Reason = WasteLog.WasteReason.Expired,
                                 Date = DateTime.Now,
                                 RecordedBy = "Receiving",
-                                Notes = $"Auto-generated from expired batch received on DR#{model.DRNumber}. Expiry: {item.ExpiryDate.Value:yyyy-MM-dd}",
+                                Notes = $"Auto-generated expired batch from DR#{model.DRNumber}",
                                 TotalCost = totalCost,
                                 ExpiryDate = item.ExpiryDate,
                                 BatchId = batch.BatchId
                             };
                             _db.WasteLogs.Add(wasteLog);
-
-                            // ✅ SET REMAINING TO 0 DAHIL EXPIRED
-                            batch.QuantityRemaining = 0;
-                            System.Diagnostics.Debug.WriteLine($"WasteLog added. Batch.QuantityRemaining set to 0");
-
+                            batch.QuantityRemaining = 0; // Zero out expired
                             await _db.SaveChangesAsync();
-                            System.Diagnostics.Debug.WriteLine($"Changes saved successfully!");
                         }
                     }
 
-                    // ✅ HANDLE REJECTED ITEMS (may conversion na)
+                    // 4. HANDLE REJECTED ITEMS
                     if (item.RejectedQty > 0)
                     {
-                        var rawMat = await _db.RawMaterials.FindAsync(item.RawMaterialId);
-
-                        // ✅ Convert rejected quantity from display unit to base unit
-                        decimal rejectedQtyInBaseUnit = item.RejectedQty;
-                        if (rawMat.BaseUnit == "g" && item.Unit == "kg")
-                        {
-                            rejectedQtyInBaseUnit = item.RejectedQty * 1000;
-                        }
-                        else if (rawMat.BaseUnit == "mL" && item.Unit == "L")
-                        {
-                            rejectedQtyInBaseUnit = item.RejectedQty * 1000;
-                        }
-
                         if (item.Disposition == "Waste")
                         {
                             decimal totalCost = item.RejectedQty * item.UnitPrice;
@@ -2308,7 +2285,7 @@ namespace Infoman.Controllers
                             var wasteLog = new WasteLog
                             {
                                 RawMaterialId = item.RawMaterialId,
-                                Quantity = rejectedQtyInBaseUnit,  // ✅ BASE UNIT (grams/mL)
+                                Quantity = rejectedInBaseUnit, // ✅ Base unit na agad
                                 Reason = WasteLog.WasteReason.QualityIssue,
                                 Date = DateTime.Now,
                                 RecordedBy = "Receiving",
@@ -2325,7 +2302,7 @@ namespace Infoman.Controllers
                             {
                                 ReceivingId = receiving.ReceivingId,
                                 RawMaterialId = item.RawMaterialId,
-                                Quantity = item.RejectedQty,  // Display unit okay for return
+                                Quantity = item.RejectedQty, // Pwede display unit dito para sa supplier return
                                 Reason = item.RejectionReason,
                                 UnitPrice = item.UnitPrice,
                                 Status = "Pending Return"
@@ -2392,14 +2369,46 @@ namespace Infoman.Controllers
                     r.DateReceived,
                     SupplierName = r.Supplier != null ? r.Supplier.Name : "—",
                     TotalItems = r.ReceivingItems.Count,
-                    TotalAccepted = r.ReceivingItems.Sum(ri => ri.AcceptedQty),
-                    TotalRejected = r.ReceivingItems.Sum(ri => ri.RejectedQty),
+
+                    // ✅ I-CONVERT ANG TOTAL ACCEPTED PABALIK SA DISPLAY UNIT
+                    TotalAccepted = r.ReceivingItems.Sum(ri =>
+                        (ri.RawMaterial.BaseUnit == "g" && ri.RawMaterial.Unit == "kg") ||
+                        (ri.RawMaterial.BaseUnit == "mL" && ri.RawMaterial.Unit == "L")
+                        ? ri.AcceptedQty / 1000
+                        : ri.AcceptedQty
+),
+
+                    // ✅ I-CONVERT DIN ANG TOTAL REJECTED
+                    TotalRejected = r.ReceivingItems.Sum(ri =>
+                        (ri.RawMaterial.BaseUnit == "g" && ri.RawMaterial.Unit == "kg") ||
+                        (ri.RawMaterial.BaseUnit == "mL" && ri.RawMaterial.Unit == "L")
+                        ? ri.RejectedQty / 1000
+                        : ri.RejectedQty
+),
+
+                    // ✅ BAGONG DAGDAG: KUNIN ANG UNIT NG UNANG ITEM (Para sa display sa table)
+                    DisplayUnit = r.ReceivingItems.Select(ri => ri.RawMaterial.Unit).FirstOrDefault() ?? "",
+
                     Items = r.ReceivingItems.Select(ri => new
                     {
                         ri.RawMaterial.Name,
-                        ri.ReceivedQty,
-                        ri.AcceptedQty,
-                        ri.RejectedQty,
+
+                        // ✅ I-CONVERT DIN ANG MGA INDIVIDUAL ITEMS
+                        ReceivedQty = (ri.RawMaterial.BaseUnit == "g" && ri.RawMaterial.Unit == "kg") ||
+                                      (ri.RawMaterial.BaseUnit == "mL" && ri.RawMaterial.Unit == "L")
+                            ? ri.ReceivedQty / 1000
+                            : ri.ReceivedQty,
+
+                        AcceptedQty = (ri.RawMaterial.BaseUnit == "g" && ri.RawMaterial.Unit == "kg") ||
+                                      (ri.RawMaterial.BaseUnit == "mL" && ri.RawMaterial.Unit == "L")
+                            ? ri.AcceptedQty / 1000
+                            : ri.AcceptedQty,
+
+                        RejectedQty = (ri.RawMaterial.BaseUnit == "g" && ri.RawMaterial.Unit == "kg") ||
+                                      (ri.RawMaterial.BaseUnit == "mL" && ri.RawMaterial.Unit == "L")
+                            ? ri.RejectedQty / 1000
+                            : ri.RejectedQty,
+
                         ri.RejectionReason,
                         ri.ExpiryDate,
                         ri.StoreName
@@ -2850,19 +2859,29 @@ namespace Infoman.Controllers
                 drNumber = receiving.DRNumber,
                 supplierName = receiving.Supplier?.Name,
                 dateReceived = receiving.DateReceived,
-                items = receiving.ReceivingItems.Select(ri => new
+                items = receiving.ReceivingItems.Select(ri =>
                 {
-                    receivingItemId = ri.ReceivingItemId,
-                    name = ri.RawMaterial?.Name,
-                    acceptedQty = ri.AcceptedQty,
-                    acceptedQtyWithUnit = $"{ri.AcceptedQty} {ri.RawMaterial?.Unit}",
-                    rejectedQty = ri.RejectedQty,
-                    rejectedQtyWithUnit = $"{ri.RejectedQty} {ri.RawMaterial?.Unit}",
-                    unit = ri.RawMaterial?.Unit,
-                    unitPrice = ri.UnitPrice,
-                    storeName = ri.StoreName,
-                    returnStatus = ri.ReturnStatus,
-                    returnId = ri.ReturnId
+                    // ✅ I-CONVERT ANG MGA QUANTITIES PABALIK SA DISPLAY UNIT
+                    bool isWeightOrVolume = (ri.RawMaterial.BaseUnit == "g" && ri.RawMaterial.Unit == "kg") ||
+                                            (ri.RawMaterial.BaseUnit == "mL" && ri.RawMaterial.Unit == "L");
+
+                    decimal displayAccepted = isWeightOrVolume ? ri.AcceptedQty / 1000 : ri.AcceptedQty;
+                    decimal displayRejected = isWeightOrVolume ? ri.RejectedQty / 1000 : ri.RejectedQty;
+
+                    return new
+                    {
+                        receivingItemId = ri.ReceivingItemId,
+                        name = ri.RawMaterial?.Name,
+                        acceptedQty = displayAccepted,  // ✅ Display unit (100)
+                        acceptedQtyWithUnit = $"{displayAccepted:F2} {ri.RawMaterial?.Unit}",
+                        rejectedQty = displayRejected,  // ✅ Display unit
+                        rejectedQtyWithUnit = $"{displayRejected:F2} {ri.RawMaterial?.Unit}",
+                        unit = ri.RawMaterial?.Unit,
+                        unitPrice = ri.UnitPrice,
+                        storeName = ri.StoreName,
+                        returnStatus = ri.ReturnStatus,
+                        returnId = ri.ReturnId
+                    };
                 })
             };
 

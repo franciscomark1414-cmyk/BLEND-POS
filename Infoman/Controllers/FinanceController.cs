@@ -1,11 +1,12 @@
-﻿using Infoman.Models;
+﻿using Infoman.Data;
+using Infoman.Models;
 using Infoman.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Identity.Client;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using Infoman.Data;
 
 namespace Infoman.Controllers
 {
@@ -18,7 +19,6 @@ namespace Infoman.Controllers
             _context = context;
         }
 
-        // GET: Financial Summary with Period Filter
         [HttpGet]
         public async Task<IActionResult> GetSummary(string periodType, DateTime? startDate, DateTime? endDate)
         {
@@ -63,109 +63,79 @@ namespace Infoman.Controllers
                         break;
                 }
 
-                // 1. TOTAL SALES
+                // 1. TOTAL SALES (Net Revenue)
                 var totalSales = await _context.Orders
-     .Where(o => (o.Status == "COMPLETED" || o.Status == "PENDING_BLENDING") && o.Date >= start && o.Date <= end)
-     .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
+                    .Where(o => (o.Status == "COMPLETED" || o.Status == "PENDING_BLENDING") && o.Date >= start && o.Date <= end)
+                    .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
 
-                // 2. PURCHASES
-                /* 2. RAW MATERIAL PURCHASES (Direct POs + Receivings)
-                var poPurchases = await _context.PurchaseOrders
-                    .Where(p => (p.Status == "Received" || p.Status == "Accepted") && p.OrderDate >= start && p.OrderDate <= end)
-                    .SumAsync(p => (decimal?)p.GrandTotal) ?? 0; */
+                // 2. RAW MATERIAL PURCHASES
+                var receivingItemsList = await _context.ReceivingItems
+                    .Include(ri => ri.RawMaterial)
+                    .Include(ri => ri.Receiving)
+                    .Where(ri => ri.Receiving.DateReceived >= start && ri.Receiving.DateReceived <= end)
+                    .Where(ri => !ri.RawMaterial.IsDeleted) // ✅ IDAGDAG ITO: Wag isama kung deleted na ang material
+                    .ToListAsync();
 
-                var receivingPurchases = await _context.ReceivingItems
-    .Where(ri => ri.Receiving.DateReceived >= start && ri.Receiving.DateReceived <= end)
-    .SumAsync(ri => (decimal?)(ri.AcceptedQty * ri.UnitPrice)) ?? 0;
+                decimal purchases = 0;
+                foreach (var ri in receivingItemsList)
+                {
+                    if (ri.RawMaterial == null) continue;
 
-                var purchases = receivingPurchases;
+                    decimal qtyForCost = ri.AcceptedQty;
 
-                // 3. OTHER EXPENSES
+                    if (ri.RawMaterial.BaseUnit == "g" && ri.RawMaterial.Unit == "kg")
+                    {
+                        qtyForCost = ri.AcceptedQty / 1000;
+                    }
+                    else if (ri.RawMaterial.BaseUnit == "mL" && ri.RawMaterial.Unit == "L")
+                    {
+                        qtyForCost = ri.AcceptedQty / 1000;
+                    }
+
+                    purchases += qtyForCost * ri.UnitPrice;
+                }
+
+                // 3. OTHER EXPENSES (Ito ang kulang)
                 var otherExpenses = await _context.Expenses
                     .Where(e => e.ExpenseDate >= start && e.ExpenseDate <= end)
                     .SumAsync(e => (decimal?)e.Amount) ?? 0;
 
-                // 4. COGS
-                var cogs = 0m;
-                var completedOrderItems = await _context.OrderItems
-                    .Include(oi => oi.Order)
-                    .Where(oi => oi.Order.Status == "COMPLETED" && oi.Order.Date >= start && oi.Order.Date <= end)
-                    .ToListAsync();
-
-                foreach (var orderItem in completedOrderItems)
-                {
-                    var recipeItems = await _context.RecipeItems
-                        .Where(r => r.ProductSizeId == orderItem.ProductSizeId && !r.IsDeleted)
-                        .Include(r => r.RawMaterial)
-                        .ToListAsync();
-
-                    foreach (var recipe in recipeItems)
-                    {
-                        decimal rawMaterialPrice = 0m;
-                        var latestBatch = await _context.RawMaterialBatches
-                            .Where(b => b.RawMaterialId == recipe.RawMaterialId && b.QuantityRemaining > 0)
-                            .OrderBy(b => b.ExpiryDate ?? DateTime.MaxValue)
-                            .ThenBy(b => b.ReceivedDate)
-                            .FirstOrDefaultAsync();
-
-                        if (latestBatch != null) rawMaterialPrice = latestBatch.UnitPrice;
-                        else if (recipe.RawMaterial != null) rawMaterialPrice = recipe.RawMaterial.Price;
-
-                        var recipeQty = recipe.Quantity;
-                        var recipeUnit = (recipe.UnitUsed ?? "g").ToLower();
-                        var materialUnit = (recipe.RawMaterial?.Unit ?? "g").ToLower();
-
-                        if (materialUnit == "kg" && recipeUnit == "g") recipeQty /= 1000m;
-                        else if (materialUnit == "g" && recipeUnit == "kg") recipeQty *= 1000m;
-                        else if (materialUnit == "l" && recipeUnit == "ml") recipeQty /= 1000m;
-                        else if (materialUnit == "ml" && recipeUnit == "l") recipeQty *= 1000m;
-
-                        cogs += (recipeQty * rawMaterialPrice) * orderItem.Quantity;
-                    }
-                }
-
-                // 5. SUMMARY
-                var cashInflow = totalSales;
-                var cashOutflow = purchases + otherExpenses;
-                var cashMovement = cashInflow - cashOutflow;
-                var profit = totalSales - cogs - otherExpenses;
-
-                // 6. CASH WITHDRAWALS (Owner's Draw)
+                // 4. CASH WITHDRAWALS (Ito ang kulang)
                 var withdrawals = await _context.CashWithdrawals
                     .Where(w => w.WithdrawalDate >= start && w.WithdrawalDate <= end)
                     .SumAsync(w => (decimal?)w.Amount) ?? 0;
 
-                // 7. CASH ON HAND CALCULATION
-                // Logic: (Total Sales) - (Purchases + Expenses + Withdrawals)
-                var totalOutflow = purchases + otherExpenses + withdrawals;
-                var cashOnHand = totalSales - totalOutflow;
+                // 5. COGS (Ito ang kulang)
+                var cogs = await _context.OrderItems
+                    .Include(oi => oi.Order)
+                    .Where(oi => (oi.Order.Status == "COMPLETED") &&
+                                 oi.Order.Date >= start && oi.Order.Date <= end &&
+                                 oi.DispositionStatusId == 1)
+                    .SumAsync(oi => (decimal?)oi.ActualCost) ?? 0;
 
-                // ✅ TANGGALIN ANG BADREQUEST CHECK DITO. 
-                // Ang check na ito ay para lang sa Withdrawal module, hindi sa GetSummary.
-                // Kung gusto mong i-flag kung negative, gawin lang nating 0 ang display o hayaan lang.
-               /* if (cashOnHand < 0)
-                {
-                    cashOnHand = 0; // I-set sa 0 para hindi mag-crash ang display
-                } */
+                // 6. SUMMARY CALCULATIONS (Ito ang kulang)
+                var cashInflow = totalSales;
+                var cashOutflow = otherExpenses + withdrawals;
+                var cashMovement = cashInflow - cashOutflow;
+                var profit = totalSales - cogs - otherExpenses;
 
-                // ✅ ITO ANG MAHALAGA: Siguraduhing tugma ang property names sa JS
+                // 7. RETURN JSON
                 return Json(new
                 {
                     totalSales = totalSales,
                     rawMaterialPurchases = purchases,
                     otherExpenses = otherExpenses,
-                    withdrawals = withdrawals,        // ✅ Bago
-                    cashInflow = totalSales,
-                    cashOutflow = totalOutflow,
-                    cashMovement = cashOnHand,
-                    cashOnHand = cashOnHand,          // ✅ Bago
+                    withdrawals = withdrawals,
+                    cashInflow = cashInflow,
+                    cashOutflow = cashOutflow,
+                    cashMovement = cashMovement,
                     cogs = cogs,
-                    profit = profit
+                    profit = profit,
+                    deliveryCount = receivingItemsList.Select(ri => ri.ReceivingId).Distinct().Count()
                 });
             }
             catch (Exception ex)
             {
-                // ✅ I-return ang error message para makita sa JS console
                 Console.WriteLine("GetSummary Error: " + ex.Message);
                 return StatusCode(500, new { error = ex.Message });
             }
@@ -235,14 +205,10 @@ namespace Infoman.Controllers
             if (model == null || model.Amount <= 0)
                 return Json(new { success = false, message = "Invalid amount." });
 
-            // ✅ DOUBLE CHECK SA SERVER (Bawal mag-negative)
+            // ✅ Total Sales (all-time)
             var totalSales = await _context.Orders
                 .Where(o => o.Status == "COMPLETED" || o.Status == "PENDING_BLENDING")
                 .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
-
-            // ✅ Tinanggal ang PurchaseOrders, ReceivingItems na lang ang gagamitin
-            var totalReceivingPurchases = await _context.ReceivingItems
-                .SumAsync(ri => (decimal?)(ri.AcceptedQty * ri.UnitPrice)) ?? 0;
 
             var totalExpenses = await _context.Expenses
                 .SumAsync(e => (decimal?)e.Amount) ?? 0;
@@ -250,8 +216,9 @@ namespace Infoman.Controllers
             var totalWithdrawals = await _context.CashWithdrawals
                 .SumAsync(w => (decimal?)w.Amount) ?? 0;
 
-            // ✅ Tamang formula
-            var cashOnHand = totalSales - totalReceivingPurchases - totalExpenses - totalWithdrawals;
+            // ✅ Cash on Hand = Sales - Expenses - Withdrawals
+            // (Purchases ay hindi kasama kasi hindi ito cash outflow)
+            var cashOnHand = totalSales - totalExpenses - totalWithdrawals;
 
             if (model.Amount > cashOnHand)
             {

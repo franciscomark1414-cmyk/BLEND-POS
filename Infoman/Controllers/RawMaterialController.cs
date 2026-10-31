@@ -307,7 +307,11 @@ namespace Infoman.Controllers
         {
             try
             {
-                var material = await _context.RawMaterials.FindAsync(id);
+                // ✅ 1. KUNIN ANG MATERIAL KASAMA ANG MGA BATCHES PARA MA-ZERO OUT
+                var material = await _context.RawMaterials
+                    .Include(r => r.Batches) // Dapat "Batches" ang pangalan ng property sa model mo
+                    .FirstOrDefaultAsync(r => r.RawMaterialId == id);
+
                 if (material == null)
                 {
                     return Json(new { success = false, message = "Material not found" });
@@ -318,16 +322,16 @@ namespace Infoman.Controllers
                     return Json(new { success = false, message = "Material is already deleted" });
                 }
 
-                // BAGONG CODE (may filter sa IsDeleted)
+                // ✅ 2. CHECK KUNG GINAGAMIT SA RECIPE
                 var recipeItems = await _context.RecipeItems
                     .Include(ri => ri.ProductSize)
                         .ThenInclude(ps => ps.Product)
                     .Where(ri => ri.RawMaterialId == id
-                        && !ri.IsDeleted  // ✅ I-ignore ang mga deleted recipe items
+                        && !ri.IsDeleted
                         && ri.ProductSize != null
-                        && !ri.ProductSize.IsDeleted  // ✅ I-ignore ang mga deleted product sizes
+                        && !ri.ProductSize.IsDeleted
                         && ri.ProductSize.Product != null
-                        && !ri.ProductSize.Product.IsDeleted)  // ✅ I-ignore ang mga deleted products
+                        && !ri.ProductSize.Product.IsDeleted)
                     .ToListAsync();
 
                 if (recipeItems.Any())
@@ -337,7 +341,6 @@ namespace Infoman.Controllers
 
                     foreach (var ri in recipeItems)
                     {
-                        // ✅ COMPUTE ACTUAL AVAILABLE STOCK FROM RAW MATERIALS
                         int maxOrders = int.MaxValue;
 
                         if (ri.ProductSize.RecipeItems != null && ri.ProductSize.RecipeItems.Any())
@@ -362,18 +365,16 @@ namespace Infoman.Controllers
                         {
                             ProductName = ri.ProductSize.Product.Name,
                             SizeName = ri.ProductSize.SizeName,
-                            Stock = availableStock,  // ← COMPUTED STOCK (galing sa raw materials)
+                            Stock = availableStock,
                             ProductSizeId = ri.ProductSize.ProductSizeId
                         });
                     }
 
-                    // Remove duplicates (same product + size combination)
                     affectedProducts = affectedProducts
                         .GroupBy(p => new { ((dynamic)p).ProductName, ((dynamic)p).SizeName })
                         .Select(g => g.First())
                         .ToList();
 
-                    // I-format ang message
                     var productList = string.Join("\n", affectedProducts.Select(p => $"  • {((dynamic)p).ProductName} - {((dynamic)p).SizeName} (Can make: {((dynamic)p).Stock} orders)"));
 
                     return Json(new
@@ -385,11 +386,24 @@ namespace Infoman.Controllers
                     });
                 }
 
-                // Kung hindi ginagamit, safe i-delete
+                // ✅ 3. I-ZERO OUT ANG MGA BATCHES PARA MAWALA SA FINANCIAL PURCHASES
+                if (material.Batches != null && material.Batches.Any())
+                {
+                    foreach (var batch in material.Batches)
+                    {
+                        batch.QuantityRemaining = 0;
+                        batch.QuantityReceived = 0;
+                    }
+                }
+
+                // ✅ 4. SOFT DELETE AT I-ZERO ANG STOCK
                 material.IsDeleted = true;
+                material.Stock = 0;
+
+                _context.Update(material);
                 await _context.SaveChangesAsync();
 
-                return Json(new { success = true, message = "Material deleted successfully" });
+                return Json(new { success = true, message = "Material deleted successfully and financial purchases adjusted." });
             }
             catch (Exception ex)
             {

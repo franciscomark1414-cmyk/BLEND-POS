@@ -497,10 +497,22 @@ namespace Infoman.Controllers
         // POST: Staff/TimeOut
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> TimeOut()
+        public async Task<IActionResult> TimeOut([FromBody] TimeOutRequest request)
         {
             var userId = GetCurrentUserId();
             if (userId == 0) return Json(new { success = false, message = "User not logged in" });
+
+            // ✅ ISSUE 6: Validate password
+            if (string.IsNullOrEmpty(request?.Password))
+                return Json(new { success = false, message = "Password is required." });
+
+            var user = await _db.Users.FindAsync(userId);
+            if (user == null)
+                return Json(new { success = false, message = "User not found." });
+
+            // ✅ Plain-text comparison — same logic as AccountController.Login
+            if (string.IsNullOrEmpty(user.Password) || user.Password.Trim() != request.Password.Trim())
+                return Json(new { success = false, message = "❌ Incorrect password. Time out denied." });
 
             var today = DateTime.Today;
             var attendance = await _db.EmployeeAttendances
@@ -1127,6 +1139,11 @@ namespace Infoman.Controllers
             public string? PaymentMethod { get; set; }     
             public string? DiscountType { get; set; }       
             public decimal DiscountPercent { get; set; }
+        }
+
+        public class TimeOutRequest
+        {
+            public string Password { get; set; }
         }
     }
 }

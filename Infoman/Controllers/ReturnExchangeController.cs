@@ -50,7 +50,10 @@ namespace Infoman.Controllers
                     .ThenInclude(oi => oi.Product)
                 .Include(o => o.Items)
                     .ThenInclude(oi => oi.ProductSize)
-                .FirstOrDefaultAsync(o => o.OrderId == orderId && o.Status == "COMPLETED");
+                               .FirstOrDefaultAsync(o => o.OrderId == orderId &&
+                    (o.Status == "COMPLETED" ||
+                     o.Status == "EXCHANGED" ||
+                     o.ReturnStatus == "PARTIALLY_EXCHANGED"));
 
             if (order == null)
                 return Json(new { success = false, message = "Order not found or not completed" });
@@ -84,23 +87,10 @@ namespace Infoman.Controllers
         [HttpGet]
         public async Task<IActionResult> GetProductsForExchange(int? excludeOrderId = null)
         {
-            var query = _db.ProductSizes
+            // ✅ Removed the exclusion — allow same product/size to be selected as replacement
+            var products = await _db.ProductSizes
                 .Include(ps => ps.Product)
-                .Where(ps => ps.IsAvailableInPOS && !ps.IsDeleted);
-
-            // ✅ I-exclude ang mga produkto na nasa order (kung may excludeOrderId)
-            if (excludeOrderId.HasValue && excludeOrderId.Value > 0)
-            {
-                var excludeProductSizeIds = await _db.OrderItems
-                    .Where(oi => oi.OrderId == excludeOrderId.Value && !oi.IsVoided && !oi.IsRefunded)
-                    .Select(oi => oi.ProductSizeId)
-                    .Distinct()
-                    .ToListAsync();
-
-                query = query.Where(ps => !excludeProductSizeIds.Contains(ps.ProductSizeId));
-            }
-
-            var products = await query
+                .Where(ps => ps.IsAvailableInPOS && !ps.IsDeleted)
                 .Select(ps => new
                 {
                     ps.ProductSizeId,

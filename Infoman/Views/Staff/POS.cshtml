@@ -3092,6 +3092,31 @@ async function createNewOrder() {
     if (orderId) window.currentOrderTotal = total;
 
     let itemsHtml = '';
+    // ✅ ADD EXCHANGE SUMMARY IF THIS IS AN EXCHANGE REPLACEMENT
+let exchangeSummaryHtml = '';
+if (window.isExchangeReplacement && window.exchangeOriginalOrderId) {
+    const returnedHtml = (window.exchangeReturnedItems || []).map(i => 
+        `<div style="font-size:12px;color:#dc3545;">✕ ${i.quantity}x ${escapeHtml(i.productName)} (${i.sizeName})</div>`
+    ).join('');
+    const replacedHtml = (window.exchangeReplacedItems || []).map(i => 
+        `<div style="font-size:12px;color:#28a745;">+ ${i.quantity}x ${escapeHtml(i.productName)} (${i.sizeName})</div>`
+    ).join('');
+    
+    exchangeSummaryHtml = `
+        <div style="margin: 10px 0; padding: 10px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px;">
+            <div style="font-weight:700;font-size:12px;margin-bottom:6px;">🔄 EXCHANGE (from Order #${window.exchangeOriginalOrderId})</div>
+            <div style="font-weight:600;font-size:11px;color:#dc3545;">Returned:</div>
+            ${returnedHtml || '<div style="font-size:12px;color:#999;">None</div>'}
+            <div style="font-weight:600;font-size:11px;color:#28a745;margin-top:6px;">Replaced With:</div>
+            ${replacedHtml || '<div style="font-size:12px;color:#999;">None</div>'}
+            ${window.exchangeAdjustmentAmount > 0 
+                ? `<div style="margin-top:6px;font-size:12px;"><strong>Additional Payment:</strong> ₱${window.exchangeAdjustmentAmount.toFixed(2)}</div>` 
+                : (window.exchangeAdjustmentAmount < 0 
+                    ? `<div style="margin-top:6px;font-size:12px;"><strong>Store Credit / Change:</strong> ₱${Math.abs(window.exchangeAdjustmentAmount).toFixed(2)}</div>` 
+                    : '')}
+        </div>
+    `;
+}
     let computedSubtotal = 0;
     orderDetails.forEach(item => {
         computedSubtotal += item.subtotal;
@@ -3137,6 +3162,7 @@ async function createNewOrder() {
             <div style="font-size: 13px; font-weight: bold; margin-top: 5px;">Receipt #: ${orderId || 'N/A'}</div>
             <div style="font-size: 12px; color: #17a2b8;">Order #: ${shortOrderId}</div>
         </div>
+        ${exchangeSummaryHtml}
         <hr style="margin: 8px 0;">
         <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
             <strong style="font-size: 14px;">Order Summary</strong>
@@ -5659,22 +5685,65 @@ function disablePOSPage() {
     } 
 });
         }
-        async function timeOut() {
+                async function timeOut() {
     const confirmed = await showConfirm('End your shift?', 'Time Out');
     if (!confirmed) return;
-    
-    fetch('/Staff/TimeOut', { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() } 
+
+    // ✅ ISSUE 6: Password prompt
+    const password = await showPasswordPrompt('Enter your password to confirm time out');
+    if (!password) return;
+
+    showLoading('Processing time out...');
+
+    fetch('/Staff/TimeOut', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'RequestVerificationToken': getToken()
+        },
+        body: JSON.stringify({ password: password })
     })
     .then(res => res.json())
-    .then(async data => { 
-        if (data.success) { 
+    .then(async data => {
+        hideLoading();
+        if (data.success) {
             await showAlert(data.message, 'Success', '✅');
-            checkAttendanceStatus(); 
-        } else { 
+            checkAttendanceStatus();
+        } else {
             await showAlert('❌ ' + data.message, 'Error', '❌');
-        } 
+        }
+    });
+}
+
+function showPasswordPrompt(message) {
+    return new Promise((resolve) => {
+        const modalHtml = `
+            <div id="passwordPromptModal" class="modal-qty" style="display: flex; z-index: 10050;">
+                <div class="modal-qty-content" style="width: 340px;">
+                    <h4 style="margin-bottom: 16px;">🔒 Password Required</h4>
+                    <p style="font-size: 13px; color: #666; margin-bottom: 12px;">${message}</p>
+                    <input type="password" id="timeOutPassword" class="form-control"
+                           style="margin-bottom: 12px; padding: 10px; border-radius: 8px;"
+                           placeholder="Password" autofocus>
+                    <div class="modal-buttons">
+                        <button id="pwdCancelBtn" class="btn-cancel">Cancel</button>
+                        <button id="pwdConfirmBtn" class="btn-confirm">Confirm</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        const input = document.getElementById('timeOutPassword');
+        const confirmBtn = document.getElementById('pwdConfirmBtn');
+        const cancelBtn = document.getElementById('pwdCancelBtn');
+        const modal = document.getElementById('passwordPromptModal');
+
+        const cleanup = () => modal.remove();
+
+        confirmBtn.onclick = () => { const v = input.value; cleanup(); resolve(v); };
+        cancelBtn.onclick = () => { cleanup(); resolve(null); };
+        input.onkeydown = (e) => { if (e.key === 'Enter') confirmBtn.click(); };
     });
 }
 
@@ -5894,15 +5963,10 @@ async function loadExchangeOrderItems() {
 }
 
 async function loadAvailableProductsForExchange() {
-    const orderId = document.getElementById('exchangeOrderSelect').value;
-    if (!orderId) {
-        console.log('No order selected, skipping product load');
-        return;
-    }
-    
     try {
         // ✅ Isama ang orderId para ma-filter sa backend
-        const response = await fetch(`/ReturnExchange/GetProductsForExchange?excludeOrderId=${orderId}`);
+               // ✅ Same-item exchange allowed — no filter
+        const response = await fetch(`/ReturnExchange/GetProductsForExchange`);
         const products = await response.json();
         
         console.log('Products loaded (filtered):', products.length);
@@ -5933,59 +5997,20 @@ function showProductSearchForExchange() {
         showAlert('No products available for exchange', 'Error', '❌');
         return;
     }
-    
-    // ✅ Get the products being returned (para ma-filter)
-    const returnItems = [];
-    document.querySelectorAll('#exchangeReturnItems .return-item-checkbox:checked').forEach(cb => {
-        const itemDiv = cb.closest('.return-item-div');
-        if (itemDiv) {
-            const productName = cb.getAttribute('data-name');
-            const sizeName = cb.getAttribute('data-size');
-            if (productName && sizeName) {
-                returnItems.push({ productName, sizeName });
-            }
-        }
-    });
-    
-    // If no items selected, show all products
-    const hasReturnItems = returnItems.length > 0;
-    
-    // ✅ Filter products - cannot select same product and size as returned items
-    let filteredProducts = exchangeProductsList;
-    
-    if (hasReturnItems) {
-        filteredProducts = exchangeProductsList.filter(product => {
-            // Skip if product is undefined or null
-            if (!product) return false;
-            // Check if this product matches any returned item
-            const isMatching = returnItems.some(returnItem => {
-                return returnItem.productName === product.ProductName && 
-                       returnItem.sizeName === product.SizeName;
-            });
-            // Exclude if it matches (cannot replace with same product)
-            return !isMatching;
-        });
-    }
-    
-    if (filteredProducts.length === 0) {
-        showAlert('No available replacement products. Please select different items to return.', 'No Options', '⚠️');
-        return;
-    }
-    
+
+    // ✅ REMOVED the filter — allow same product/size for replacement
+    const filteredProducts = exchangeProductsList;
+
     // Remove existing modal if any
     const existingModal = document.getElementById('productSearchModal');
     if (existingModal) existingModal.remove();
-    
-    // ✅ SAFELY escape product name and size name
+
     const productsHtml = filteredProducts.map(p => {
-        // Skip if product is undefined
         if (!p) return '';
-        
-        // Safely escape strings
         const productName = (p.ProductName || '').replace(/'/g, "\\'");
         const sizeName = (p.SizeName || '').replace(/'/g, "\\'");
         const sku = (p.SKU || '');
-        
+
         return `
             <div class="product-search-item" 
                  data-id="${p.productSizeId}" 
@@ -6007,7 +6032,7 @@ function showProductSearchForExchange() {
             </div>
         `;
     }).filter(html => html !== '').join('');
-    
+
     const modalHtml = `
         <div id="productSearchModal" class="modal-qty" style="display: flex; z-index: 10002;">
             <div class="modal-qty-content" style="width: 550px; max-width: 90%; border-radius: 16px; overflow: hidden;">
@@ -6015,7 +6040,6 @@ function showProductSearchForExchange() {
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <h4 class="mb-0" style="font-size: 18px;">
                             <i class="fas fa-search"></i> Select Replacement Product
-                            ${hasReturnItems ? `<span style="font-size: 12px; margin-left: 10px;">(Cannot select returned items)</span>` : ''}
                         </h4>
                         <button onclick="closeModal('productSearchModal')" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer;">&times;</button>
                     </div>
@@ -6034,32 +6058,13 @@ function showProductSearchForExchange() {
             </div>
         </div>
     `;
-    
+
     document.body.insertAdjacentHTML('beforeend', modalHtml);
-    }
+}
 
 
 function selectProductForExchange(productSizeId, productName, sizeName, price) {
-    // ✅ Check if this product is being returned
-    const returnItems = [];
-    document.querySelectorAll('#exchangeReturnItems .return-item-checkbox:checked').forEach(cb => {
-        const itemDiv = cb.closest('.return-item-div');
-        if (itemDiv) {
-            const returnProductName = cb.getAttribute('data-name');
-            const returnSizeName = cb.getAttribute('data-size');
-            returnItems.push({ productName: returnProductName, sizeName: returnSizeName });
-        }
-    });
-    
-    // Check for match
-    const isMatching = returnItems.some(returnItem => {
-        return returnItem.productName === productName && returnItem.sizeName === sizeName;
-    });
-    
-    if (isMatching) {
-        showAlert(`Cannot replace "${productName} (${sizeName})" with the same product. Please choose a different product or size.`, 'Invalid Replacement', '⚠️');
-        return;
-    }
+    // ✅ REMOVED the "cannot select same product" check
     
     const existingIndex = exchangeReplaceItemsData.findIndex(i => i.productSizeId === productSizeId);
     
@@ -6402,7 +6407,7 @@ async function processExchange() {
                     const data = await response.json();
                     hideLoading();
 
-                    if (data.success) {
+                                       if (data.success) {
                         // ✅ SET FLAGS FOR EXCHANGE INFO IN RECEIPT
                         window.isExchangeReplacement = true;
                         window.exchangeOriginalOrderId = currentExchangeOrderId;
@@ -6424,10 +6429,24 @@ async function processExchange() {
                             exchangeMessage: data.message
                         });
 
-                        // ✅ SHOW RECEIPT FOR THE NEW ORDER
-                        if (data.newOrderId) {
-                            await showReceiptPopup(data.newOrderId);
-                        }
+                        // ✅ BEFORE showing the receipt, store exchange metadata
+window.isExchangeReplacement = true;
+window.exchangeOriginalOrderId = currentExchangeOrderId;
+window.exchangeReturnedItems = itemsToReturn.map(i => ({
+    productName: i.productName,
+    sizeName: i.sizeName,
+    quantity: i.quantity
+}));
+window.exchangeReplacedItems = exchangeReplaceItemsData.map(i => ({
+    productName: i.productName,
+    sizeName: i.sizeName,
+    quantity: i.quantity
+}));
+window.exchangeAdjustmentAmount = priceDiff;
+
+                       
+
+                       
 
                         // ✅ RESET CART
                         cart = [];

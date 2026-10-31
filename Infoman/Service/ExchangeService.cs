@@ -48,6 +48,26 @@ namespace Infoman.Service
                     return (false, "Only completed orders can be exchanged", 0);
                 }
 
+                // ✅ ISSUE 4: Validate all return items belong to this order
+                var returnedItemIds = itemsToReturn.Select(i => i.OrderItemId).ToList();
+                var validItems = await _db.OrderItems
+                    .Where(oi => oi.OrderId == originalOrderId && returnedItemIds.Contains(oi.OrderItemId))
+                    .ToListAsync();
+
+                if (validItems.Count != returnedItemIds.Count)
+                {
+                    await transaction.RollbackAsync();
+                    return (false, "One or more items do not belong to the original order.", 0);
+                }
+
+                // ✅ ISSUE 2: Get active item IDs BEFORE marking them as exchanged
+                var allActiveItemIds = await _db.OrderItems
+                    .Where(oi => oi.OrderId == originalOrderId && !oi.IsVoided && !oi.IsRefunded)
+                    .Select(oi => oi.OrderItemId)
+                    .ToListAsync();
+
+                bool isFullExchange = allActiveItemIds.All(id => returnedItemIds.Contains(id));
+
                 // Compute amounts
                 decimal originalAmount = 0;
                 decimal replacementAmount = 0;
@@ -123,11 +143,42 @@ namespace Infoman.Service
                     orderItem.QuantityExchanged = returnItem.Quantity;
                 }
 
-                // STEP 2: Mark original order as EXCHANGED
-                originalOrder.ReturnStatus = "EXCHANGED";
-                originalOrder.Status = "EXCHANGED";
+                // STEP 2: Mark original order as PARTIALLY EXCHANGED or EXCHANGED
+                // (isFullExchange was computed earlier, before IsExchanged flags were set)
+                if (isFullExchange)
+                {
+                    originalOrder.ReturnStatus = "EXCHANGED";
+                    originalOrder.Status = "EXCHANGED";
+                }
+                else
+                {
+                    // Partial exchange — keep the order active
+                    originalOrder.ReturnStatus = "PARTIALLY_EXCHANGED";
+                    // DO NOT change originalOrder.Status — keep it as COMPLETED
+                }
                 originalOrder.ExchangeDate = DateTime.Now;
                 originalOrder.ExchangeReason = reason;
+
+                // ✅ If partial exchange, adjust original order totals
+                if (!isFullExchange)
+                {
+                    decimal returnedValue = 0;
+                    foreach (var returnItem in itemsToReturn)
+                    {
+                        var oi = await _db.OrderItems.FindAsync(returnItem.OrderItemId);
+                        if (oi != null)
+                        {
+                            decimal actualPrice = oi.Price;
+                            if (originalOrder.DiscountPercent > 0)
+                                actualPrice = oi.Price * (1 - originalOrder.DiscountPercent);
+
+                            returnedValue += actualPrice * returnItem.Quantity;
+                        }
+                    }
+
+                    originalOrder.TotalAmount -= returnedValue;
+                    originalOrder.OriginalTotalAmount -= returnedValue;
+                }
 
                 // STEP 3: Compute replacement amount
                 foreach (var replaceItem in itemsToReplace)
@@ -149,13 +200,34 @@ namespace Infoman.Service
                 decimal customerPayable = adjustmentAmount > 0 ? adjustmentAmount : 0;
 
                 // STEP 5: Create new order
+                // STEP 5: Create new order
+                // ✅ Kung may additional payment na Cash, PENDING_BLENDING na agad
+                // ✅ Kung walang bayad (Store Credit o Change), PENDING_BLENDING na rin
+                // ✅ PENDING_PAYMENT lang kung GCash ang difference (hindi pa enabled ngayon)
+                string newOrderStatus;
+                if (adjustmentAmount <= 0)
+                {
+                    // Store credit o change — bayad na, ready to blend
+                    newOrderStatus = "PENDING_BLENDING";
+                }
+                else if (paymentMethodForDifference == "Cash")
+                {
+                    // Cash additional payment — bayad na agad
+                    newOrderStatus = "PENDING_BLENDING";
+                }
+                else
+                {
+                    // GCash / QRPh (kung future) — hindi pa bayad
+                    newOrderStatus = "PENDING_PAYMENT";
+                }
+
                 var newOrder = new Order
                 {
                     OrderNumber = $"EX-{DateTime.Now:yyyyMMddHHmmss}",
                     Date = DateTime.Now,
                     TotalAmount = customerPayable,
                     OriginalTotalAmount = replacementAmount,
-                    Status = "PENDING_PAYMENT",
+                    Status = newOrderStatus,
                     PaymentMethod = (adjustmentAmount > 0 && !string.IsNullOrEmpty(paymentMethodForDifference))
                         ? paymentMethodForDifference
                         : "Store Credit",
@@ -250,7 +322,23 @@ namespace Infoman.Service
                     CreatedAt = DateTime.Now,
                     CreatedBy = userId
                 };
+
+
                 _db.ExchangeTransactions.Add(exchange);
+                // ✅ ISSUE 7: Create Payment record for additional payment
+                if (adjustmentAmount > 0 && !string.IsNullOrEmpty(paymentMethodForDifference))
+                {
+                    _db.Payments.Add(new Payment
+                    {
+                        OrderId = newOrder.OrderId,
+                        Amount = adjustmentAmount,
+                        PaymentMethod = paymentMethodForDifference,
+                        PaymentReference = $"EXPAY-{DateTime.Now:yyyyMMddHHmmss}-{newOrder.OrderId}",
+                        Status = "PAID",
+                        PaymentDate = DateTime.Now,
+                        CreatedAt = DateTime.Now
+                    });
+                }
                 await _db.SaveChangesAsync();
 
                 // ✅ KAPAG NAKARATING DITO, IBIG SABIHIN TAGUMPAY ANG LAHAT. I-COMMIT NA NATIN.

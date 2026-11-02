@@ -2177,11 +2177,11 @@ namespace Infoman.Controllers
                         var batch = new RawMaterialBatch
                         {
                             RawMaterialId = item.RawMaterialId,
-                            QuantityReceived = batchQtyInBaseUnit, // 20,000 g (Base unit parin)
+                            QuantityReceived = acceptedInBaseUnit, // 20,000 g (Base unit parin)
                             QuantityRemaining = batchQtyInBaseUnit,
                             ReceivedDate = DateTime.Now,
                             ExpiryDate = item.ExpiryDate,
-                            UnitPrice = standardizedUnitPrice // ✅ Naka-save na as PER KG!
+                            UnitPrice = item.UnitPrice // ✅ Naka-save na as PER KG!
                         };
                         _db.RawMaterialBatches.Add(batch);
                         await _db.SaveChangesAsync();

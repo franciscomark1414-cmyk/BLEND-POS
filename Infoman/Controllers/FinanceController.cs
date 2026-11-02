@@ -77,12 +77,14 @@ namespace Infoman.Controllers
                     .ToListAsync();
 
                 decimal purchases = 0;
+                // Sa loob ng GetSummary, hanapin ito:
                 foreach (var ri in receivingItemsList)
                 {
                     if (ri.RawMaterial == null) continue;
 
                     decimal qtyForCost = ri.AcceptedQty;
 
+                    // ✅ I-convert sa display unit (kg/L)
                     if (ri.RawMaterial.BaseUnit == "g" && ri.RawMaterial.Unit == "kg")
                     {
                         qtyForCost = ri.AcceptedQty / 1000;
@@ -92,6 +94,7 @@ namespace Infoman.Controllers
                         qtyForCost = ri.AcceptedQty / 1000;
                     }
 
+                    // ✅ Multiply sa tamang unit price
                     purchases += qtyForCost * ri.UnitPrice;
                 }
 

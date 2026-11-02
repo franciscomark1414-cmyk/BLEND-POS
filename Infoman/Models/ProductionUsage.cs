@@ -13,7 +13,7 @@ namespace Infoman.Models
         public int BatchId { get; set; }
 
         [Required]
-        public int ProductId { get; set; }  // Mango shake ID
+        public int ProductId { get; set; }
 
         [Required]
         [Range(0, double.MaxValue)]
@@ -23,23 +23,29 @@ namespace Infoman.Models
         public DateTime DateUsed { get; set; }
 
         [StringLength(200)]
-        public string ReferenceNo { get; set; }  // Order # or Production #
+        public string ReferenceNo { get; set; }
 
-        // ✅ IDAGDAG ITO - For Order relationship
         public int? OrderId { get; set; }
 
-        // ✅ IDAGDAG ITO - For Product Size relationship
         public int? ProductSizeId { get; set; }
+
+        // ✅ BAGO: snapshot ng cost na galing sa batch sa oras ng deduction
+        // CostPerCostUnit = ₱ per kg / L / pcs (ayon sa UnitPrice ng batch)
+        // Nullable para hindi masira ang existing rows
+        [Column(TypeName = "decimal(18,4)")]
+        public decimal? CostPerCostUnit { get; set; }
+
+        // ✅ BAGO: total cost ng usage na ito (QuantityUsed sa cost unit x CostPerCostUnit)
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? TotalCost { get; set; }
 
         // Navigation properties
         [ForeignKey("BatchId")]
         public virtual RawMaterialBatch Batch { get; set; }
 
-        // ✅ IDAGDAG ITO - Navigation property for Order
         [ForeignKey("OrderId")]
         public virtual Order Order { get; set; }
 
-        // ✅ IDAGDAG ITO - Navigation property for ProductSize
         [ForeignKey("ProductSizeId")]
         public virtual ProductSize ProductSize { get; set; }
     }

@@ -40,11 +40,7 @@ namespace Infoman.Controllers
                 foreach (var ri in productSize.RecipeItems)
                 {
                     decimal activePrice = await GetFIFOUnitPrice(ri.RawMaterialId);
-                    decimal quantityForCost = ri.Quantity;
-                    if (ri.RawMaterial?.BaseUnit == "g" || ri.RawMaterial?.BaseUnit == "mL")
-                    {
-                        quantityForCost = ri.Quantity / 1000;
-                    }
+                    decimal quantityForCost = UnitConverter.ToCostUnitQty(ri.Quantity, ri.RawMaterial?.BaseUnit);
                     totalCost += quantityForCost * activePrice;
                 }
 
@@ -276,7 +272,7 @@ namespace Infoman.Controllers
                     SKU = r.SKU,
                     ExpirationDate = r.ExpirationDate,
                     Stock = displayStock,
-                    BaseUnit = r.Unit, // ✅ I-SET ANG BASEUNIT SA DISPLAY UNIT PARA HINDI NA MAG-DIVIDE ULIT ANG WASTE DROPDOWN
+                    BaseUnit = r.BaseUnit,// ✅ I-SET ANG BASEUNIT SA DISPLAY UNIT PARA HINDI NA MAG-DIVIDE ULIT ANG WASTE DROPDOWN
                     ConversionFactor = 1
                 });
             }
@@ -539,41 +535,11 @@ namespace Infoman.Controllers
                                 return Json(new { success = false, message = $"No batch price found for '{rawMat.Name}'. Please receive a delivery first." });
                             }
 
-                            decimal quantityInBaseUnit = recipeVM.Quantity;
+                            decimal quantityInBaseUnit = UnitConverter.ToBaseUnit(recipeVM.Quantity, recipeVM.UnitUsed, rawMat.BaseUnit);
 
-                            if (recipeVM.UnitUsed == "kg" && rawMat.BaseUnit == "g")
-                            {
-                                quantityInBaseUnit = recipeVM.Quantity * 1000;
-                            }
-                            else if (recipeVM.UnitUsed == "L" && rawMat.BaseUnit == "mL")
-                            {
-                                quantityInBaseUnit = recipeVM.Quantity * 1000;
-                            }
-
-                            // ✅ FLAW #1 & #2: TAMANG COST COMPUTATION
-                            decimal quantityForCost = recipeVM.Quantity;
-
-                            // I-convert sa display unit ng material bago mag-multiply
-                            if (rawMat.Unit == "kg")
-                            {
-                                if (recipeVM.UnitUsed == "g") quantityForCost = recipeVM.Quantity / 1000;
-                                else if (recipeVM.UnitUsed == "kg") quantityForCost = recipeVM.Quantity;
-                            }
-                            else if (rawMat.Unit == "L")
-                            {
-                                if (recipeVM.UnitUsed == "mL") quantityForCost = recipeVM.Quantity / 1000;
-                                else if (recipeVM.UnitUsed == "L") quantityForCost = recipeVM.Quantity;
-                            }
-                            else if (rawMat.Unit == "g")
-                            {
-                                if (recipeVM.UnitUsed == "kg") quantityForCost = recipeVM.Quantity * 1000;
-                                else if (recipeVM.UnitUsed == "g") quantityForCost = recipeVM.Quantity;
-                            }
-                            else if (rawMat.Unit == "mL")
-                            {
-                                if (recipeVM.UnitUsed == "L") quantityForCost = recipeVM.Quantity * 1000;
-                                else if (recipeVM.UnitUsed == "mL") quantityForCost = recipeVM.Quantity;
-                            }
+                            decimal quantityForCost = UnitConverter.ToCostUnitQty(
+     UnitConverter.ToBaseUnit(recipeVM.Quantity, recipeVM.UnitUsed, rawMat.BaseUnit),
+     rawMat.BaseUnit);
 
                             var cost = quantityForCost * latestPrice;
                             totalCost += cost;
@@ -691,17 +657,8 @@ namespace Infoman.Controllers
                     var rawMat = await _db.RawMaterials.FindAsync(ingredient.RawMaterialId);
                     if (rawMat != null)
                     {
-                        decimal quantityInBaseUnit = ingredient.Quantity;
+                        decimal quantityInBaseUnit = UnitConverter.ToBaseUnit(ingredient.Quantity, ingredient.UnitUsed, rawMat.BaseUnit);
                         string unitToSave = rawMat.BaseUnit; // ✅ LAGING BASE UNIT ANG I-SAVE
-
-                        if (ingredient.UnitUsed == "kg" && rawMat.BaseUnit == "g")
-                        {
-                            quantityInBaseUnit = ingredient.Quantity * 1000;
-                        }
-                        else if (ingredient.UnitUsed == "L" && rawMat.BaseUnit == "mL")
-                        {
-                            quantityInBaseUnit = ingredient.Quantity * 1000;
-                        }
 
                         productSize.RecipeItems.Add(new RecipeItem
                         {
@@ -1022,11 +979,7 @@ namespace Infoman.Controllers
                     }
 
                     // 2. COST COMPUTATION - laging divide by 1000 kung BaseUnit ay g o mL
-                    decimal quantityForCost = recipeItem.Quantity;
-                    if (recipeItem.RawMaterial.BaseUnit == "g" || recipeItem.RawMaterial.BaseUnit == "mL")
-                    {
-                        quantityForCost = recipeItem.Quantity / 1000;
-                    }
+                    decimal quantityForCost = UnitConverter.ToCostUnitQty(recipeItem.Quantity, recipeItem.RawMaterial.BaseUnit);
 
                     decimal total = quantityForCost * fifoPrice;
                     totalCost += total;
@@ -1121,11 +1074,7 @@ namespace Infoman.Controllers
                     }
                 }
 
-                decimal quantityForCost = recipeItem.Quantity;
-                if (recipeItem.RawMaterial.BaseUnit == "g" || recipeItem.RawMaterial.BaseUnit == "mL")
-                {
-                    quantityForCost = recipeItem.Quantity / 1000;
-                }
+                decimal quantityForCost = UnitConverter.ToCostUnitQty(recipeItem.Quantity, recipeItem.RawMaterial.BaseUnit);
 
                 decimal total = quantityForCost * fifoPrice;
                 totalCost += total;
@@ -1205,17 +1154,8 @@ namespace Infoman.Controllers
                 var rawMat = await _db.RawMaterials.FindAsync(ingredient.RawMaterialId);
                 if (rawMat != null)
                 {
-                    decimal quantityInBaseUnit = ingredient.Quantity;
-                    string finalUnitUsed = rawMat.BaseUnit; // ✅ LAGING BASE UNIT
-
-                    if (ingredient.UnitUsed == "kg" && rawMat.BaseUnit == "g")
-                    {
-                        quantityInBaseUnit = ingredient.Quantity * 1000;
-                    }
-                    else if (ingredient.UnitUsed == "L" && rawMat.BaseUnit == "mL")
-                    {
-                        quantityInBaseUnit = ingredient.Quantity * 1000;
-                    }
+                    decimal quantityInBaseUnit = UnitConverter.ToBaseUnit(ingredient.Quantity, ingredient.UnitUsed, rawMat.BaseUnit);
+                    string finalUnitUsed = rawMat.BaseUnit;
 
                     productSize.RecipeItems.Add(new RecipeItem
                     {
@@ -1236,25 +1176,9 @@ namespace Infoman.Controllers
                 var rawMat = await _db.RawMaterials.FindAsync(ingredient.RawMaterialId);
                 decimal unitPrice = await GetFIFOUnitPrice(ingredient.RawMaterialId);
 
-                decimal quantityForCost = ingredient.Quantity;
 
-                if (ingredient.UnitUsed == "kg")
-                {
-                    quantityForCost = ingredient.Quantity;
-                }
-                else if (ingredient.UnitUsed == "g")
-                {
-                    quantityForCost = ingredient.Quantity / 1000;
-                }
-                else if (ingredient.UnitUsed == "L")
-                {
-                    quantityForCost = ingredient.Quantity;
-                }
-                else if (ingredient.UnitUsed == "mL")
-                {
-                    quantityForCost = ingredient.Quantity / 1000;
-                }
-
+                decimal quantityForCost = UnitConverter.ToBaseUnit(ingredient.Quantity, ingredient.UnitUsed, rawMat?.BaseUnit);
+                quantityForCost = UnitConverter.ToCostUnitQty(quantityForCost, rawMat?.BaseUnit);
                 totalCost += quantityForCost * unitPrice;
             }
 
@@ -1519,11 +1443,7 @@ namespace Infoman.Controllers
                         // ✅ COMPUTE COST - use the batch's unit price
                         // IMPORTANT: deductQty is in base unit (grams/mL)
                         // Convert to display unit for costing
-                        decimal deductQtyInDisplayUnit = deductQty;
-                        if (material.Unit == "kg" && material.BaseUnit == "g")
-                            deductQtyInDisplayUnit = deductQty / 1000;  // grams → kg
-                        else if (material.Unit == "L" && material.BaseUnit == "mL")
-                            deductQtyInDisplayUnit = deductQty / 1000;  // mL → L
+                        decimal deductQtyInDisplayUnit = UnitConverter.ToCostUnitQty(deductQty, material.BaseUnit);
 
                         decimal batchCost = deductQtyInDisplayUnit * batch.UnitPrice;
                         totalCost += batchCost;
@@ -1548,11 +1468,7 @@ namespace Infoman.Controllers
                 {
                     // Compute cost based on current price
                     decimal currentPrice = material.Price;
-                    decimal remainingInDisplayUnit = remainingToDeduct;
-                    if (material.Unit == "kg" && material.BaseUnit == "g")
-                        remainingInDisplayUnit = remainingToDeduct / 1000;
-                    else if (material.Unit == "L" && material.BaseUnit == "mL")
-                        remainingInDisplayUnit = remainingToDeduct / 1000;
+                    decimal remainingInDisplayUnit = UnitConverter.ToCostUnitQty(remainingToDeduct, material.BaseUnit);
 
                     totalCost += remainingInDisplayUnit * currentPrice;
                 }
@@ -2254,14 +2170,18 @@ namespace Infoman.Controllers
                         // ✅ ITO ANG TAMANG VALUE NA DAPAT NAKA-SAVE SA BATCH
                         decimal batchQtyInBaseUnit = acceptedInBaseUnit;
 
+                        // ✅ TAMA: Ang item.UnitPrice ay per DISPLAY unit na (per kg, per L, per pcs)
+                        // I-save as-is — per display unit na ito
+                        decimal standardizedUnitPrice = item.UnitPrice;
+
                         var batch = new RawMaterialBatch
                         {
                             RawMaterialId = item.RawMaterialId,
-                            QuantityReceived = batchQtyInBaseUnit, // 100,000 g
+                            QuantityReceived = batchQtyInBaseUnit, // 20,000 g (Base unit parin)
                             QuantityRemaining = batchQtyInBaseUnit,
                             ReceivedDate = DateTime.Now,
                             ExpiryDate = item.ExpiryDate,
-                            UnitPrice = item.UnitPrice
+                            UnitPrice = standardizedUnitPrice // ✅ Naka-save na as PER KG!
                         };
                         _db.RawMaterialBatches.Add(batch);
                         await _db.SaveChangesAsync();
@@ -3782,12 +3702,7 @@ namespace Infoman.Controllers
                     foreach (var ri in productSize.RecipeItems)
                     {
                         decimal activePrice = await GetFIFOUnitPrice(ri.RawMaterialId);
-                        decimal quantityForCost = ri.Quantity;
-
-                        if (ri.RawMaterial?.BaseUnit == "g" || ri.RawMaterial?.BaseUnit == "mL")
-                        {
-                            quantityForCost = ri.Quantity / 1000;
-                        }
+                        decimal quantityForCost = UnitConverter.ToCostUnitQty(ri.Quantity, ri.RawMaterial?.BaseUnit);
 
                         totalCost += quantityForCost * activePrice;
                     }

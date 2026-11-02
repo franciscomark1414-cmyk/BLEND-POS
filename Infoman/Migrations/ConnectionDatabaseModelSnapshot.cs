@@ -811,6 +811,9 @@ namespace Infoman.Migrations
                     b.Property<int>("BatchId")
                         .HasColumnType("int");
 
+                    b.Property<decimal?>("CostPerCostUnit")
+                        .HasColumnType("decimal(18,4)");
+
                     b.Property<DateTime>("DateUsed")
                         .HasColumnType("datetime2");
 
@@ -831,6 +834,9 @@ namespace Infoman.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal?>("TotalCost")
+                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("UsageId");
 

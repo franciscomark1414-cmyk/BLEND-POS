@@ -32,13 +32,9 @@ namespace Infoman.Service
 
             foreach (var batch in expiredBatches)
             {
-               
+
                 // ✅ I-CONVERT SA DISPLAY UNIT BAGO MAG-COMPUTE NG COST
-                decimal qtyInDisplayUnit = batch.QuantityRemaining;
-                if (batch.RawMaterial.BaseUnit == "g" || batch.RawMaterial.BaseUnit == "mL")
-                {
-                    qtyInDisplayUnit = batch.QuantityRemaining / 1000;
-                }
+                decimal qtyInDisplayUnit = UnitConverter.ToCostUnitQty(batch.QuantityRemaining, batch.RawMaterial.BaseUnit);
 
                 var wasteLog = new WasteLog
                 {
@@ -73,119 +69,42 @@ namespace Infoman.Service
 
 
         // ========== 2. DEDUCT STOCK (SYNCHRONOUS - PARA SA EXISTING CODE) ==========
-        // ========== BAGONG METHOD (may unitUsed) ==========
-        // ========== 2. DEDUCT STOCK (SYNCHRONOUS - MAY UNIT CONVERSION) ==========
-        // ========== 2. DEDUCT STOCK (SYNCHRONOUS) ==========
         public bool DeductStock(int rawMaterialId, decimal quantityNeededForRecipe, string unitUsed, int productId, string referenceNo, int? orderId = null, int? productSizeId = null)
         {
             var rawMaterial = _context.RawMaterials.Find(rawMaterialId);
             if (rawMaterial == null) return false;
 
-            // Convert recipe quantity to base unit
             decimal quantityInBaseUnit = ConvertToBaseUnit(quantityNeededForRecipe, unitUsed, rawMaterial.BaseUnit);
 
-            System.Diagnostics.Debug.WriteLine($"=== DEDUCT STOCK ===");
-            System.Diagnostics.Debug.WriteLine($"Material: {rawMaterial.Name} | BaseUnit: {rawMaterial.BaseUnit}");
-            System.Diagnostics.Debug.WriteLine($"Recipe: {quantityNeededForRecipe} {unitUsed} → {quantityInBaseUnit} {rawMaterial.BaseUnit}");
+            var (success, _, _) = DeductStockWithCostAsync(
+                rawMaterialId,
+                quantityInBaseUnit,
+                productId,
+                referenceNo,
+                orderId,
+                productSizeId).GetAwaiter().GetResult();
 
-            return DeductStockAsync(rawMaterialId, quantityInBaseUnit, productId, referenceNo, orderId, productSizeId).GetAwaiter().GetResult();
+            return success;
         }
 
         // ========== HELPER: UNIT CONVERSION ==========
         private decimal ConvertToBaseUnit(decimal quantity, string fromUnit, string toBaseUnit)
         {
-            if (fromUnit == toBaseUnit) return quantity;
-
-            return (fromUnit, toBaseUnit) switch
-            {
-                ("kg", "g") => quantity * 1000,
-                ("g", "kg") => quantity / 1000,
-                ("L", "mL") => quantity * 1000,
-                ("mL", "L") => quantity / 1000,
-                _ => quantity  // pcs or same unit — no conversion
-            };
+            return UnitConverter.ToBaseUnit(quantity, fromUnit, toBaseUnit);
         }
 
         // ========== 3. DEDUCT STOCK (ASYNC - BAGONG VERSION) ==========
-        // ========== 3. DEDUCT STOCK (ASYNC) ==========
-        // IMPORTANT: quantity must already be in the material's BaseUnit (g, mL, kg, L, pcs)
-        // No conversion is done here — caller is responsible.
         public async Task<bool> DeductStockAsync(int rawMaterialId, decimal quantityInBaseUnit, int productId, string referenceNo, int? orderId = null, int? productSizeId = null)
         {
-            var rawMaterial = await _context.RawMaterials.FindAsync(rawMaterialId);
-            if (rawMaterial == null) return false;
+            var (success, _, _) = await DeductStockWithCostAsync(
+                rawMaterialId,
+                quantityInBaseUnit,
+                productId,
+                referenceNo,
+                orderId,
+                productSizeId);
 
-            System.Diagnostics.Debug.WriteLine($"=== DEDUCTSTOCKASYNC ===");
-            System.Diagnostics.Debug.WriteLine($"Material: {rawMaterial.Name} | Deducting: {quantityInBaseUnit} {rawMaterial.BaseUnit}");
-
-            using var transaction = await _context.Database.BeginTransactionAsync();
-
-            try
-            {
-                await ProcessExpiredBatches();
-
-                var batches = await _context.RawMaterialBatches
-                    .Include(b => b.RawMaterial)
-                    .Where(b => b.RawMaterialId == rawMaterialId
-                        && b.QuantityRemaining > 0
-                        && (!b.ExpiryDate.HasValue || b.ExpiryDate.Value >= DateTime.Today))
-                    .OrderBy(b => b.ExpiryDate.HasValue ? b.ExpiryDate.Value : DateTime.MaxValue)
-                    .ThenBy(b => b.ReceivedDate)
-                    .ToListAsync();
-
-                System.Diagnostics.Debug.WriteLine($"Batches available: {batches.Count}");
-
-                if (!batches.Any()) return false;
-
-                decimal remainingToDeduct = quantityInBaseUnit;
-                var usedBatches = new List<(RawMaterialBatch batch, decimal usedQty)>();
-
-                foreach (var batch in batches)
-                {
-                    if (remainingToDeduct <= 0) break;
-
-                    decimal deductFromBatch = Math.Min(remainingToDeduct, batch.QuantityRemaining);
-                    usedBatches.Add((batch, deductFromBatch));
-                    batch.QuantityRemaining -= deductFromBatch;
-                    remainingToDeduct -= deductFromBatch;
-
-                    System.Diagnostics.Debug.WriteLine($"Batch {batch.BatchId}: deducted {deductFromBatch}, remaining in batch: {batch.QuantityRemaining}");
-                }
-
-                // Small tolerance for floating point errors (e.g. 0.0000001)
-                if (remainingToDeduct > 0.001m)
-                {
-                    System.Diagnostics.Debug.WriteLine($"FAILED: Still need {remainingToDeduct} but no more batches");
-                    return false;
-                }
-
-                foreach (var (batch, usedQty) in usedBatches)
-                {
-                    _context.ProductionUsages.Add(new ProductionUsage
-                    {
-                        BatchId = batch.BatchId,
-                        QuantityUsed = usedQty,
-                        DateUsed = DateTime.Now,
-                        ReferenceNo = referenceNo,
-                        ProductId = productId,
-                        OrderId = orderId,           
-                        ProductSizeId = productSizeId
-                    });
-                }
-
-                await UpdateMainStockColumn(rawMaterialId);
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                System.Diagnostics.Debug.WriteLine($"SUCCESS: Deducted {quantityInBaseUnit} {rawMaterial.BaseUnit}");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Exception: {ex.Message}");
-                await transaction.RollbackAsync();
-                throw;
-            }
+            return success;
         }
 
 
@@ -221,7 +140,11 @@ namespace Infoman.Service
                     .ToListAsync();
 
                 if (!batches.Any())
+                {
+                    if (shouldCreateTransaction && transaction != null)
+                        await transaction.RollbackAsync();
                     return (false, 0, null);
+                }
 
                 decimal remainingToDeduct = quantity;
                 var usedBatches = new List<BatchUsageDetail>();
@@ -234,11 +157,7 @@ namespace Infoman.Service
                     decimal deductFromBatch = Math.Min(remainingToDeduct, batch.QuantityRemaining);
 
                     // ✅ I-CONVERT SA DISPLAY UNIT PARA SA COSTING
-                    decimal deductInDisplayUnit = deductFromBatch;
-                    if (batch.RawMaterial?.BaseUnit == "g" || batch.RawMaterial?.BaseUnit == "mL")
-                    {
-                        deductInDisplayUnit = deductFromBatch / 1000;
-                    }
+                    decimal deductInDisplayUnit = UnitConverter.ToCostUnitQty(deductFromBatch, batch.RawMaterial?.BaseUnit);
 
                     decimal batchCost = deductInDisplayUnit * batch.UnitPrice;
 
@@ -247,7 +166,8 @@ namespace Infoman.Service
                         BatchId = batch.BatchId,
                         QuantityUsed = deductFromBatch,
                         UnitPrice = batch.UnitPrice,
-                        TotalCost = batchCost
+                        TotalCost = batchCost,
+                        BaseUnit = batch.RawMaterial?.BaseUnit
                     });
 
                     batch.QuantityRemaining -= deductFromBatch;
@@ -256,10 +176,17 @@ namespace Infoman.Service
                 }
 
                 if (remainingToDeduct > 0.001m)
+                {
+                    if (shouldCreateTransaction && transaction != null)
+                        await transaction.RollbackAsync();
                     return (false, 0, null);
+                }
 
                 foreach (var usage in usedBatches)
                 {
+                    // Cost per cost unit galing sa batch (₱ per kg / L / pcs)
+                    // Ang usage.TotalCost ay na-compute na sa loop kanina gamit ang UnitConverter
+
                     _context.ProductionUsages.Add(new ProductionUsage
                     {
                         BatchId = usage.BatchId,
@@ -268,7 +195,9 @@ namespace Infoman.Service
                         ReferenceNo = referenceNo,
                         ProductId = productId,
                         OrderId = orderId,
-                        ProductSizeId = productSizeId
+                        ProductSizeId = productSizeId,
+                        CostPerCostUnit = usage.UnitPrice,
+                        TotalCost = Math.Round(usage.TotalCost, 2)
                     });
                 }
 
@@ -413,11 +342,7 @@ namespace Infoman.Service
                     decimal wastedQty = oldQuantity - newQuantity;
 
                     // ✅ I-CONVERT SA DISPLAY UNIT PARA SA COSTING
-                    decimal wastedQtyInDisplayUnit = wastedQty;
-                    if (batch.RawMaterial?.BaseUnit == "g" || batch.RawMaterial?.BaseUnit == "mL")
-                    {
-                        wastedQtyInDisplayUnit = wastedQty / 1000;
-                    }
+                    decimal wastedQtyInDisplayUnit = UnitConverter.ToCostUnitQty(wastedQty, batch.RawMaterial?.BaseUnit);
 
                     var wasteLog = new WasteLog
                     {
@@ -513,5 +438,6 @@ namespace Infoman.Service
         public decimal QuantityUsed { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal TotalCost { get; set; }
+        public string? BaseUnit { get; set; }
     }
 }

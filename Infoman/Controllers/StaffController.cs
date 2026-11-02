@@ -145,7 +145,7 @@ namespace Infoman.Controllers
                 // ✅ FIX: Use converted quantity for comparison
                 if (availableQty < quantityPerOrder * quantity)
                 {
-                    insufficientIngredients.Add($"{recipeItem.RawMaterial.Name}: need {recipeItem.Quantity * quantity} {recipeItem.RawMaterial.Unit}, only {availableQty * 1000} {recipeItem.RawMaterial.Unit} available");
+                    insufficientIngredients.Add($"{recipeItem.RawMaterial.Name}: need {recipeItem.Quantity * quantity} {recipeItem.RawMaterial.BaseUnit}, only {availableQty} {recipeItem.RawMaterial.BaseUnit} available");
                 }
             }
 

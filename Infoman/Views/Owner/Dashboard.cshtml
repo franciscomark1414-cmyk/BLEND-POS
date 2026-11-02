@@ -5820,7 +5820,7 @@ function loadLowStockTab(items) {
                                 <td class="text-danger fw-bold">${item.minQtyWithUnit}</td>
                                 <td>${statusBadge}</td>
                                 <td>
-                                    <button class="btn btn-sm btn-outline-success" onclick="restockMaterial(${item.rawMaterialId})">
+                                   <button class="btn btn-sm btn-outline-success" onclick="goToReceiveWithMaterial(${item.rawMaterialId})">
                                         📦 Restock
                                     </button>
                                  </td>
@@ -6050,7 +6050,8 @@ function loadLowStockTab(items) {
 
     const materialId = document.getElementById('restockMaterialId').value;
     const quantity = parseFloat(document.getElementById('restockQuantity').value);
-    const unitPrice = document.getElementById('restockUnitPrice').value;
+    const div = (currentRestockUnit === 'g' || currentRestockUnit === 'mL') ? 1000 : 1;
+const unitPrice = totalPrice / (quantity / div);   // laging per kg / L / pcs
     const expiryDate = document.getElementById('restockExpiryDate').value;
 
     if (!quantity || quantity <= 0) {
@@ -8217,9 +8218,11 @@ function addReceivingRow() {
             <td>
                 <input type="number" class="form-control form-control-sm text-center total-price" data-row="${rowId}" step="0.01" min="0" value="0" oninput="calculateReceivingRow(${rowId})">
             </td>
-            <td>
-                <input type="text" class="form-control form-control-sm text-center unit-price bg-light" data-row="${rowId}" readonly value="0.00">
-            </td>
+           <td>
+    <input type="text" class="form-control form-control-sm text-center unit-price bg-light"
+           data-row="${rowId}" readonly value="0.00">
+    <small class="price-label text-muted d-block" data-row="${rowId}">per kg</small>
+</td>
             <td>
                 <input type="date" class="form-control form-control-sm expiry-date" data-row="${rowId}" onchange="checkExpiryDate(${rowId})">
             </td>
@@ -8256,20 +8259,11 @@ function checkExpiryDate(rowId) {
 }
 
 function updateReceivingUnit(rowId) {
-    const select = document.querySelector(`.material-select[data-row="${rowId}"]`);
-    const selectedOption = select.options[select.selectedIndex];
-    
-    // Kunin ang Display Unit (e.g., kg, pcs) imbes na Base Unit
-    const displayUnit = selectedOption.getAttribute('data-unit') || ''; 
-    
+    const baseUnit = getBaseUnitForRow(rowId);
     const recvUnitInput = document.querySelector(`.recv-unit[data-row="${rowId}"]`);
-    if (recvUnitInput) {
-        recvUnitInput.value = displayUnit; // ✅ Dapat kg, L, pcs ang lumabas dito
-    }
-    
+    if (recvUnitInput) recvUnitInput.value = baseUnit;   // g / mL / pcs (hindi kg/L)
     calculateReceivingRow(rowId);
 }
-
 function toggleReasonDropdown(rowId) {
     const rejected = parseFloat(document.querySelector(`.rejected-qty[data-row="${rowId}"]`).value) || 0;
     const reasonSelect = document.querySelector(`.reason-select[data-row="${rowId}"]`);
@@ -8280,59 +8274,66 @@ function toggleReasonDropdown(rowId) {
     }
 }
 
+function getBaseUnitForRow(rowId) {
+    const sel = document.querySelector(`.material-select[data-row="${rowId}"]`);
+    return sel?.options[sel.selectedIndex]?.getAttribute('data-base-unit') || 'g';
+}
+
+// g → kg (÷1000), mL → L (÷1000), pcs → pcs
+function costDivisor(baseUnit) {
+    return (baseUnit === 'g' || baseUnit === 'mL') ? 1000 : 1;
+}
+
+function costUnitLabel(baseUnit) {
+    return baseUnit === 'g' ? 'kg' : (baseUnit === 'mL' ? 'L' : baseUnit);
+}
+
 function calculateReceivingRow(rowId) {
-    const receivedInput = document.querySelector(`.received-qty[data-row="${rowId}"]`);
-    const acceptedInput = document.querySelector(`.accepted-qty[data-row="${rowId}"]`);
-    const rejectedInput = document.querySelector(`.rejected-qty[data-row="${rowId}"]`);
-    
-    // ✅ KUNG WALANG LAMAN ANG RECEIVED, HUWAG MAG-COMPUTE
-    if (!receivedInput.value || parseFloat(receivedInput.value) === 0) {
-        // Reset lahat
-        acceptedInput.value = '';
+    const q = (cls) => document.querySelector(`${cls}[data-row="${rowId}"]`);
+
+    const receivedInput  = q('.received-qty');
+    const acceptedInput  = q('.accepted-qty');
+    const rejectedInput  = q('.rejected-qty');
+    const convertedOut   = q('.converted-qty');
+    const unitPriceOut   = q('.unit-price');
+    const priceLabel     = q('.price-label');
+
+    const received   = parseFloat(receivedInput.value) || 0;       // packages
+    const conv       = parseFloat(q('.pkg-conversion').value) || 1; // g bawat package
+    const totalPrice = parseFloat(q('.total-price').value) || 0;
+
+    const baseUnit   = getBaseUnitForRow(rowId);
+    const div        = costDivisor(baseUnit);                       // 1000 para g/mL, 1 para pcs
+
+    const receivedBase = received * conv;                           // sa g / mL / pcs
+    const costQty      = receivedBase / div;                        // sa kg / L / pcs
+    const pricePerCost = costQty > 0 ? totalPrice / costQty : 0;    // naka-save na per kg/L/pcs
+
+    // Display: kung wala pang 1 kg, ipakita per g (o per mL)
+    let shown = pricePerCost;
+    let label = costUnitLabel(baseUnit);
+    let decimals = 2;
+    if (div === 1000 && receivedBase < 1000) {
+        shown = pricePerCost / 1000;
+        label = baseUnit;        // g o mL
+        decimals = 4;
+    }
+
+    unitPriceOut.value = shown.toFixed(decimals);
+    unitPriceOut.dataset.perCostUnit = pricePerCost.toFixed(4);     // dito kukunin ng submit
+    if (priceLabel) priceLabel.textContent = `per ${label}`;
+
+    if (received <= 0 || acceptedInput.value === '') {
         rejectedInput.value = '';
-        document.querySelector(`.converted-qty[data-row="${rowId}"]`).value = '0';
-        document.querySelector(`.unit-price[data-row="${rowId}"]`).value = '0.00';
+        convertedOut.value = '0';
+        toggleReasonDropdown(rowId);
         return;
     }
-    
-    const received = parseFloat(receivedInput.value) || 0;
-    let conversion = parseFloat(document.querySelector(`.pkg-conversion[data-row="${rowId}"]`).value);
-if (isNaN(conversion)) conversion = 1; 
-    let accepted = parseFloat(acceptedInput.value) || 0;
-    let rejected = parseFloat(rejectedInput.value) || 0;
-    const totalPrice = parseFloat(document.querySelector(`.total-price[data-row="${rowId}"]`).value) || 0;
-    
-    // ✅ KUNG WALANG LAMAN ANG ACCEPTED, HUWAG MAG-COMPUTE
-    if (!acceptedInput.value || acceptedInput.value === '') {
-        rejectedInput.value = '';
-        document.querySelector(`.converted-qty[data-row="${rowId}"]`).value = '0';
-        document.querySelector(`.unit-price[data-row="${rowId}"]`).value = '0.00';
-        return;
-    }
-    
-    // ✅ AUTO-VALIDATE: Kung kulang ang accepted sa received, ilagay sa rejected
-    if (accepted < received) {
-        rejected = received - accepted;
-        rejectedInput.value = rejected.toFixed(2);
-    } 
-    else if (accepted >= received) {
-        rejected = 0;
-        rejectedInput.value = 0;
-    }
-    
-    // ✅ Pakita ang reason dropdown kung may rejected
+
+    const accepted = Math.min(Math.max(parseFloat(acceptedInput.value) || 0, 0), received);
+    rejectedInput.value = (received - accepted).toFixed(2);          // packages
+    convertedOut.value = (accepted * conv).toFixed(2);              // sa base unit (g / mL / pcs)
     toggleReasonDropdown(rowId);
-    
-    // Converted Qty (Accepted * Conversion)
-    const convertedQty = accepted * conversion;
-    document.querySelector(`.converted-qty[data-row="${rowId}"]`).value = convertedQty.toFixed(2);
-    
-    // Unit Price (Total Price / Converted Qty)
-    let unitPrice = 0;
-    if (convertedQty > 0) {
-        unitPrice = totalPrice / convertedQty;
-    }
-    document.querySelector(`.unit-price[data-row="${rowId}"]`).value = unitPrice.toFixed(2);
 }
 
 function removeReceivingRow(rowId) {
@@ -8374,7 +8375,7 @@ async function generateInvoiceNumberFromServer() {
 document.getElementById('receivingForm')?.addEventListener('submit', async function(e) {
     e.preventDefault();
     const supplierId = document.getElementById('supplierId').value;
-    const globalStoreName = document.getElementById('globalStoreName').value.trim(); // ✅ Galing sa taas
+    const globalStoreName = document.getElementById('globalStoreName').value.trim();
     
     if (!supplierId && !globalStoreName) {
         await showAlert(
@@ -8385,49 +8386,68 @@ document.getElementById('receivingForm')?.addEventListener('submit', async funct
         return;
     }
 
+    for (let row of document.querySelectorAll('#receivingItemsBody tr')) {
+    const rowId = row.id.split('-').pop();
+    const mat = document.querySelector(`.material-select[data-row="${rowId}"]`);
+    if (!mat || !mat.value) continue;
+
+    const received = parseFloat(document.querySelector(`.received-qty[data-row="${rowId}"]`).value) || 0;
+    const total = parseFloat(document.querySelector(`.total-price[data-row="${rowId}"]`).value) || 0;
+
+    if (received > 0 && total <= 0) {
+        await showAlert('Maglagay ng total price para sa bawat item.', 'Required', '⚠️');
+        return;
+    }
+}
+
     const items = [];
     const rows = document.querySelectorAll('#receivingItemsBody tr');
 
     for (let row of rows) {
-        const rowId = row.id.split('-').pop();
-        const materialSelect = document.querySelector(`.material-select[data-row="${rowId}"]`);
+       const rowId = row.id.split('-').pop();   // (kung nasa loop na, huwag na ulitin)
+const materialSelect = document.querySelector(`.material-select[data-row="${rowId}"]`);
+if (!materialSelect || !materialSelect.value) continue;
 
-        if (!materialSelect || !materialSelect.value) continue;
+const baseUnit = materialSelect.options[materialSelect.selectedIndex].getAttribute('data-base-unit') || 'g';
+const div = costDivisor(baseUnit);
+const r4 = (n) => Math.round(n * 10000) / 10000;
 
-        const receivedQty = parseFloat(document.querySelector(`.received-qty[data-row="${rowId}"]`).value) || 0;
-        const conversion = parseFloat(document.querySelector(`.pkg-conversion[data-row="${rowId}"]`).value) || 1;
-        const acceptedPkg = parseFloat(document.querySelector(`.accepted-qty[data-row="${rowId}"]`).value) || 0;
-        const rejectedPkg = parseFloat(document.querySelector(`.rejected-qty[data-row="${rowId}"]`).value) || 0;
-        const unitPrice = parseFloat(document.querySelector(`.unit-price[data-row="${rowId}"]`).value) || 0;
-        const expiryDate = document.querySelector(`.expiry-date[data-row="${rowId}"]`).value || null;
-        const reason = document.querySelector(`.reason-select[data-row="${rowId}"]`)?.value || 'Damaged';
+const receivedPkg = parseFloat(document.querySelector(`.received-qty[data-row="${rowId}"]`).value) || 0;
+const acceptedPkg = parseFloat(document.querySelector(`.accepted-qty[data-row="${rowId}"]`).value) || 0;
+const rejectedPkg = parseFloat(document.querySelector(`.rejected-qty[data-row="${rowId}"]`).value) || 0;
+const conv = parseFloat(document.querySelector(`.pkg-conversion[data-row="${rowId}"]`).value) || 1;
+const totalPrice = parseFloat(document.querySelector(`.total-price[data-row="${rowId}"]`).value) || 0;
+const expiryDate = document.querySelector(`.expiry-date[data-row="${rowId}"]`).value || null;
+const reason = document.querySelector(`.reason-select[data-row="${rowId}"]`)?.value || 'Damaged';
 
-        // ✅ HAKBANG 1: I-convert sa DISPLAY UNIT (hindi base unit) bago ipadala
-        const acceptedInDisplayUnit = acceptedPkg * conversion;
-        const rejectedInDisplayUnit = rejectedPkg * conversion;
-        const receivedInDisplayUnit = receivedQty * conversion;
+if (Math.abs((acceptedPkg + rejectedPkg) - receivedPkg) > 0.0001) {
+    await showAlert(`Row ${rowId}: Accepted + Rejected must equal Received.`, 'Validation Error', '⚠️');
+    return;
+}
 
-        // Kunin ang unit na ginamit (e.g., "kg")
-        const unitUsed = document.querySelector(`.recv-unit[data-row="${rowId}"]`).value;
+// Lahat ng quantity ay ipapadala sa BASE UNIT (g / mL / pcs)
+const receivedBase = r4(receivedPkg * conv);
+const acceptedBase = r4(acceptedPkg * conv);
+const rejectedBase = r4(rejectedPkg * conv);
 
-        if (Math.abs((acceptedPkg + rejectedPkg) - receivedQty) > 0.01) {
-            await showAlert(`Row ${rowId}: Accepted + Rejected must equal Received.`, 'Validation Error', '⚠️');
-            return;
-        }
+if (receivedBase <= 0) continue;
 
-        items.push({
-            rawMaterialId: parseInt(materialSelect.value),
-            rawMaterialName: materialSelect.options[materialSelect.selectedIndex].text,
-            receivedQty: receivedInDisplayUnit, 
-            acceptedQty: acceptedInDisplayUnit, 
-            rejectedQty: rejectedInDisplayUnit, 
-            unit: unitUsed,
-            disposition: "Waste",
-            rejectionReason: reason,
-            unitPrice: unitPrice,
-            expiryDate: expiryDate,
-            storeName: globalStoreName // ✅ Galing sa itaas
-        });
+// Presyo per cost unit (₱ per kg / L / pcs)
+const unitPrice = r4(totalPrice / (receivedBase / div));
+
+items.push({
+    rawMaterialId: parseInt(materialSelect.value),
+    rawMaterialName: materialSelect.options[materialSelect.selectedIndex].text,
+    receivedQty: receivedBase,
+    acceptedQty: acceptedBase,
+    rejectedQty: rejectedBase,
+    unit: baseUnit,            // g / mL / pcs para walang conversion sa server
+    disposition: "Waste",
+    rejectionReason: reason,
+    unitPrice: unitPrice,      // per kg / L / pcs
+    expiryDate: expiryDate,
+    storeName: globalStoreName
+});
     }
 
     if (items.length === 0) {
@@ -8449,8 +8469,6 @@ document.getElementById('receivingForm')?.addEventListener('submit', async funct
         return;
     }
 
-    // ... (the rest of the fetch logic)
-
     const submitBtn = this.querySelector('button[type="submit"]');
     const originalText = submitBtn.innerHTML;
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
@@ -8466,11 +8484,8 @@ document.getElementById('receivingForm')?.addEventListener('submit', async funct
     })
     .then(r => r.json())
     .then(async (result) => {
-               if (result.success) {
-            // ✅ Ipakita ang Custom Success Modal na may "View History" button
+        if (result.success) {
             showDeliverySuccessModal(result.receivingId);
-            
-            // ✅ I-reset ang form at i-refresh ang data sa background
             resetReceivingForm();
             await refreshInventoryTableData();
             loadDeliveryHistory();
@@ -10877,6 +10892,32 @@ async function autoDisplayProductInPOS() {
     document.addEventListener('DOMContentLoaded', function() {
         autoDisplayProductInPOS();
     });
+
+    async function goToReceiveWithMaterial(materialId) {
+    // Ipakita ang Receive Delivery module
+    showModule('receiving');
+
+    // Hintayin na ma-load ang form data (suppliers, materials, DR number)
+    // showModule('receiving') ay tumatawag ng loadReceivingFormData() kapag walang laman ang tbody
+    await new Promise(resolve => setTimeout(resolve, 400));
+
+    // Kung may laman na ang tbody, i-reset para malinis at may isang row lang
+    const tbody = document.getElementById('receivingItemsBody');
+    tbody.innerHTML = '';
+    receivingRowCount = 0;
+    addReceivingRow();
+
+    // I-select ang materyal sa unang row
+    const select = document.querySelector('.material-select[data-row="0"]');
+    if (select) {
+        select.value = String(materialId);
+        updateReceivingUnit(0);
+        select.focus();
+    }
+
+    // I-highlight ang row para makita ng owner kung saan magsisimula
+    document.getElementById('receiving-row-0')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
 
        
 // ========== HELPER FUNCTION ==========

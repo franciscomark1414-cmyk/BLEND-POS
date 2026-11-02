@@ -2408,8 +2408,8 @@
 </div>
 
                         <!-- THE TABLE -->
-                        <div class="table-responsive mb-4">
-    <table class="table table-bordered table-hover align-middle" id="receivingItemsTable">
+                      <div style="overflow-x: auto; width: 100%;">
+    <table class="table" style="min-width: 1200px; white-space: nowrap;">
         <thead class="table-warning text-center" style="font-size: 12px; font-weight: 700; vertical-align: middle;">
             <tr>
                 <th style="width: 15%; min-width: 150px;">Item</th>
@@ -2467,92 +2467,6 @@
 </div>
 
      
-        <div id="receivingModule" class="module">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h3><i class="fas fa-clipboard-list text-success me-2"></i> Receive Delivery</h3>
-                <button class="btn btn-outline-secondary" onclick="document.getElementById('receivingForm').reset();">
-                    <i class="fas fa-undo"></i> Reset
-                </button>
-            </div>
-
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <form id="receivingForm">
-                        @Html.AntiForgeryToken()
-
-                        <div class="row mb-3">
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold">Supplier <span class="text-danger">*</span></label>
-                                <select id="supplierId" class="form-control" required>
-                                    <option value="">-- Select Supplier --</option>
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold">DR Number <span class="text-danger">*</span></label>
-                                <input type="text" id="drNumber" class="form-control" required placeholder="e.g., DR-2025-001">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold">Invoice Number</label>
-                                <input type="text" id="invoiceNumber" class="form-control" placeholder="Optional">
-                            </div>
-                        </div>
-
-                        <div class="row mb-3">
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold">Date Received</label>
-                                <input type="date" id="dateReceived" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-dd")">
-                            </div>
-                            <div class="col-md-8">
-                                <label class="form-label fw-bold">Remarks</label>
-                                <input type="text" id="remarks" class="form-control" placeholder="Optional notes">
-                            </div>
-                        </div>
-
-                        <hr />
-
-                     
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="mb-0">📦 Items Received</h5>
-                            <button type="button" class="btn btn-sm btn-success" onclick="addReceivingRow()">
-                                <i class="fas fa-plus"></i> Add Item
-                            </button>
-                        </div>
-
-                        <div class="table-responsive">
-                            <table class="table table-bordered" id="receivingItemsTable">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th style="width:20%">Raw Material</th>
-                                        <th style="width:8%">Received</th>
-                                        <th style="width:8%">Accepted</th>
-                                        <th style="width:8%">Rejected</th>
-                                        <th style="width:12%">Rejection Reason</th>
-                                        <th style="width:8%">Unit Price</th>
-                                        <th style="width:10%">Expiry Date</th>
-                                        <th style="width:5%">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="receivingItemsBody">
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <div class="alert alert-info mt-3">
-                            <i class="fas fa-info-circle"></i> <strong>Formula:</strong> Accepted + Rejected = Received
-                        </div>
-
-                        <div class="mt-3">
-                            <button type="submit" class="btn btn-primary btn-lg">
-                                <i class="fas fa-save"></i> Save Delivery
-                            </button>
-                            <button type="button" class="btn btn-secondary btn-lg" onclick="showModule('dashboard')">
-                                <i class="fas fa-times"></i> Cancel
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
 
         
         <div id="receivingHistoryModule" class="module">
@@ -2981,7 +2895,7 @@
                 <!-- New Quantity Input -->
                 <div class="mb-4">
                     <label class="form-label fw-bold">New Stock Quantity</label>
-                    <input type="number" id="editNewQuantity" class="form-control" step="0.01" min="0" style="border-radius: 10px; padding: 12px; font-size: 16px;">
+                    <input type="number" id="editNewQuantity" class="form-control" step="0.01" min="0" max="0" style="border-radius: 10px; padding: 12px; font-size: 16px;" oninput="validateEditStockInput(this)">
                     <small class="text-muted" id="editStockHint">Enter the new remaining stock quantity</small>
                 </div>
 
@@ -4689,19 +4603,19 @@ for (let pair of formData.entries()) {
             
             const result = await response.json();
             
-            if (result.success) {
-                // Save that we want to stay in products module
-                sessionStorage.setItem('activeModule', 'products');
-                
-                // Show success message
-                await showAlert(result.message, 'Success', '✅');
-                
-                // Close modal
+                       if (result.success) {
+                // ✅ Close the Add Product Modal
                 const modal = bootstrap.Modal.getInstance(document.getElementById('addProductModal'));
                 if (modal) modal.hide();
                 
-                // Reload with flag to stay in products module
-                window.location.href = window.location.pathname + '?fromProductSave=true';
+                // ✅ Kunin ang Product ID (kung ibinabalik ito ng server)
+                // Kung hindi ibinabalik ng server ang ID, pwede nating gamitin ang pangalan.
+                // Palitan ang 'result.productId' kung iba ang key name na ginagamit ng server mo.
+                const newProductId = result.productId || 0; 
+                const productName = document.getElementById('addProductForm').querySelector('input[name="Name"]').value;
+                
+                // ✅ Ipakita ang Custom Success Modal IMBES NA MAG-RELOAD AGAD
+                showProductSuccessModal(newProductId, productName);
                 
             } else {
                 let errorMsg = result.message || 'Please check all fields';
@@ -8552,8 +8466,11 @@ document.getElementById('receivingForm')?.addEventListener('submit', async funct
     })
     .then(r => r.json())
     .then(async (result) => {
-        if (result.success) {
-            await showAlert('Delivery received successfully!', 'Success', '✅');
+               if (result.success) {
+            // ✅ Ipakita ang Custom Success Modal na may "View History" button
+            showDeliverySuccessModal(result.receivingId);
+            
+            // ✅ I-reset ang form at i-refresh ang data sa background
             resetReceivingForm();
             await refreshInventoryTableData();
             loadDeliveryHistory();
@@ -9881,8 +9798,6 @@ let currentBatchMaterialId = null;
 function showEditStockModal(batchId, currentRemainingInBaseUnit, materialName, unit, materialId) {
     // Store material ID for later refresh
     currentBatchMaterialId = materialId;
-    
-    // Store for later use
     currentEditBatchId = batchId;
     currentEditMaterialName = materialName;
     currentEditUnit = unit;
@@ -9892,15 +9807,25 @@ function showEditStockModal(batchId, currentRemainingInBaseUnit, materialName, u
     if (unit === 'kg' || unit === 'L') {
         displayCurrentStock = currentRemainingInBaseUnit / 1000;
     }
-    currentEditBatchRemaining = displayCurrentStock;  // Store in display unit
+    currentEditBatchRemaining = displayCurrentStock;
     
-    // Set values in modal (use converted display value)
+    // Set values in modal
     document.getElementById('editBatchId').innerText = batchId;
     document.getElementById('editMaterialName').innerText = materialName;
     document.getElementById('editCurrentStock').innerText = `${displayCurrentStock.toFixed(2)} ${unit}`;
     document.getElementById('editUnit').innerText = unit;
     document.getElementById('editNewQuantity').value = displayCurrentStock;
     document.getElementById('editNewQuantity').placeholder = `Current: ${displayCurrentStock.toFixed(2)} ${unit}`;
+    
+    // ✅ I-SET ANG MAX VALUE SA CURRENT STOCK (BAWAL MAGDAGDAG)
+    document.getElementById('editNewQuantity').setAttribute('max', displayCurrentStock);
+    document.getElementById('editNewQuantity').setAttribute('min', '0');
+    
+    // ✅ I-UPDATE ANG HINT TEXT
+    const hintEl = document.getElementById('editStockHint');
+    if (hintEl) {
+        hintEl.innerHTML = `Enter the new remaining stock quantity. <strong>Max: ${displayCurrentStock.toFixed(2)} ${unit}</strong> (cannot increase)`;
+    }
     
     // Reset form
     document.getElementById('editReason').value = '';
@@ -9913,6 +9838,18 @@ function showEditStockModal(batchId, currentRemainingInBaseUnit, materialName, u
     // Show modal
     const modal = new bootstrap.Modal(document.getElementById('editStockModal'));
     modal.show();
+}
+
+// ✅ BAGONG FUNCTION: I-check kung lumalampas sa max
+function validateEditStockInput(input) {
+    const max = parseFloat(input.getAttribute('max'));
+    const value = parseFloat(input.value);
+    
+    if (!isNaN(max) && !isNaN(value) && value > max) {
+        input.value = max;
+        input.style.borderColor = '#dc3545';
+        setTimeout(() => input.style.borderColor = '', 1000);
+    }
 }
 
 function toggleOtherReason() {
@@ -9950,6 +9887,22 @@ async function confirmStockAdjustment() {
     let reason = document.getElementById('editReason').value;
     const otherReason = document.getElementById('editOtherReason').value;
     const notes = document.getElementById('editNotes').value;
+    
+    // Validation
+    if (isNaN(newQuantityInDisplayUnit) || newQuantityInDisplayUnit < 0) {
+        await showAlert('Please enter a valid quantity (0 or positive number)', 'Invalid Input', '⚠️');
+        return;
+    }
+    
+    // ✅ BAGONG VALIDATION: BAWAL MAGDAGDAG
+    if (newQuantityInDisplayUnit > currentEditBatchRemaining) {
+        await showAlert(
+            `❌ Cannot increase stock.\n\nCurrent stock: ${currentEditBatchRemaining.toFixed(2)} ${currentEditUnit}\nYour input: ${newQuantityInDisplayUnit.toFixed(2)} ${currentEditUnit}\n\nIf you need to increase stock, use "Receive Delivery" instead.`,
+            'Cannot Increase Stock',
+            '🚫'
+        );
+        return;
+    }
     
     // Validation
     if (isNaN(newQuantityInDisplayUnit) || newQuantityInDisplayUnit < 0) {
@@ -10674,6 +10627,257 @@ async function saveWithdrawal() {
     }
 }
 
+document.addEventListener('DOMContentLoaded', function() {
+    const supplierSelect = document.getElementById('SupplierId'); // Palitan ng tamang ID
+    const storeNameInput = document.getElementById('StoreName'); // Palitan ng tamang ID
+
+    if (supplierSelect && storeNameInput) {
+        // Kapag pumili ng Supplier, burahin ang Store Name
+        supplierSelect.addEventListener('change', function() {
+            if (this.value !== "") {
+                storeNameInput.value = "";
+            }
+        });
+
+        // Kapag nag-type sa Store Name, i-reset ang Supplier dropdown
+        storeNameInput.addEventListener('input', function() {
+            if (this.value.trim() !== "") {
+                supplierSelect.value = "";
+            }
+        });
+    }
+});
+
+// ✅ BAGONG FUNCTION: Success Modal para sa Receive Delivery
+function showDeliverySuccessModal(receivingId) {
+    // Alisin ang lumang modal kung meron man
+    const existing = document.getElementById('deliverySuccessModal');
+    if (existing) existing.remove();
+
+    const modalHtml = `
+        <div id="deliverySuccessModal" class="modal-qty" style="display: flex; z-index: 10005;">
+            <div class="modal-qty-content" style="width: 400px; max-width: 90%; text-align: center; padding: 30px;">
+                <div style="font-size: 60px; color: #28a745; margin-bottom: 15px;">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <h3 style="font-weight: 700; color: #333; margin-bottom: 10px;">Delivery Received!</h3>
+                <p style="color: #666; margin-bottom: 25px;">
+                    The delivery has been successfully saved to the system and inventory has been updated.
+                </p>
+                
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button onclick="goToDeliveryHistoryFromModal()" class="btn btn-primary" style="padding: 12px; font-weight: 600; background: #D4B000; border: none; color: white; border-radius: 8px;">
+                        <i class="fas fa-history"></i> View in Delivery History
+                    </button>
+                    <button onclick="closeDeliverySuccessModal()" class="btn btn-outline-secondary" style="padding: 12px; font-weight: 600; border-radius: 8px;">
+                        Receive Another Delivery
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+// ✅ Function para isara ang Success Modal
+function closeDeliverySuccessModal() {
+    const modal = document.getElementById('deliverySuccessModal');
+    if (modal) modal.remove();
+    
+    // I-scroll pabalik sa taas ng form para ready sa next input
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ✅ Function para pumunta sa Delivery History
+function goToDeliveryHistoryFromModal() {
+    closeDeliverySuccessModal();
+    showModule('receivingHistory'); // Lilipat sa Delivery History module
+}
+
+// ✅ BAGONG FUNCTION: Custom Success Modal para sa New Product
+function showProductSuccessModal(productId, productName) {
+    // Alisin ang lumang modal kung meron man
+    const existing = document.getElementById('productSuccessModal');
+    if (existing) existing.remove();
+
+    const modalHtml = `
+        <div id="productSuccessModal" class="modal-qty" style="display: flex; z-index: 10005;">
+            <div class="modal-qty-content" style="width: 420px; max-width: 90%; text-align: center; padding: 30px;">
+                <div style="font-size: 60px; color: #28a745; margin-bottom: 15px;">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <h3 style="font-weight: 700; color: #333; margin-bottom: 10px;">Product Saved!</h3>
+                <p style="color: #666; margin-bottom: 20px; font-size: 15px;">
+                    <strong>${escapeHtml(productName)}</strong> has been successfully added to your product list.
+                </p>
+                
+                <div style="background: #f8f9fa; border: 1px dashed #ccc; padding: 15px; border-radius: 8px; margin-bottom: 25px; text-align: left;">
+                    <p style="margin-bottom: 10px; font-weight: 600; color: #333;">Next Step:</p>
+                    <p style="font-size: 13px; color: #666; margin-bottom: 0;">
+                        To sell this product, you need to <strong>display it in the POS menu</strong>. Would you like to do that now?
+                    </p>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <!-- Button para pumunta sa POS display -->
+                    <button onclick="goToProductDisplay(${productId})" class="btn btn-success" style="padding: 12px; font-weight: 600; background: #ff9800; border: none; color: white; border-radius: 8px; font-size: 15px;">
+                        <i class="fas fa-tv"></i> Go to Display in POS
+                    </button>
+                    <!-- Button para tapusin na -->
+                    <button onclick="closeProductSuccessAndReload()" class="btn btn-outline-secondary" style="padding: 12px; font-weight: 600; border-radius: 8px;">
+                        I'll do it later
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+// ✅ Function para isara at mag-reload
+function closeProductSuccessAndReload() {
+    const modal = document.getElementById('productSuccessModal');
+    if (modal) modal.remove();
+    
+    // Doon lang mag-reload pagkatapos i-close ang modal
+    sessionStorage.setItem('activeModule', 'products');
+    window.location.href = window.location.pathname + '?fromProductSave=true';
+}
+
+// ✅ Function para pumunta sa "Display in POS" section
+function goToProductDisplay(productId) {
+    // I-close ang modal
+    const modal = document.getElementById('productSuccessModal');
+    if (modal) modal.remove();
+
+    // I-save sa session na gusto natin pumunta sa products module pagka-reload
+    sessionStorage.setItem('activeModule', 'products');
+    
+    // Optional: I-pass ang productId sa URL kung gusto mong mag-scroll agad sa product na yon
+    window.location.href = window.location.pathname + '?fromProductSave=true&highlightProduct=' + productId;
+}
+
+async function autoDisplayProductInPOS() {
+    // Kunin ang productId mula sa URL
+    var urlParams = new URLSearchParams(window.location.search);
+    var highlightProductId = urlParams.get('highlightProduct');
+    
+    if (!highlightProductId) return; // Walang productId, skip
+    
+    console.log('Auto-displaying product in POS:', highlightProductId);
+    
+    // ✅ Mag-antay ng konti para naka-render na ang lahat ng cards
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Hanapin ang specific na product card
+    var productCards = document.querySelectorAll('.product-card');
+    var targetCard = null;
+    
+    for (var i = 0; i < productCards.length; i++) {
+        if (productCards[i].getAttribute('data-product-id') === highlightProductId) {
+            targetCard = productCards[i];
+            break;
+        }
+    }
+    
+    if (!targetCard) {
+        console.warn('Product card not found:', highlightProductId);
+        return;
+    }
+    
+    // ✅ I-expand ang card
+    var cardBody = targetCard.querySelector('.product-card-body');
+    if (cardBody && cardBody.style.display === 'none') {
+        cardBody.style.display = 'block';
+        var icon = targetCard.querySelector('.toggle-icon');
+        if (icon) {
+            icon.style.transform = 'rotate(0deg)';
+            icon.classList.remove('fa-chevron-right');
+            icon.classList.add('fa-chevron-down');
+        }
+    }
+    
+    // ✅ Kunin lahat ng "Display in POS" buttons
+    var displayButtons = [];
+    var allButtons = targetCard.querySelectorAll('button');
+    for (var j = 0; j < allButtons.length; j++) {
+        if (allButtons[j].innerText.includes('Display in POS')) {
+            displayButtons.push(allButtons[j]);
+        }
+    }
+    
+    if (displayButtons.length === 0) {
+        console.log('All sizes already displayed in POS');
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+    }
+    
+    console.log(`Found ${displayButtons.length} sizes to display`);
+    
+    // ✅ Ipakita ang CUSTOM modal para sa "Display ALL" decision
+    const shouldDisplayAll = await showConfirm(
+        `This product has ${displayButtons.length} size(s) that are hidden from POS.\n\nDo you want to display ALL of them in the POS menu?`,
+        'Display Product in POS'
+    );
+    
+    if (shouldDisplayAll) {
+        // ✅ I-display lahat nang paisa-isa (walang confirm modal para mabilis)
+        showLoading('Displaying sizes in POS...');
+        
+        for (var k = 0; k < displayButtons.length; k++) {
+            try {
+                // Kunin ang productSizeId mula sa onclick attribute
+                var onclickAttr = displayButtons[k].getAttribute('onclick');
+                // Format: displayInPOS(123, 'Name', 'Size')
+                var match = onclickAttr.match(/displayInPOS\((\d+)/);
+                if (match && match[1]) {
+                    var productSizeId = parseInt(match[1]);
+                    
+                    // ✅ Directly call ang backend API (skip ang UI confirm)
+                    var token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+                    var response = await fetch('/Owner/TogglePOSVisibility', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': token
+                        },
+                        body: JSON.stringify({
+                            productSizeId: productSizeId,
+                            isAvailable: true
+                        })
+                    });
+                    
+                    var result = await response.json();
+                    if (!result.success) {
+                        console.error('Failed to display size:', result.message);
+                    }
+                }
+            } catch (err) {
+                console.error('Error displaying size:', err);
+            }
+        }
+        
+        hideLoading();
+        await showAlert('✅ All sizes are now displayed in the POS menu!', 'Success', '✅');
+        
+        // ✅ I-reload para makita ang updated status
+        sessionStorage.setItem('activeModule', 'products');
+        window.location.href = window.location.pathname;
+        
+    } else {
+        // ✅ Kung "No", hayaan ang user na mag-click manually
+        await showAlert('You can manually click "Display in POS" for each size you want to show.', 'Info', 'ℹ️');
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+}
+
+    // ✅ Tawagin ang function pagka-load ng page
+    document.addEventListener('DOMContentLoaded', function() {
+        autoDisplayProductInPOS();
+    });
+
        
 // ========== HELPER FUNCTION ==========
 function escapeHtml(str) {
@@ -10687,7 +10891,11 @@ function escapeHtml(str) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // ==========================================
+    // 1. EXISTING LOGIC (MODULE LOADING)
+    // ==========================================
     loadCategoryDropdown('filterCategory', 'Product', { valueKey: 'name', placeholder: 'All Categories' });
+    
     // ✅ I-CLEAR muna ang localStorage (cleanup ng dati)
     localStorage.removeItem('activeModule');
     
@@ -10705,6 +10913,28 @@ document.addEventListener('DOMContentLoaded', function() {
         showModule(savedModule); // reload lang ito within same session
     } else {
          showModule('dashboard'); // ✅ bagong login = laging dashboard
+    }
+
+        // ==========================================
+    // 2. NEW LOGIC (SUPPLIER VS STORE NAME)
+    // ==========================================
+    const supplierSelect = document.getElementById('supplierId'); 
+    const storeNameInput = document.getElementById('globalStoreName'); 
+
+    if (supplierSelect && storeNameInput) {
+        // Pag pumili ng supplier, i-clear ang store name
+        supplierSelect.addEventListener('change', function() {
+            if (this.value !== "") { 
+                storeNameInput.value = "";
+            }
+        });
+
+        // Pag nag-type sa store name, i-reset ang supplier
+        storeNameInput.addEventListener('input', function() {
+            if (this.value.trim() !== "") {
+                supplierSelect.value = ""; 
+            }
+        });
     }
 });
 

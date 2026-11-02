@@ -92,33 +92,30 @@ namespace Infoman.Controllers
             await RefreshProductPricesInternal();
             DateTime today = DateTime.Today;
 
-            // ========== TODAY'S NET REVENUE (Using Order NetRevenue property) ==========
-            // Today's Sales
+            // ========== TODAY'S NET REVENUE ==========
+            // ✅ TotalAmount ay NET NA dahil nababawasan ito sa ApproveRequest
             var todaysOrders = await _db.Orders
-                .Include(o => o.Adjustments)
                 .Where(o => o.Date.Date == today && (o.Status == "COMPLETED" || o.Status == "PENDING_BLENDING"))
                 .ToListAsync();
 
-            decimal todaysNetRevenue = 0;
-            foreach (var order in todaysOrders)
-            {
-                todaysNetRevenue += order.NetRevenue;
-            }
+            decimal todaysNetRevenue = todaysOrders.Sum(o => o.TotalAmount);
+
+            // ✅ Safeguard
+            if (todaysNetRevenue < 0) todaysNetRevenue = 0;
 
             ViewBag.TodaysSales = todaysNetRevenue;
             ViewBag.TotalOrdersToday = todaysOrders.Count;
 
-            // ALL-TIME NET REVENUE
+            // ========== ALL-TIME NET REVENUE ==========
+            // ✅ TotalAmount ay NET NA dahil nababawasan ito sa ApproveRequest
             var allOrders = await _db.Orders
-                .Include(o => o.Adjustments)
                 .Where(o => o.Status == "COMPLETED" || o.Status == "PENDING_BLENDING")
                 .ToListAsync();
 
-            decimal allTimeNetRevenue = 0;
-            foreach (var order in allOrders)
-            {
-                allTimeNetRevenue += order.NetRevenue;
-            }
+            decimal allTimeNetRevenue = allOrders.Sum(o => o.TotalAmount);
+
+            // ✅ Safeguard
+            if (allTimeNetRevenue < 0) allTimeNetRevenue = 0;
 
             ViewBag.AllTimeRevenue = allTimeNetRevenue;
 
@@ -653,7 +650,8 @@ namespace Infoman.Controllers
                 {
                     success = true,
                     message = $"Product added successfully! SKU: {generatedProductSKU}",
-                    stayOnPage = true
+                    stayOnPage = true,
+                    productId = product.ProductId 
                 });
             }
             catch (Exception ex)
@@ -1899,12 +1897,13 @@ namespace Infoman.Controllers
             var totalWasteCost = wasteLogs.Sum(w => w.TotalCost);
 
             // ========== TOTAL REVENUE ==========
-            var totalRevenue = await _db.Orders
+            // ✅ TotalAmount ay NET NA dahil nababawasan ito sa ApproveRequest
+            var netRevenue = await _db.Orders
                 .Where(o => o.Status == "COMPLETED" || o.Status == "PENDING_BLENDING")
                 .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
 
-            var allRefunds = await _db.RefundTransactions.SumAsync(r => (decimal?)r.Amount) ?? 0;
-            var netRevenue = totalRevenue - allRefunds;
+            // ✅ Safeguard para hindi maging negative kahit may bug sa data
+            if (netRevenue < 0) netRevenue = 0;
 
             // ========== REVENUE BY CATEGORY ==========
             var categoryRevenue = await _db.OrderItems
@@ -2151,6 +2150,21 @@ namespace Infoman.Controllers
 
             try
             {
+
+                // ✅ BAGONG VALIDATION DITO
+                bool hasStoreName = model.Items.Any(i => !string.IsNullOrWhiteSpace(i.StoreName));
+                bool hasSupplier = model.SupplierId > 0;
+
+                if (hasSupplier && hasStoreName)
+                {
+                    return Json(new { success = false, message = "Please provide EITHER a Supplier OR a Store Name, not both." });
+                }
+
+                if (!hasSupplier && !hasStoreName)
+                {
+                    return Json(new { success = false, message = "Please select a Supplier or enter a Store Name." });
+                }
+
                 // Validate each item
                 foreach (var item in model.Items)
                 {

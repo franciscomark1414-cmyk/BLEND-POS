@@ -70,11 +70,20 @@ namespace Infoman.Models
         {
             get
             {
-                if (Stock <= 0)
+                // ✅ GAWING BASE UNIT ANG COMPARISON PARA PAREHO SILA
+                // I-convert ang Stock (display unit) pabalik sa Base Unit
+                decimal stockInBaseUnit = Stock;
+
+                if (Unit == "kg" && BaseUnit == "g")
+                    stockInBaseUnit = Stock * 1000;
+                else if (Unit == "L" && BaseUnit == "mL")
+                    stockInBaseUnit = Stock * 1000;
+
+                if (stockInBaseUnit <= 0)
                     return "No Stock";
 
-                // ✅ GAMITIN ANG MinQtyInBaseUnit PARA TUGMA SA STOCK
-                if (Stock <= MinQtyInBaseUnit)
+                // ✅ Ngayon, base unit vs base unit na ang comparison
+                if (stockInBaseUnit <= MinQtyInBaseUnit)
                     return "Low Stock";
 
                 if (ExpirationDate.HasValue && ExpirationDate.Value <= DateTime.Today.AddDays(3))

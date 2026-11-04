@@ -895,8 +895,18 @@ namespace Infoman.Controllers
                 l.AdjustmentId,
                 l.BatchId,
                 MaterialName = l.Batch.RawMaterial.Name,
-                l.OldQuantity,
-                l.NewQuantity,
+
+                // ✅ I-CONVERT PABALIK SA DISPLAY UNIT PARA SA TABLE
+                OldQuantity = (l.Batch.RawMaterial.Unit == "kg" && l.Batch.RawMaterial.BaseUnit == "g")
+                   ? l.OldQuantity / 1000
+                   : ((l.Batch.RawMaterial.Unit == "L" && l.Batch.RawMaterial.BaseUnit == "mL")
+                      ? l.OldQuantity / 1000 : l.OldQuantity),
+
+                NewQuantity = (l.Batch.RawMaterial.Unit == "kg" && l.Batch.RawMaterial.BaseUnit == "g")
+                   ? l.NewQuantity / 1000
+                   : ((l.Batch.RawMaterial.Unit == "L" && l.Batch.RawMaterial.BaseUnit == "mL")
+                      ? l.NewQuantity / 1000 : l.NewQuantity),
+
                 Unit = l.Batch.RawMaterial.Unit,
                 l.Reason,
                 l.Notes,
@@ -914,7 +924,6 @@ namespace Infoman.Controllers
         {
             try
             {
-                // ✅ CHECK KUNG OWNER LANG
                 var ownerRole = HttpContext.Session.GetString("Owner_UserRole");
                 var ownerId = HttpContext.Session.GetInt32("Owner_UserId");
 
@@ -923,25 +932,42 @@ namespace Infoman.Controllers
                     return Json(new { success = false, message = "Only Owner can adjust batch stock" });
                 }
 
+                // ✅ CHECK KUNG NAG-PASSWORD VERIFY RECENTLY
+                var verifiedStr = HttpContext.Session.GetString("StockEditVerified");
+                if (string.IsNullOrEmpty(verifiedStr))
+                {
+                    return Json(new { success = false, message = "Password verification required. Please try again." });
+                }
+
+                var verifiedUntil = DateTime.Parse(verifiedStr);
+                if (DateTime.Now > verifiedUntil)
+                {
+                    HttpContext.Session.Remove("StockEditVerified");
+                    return Json(new { success = false, message = "Password verification expired. Please try again." });
+                }
+
                 var batch = await _context.RawMaterialBatches
-                    .Include(b => b.RawMaterial)
-                    .FirstOrDefaultAsync(b => b.BatchId == request.BatchId);
+    .Include(b => b.RawMaterial)
+    .FirstOrDefaultAsync(b => b.BatchId == request.BatchId);
 
                 if (batch == null)
                     return Json(new { success = false, message = "Batch not found" });
 
+                // ✅ ANG OLD QUANTITY AY NASA BASE UNIT (g/mL/pcs)
                 decimal oldQuantityInBaseUnit = batch.QuantityRemaining;
 
-                // ✅ CONVERT input from DISPLAY UNIT to BASE UNIT
-                decimal newQuantityInBaseUnit = request.NewQuantity;
+                // ✅ CONVERT INPUT FROM DISPLAY UNIT TO BASE UNIT (ITO ANG FIX)
+                decimal newQuantityInBaseUnit = request.NewQuantity; // Default (kung pcs/g/mL)
 
+                // Kung ang material ay kg at base unit ay g:
                 if (batch.RawMaterial.Unit == "kg" && batch.RawMaterial.BaseUnit == "g")
                 {
-                    newQuantityInBaseUnit = request.NewQuantity * 1000;  // 40 kg → 40000 g
+                    newQuantityInBaseUnit = request.NewQuantity * 1000; // 999 kg -> 999,000 g
                 }
+                // Kung ang material ay L at base unit ay mL:
                 else if (batch.RawMaterial.Unit == "L" && batch.RawMaterial.BaseUnit == "mL")
                 {
-                    newQuantityInBaseUnit = request.NewQuantity * 1000;  // 40 L → 40000 mL
+                    newQuantityInBaseUnit = request.NewQuantity * 1000; // 999 L -> 999,000 mL
                 }
                 // ✅ Kung grams/mL/pcs, no conversion needed
 
@@ -1050,6 +1076,102 @@ namespace Infoman.Controllers
             return WasteLog.WasteReason.Other;
         }
 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> VerifyOwnerPassword([FromBody] VerifyPasswordRequest request)
+        {
+            try
+            {
+                var ownerRole = HttpContext.Session.GetString("Owner_UserRole");
+                var ownerId = HttpContext.Session.GetInt32("Owner_UserId");
+
+                if (ownerRole != "Owner" || !ownerId.HasValue || ownerId.Value == 0)
+                {
+                    return Json(new { success = false, message = "Unauthorized." });
+                }
+
+                // ✅ CHECK KUNG NAG-FAIL RECENTLY (RATE LIMITING)
+                var lastFailTime = HttpContext.Session.GetString("LastPasswordFail");
+                if (!string.IsNullOrEmpty(lastFailTime))
+                {
+                    if (DateTime.TryParse(lastFailTime, out var failTime) &&
+                        (DateTime.Now - failTime).TotalSeconds < 5)
+                    {
+                        return Json(new { success = false, message = "Please wait a few seconds before trying again." });
+                    }
+                }
+
+                // ✅ COUNT FAILS SA SESSION
+                var failCountStr = HttpContext.Session.GetString("PasswordFailCount");
+                int failCount = int.TryParse(failCountStr, out var c) ? c : 0;
+
+                if (failCount >= 5)
+                {
+                    // I-lock ang session ng 60 seconds
+                    var lockTimeStr = HttpContext.Session.GetString("PasswordLockTime");
+                    if (!string.IsNullOrEmpty(lockTimeStr) &&
+                        DateTime.TryParse(lockTimeStr, out var lockTime) &&
+                        DateTime.Now < lockTime)
+                    {
+                        var remaining = (lockTime - DateTime.Now).Seconds;
+                        return Json(new { success = false, message = $"Too many failed attempts. Please wait {remaining} seconds." });
+                    }
+                    else
+                    {
+                        // Reset after lock expiry
+                        failCount = 0;
+                        HttpContext.Session.SetString("PasswordFailCount", "0");
+                    }
+                }
+
+                if (string.IsNullOrEmpty(request.Password))
+                {
+                    return Json(new { success = false, message = "Password is required." });
+                }
+
+                var owner = await _context.Users.FindAsync(ownerId.Value);
+                if (owner == null)
+                {
+                    return Json(new { success = false, message = "User not found." });
+                }
+
+                // ⚠️ PLAIN TEXT COMPARISON — TRIM para safe
+                bool isValid = !string.IsNullOrEmpty(owner.Password) &&
+                               owner.Password.Trim() == request.Password.Trim();
+
+                if (!isValid)
+                {
+                    // ✅ I-INCREMENT ANG FAIL COUNT
+                    failCount++;
+                    HttpContext.Session.SetString("PasswordFailCount", failCount.ToString());
+                    HttpContext.Session.SetString("LastPasswordFail", DateTime.Now.ToString("O"));
+
+                    if (failCount >= 5)
+                    {
+                        HttpContext.Session.SetString("PasswordLockTime", DateTime.Now.AddSeconds(60).ToString("O"));
+                        return Json(new { success = false, message = "Too many failed attempts. Locked for 60 seconds." });
+                    }
+
+                    return Json(new { success = false, message = $"Incorrect password. {5 - failCount} attempts left." });
+                }
+
+                // ✅ TAMA — RESET ANG FAIL COUNT AT SET VERIFIED SESSION
+                HttpContext.Session.SetString("PasswordFailCount", "0");
+                HttpContext.Session.SetString("StockEditVerified", DateTime.Now.AddMinutes(5).ToString("O"));
+
+                return Json(new { success = true, message = "Password verified." });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        public class VerifyPasswordRequest
+        {
+            public string Password { get; set; }
+        }
+
         private int GetCurrentUserId()
         {
             return HttpContext.Session.GetInt32("UserId") ?? 0;
@@ -1062,6 +1184,7 @@ namespace Infoman.Controllers
             public decimal NewQuantity { get; set; }
             public string Reason { get; set; }
             public string Notes { get; set; }
+            public string CurrentPassword { get; set; }
         }
 
         private static bool IsUniqueViolation(DbUpdateException ex)

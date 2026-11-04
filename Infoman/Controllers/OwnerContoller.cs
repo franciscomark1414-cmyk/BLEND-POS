@@ -249,15 +249,22 @@ namespace Infoman.Controllers
             var rawMaterialsList = new List<RawMaterial>();
             foreach (var r in rawMaterialsData)
             {
+                // ✅ TAMANG CODE
                 decimal displayStock = r.TotalStockInBaseUnit;
                 decimal displayMinQty = r.MinQtyInBaseUnit;
 
-                // Convert from base unit to display unit
-                if ((r.BaseUnit == "g" && r.Unit == "kg") || (r.BaseUnit == "mL" && r.Unit == "L"))
+                // Kung ang Unit ng material ay kg/L, i-convert ang parehong stock at minQty sa display unit
+                if (r.Unit == "kg")
                 {
-                    displayStock = r.TotalStockInBaseUnit / 1000;
-                    displayMinQty = r.MinQtyInBaseUnit / 1000;
+                    displayStock = r.TotalStockInBaseUnit / 1000; // g -> kg
+                    displayMinQty = r.MinQtyInBaseUnit / 1000;    // g -> kg
                 }
+                else if (r.Unit == "L")
+                {
+                    displayStock = r.TotalStockInBaseUnit / 1000; // mL -> L
+                    displayMinQty = r.MinQtyInBaseUnit / 1000;    // mL -> L
+                }
+                // Kung g, mL, o pcs, 1:1 lang (walang division)
 
                 rawMaterialsList.Add(new RawMaterial
                 {
@@ -272,7 +279,7 @@ namespace Infoman.Controllers
                     SKU = r.SKU,
                     ExpirationDate = r.ExpirationDate,
                     Stock = displayStock,
-                    BaseUnit = r.BaseUnit,// ✅ I-SET ANG BASEUNIT SA DISPLAY UNIT PARA HINDI NA MAG-DIVIDE ULIT ANG WASTE DROPDOWN
+                    BaseUnit = r.BaseUnit, // ✅ Base unit pa rin ito (g, mL, pcs)
                     ConversionFactor = 1
                 });
             }
@@ -287,7 +294,8 @@ namespace Infoman.Controllers
                 r.CategoryName,
                 r.Unit,
                 r.SKU,
-                Status = r.Stock <= r.MinQty ? "Low Stock" : "In Stock"
+                Status = r.Stock <= 0 ? "No Stock" :
+             (r.Stock <= r.MinQty ? "Low Stock" : "In Stock")
             }).ToList();
 
 

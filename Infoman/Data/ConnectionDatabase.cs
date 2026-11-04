@@ -39,6 +39,7 @@ namespace Infoman.Data
         public DbSet<Category> Categories { get; set; }
         public DbSet<Expense> Expenses { get; set; }
         public DbSet<CashWithdrawal> CashWithdrawals { get; set; }
+        public DbSet<Unit> Units { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

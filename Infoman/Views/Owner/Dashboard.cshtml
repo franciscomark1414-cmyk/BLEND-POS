@@ -752,6 +752,58 @@
 #receivingItemsBody .reason-select {
     min-width: 130px; /* Para kasya ang "Wrong Item" */
 }
+
+/* ========== GLOBAL TYPOGRAPHY & SPACING ========== */
+
+/* 1. Standard Page Header */
+.page-header-title {
+    font-size: 1.5rem !important;   /* Pantay-pantay lahat ng module titles */
+    font-weight: 700 !important;
+    color: var(--dark) !important;
+    margin-bottom: 0.2rem !important;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.page-header-subtitle {
+    font-size: 0.9rem !important;
+    color: var(--text-light) !important;
+    margin-bottom: 1.5rem !important; /* Space sa baba ng header */
+}
+
+/* 2. Standard Section Title (e.g., "Categories", "Units", "Order Summary") */
+.section-title {
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+    color: var(--text-primary) !important;
+    margin-bottom: 0 !important;
+}
+
+/* 3. Standard Table Headers */
+.table th {
+    font-size: 0.85rem !important;  /* Maliit at uppercase */
+    font-weight: 600 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* 4. Standard Table Body Text */
+.table td {
+    font-size: 0.9rem !important;
+    vertical-align: middle !important;
+}
+
+/* 5. Standard Buttons */
+.btn {
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+}
+
+/* 6. Standard Inputs & Selects */
+.form-control, .form-select {
+    font-size: 0.9rem !important;
+}
    
     </style>
 </head>
@@ -811,12 +863,12 @@
 
 <div id="dashboardModule" class="module active">
     <!-- ✅ BAGONG HEADER PARA SA DASHBOARD -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="page-header-title"><i class="fas fa-tachometer-alt text-warning me-2"></i> Dashboard Overview</h2>
-            <p class="page-header-subtitle">Welcome back! Here's what's happening with your business today.</p>
-        </div>
-    </div>
+    <div class="mb-4">
+    <h2 class="page-header-title">
+        <i class="fas fa-tachometer-alt" style="color: var(--primary);"></i> Dashboard Overview
+    </h2>
+    <p class="page-header-subtitle">Welcome back! Here's what's happening with your business today.</p>
+</div>
 
     <div class="row g-4 mb-4">
         <div class="col-md-3">
@@ -945,12 +997,17 @@
 
 
 <div id="inventoryModule" class="module">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-        <h3 class="page-header-title">STOCK IN (Add Delivery Batch)</h3>
-        <button class="btn btn-primary" onclick="toggleAddDeliveryPanel()" style="margin-left: 10px;">
-            <i class="fas fa-plus"></i> ADD DELIVERY (BATCH)
-        </button>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="page-header-title">
+            <i class="fas fa-boxes" style="color: var(--primary);"></i> Inventory (Stock In)
+        </h2>
+        <p class="page-header-subtitle">Manage your delivery batches and stock levels.</p>
     </div>
+    <button class="btn btn-primary" onclick="toggleAddDeliveryPanel()">
+        <i class="fas fa-plus"></i> Add Delivery (Batch)
+    </button>
+</div>
 
     <div class="mb-3">
         <input type="text" id="searchRawMaterial" class="form-control" placeholder="Search raw materials..." onkeyup="filterTable()">
@@ -1065,12 +1122,17 @@
 </div>
 
         <div id="rawMaterialsModule" class="module">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h3 class="page-header-title">Raw Materials</h3>
-                <button class="btn btn-success" onclick="toggleRawMaterialForm()">
-                    <i class="fas fa-plus"></i> ADD RAW MATERIAL
-                </button>
-            </div>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="page-header-title">
+            <i class="fas fa-cubes" style="color: var(--primary);"></i> Raw Materials
+        </h2>
+        <p class="page-header-subtitle">Manage your raw material master list.</p>
+    </div>
+    <button class="btn btn-success" onclick="toggleRawMaterialForm()">
+        <i class="fas fa-plus"></i> Add Raw Material
+    </button>
+</div>
 
             <div class="d-flex gap-3">
                 <div style="flex: 2;">
@@ -1139,14 +1201,14 @@
         <div class="mb-3">
             <label class="form-label fw-bold">Unit <span class="text-danger">*</span></label>
             <select name="Unit" id="Unit" class="form-control" required>
-                <option value="">-- Select Unit --</option>
-                <option value="kg"> kilogram (kg)</option>
-                <option value="g"> gram (g)</option>
-                <option value="L"> liter (L)</option>
-                <option value="mL"> milliliter (mL)</option>
-                <option value="pcs"> pieces (pcs)</option>
-            </select>
-            <small class="text-muted">Select measurement unit for this raw material</small>
+    <option value="">-- Select Unit --</option>
+    <option value="kg"> kilogram (kg)</option>
+    <option value="g"> gram (g)</option>
+    <option value="L"> liter (L)</option>
+    <option value="mL"> milliliter (mL)</option>
+    <option value="pcs"> pieces (pcs)</option>
+</select>
+            <small class="text-muted">Manage Unit in Settings → Unit Management</small>
         </div>
 
         <div class="mb-3">
@@ -1176,11 +1238,16 @@
 
 <div id="productsModule" class="module">
     <div class="d-flex justify-content-between align-items-center mb-4">
-       <h2 class="page-header-title mb-0">PRODUCTS LISTING</h2>
-        <button class="btn btn-primary" onclick="showAddProductModal()">
-            <i class="fas fa-plus"></i> Add Product
-        </button>
+    <div>
+        <h2 class="page-header-title">
+            <i class="fas fa-cube" style="color: var(--primary);"></i> Products Listing
+        </h2>
+        <p class="page-header-subtitle">Manage your products, sizes, and POS visibility.</p>
     </div>
+    <button class="btn btn-primary" onclick="showAddProductModal()">
+        <i class="fas fa-plus"></i> Add Product
+    </button>
+</div>
 
 
 <div class="d-flex gap-3 mb-4 align-items-center flex-wrap">
@@ -1799,12 +1866,12 @@
 <div id="reportsModule" class="module">
     <div class="container-fluid">
       
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h2 class="page-header-title">📊 Reports & Analytics</h2>
-<p class="page-header-subtitle">Comprehensive business insights and performance metrics</p>
-            </div>
-        </div>
+       <div class="mb-4">
+    <h2 class="page-header-title">
+        <i class="fas fa-chart-line" style="color: var(--primary);"></i> Reports & Analytics
+    </h2>
+    <p class="page-header-subtitle">Comprehensive business insights and performance metrics.</p>
+</div>
 
         <div class="row g-4 mb-4">
          
@@ -2240,6 +2307,11 @@
                 <i class="fas fa-tags me-1"></i> Category Management
             </button>
         </li>
+        <li class="nav-item">
+    <button type="button" class="nav-link" id="tab-unit-btn" onclick="switchSettingsTab('unit')">
+        <i class="fas fa-weight me-1"></i> Unit Management
+    </button>
+</li>
     </ul>
 
     <!-- ✅ TAB CONTENT: SECURITY -->
@@ -2268,7 +2340,7 @@
             <div class="col-lg-8">
                 <div class="card shadow-sm">
                     <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Categories</h5>
+                        <h5 class="section-title">Categories</h5>
                         <select id="categoryTypeFilter" class="form-select form-select-sm" style="width: 180px;" onchange="loadCategories()">
                             <option value="">All Types</option>
                             <option value="RawMaterial">Raw Material</option>
@@ -2299,7 +2371,7 @@
             <div class="col-lg-4">
                 <div class="card shadow-sm">
                     <div class="card-header bg-white">
-                        <h5 class="mb-0" id="categoryFormTitle">➕ Add Category</h5>
+                        <h5 class="section-title" id="categoryFormTitle">➕ Add Category</h5>
                     </div>
                     <div class="card-body">
                         <form id="categoryForm" onsubmit="saveCategory(event)">
@@ -2339,13 +2411,100 @@
             </div>
         </div>
     </div>
+
+    <!-- ✅ TAB CONTENT: UNIT MANAGEMENT -->
+<div id="settings-unit-tab" style="display: none;">
+    <div class="row g-4">
+        <!-- LEFT: Unit table -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Units</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Symbol</th>
+                                    <th>Base Unit</th>
+                                    <th>Conv. Factor</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="unitTableBody">
+                                <tr><td colspan="6" class="text-center text-muted">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Add / Edit form -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0" id="unitFormTitle">➕ Add Unit</h5>
+                </div>
+                <div class="card-body">
+                    <form id="unitForm" onsubmit="saveUnit(event)">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" id="unitEditId" value="0">
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Name <span class="text-danger">*</span></label>
+                            <input type="text" id="unitName" class="form-control" placeholder="e.g., kilogram" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Symbol <span class="text-danger">*</span></label>
+                            <input type="text" id="unitSymbol" class="form-control" placeholder="e.g., kg" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Base Unit <span class="text-danger">*</span></label>
+                            <input type="text" id="unitBaseUnit" class="form-control" placeholder="e.g., g, mL, pcs" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Conversion Factor <span class="text-danger">*</span></label>
+                            <input type="number" id="unitConversionFactor" class="form-control" step="0.01" value="1" required>
+                            <small class="text-muted">e.g., 1000 (kung 1 kg = 1000 g)</small>
+                        </div>
+
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="unitIsActive" checked>
+                            <label class="form-check-label" for="unitIsActive">Active</label>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success flex-grow-1">
+                                <i class="fas fa-save"></i> Save
+                            </button>
+                            <button type="button" id="unitCancelBtn" class="btn btn-secondary" style="display:none;" onclick="resetUnitForm()">
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+</div>
+
+
       
 
 
         <div id="suppliersModule" class="module">
             <div class="d-flex justify-content-between align-items-center mb-4">
-               <h3 class="page-header-title"><i class="fas fa-truck text-primary me-2"></i> Suppliers</h3>
+               <h2 class="page-header-title">
+            <i class="fas fa-cube" style="color: var(--primary);"></i> Supplier
+        </h2>
                 <button class="btn btn-primary" onclick="showSupplierModal(0)">
                     <i class="fas fa-plus"></i> Add Supplier
                 </button>
@@ -3366,6 +3525,49 @@
     </div>
 </div>
 
+<!-- Password Verification Modal (Gatekeeper) -->
+<div class="modal fade" id="passwordGateModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px; overflow: hidden;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #ff6b35, #f7931e); color: white; border: none;">
+                <h5 class="modal-title">
+                    <i class="fas fa-lock me-2"></i> Security Check
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="padding: 25px; text-align: center;">
+                <div style="font-size: 50px; color: #ff6b35; margin-bottom: 15px;">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <p style="color: #666; margin-bottom: 20px;">
+                    You are about to <strong>modify stock</strong>. Please enter your password to continue.
+                </p>
+
+                <div class="mb-3 text-start">
+                    <label class="form-label fw-bold">Password <span class="text-danger">*</span></label>
+                    <input type="password" id="gatePasswordInput" class="form-control"
+                           placeholder="Enter your password"
+                           style="border-radius: 10px; padding: 12px;"
+                           onkeydown="if(event.key==='Enter'){event.preventDefault();submitGatePassword();}">
+                    <small class="text-muted" id="gatePasswordError" style="color: #dc3545; display: none;">
+                        Incorrect password.
+                    </small>
+                </div>
+
+                <div class="d-flex gap-2 mt-4">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="flex: 1; border-radius: 10px;">
+                        Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="submitGatePassword()"
+                            style="flex: 1; border-radius: 10px; background: linear-gradient(135deg, #ff6b35, #f7931e); border: none;">
+                        <i class="fas fa-check"></i> Confirm
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 
     </div>
 </div>
@@ -3597,6 +3799,10 @@ function switchSettingsTab(tabName) {
         document.getElementById('settings-category-tab').style.display = 'block';
         // I-load ang categories kapag pinasok ang tab
         loadCategories();
+    }  else if (tabName === 'unit') { // ✅ BAGO
+        document.getElementById('tab-unit-btn').classList.add('active');
+        document.getElementById('settings-unit-tab').style.display = 'block';
+        loadUnits();
     }
 }
 
@@ -4235,57 +4441,59 @@ async function refreshDeliveryMaterialDropdown() {
         var parts = stockWithUnit.trim().split(' ');
         return parts.length > 1 ? parts[1] : '';
     }
-              async function editMaterial(id) {
-        var row = document.querySelector('tr[data-id="' + id + '"]');
-        if (!row) {
-    await showAlert('Material not found', 'Error');
-    return;
-}
+             async function editMaterial(id) {
+    var row = document.querySelector('tr[data-id="' + id + '"]');
+    if (!row) {
+        await showAlert('Material not found', 'Error');
+        return;
+    }
 
-        // Get values from the row
-        var sku = row.children[0]?.innerText || '';           // Column 0: SKU
-        var name = row.children[1]?.innerText || '';          // Column 1: Name
-        var categoryInt = row.children[2]?.getAttribute('data-value'); // Column 2: Category
-        var stockWithUnit = row.children[3]?.innerText || '';  // Column 3: Stock
-        var minQtyWithUnit = row.children[4]?.innerText || ''; // Column 4: Min Qty
+    var name = row.children[1]?.innerText || '';
+    var categoryInt = row.children[2]?.getAttribute('data-value');
+    var stockWithUnit = row.children[3]?.innerText || '';
+    var minQtyWithUnit = row.children[4]?.innerText || '';
 
-        // Extract unit from stock (e.g., "10 kg" -> "kg")
-        var unit = extractUnit(stockWithUnit);
-        var minQty = parseFloat(minQtyWithUnit.split(' ')[0]);
+    var unit = extractUnit(stockWithUnit);
+    var minQty = parseFloat(minQtyWithUnit.split(' ')[0]);
 
-        // Set form values
-        document.getElementById('RawMaterialId').value = id;
-        document.getElementById('Name').value = name;
-        await loadCategoryDropdown('CategoryId', 'RawMaterial', { 
-    selected: categoryInt, 
-    selectedLabel: row.children[2]?.innerText || '' 
-});
+    document.getElementById('RawMaterialId').value = id;
+    document.getElementById('Name').value = name;
+    
+    await loadCategoryDropdown('CategoryId', 'RawMaterial', { 
+        selected: categoryInt, 
+        selectedLabel: row.children[2]?.innerText || '' 
+    });
 
-        // ✅ IMPORTANT: Set the dropdown value for Unit
-        var unitDropdown = document.getElementById('Unit');
-        if (unitDropdown && unit) {
-            // Check if the unit exists in dropdown options
-            var optionExists = false;
-            for (var i = 0; i < unitDropdown.options.length; i++) {
-                if (unitDropdown.options[i].value === unit) {
-                    optionExists = true;
-                    break;
-                }
-            }
-            if (optionExists) {
-                unitDropdown.value = unit;
-            } else {
-                // If unit not in dropdown, add it temporarily or set to first option
-                console.warn('Unit "' + unit + '" not found in dropdown');
-                unitDropdown.value = ''; // or set to default
+    // ✅ IDAGDAG ITO: Load units BAGO i-set ang value
+    await loadUnitOptions('Unit');
+
+    // ✅ IMPORTANT: Set the dropdown value for Unit
+    var unitDropdown = document.getElementById('Unit');
+    if (unitDropdown && unit) {
+        var optionExists = false;
+        for (var i = 0; i < unitDropdown.options.length; i++) {
+            if (unitDropdown.options[i].value === unit) {
+                optionExists = true;
+                break;
             }
         }
+        if (optionExists) {
+            unitDropdown.value = unit;
+        } else {
+            // Kung sakaling hindi na-active ang unit sa Settings, i-add pa rin natin para hindi mawala
+            var opt = document.createElement('option');
+            opt.value = unit;
+            opt.textContent = unit + ' (inactive)';
+            unitDropdown.appendChild(opt);
+            unitDropdown.value = unit;
+        }
+    }
 
-        document.getElementById('MinQty').value = isNaN(minQty) ? 0 : minQty;
+    document.getElementById('MinQty').value = isNaN(minQty) ? 0 : minQty;
 
-        document.getElementById('formHeader').innerHTML = '<i class="fas fa-edit"></i> Edit Raw Material';
-        document.getElementById('addRawMaterialBox').style.display = 'block';
-    }      
+    document.getElementById('formHeader').innerHTML = '<i class="fas fa-edit"></i> Edit Raw Material';
+    document.getElementById('addRawMaterialBox').style.display = 'block';
+}      
     
    async function deleteMaterial(id, clickEvent) {
     const deleteButton = clickEvent ? clickEvent.target : event.target;
@@ -4459,8 +4667,9 @@ async function refreshDeliveryMaterialDropdown() {
             },
             body: JSON.stringify({
                 batchId: batchId,
-                newQuantity: newQty,
-                reason: 'Manual adjustment'
+                newQuantity: newQuantityInDisplayUnit, 
+                reason: 'Manual adjustment',
+                notes: notes
             })
         });
         
@@ -7954,7 +8163,7 @@ const endDateStr = getLocalDateString(endDate);
         });
 }
 
-   async function toggleRawMaterialForm() {
+  async function toggleRawMaterialForm() {
     var box = document.getElementById('addRawMaterialBox');
     if (box) {
         if (box.style.display === 'none' || box.style.display === '') {
@@ -7965,11 +8174,12 @@ const endDateStr = getLocalDateString(endDate);
             
             // ✅ Load categories sa dropdown
             await loadCategoryDropdown('CategoryId', 'RawMaterial');
+            
+            // ✅ IDAGDAG ITO: Load units sa dropdown
+            await loadUnitOptions('Unit');
         } else {
             box.style.display = 'none';
         }
-    } else {
-        console.error('addRawMaterialBox not found');
     }
 }
 
@@ -9903,10 +10113,85 @@ function saveAndReload() {
     
     location.reload();
 }
+let pendingBatchData = null;  // para i-store ang batch info habang naghihintay ng password
+
+function showEditStockModal(batchId, currentRemainingInBaseUnit, materialName, unit, materialId) {
+    // ✅ I-store muna ang data — hindi pa natin bubuksan ang edit modal
+    pendingBatchData = {
+        batchId: batchId,
+        currentRemainingInBaseUnit: currentRemainingInBaseUnit,
+        materialName: materialName,
+        unit: unit,
+        materialId: materialId
+    };
+
+    // ✅ I-reset ang password field at error message
+    document.getElementById('gatePasswordInput').value = '';
+    document.getElementById('gatePasswordError').style.display = 'none';
+
+    // ✅ Ipakita ang password gate modal
+    const gateModal = new bootstrap.Modal(document.getElementById('passwordGateModal'));
+    gateModal.show();
+
+    // ✅ Focus agad sa password field
+    setTimeout(() => document.getElementById('gatePasswordInput').focus(), 300);
+}
+
+async function submitGatePassword() {
+    const password = document.getElementById('gatePasswordInput').value;
+    const errorEl = document.getElementById('gatePasswordError');
+
+    if (!password) {
+        errorEl.style.display = 'block';
+        errorEl.innerText = 'Please enter your password.';
+        return;
+    }
+
+    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+
+    try {
+        const response = await fetch('/RawMaterial/VerifyOwnerPassword', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': token
+            },
+            body: JSON.stringify({ password: password })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // ✅ Tama ang password — isara ang gate, buksan ang edit modal
+            bootstrap.Modal.getInstance(document.getElementById('passwordGateModal')).hide();
+
+            // ✅ Ipakita ang edit modal gamit ang stored data
+            if (pendingBatchData) {
+                openActualEditStockModal(
+                    pendingBatchData.batchId,
+                    pendingBatchData.currentRemainingInBaseUnit,
+                    pendingBatchData.materialName,
+                    pendingBatchData.unit,
+                    pendingBatchData.materialId
+                );
+                pendingBatchData = null;
+            }
+        } else {
+            // ❌ Mali ang password
+            errorEl.style.display = 'block';
+            errorEl.innerText = result.message || 'Incorrect password.';
+            document.getElementById('gatePasswordInput').value = '';
+            document.getElementById('gatePasswordInput').focus();
+        }
+    } catch (error) {
+        errorEl.style.display = 'block';
+        errorEl.innerText = 'Error: ' + error.message;
+    }
+}
 
 let currentBatchMaterialId = null; 
 
-function showEditStockModal(batchId, currentRemainingInBaseUnit, materialName, unit, materialId) {
+function openActualEditStockModal(batchId, currentRemainingInBaseUnit, materialName, unit, materialId) {
     // Store material ID for later refresh
     currentBatchMaterialId = materialId;
     currentEditBatchId = batchId;
@@ -11015,7 +11300,182 @@ async function autoDisplayProductInPOS() {
     document.getElementById('receiving-row-0')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+// ================= UNIT MANAGEMENT =================
+let unitCache = [];
+
+function getUnitToken() {
+    return document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+}
+
+async function loadUnits() {
+    const tbody = document.getElementById('unitTableBody');
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Loading...</td></tr>';
+
+    try {
+        const res = await fetch('/Unit/GetAll');
+        const data = await res.json();
+        unitCache = data.units || [];
+        renderUnitTable();
+    } catch (err) {
+        console.error(err);
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error loading units</td></tr>';
+    }
+}
+
+function renderUnitTable() {
+    const tbody = document.getElementById('unitTableBody');
+
+    if (unitCache.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No units yet. Add one on the right.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = unitCache.map(u => `
+        <tr>
+            <td><strong>${escapeHtml(u.name)}</strong></td>
+            <td><code>${escapeHtml(u.symbol)}</code></td>
+            <td>${escapeHtml(u.baseUnit)}</td>
+            <td>${u.conversionFactor}</td>
+            <td><span class="badge ${u.isActive ? 'bg-success' : 'bg-secondary'}">${u.isActive ? 'Active' : 'Inactive'}</span></td>
+            <td>
+                <button class="btn btn-sm btn-primary" onclick="editUnit(${u.unitId})"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-sm btn-danger" onclick="deleteUnit(${u.unitId})"><i class="fas fa-trash"></i></button>
+            </td>
+        </tr>`).join('');
+}
+
+function resetUnitForm() {
+    document.getElementById('unitEditId').value = 0;
+    document.getElementById('unitName').value = '';
+    document.getElementById('unitSymbol').value = '';
+    document.getElementById('unitBaseUnit').value = '';
+    document.getElementById('unitConversionFactor').value = '1';
+    document.getElementById('unitIsActive').checked = true;
+    document.getElementById('unitFormTitle').innerText = '➕ Add Unit';
+    document.getElementById('unitCancelBtn').style.display = 'none';
+}
+
+function editUnit(id) {
+    const u = unitCache.find(x => x.unitId === id);
+    if (!u) return;
+
+    document.getElementById('unitEditId').value = u.unitId;
+    document.getElementById('unitName').value = u.name;
+    document.getElementById('unitSymbol').value = u.symbol;
+    document.getElementById('unitBaseUnit').value = u.baseUnit;
+    document.getElementById('unitConversionFactor').value = u.conversionFactor;
+    document.getElementById('unitIsActive').checked = u.isActive;
+    
+    document.getElementById('unitFormTitle').innerText = '✏️ Edit Unit';
+    document.getElementById('unitCancelBtn').style.display = 'inline-block';
+    document.getElementById('unitName').focus();
+}
+
+async function saveUnit(e) {
+    e.preventDefault();
+
+    const id = parseInt(document.getElementById('unitEditId').value) || 0;
+    const payload = {
+        unitId: id,
+        name: document.getElementById('unitName').value.trim(),
+        symbol: document.getElementById('unitSymbol').value.trim(),
+        baseUnit: document.getElementById('unitBaseUnit').value.trim(),
+        conversionFactor: parseFloat(document.getElementById('unitConversionFactor').value),
+        isActive: document.getElementById('unitIsActive').checked
+    };
+
+    if (!payload.name || !payload.symbol || !payload.baseUnit) {
+        await showAlert('Please fill in all required fields.', 'Required', '⚠️');
+        return;
+    }
+
+    showLoading('Saving unit...');
+    try {
+        const res = await fetch(id === 0 ? '/Unit/Create' : '/Unit/Update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getUnitToken() },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        hideLoading();
+
+        if (data.success) {
+            await showAlert(data.message, 'Success', '✅');
+            resetUnitForm();
+            await loadUnits();
+            
+            // ✅ I-refresh din ang mga dropdowns kung mayroon man
+            // await refreshAllUnitDropdowns(); 
+        } else {
+            await showAlert(data.message, 'Cannot Save', '❌');
+        }
+    } catch (err) {
+        hideLoading();
+        await showAlert('Error: ' + err.message, 'Error', '❌');
+    }
+}
+
+async function deleteUnit(id) {
+    const u = unitCache.find(x => x.unitId === id);
+    if (!u) return;
+
+    const confirmed = await showConfirm(`Delete unit "${u.name}"?`, 'Delete Unit');
+    if (!confirmed) return;
+
+    showLoading('Deleting unit...');
+    try {
+        const res = await fetch(`/Unit/Delete?id=${id}`, {
+            method: 'POST',
+            headers: { 'RequestVerificationToken': getUnitToken() }
+        });
+        const data = await res.json();
+        hideLoading();
+
+        if (data.success) {
+            await showAlert(data.message, 'Deleted', '✅');
+            resetUnitForm();
+            await loadUnits();
+        } else {
+            await showAlert(data.message, 'Error', '❌');
+        }
+    } catch (err) {
+        hideLoading();
+        await showAlert('Error: ' + err.message, 'Error', '❌');
+    }
+}
        
+// Function para i-load ang units mula sa database papunta sa dropdown
+async function loadUnitOptions(selectId) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+
+    // I-save muna ang kasalukuyang napiling value (kung meron man)
+    const currentValue = select.value;
+
+    try {
+        const res = await fetch('/Unit/GetAll');
+        const data = await res.json();
+        
+        if (data.success && data.units) {
+            let options = '<option value="">-- Select Unit --</option>';
+            
+            // I-filter lang ang mga Active na units
+            data.units.filter(u => u.isActive).forEach(u => {
+                options += `<option value="${u.symbol}">${u.name} (${u.symbol})</option>`;
+            });
+            
+            select.innerHTML = options;
+
+            // Ibinalik ang napiling value kung meron man (para sa edit mode)
+            if (currentValue) {
+                select.value = currentValue;
+            }
+        }
+    } catch (err) {
+        console.error('Error loading units:', err);
+    }
+}
+
 // ========== HELPER FUNCTION ==========
 function escapeHtml(str) {
     if (!str) return '';

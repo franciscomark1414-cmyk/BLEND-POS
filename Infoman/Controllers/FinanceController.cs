@@ -73,42 +73,26 @@ namespace Infoman.Controllers
                     .Include(ri => ri.RawMaterial)
                     .Include(ri => ri.Receiving)
                     .Where(ri => ri.Receiving.DateReceived >= start && ri.Receiving.DateReceived <= end)
-                    .Where(ri => !ri.RawMaterial.IsDeleted) // ✅ IDAGDAG ITO: Wag isama kung deleted na ang material
+                    .Where(ri => !ri.RawMaterial.IsDeleted)
                     .ToListAsync();
 
-                decimal purchases = 0;
-                // Sa loob ng GetSummary, hanapin ito:
-                foreach (var ri in receivingItemsList)
-                {
-                    if (ri.RawMaterial == null) continue;
+                // ✅ FINAL FIX: Direktahang kunin ang AcceptedPrice na naka-save sa database!
+                // Ito ay 100% accurate dahil ito ang totoong binayaran mo para sa mga natanggap na items.
+                decimal purchases = receivingItemsList
+                    .Where(ri => ri.RawMaterial != null)
+                    .Sum(ri => ri.AcceptedPrice);
 
-                    decimal qtyForCost = ri.AcceptedQty;
-
-                    // ✅ I-convert sa display unit (kg/L)
-                    if (ri.RawMaterial.BaseUnit == "g" && ri.RawMaterial.Unit == "kg")
-                    {
-                        qtyForCost = ri.AcceptedQty / 1000;
-                    }
-                    else if (ri.RawMaterial.BaseUnit == "mL" && ri.RawMaterial.Unit == "L")
-                    {
-                        qtyForCost = ri.AcceptedQty / 1000;
-                    }
-
-                    // ✅ Multiply sa tamang unit price
-                    purchases += qtyForCost * ri.UnitPrice;
-                }
-
-                // 3. OTHER EXPENSES (Ito ang kulang)
+                // 3. OTHER EXPENSES
                 var otherExpenses = await _context.Expenses
                     .Where(e => e.ExpenseDate >= start && e.ExpenseDate <= end)
                     .SumAsync(e => (decimal?)e.Amount) ?? 0;
 
-                // 4. CASH WITHDRAWALS (Ito ang kulang)
+                // 4. CASH WITHDRAWALS
                 var withdrawals = await _context.CashWithdrawals
                     .Where(w => w.WithdrawalDate >= start && w.WithdrawalDate <= end)
                     .SumAsync(w => (decimal?)w.Amount) ?? 0;
 
-                // 5. COGS (Ito ang kulang)
+                // 5. COGS
                 var cogs = await _context.OrderItems
                     .Include(oi => oi.Order)
                     .Where(oi => (oi.Order.Status == "COMPLETED") &&
@@ -116,7 +100,7 @@ namespace Infoman.Controllers
                                  oi.DispositionStatusId == 1)
                     .SumAsync(oi => (decimal?)oi.ActualCost) ?? 0;
 
-                // 6. SUMMARY CALCULATIONS (Ito ang kulang)
+                // 6. SUMMARY CALCULATIONS
                 var cashInflow = totalSales;
                 var cashOutflow = otherExpenses + withdrawals;
                 var cashMovement = cashInflow - cashOutflow;
@@ -220,7 +204,6 @@ namespace Infoman.Controllers
                 .SumAsync(w => (decimal?)w.Amount) ?? 0;
 
             // ✅ Cash on Hand = Sales - Expenses - Withdrawals
-            // (Purchases ay hindi kasama kasi hindi ito cash outflow)
             var cashOnHand = totalSales - totalExpenses - totalWithdrawals;
 
             if (model.Amount > cashOnHand)

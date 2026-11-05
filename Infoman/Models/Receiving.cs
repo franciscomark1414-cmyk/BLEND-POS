@@ -76,6 +76,8 @@ namespace Infoman.Models
 
         [Required]
         public decimal UnitPrice { get; set; }
+        public decimal TotalPrice { get; set; }
+        public decimal AcceptedPrice { get; set; }
 
         public DateTime? ExpiryDate { get; set; }
         [StringLength(50)]

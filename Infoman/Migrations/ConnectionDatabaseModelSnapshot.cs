@@ -1010,6 +1010,9 @@ namespace Infoman.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ReceivingItemId"));
 
+                    b.Property<decimal>("AcceptedPrice")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<decimal>("AcceptedQty")
                         .HasColumnType("decimal(18,2)");
 
@@ -1048,6 +1051,9 @@ namespace Infoman.Migrations
                     b.Property<string>("StoreName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("TotalPrice")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("UnitPrice")
                         .HasColumnType("decimal(18,2)");

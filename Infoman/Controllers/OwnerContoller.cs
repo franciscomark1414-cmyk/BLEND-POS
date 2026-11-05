@@ -2154,6 +2154,11 @@ namespace Infoman.Controllers
                     }
 
                     // 2. I-save sa ReceivingItem (BASE UNIT)
+                    // ✅ I-convert pabalik sa Display Unit para tama ang math
+                    decimal conversionFactor = (rawMat.BaseUnit == "g" || rawMat.BaseUnit == "mL") ? 1000m : 1m;
+                    decimal receivedInDisplayUnit = receivedInBaseUnit / conversionFactor;
+                    decimal acceptedInDisplayUnit = acceptedInBaseUnit / conversionFactor;
+
                     var receivingItem = new ReceivingItem
                     {
                         ReceivingId = receiving.ReceivingId,
@@ -2163,7 +2168,14 @@ namespace Infoman.Controllers
                         AcceptedQty = acceptedInBaseUnit,
                         RejectedQty = rejectedInBaseUnit,
                         RejectionReason = item.RejectedQty > 0 ? item.RejectionReason : null,
+
+                        // ✅ I-save ang Unit Price per Display Unit (per kg / per g)
                         UnitPrice = item.UnitPrice,
+
+                        // ✅ I-compute ang Total gamit ang Display Unit Qty
+                        TotalPrice = receivedInDisplayUnit * item.UnitPrice,
+                        AcceptedPrice = acceptedInDisplayUnit * item.UnitPrice,
+
                         ExpiryDate = item.ExpiryDate,
                         StoreName = item.StoreName,
                         ReturnStatus = null,
@@ -2799,11 +2811,16 @@ namespace Infoman.Controllers
             {
                 receivingId = receiving.ReceivingId,
                 drNumber = receiving.DRNumber,
-                supplierName = receiving.Supplier?.Name,
+                // ✅ Kunin ang StoreName kung walang Supplier
+                supplierName = receiving.Supplier?.Name ?? receiving.ReceivingItems.FirstOrDefault()?.StoreName ?? "—",
                 dateReceived = receiving.DateReceived,
+
+                // ✅ IDAGDAG ANG TOTAL SUMMARY PARA SA RECEIPT
+                grandTotalPrice = receiving.ReceivingItems.Sum(ri => ri.TotalPrice),
+                grandAcceptedPrice = receiving.ReceivingItems.Sum(ri => ri.AcceptedPrice),
+
                 items = receiving.ReceivingItems.Select(ri =>
                 {
-                    // ✅ I-CONVERT ANG MGA QUANTITIES PABALIK SA DISPLAY UNIT
                     bool isWeightOrVolume = (ri.RawMaterial.BaseUnit == "g" && ri.RawMaterial.Unit == "kg") ||
                                             (ri.RawMaterial.BaseUnit == "mL" && ri.RawMaterial.Unit == "L");
 
@@ -2814,12 +2831,14 @@ namespace Infoman.Controllers
                     {
                         receivingItemId = ri.ReceivingItemId,
                         name = ri.RawMaterial?.Name,
-                        acceptedQty = displayAccepted,  // ✅ Display unit (100)
+                        acceptedQty = displayAccepted,
                         acceptedQtyWithUnit = $"{displayAccepted:F2} {ri.RawMaterial?.Unit}",
-                        rejectedQty = displayRejected,  // ✅ Display unit
+                        rejectedQty = displayRejected,
                         rejectedQtyWithUnit = $"{displayRejected:F2} {ri.RawMaterial?.Unit}",
                         unit = ri.RawMaterial?.Unit,
                         unitPrice = ri.UnitPrice,
+                        totalPrice = ri.TotalPrice,
+                        acceptedPrice = ri.AcceptedPrice,
                         storeName = ri.StoreName,
                         returnStatus = ri.ReturnStatus,
                         returnId = ri.ReturnId

@@ -535,7 +535,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 1000;
+            z-index: 100000;
         }
 
         .modal-qty-content {
@@ -1504,9 +1504,18 @@
                         </div>
                         <div class="row mb-3">
                             <div class="col-md-6">
-                                <label class="form-label">Selling Price</label>
-                                <input type="text" id="recipeSellingPrice" class="form-control" readonly>
-                            </div>
+    <label class="form-label">Selling Price</label>
+    <div class="input-group">
+        <span class="input-group-text">₱</span>
+        <input type="number" id="recipeSellingPriceInput" class="form-control" step="0.01" readonly>
+    </div>
+    <div class="form-check mt-2">
+        <input class="form-check-input" type="checkbox" id="manualPriceCheckbox" onchange="toggleManualPrice()">
+        <label class="form-check-label small" for="manualPriceCheckbox">
+            Override Auto-Calculate (Manual Price)
+        </label>
+    </div>
+</div>
                             <div class="col-md-6">
                                 <label class="form-label">Margin</label>
                                 <select id="marginSelect" class="form-control" onchange="updateSellingPrice()">
@@ -1889,18 +1898,18 @@
             </div>
 
     
-            <div class="col-md-4">
-                <div class="card-profit">
-                    <div class="stat-card-simple">
-                        <div class="stat-icon">
-                            <i class="fas fa-coins"></i>
-                        </div>
-                        <div class="stat-title">ESTIMATED PROFIT</div>
-                        <div class="stat-value">₱@ViewBag.EstimatedProfit.ToString("N2")</div>
-                        <div class="stat-subtitle">Based on 30% margin</div>
-                    </div>
-                </div>
+         <div class="col-md-4">
+    <div class="card-profit">
+        <div class="stat-card-simple">
+            <div class="stat-icon">
+                <i class="fas fa-shopping-basket"></i>
             </div>
+            <div class="stat-title">ITEMS SOLD</div>
+            <div class="stat-value">@ViewBag.TotalItemsSold</div>
+            <div class="stat-subtitle">Total products sold (all orders)</div>
+        </div>
+    </div>
+</div>
 
             <div class="col-md-4">
                 <div class="card-waste">
@@ -2041,7 +2050,7 @@
 </div>
 
     
-        <div id="receiptModalForReports" class="modal-qty" style="display: none;">
+       <div id="receiptModalForReports" class="modal-qty" style="display: none; z-index: 100000;">
             <div class="modal-qty-content" style="width: 380px; max-width: 90%;">
                 <div style="text-align: center; margin-bottom: 20px;">
                     <h3 style="margin: 5px 0;">Neldie's Mango & More</h3>
@@ -3301,7 +3310,6 @@
                 <label class="form-label fw-bold">Period</label>
                 <select id="finPeriodType" class="form-select" onchange="toggleFinDateInputs(); loadFinancialSummary();">
                     <option value="daily">Daily</option>
-                    <option value="semi-monthly">Semi-Monthly (1-15 / 16-31)</option>
                     <option value="monthly" selected>Monthly</option>
                     <option value="custom">Custom Range</option>
                 </select>
@@ -3568,6 +3576,32 @@
     </div>
 </div>
 
+<!-- Session Lock Modal -->
+<div class="modal fade" id="sessionLockModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.4);">
+            <div class="modal-body text-center p-5">
+                <div style="font-size: 60px; color: #ff6b35; margin-bottom: 15px;">
+                    <i class="fas fa-lock"></i>
+                </div>
+                <h3 class="fw-bold mb-2" style="color: #333;">Session Locked</h3>
+                <p class="text-muted mb-4">Your session has been idle for a while.<br>Please enter your password to unlock.</p>
+                
+                <div class="text-start mb-3">
+                    <label class="form-label fw-bold small">Password</label>
+                    <input type="password" id="unlockPasswordInput" class="form-control" placeholder="Enter your password" style="border-radius: 10px; padding: 12px;">
+                    <small class="text-danger" id="unlockError" style="display: none;"></small>
+                </div>
+                
+                <button type="button" class="btn w-100 fw-bold" onclick="unlockSession()" 
+                        style="border-radius: 10px; padding: 12px; background: linear-gradient(135deg, #ff6b35, #f7931e); color: white; border: none;">
+                    <i class="fas fa-unlock me-2"></i> Unlock Session
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
     </div>
 </div>
@@ -3674,23 +3708,97 @@ function toggleSessionTimeout(element) {
 }
 
 // Function para i-reset ang timer kapag may galaw ang user
+// Function para i-reset ang timer kapag may galaw ang user
 function resetSessionTimer() {
     if (!isTimeoutEnabled()) return; // Kung naka-off, wag mag-timer
     
+    // Wag i-reset kung bukas ang lock modal
+    if (document.getElementById('sessionLockModal').classList.contains('show')) return;
+
     clearTimeout(timeoutId);
     
     timeoutId = setTimeout(() => {
-        // Kapag nag-timeout
         if (isTimeoutEnabled()) {
-            // I-clear ang session at i-redirect sa login
-            fetch('/Account/Logout', { method: 'POST' })
-                .finally(() => {
-                    sessionStorage.clear();
-                    window.location.href = '/Account/Login?timeout=true';
-                });
+            // ✅ Ipakita ang LOCK SCREEN imbes na logout
+            document.getElementById('unlockPasswordInput').value = '';
+            document.getElementById('unlockError').style.display = 'none';
+            
+            const lockModal = new bootstrap.Modal(document.getElementById('sessionLockModal'));
+            lockModal.show();
+            
+            // Focus agad sa password input
+            setTimeout(() => document.getElementById('unlockPasswordInput').focus(), 300);
         }
     }, SESSION_TIMEOUT_MS);
 }
+
+// ✅ BAGONG FUNCTION: Para mag-unlock
+async function unlockSession() {
+    const password = document.getElementById('unlockPasswordInput').value;
+    const errorEl = document.getElementById('unlockError');
+    const btn = event.target;
+
+    if (!password) {
+        errorEl.innerText = "Please enter your password.";
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Verifying...';
+    btn.disabled = true;
+
+    try {
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+        
+        const response = await fetch('/Owner/VerifySessionPassword', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': token
+            },
+            body: JSON.stringify({ password: password })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // ✅ Tama ang password — i-close ang modal at i-reset ang timer
+            const lockModal = bootstrap.Modal.getInstance(document.getElementById('sessionLockModal'));
+            lockModal.hide();
+            
+            document.getElementById('unlockPasswordInput').value = '';
+            errorEl.style.display = 'none';
+            
+            // Reset timer ulit
+            resetSessionTimer();
+        } else {
+            errorEl.innerText = result.message || 'Incorrect password.';
+            errorEl.style.display = 'block';
+            document.getElementById('unlockPasswordInput').value = '';
+            document.getElementById('unlockPasswordInput').focus();
+        }
+    } catch (err) {
+        errorEl.innerText = 'Error: ' + err.message;
+        errorEl.style.display = 'block';
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+// Support Enter key para mabilis mag-unlock
+document.addEventListener('DOMContentLoaded', function() {
+    const unlockInput = document.getElementById('unlockPasswordInput');
+    if (unlockInput) {
+        unlockInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                unlockSession();
+            }
+        });
+    }
+});
 
 // I-check ang setting pagka-load ng page
 document.addEventListener('DOMContentLoaded', function() {
@@ -5659,8 +5767,15 @@ function updateNewIngredientUnitDropdown(selectElement) {
                     document.getElementById('recipeProductDisplay').value = recipeData.productName;
                     document.getElementById('recipeSizeDisplay').value = recipeData.sizeName;
                     
-                    document.getElementById('recipeSellingPrice').value = `₱${recipeData.sellingPrice.toFixed(2)}`;
                     document.getElementById('recipeTotalCost').value = `₱${recipeData.totalCost.toFixed(2)}`;
+
+                    // ✅ I-set ang manual price checkbox state
+const manualCheckbox = document.getElementById('manualPriceCheckbox');
+const priceInput = document.getElementById('recipeSellingPriceInput');
+
+manualCheckbox.checked = recipeData.isManualPrice;
+priceInput.value = recipeData.sellingPrice.toFixed(2);
+priceInput.readOnly = !recipeData.isManualPrice;
 
                     // I-set ang margin select
                     const marginSelect = document.getElementById('marginSelect');
@@ -5697,6 +5812,53 @@ function updateNewIngredientUnitDropdown(selectElement) {
             console.error('Error checking edit permission:', err);
             await showAlert('Error: ' + err.message);
         });
+}
+
+
+function toggleManualPrice() {
+    const isManual = document.getElementById('manualPriceCheckbox').checked;
+    const priceInput = document.getElementById('recipeSellingPriceInput');
+    priceInput.readOnly = !isManual;
+
+    if (!isManual) {
+        // Switching back to auto → recompute & write price
+        updateSellingPrice();
+    } else {
+        // Switching to manual → keep current value, but let user edit
+        priceInput.focus();
+        priceInput.select();
+    }
+}
+
+// Update ang existing updateSellingPrice function para gumana sa bagong input
+function updateSellingPrice() {
+    const isManual = document.getElementById('manualPriceCheckbox').checked;
+    if (isManual) return; // wag galawin kung manual
+
+    let totalCost = 0;
+    document.querySelectorAll('#ingredientsBody tr').forEach(row => {
+        const totalText = row.querySelector('.total-cost')?.innerText || '₱0.00';
+        const totalValue = parseFloat(totalText.replace('₱', '')) || 0;
+        totalCost += totalValue;
+    });
+
+    const margin = parseFloat(document.getElementById('marginSelect')?.value || 0.3);
+    let sellingPrice = totalCost / (1 - margin);
+    
+    // Apply fixed ending 9 logic (optional, kung meron ka nito sa JS)
+    // Kung wala, iwanan mo lang as is.
+
+    document.getElementById('recipeSellingPriceInput').value = sellingPrice.toFixed(2);
+    
+    // Update displays
+    document.getElementById('totalCostDisplay').innerHTML = `₱${totalCost.toFixed(2)}`;
+    document.getElementById('sellingPriceDisplay').innerHTML = `₱${sellingPrice.toFixed(2)}`;
+    document.getElementById('recipeTotalCost').value = `₱${totalCost.toFixed(2)}`;
+    
+    const profitLoss = sellingPrice - totalCost;
+    const profitLossDisplay = document.getElementById('profitLossDisplay');
+    profitLossDisplay.innerHTML = `₱${profitLoss.toFixed(2)}`;
+    profitLossDisplay.className = profitLoss >= 0 ? 'fw-bold text-success' : 'fw-bold text-danger';
 }
 
     function addIngredientRow() { addIngredientRowToTable(null, ingredientCounter++); }
@@ -5900,31 +6062,40 @@ function closeQuantityModal() {
         updateTotals();
     }
 
-       function updateTotals() {
-        let totalCost = 0;
-        document.querySelectorAll('#ingredientsBody tr').forEach(row => {
-            const totalText = row.querySelector('.total-cost')?.innerText || '₱0.00';
-            const totalValue = parseFloat(totalText.replace('₱', '')) || 0;
-            totalCost += totalValue;
-        });
+      function updateTotals() {
+    let totalCost = 0;
+    document.querySelectorAll('#ingredientsBody tr').forEach(row => {
+        const totalText = row.querySelector('.total-cost')?.innerText || '₱0.00';
+        const totalValue = parseFloat(totalText.replace('₱', '')) || 0;
+        totalCost += totalValue;
+    });
 
-        // I-update ang display
-        document.getElementById('totalCostDisplay').innerHTML = `₱${totalCost.toFixed(2)}`;
-        document.getElementById('recipeTotalCost').value = `₱${totalCost.toFixed(2)}`;
+    document.getElementById('totalCostDisplay').innerHTML = `₱${totalCost.toFixed(2)}`;
+    document.getElementById('recipeTotalCost').value = `₱${totalCost.toFixed(2)}`;
 
-        const margin = parseFloat(document.getElementById('marginSelect')?.value || 0.3);
-        const sellingPrice = totalCost / (1 - margin);
+    const margin = parseFloat(document.getElementById('marginSelect')?.value || 0.3);
+    const autoPrice = totalCost / (1 - margin);
 
-        document.getElementById('sellingPriceDisplay').innerHTML = `₱${sellingPrice.toFixed(2)}`;
-        document.getElementById('recipeSellingPrice').value = `₱${sellingPrice.toFixed(2)}`;
+    // ✅ NEW: check the checkbox FIRST
+    const isManual = document.getElementById('manualPriceCheckbox')?.checked === true;
+    const priceInput = document.getElementById('recipeSellingPriceInput');
 
-        const profitLoss = sellingPrice - totalCost;
-        const profitLossDisplay = document.getElementById('profitLossDisplay');
-        profitLossDisplay.innerHTML = `₱${profitLoss.toFixed(2)}`;
-        profitLossDisplay.className = profitLoss >= 0 ? 'fw-bold text-success' : 'fw-bold text-danger';
+    // Always show the auto-computed value as reference
+    document.getElementById('sellingPriceDisplay').innerHTML = `₱${autoPrice.toFixed(2)}`;
+
+    // Only overwrite the input if NOT manual
+    if (!isManual) {
+        priceInput.value = autoPrice.toFixed(2);
     }
 
-    function saveRecipe() {
+    // Profit/Loss — use whatever is in the input (manual or auto)
+    const effectivePrice = parseFloat(priceInput.value) || autoPrice;
+    const profitLoss = effectivePrice - totalCost;
+    const profitLossDisplay = document.getElementById('profitLossDisplay');
+    profitLossDisplay.innerHTML = `₱${profitLoss.toFixed(2)}`;
+    profitLossDisplay.className = profitLoss >= 0 ? 'fw-bold text-success' : 'fw-bold text-danger';
+}
+   function saveRecipe() {
     const ingredients = [];
     document.querySelectorAll('#ingredientsBody tr').forEach(row => {
         const select = row.querySelector('.ingredient-select');
@@ -5935,12 +6106,16 @@ function closeQuantityModal() {
             ingredients.push({
                 rawMaterialId: parseInt(select.value),
                 quantity: parseFloat(quantity),
-                unitUsed: unitSelect ? unitSelect.value : 'g'  // ← Kunin ang napiling unit
+                unitUsed: unitSelect ? unitSelect.value : 'g'
             });
         }
     });
     
     const margin = parseFloat(document.getElementById('marginSelect').value);
+
+    // ✅ KUNIN ANG MANUAL PRICE VALUES DITO
+    const isManualPrice = document.getElementById('manualPriceCheckbox').checked;
+    const manualPriceValue = parseFloat(document.getElementById('recipeSellingPriceInput').value) || 0;
     
     fetch('/Owner/SaveRecipe', {
         method: 'POST',
@@ -5951,7 +6126,9 @@ function closeQuantityModal() {
         body: JSON.stringify({
             productSizeId: currentProductSizeId,
             margin: margin,
-            ingredients: ingredients
+            ingredients: ingredients,
+            isManualPrice: isManualPrice,        // ✅ Isama sa payload
+            manualPrice: manualPriceValue        // ✅ Isama sa payload
         })
     })
     .then(response => response.json())
@@ -6734,60 +6911,53 @@ async function displayInPOS(productSizeId, productName, sizeName) {
         }
     }
                                                 function loadReportsData() {
-                                                    showReportsLoading();
+    showReportsLoading();
 
-                                                    fetch('/Owner/GetReportsData')
-                                                        .then(function(response) {
-                                                            if (!response.ok) throw new Error('Network error');
-                                                            return response.json();
-                                                        })
-                                                        .then(function(data) {
+    fetch('/Owner/GetReportsData')
+        .then(function(response) {
+            if (!response.ok) throw new Error('Network error');
+            return response.json();
+        })
+        .then(function(data) {
+            if (!data || !data.salesPerformance) {
+                console.warn('Invalid or empty data received');
+                showReportsError();
+                return;
+            }
 
-                                                            // ✅ VALIDATION (important)
-                                                            if (!data || !data.salesPerformance) {
-                                                                console.warn('Invalid or empty data received');
-                                                                showReportsError();
-                                                                return;
-                                                            }
+            lastReportsData = data;
 
-                                                            // ✅ store safely
-                                                            lastReportsData = data;
+            updateTopSelling(data.topSellingProducts);
+            updateWasteSummary(data.wasteLogs);
+            updateDiscountRecords(data.discountRecords || []);
+            updateCategoryRevenue(data.categoryRevenue);
+            renderSalesChart(data.salesPerformance);
+            renderCategoryPieChart(data.categoryDistribution);
 
-                                                            // ✅ update UI
-                                                            updateTopSelling(data.topSellingProducts);
-                                                            updateWasteSummary(data.wasteLogs);
-                                                            updateDiscountRecords(data.discountRecords || []);
-                                                            updateCategoryRevenue(data.categoryRevenue);
-                                                            renderSalesChart(data.salesPerformance);
-                                                            renderCategoryPieChart(data.categoryDistribution);
+            // ✅ UPDATE WASTE COST CARD
+            const topWasteCard = document.querySelector('.card-waste .stat-value');
+            if (topWasteCard) {
+                topWasteCard.innerHTML = '₱' + (data.totalWasteCost || 0).toFixed(2);
+            }
 
-                                                            // ✅ I-UPDATE ANG TOTAL WASTE COST CARD SA ITAAS
-                                                            const topWasteCard = document.querySelector('.card-waste .stat-value');
-                                                            if (topWasteCard) {
-                                                                // Gamitin ang data.totalWasteCost na galing sa GetReportsData JSON
-                                                                topWasteCard.innerHTML = '₱' + (data.totalWasteCost || 0).toFixed(2);
-                                                            }
+            // ✅ BAGONG DAGDAG: I-UPDATE ANG ITEMS SOLD CARD
+            const itemsSoldCard = document.querySelector('.card-profit .stat-value');
+            if (itemsSoldCard) {
+                itemsSoldCard.innerHTML = data.totalItemsSold || 0;
+            }
 
-                                                            reportsDataLoaded = true;
-                                                        })
-                                                        .catch(function(error) {
-                                                            console.error('Error loading reports:', error);
-
-                                                            // ✅ fallback if may old data
-                                                            if (lastReportsData) {
-                                                                renderSalesChart(lastReportsData.salesPerformance);
-                                                                renderCategoryPieChart(lastReportsData.categoryDistribution);
-
-                                                                // ✅ I-update din ang card kahit nag-error, gamit ang lumang data
-                                                                const topWasteCard = document.querySelector('.card-waste .stat-value');
-                                                                if (topWasteCard && lastReportsData.totalWasteCost !== undefined) {
-                                                                    topWasteCard.innerHTML = '₱' + (lastReportsData.totalWasteCost || 0).toFixed(2);
-                                                                }
-                                                            } else {
-                                                                showReportsError();
-                                                            }
-                                                        });
-                                                }
+            reportsDataLoaded = true;
+        })
+        .catch(function(error) {
+            console.error('Error loading reports:', error);
+            if (lastReportsData) {
+                renderSalesChart(lastReportsData.salesPerformance);
+                renderCategoryPieChart(lastReportsData.categoryDistribution);
+            } else {
+                showReportsError();
+            }
+        });
+}
 
              function loadReceiptHistory() {
     const filterDate = document.getElementById('receiptFilterDate')?.value || '';
@@ -10766,12 +10936,6 @@ function toggleFinDateInputs() {
         endInput.value = '';
         startInput.value = today; // ✅ Today
     } 
-    else if (periodType === 'semi-monthly') {
-        startLabel.innerText = 'Select Any Date in Period';
-        endWrapper.style.display = 'none';
-        endInput.value = '';
-        startInput.value = today;
-    } 
     else if (periodType === 'monthly') {
         startLabel.innerText = 'Select Month';
         endWrapper.style.display = 'none';
@@ -11522,6 +11686,24 @@ document.addEventListener('DOMContentLoaded', function() {
         storeNameInput.addEventListener('input', function() {
             if (this.value.trim() !== "") {
                 supplierSelect.value = ""; 
+            }
+        });
+    }
+
+
+     // ✅ ====== IDAGDAG ITO DITO ======
+    const priceInput = document.getElementById('recipeSellingPriceInput');
+    if (priceInput) {
+        priceInput.addEventListener('input', function () {
+            const totalCost = parseFloat(
+                (document.getElementById('recipeTotalCost').value || '0').replace('₱','').replace(',','')
+            ) || 0;
+            const price = parseFloat(this.value) || 0;
+            const profitLoss = price - totalCost;
+            const el = document.getElementById('profitLossDisplay');
+            if (el) {
+                el.innerHTML = `₱${profitLoss.toFixed(2)}`;
+                el.className = profitLoss >= 0 ? 'fw-bold text-success' : 'fw-bold text-danger';
             }
         });
     }

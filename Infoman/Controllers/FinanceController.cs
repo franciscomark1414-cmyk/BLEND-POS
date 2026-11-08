@@ -35,19 +35,6 @@ namespace Infoman.Controllers
                         start = (startDate ?? now).Date;
                         end = start.AddDays(1).AddSeconds(-1);
                         break;
-                    case "semi-monthly":
-                        var semiDate = startDate ?? now;
-                        if (semiDate.Day <= 15)
-                        {
-                            start = new DateTime(semiDate.Year, semiDate.Month, 1);
-                            end = new DateTime(semiDate.Year, semiDate.Month, 15, 23, 59, 59);
-                        }
-                        else
-                        {
-                            start = new DateTime(semiDate.Year, semiDate.Month, 16);
-                            end = new DateTime(semiDate.Year, semiDate.Month, DateTime.DaysInMonth(semiDate.Year, semiDate.Month), 23, 59, 59);
-                        }
-                        break;
                     case "monthly":
                         var monthlyDate = startDate ?? now;
                         start = new DateTime(monthlyDate.Year, monthlyDate.Month, 1);

@@ -1199,17 +1199,17 @@ namespace Infoman.Controllers
             decimal computedPrice = totalCost / (1 - productSize.Margin);
             decimal newAutoPrice = RoundToPriceEnding(computedPrice);
 
-            // ✅ KUNG MANUAL PRICE, I-RETAIN ANG OLD PRICE
-            // ✅ KUNG AUTO PRICE, I-UPDATE SA BAGONG COMPUTED PRICE
-            if (wasManualPrice)
+            // ✅ KUNG MANUAL PRICE (galing sa form), GAMITIN ANG INPUT
+            if (model.IsManualPrice && model.ManualPrice > 0)
             {
-                productSize.Price = oldPrice;           // Keep the manual price
-                productSize.IsManualPrice = true;       // Ensure flag stays true
+                productSize.Price = model.ManualPrice;
+                productSize.IsManualPrice = true;
             }
+            // ✅ KUNG MANUAL PRICE DATI, PERO NGAYON AUTO NA, I-COMPUTE
             else
             {
-                productSize.Price = newAutoPrice;       // Update to new auto-calc price
-                productSize.IsManualPrice = false;      // Ensure flag stays false
+                productSize.Price = newAutoPrice;
+                productSize.IsManualPrice = false;
             }
 
             await _db.SaveChangesAsync();
@@ -1878,6 +1878,17 @@ namespace Infoman.Controllers
             ViewBag.EstimatedProfit = netRevenue * 0.3m;
             ViewBag.TotalWasteCost = totalWasteCost;
 
+            // ========== TOTAL ITEMS SOLD ==========
+            var availableStatus = await _db.ItemDispositionStatuses
+                .FirstOrDefaultAsync(s => s.StatusName == "Available");
+
+            int availableId = availableStatus?.DispositionId ?? 1;
+
+            int totalItemsSold = await _db.OrderItems
+                .Where(oi => (oi.Order.Status == "COMPLETED" || oi.Order.Status == "PENDING_BLENDING")
+                             && oi.DispositionStatusId == availableId)
+                .SumAsync(oi => (int?)oi.Quantity) ?? 0;
+
             return Json(new
             {
                 salesPerformance = new { labels = salesLabels, revenue = salesRevenue, orders = salesOrders },
@@ -1887,30 +1898,72 @@ namespace Infoman.Controllers
                 discountRecords = discountRecords,
                 categoryRevenue = categoryRevenue,
                 receipts = receipts,
-                totalWasteCost = totalWasteCost
+                totalWasteCost = totalWasteCost,
+                totalItemsSold = totalItemsSold
             });
         }
         public async Task<ActionResult> Reports()
         {
+            if (!IsOwnerLoggedIn())
+                return RedirectToAction("Login", "Account");
+
+            // ========== DEBUG: I-print lahat ng OrderItems ==========
+            // ✅ TINANGGAL ANG IsVoided at IsRefunded PARA HINDI MAG-CRASH
+            var debugData = await _db.OrderItems
+                .Include(oi => oi.Order)
+                .Select(oi => new
+                {
+                    oi.OrderItemId,
+                    oi.OrderId,
+                    OrderNumber = oi.Order.OrderNumber,
+                    OrderStatus = oi.Order.Status,
+                    oi.Quantity,
+                    oi.DispositionStatusId
+                })
+                .ToListAsync();
+
+            System.Diagnostics.Debug.WriteLine("=== ALL ORDER ITEMS DEBUG ===");
+            foreach (var item in debugData)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"ItemID: {item.OrderItemId} | Order: #{item.OrderNumber} ({item.OrderStatus}) | " +
+                    $"Qty: {item.Quantity} | DispositionStatusId: {item.DispositionStatusId}");
+            }
+
             // ========== TOTAL REVENUE ==========
             var totalRevenue = await _db.Orders
-                .Where(o => o.Status != "Cancelled")
+                .Where(o => o.Status == "COMPLETED" || o.Status == "PENDING_BLENDING")
                 .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
-            ViewBag.TotalRevenue = totalRevenue;
 
-            // ========== ESTIMATED PROFIT (30% margin) ==========
-            ViewBag.EstimatedProfit = totalRevenue * 0.3m;
+            if (totalRevenue < 0) totalRevenue = 0;
+
+            ViewBag.TotalRevenue = totalRevenue;
+            ViewBag.AllTimeRevenue = totalRevenue;
+
+            // ========== TOTAL ITEMS SOLD ==========
+            var availableStatus = await _db.ItemDispositionStatuses
+                .FirstOrDefaultAsync(s => s.StatusName == "Available");
+
+            int availableId = availableStatus?.DispositionId ?? 1;
+
+            System.Diagnostics.Debug.WriteLine($"Using DispositionStatusId = {availableId} for 'Available'");
+
+            int totalItemsSold = await _db.OrderItems
+                .Where(oi => (oi.Order.Status == "COMPLETED" || oi.Order.Status == "PENDING_BLENDING")
+                             && oi.DispositionStatusId == availableId)
+                .SumAsync(oi => (int?)oi.Quantity) ?? 0;
+
+            System.Diagnostics.Debug.WriteLine($"=== TOTAL ITEMS SOLD: {totalItemsSold} ===");
+
+            ViewBag.TotalItemsSold = totalItemsSold;
 
             // ========== TOTAL WASTE COST ==========
-            var wasteLogs = await _db.WasteLogs.ToListAsync();
-            var totalWasteCost = wasteLogs.Sum(w => w.TotalCost);
+            var totalWasteCost = await _db.WasteLogs.SumAsync(w => (decimal?)w.TotalCost) ?? 0;
             ViewBag.TotalWasteCost = totalWasteCost;
 
             // ========== SALES PERFORMANCE CHART DATA ==========
             var today = DateTime.Today;
-            var last7Days = Enumerable.Range(0, 7)
-                .Select(i => today.AddDays(-6 + i))
-                .ToList();
+            var last7Days = Enumerable.Range(0, 7).Select(i => today.AddDays(-6 + i)).ToList();
 
             var salesLabels = last7Days.Select(d => d.ToString("MMM dd")).ToList();
             var salesRevenue = new List<decimal>();
@@ -1919,12 +1972,14 @@ namespace Infoman.Controllers
             foreach (var day in last7Days)
             {
                 var dailyRevenue = await _db.Orders
-                    .Where(o => o.Date.Date == day && o.Status != "Cancelled")
+                    .Where(o => o.Date.Date == day &&
+                                (o.Status == "COMPLETED" || o.Status == "PENDING_BLENDING"))
                     .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
                 salesRevenue.Add(dailyRevenue);
 
                 var dailyOrders = await _db.Orders
-                    .CountAsync(o => o.Date.Date == day && o.Status != "Cancelled");
+                    .CountAsync(o => o.Date.Date == day &&
+                                     (o.Status == "COMPLETED" || o.Status == "PENDING_BLENDING"));
                 salesOrders.Add(dailyOrders);
             }
 
@@ -1936,7 +1991,8 @@ namespace Infoman.Controllers
             var categoryDistribution = await _db.OrderItems
                 .Include(oi => oi.Order)
                 .Include(oi => oi.Product)
-                .Where(oi => oi.Order.Status != "Cancelled")
+                .Where(oi => (oi.Order.Status == "COMPLETED" || oi.Order.Status == "PENDING_BLENDING")
+                             && oi.DispositionStatusId == availableId)
                 .GroupBy(oi => oi.Product.Category ?? "Uncategorized")
                 .Select(g => new
                 {
@@ -4037,6 +4093,44 @@ namespace Infoman.Controllers
             return Json(new { invoiceNumber = $"{prefix}{(max + 1):D5}" });
         }
 
+        [HttpPost]
+        public async Task<IActionResult> VerifySessionPassword([FromBody] VerifySessionPasswordRequest request)
+        {
+            try
+            {
+                // Kunin ang User ID (Owner o Staff)
+                var ownerId = HttpContext.Session.GetInt32("Owner_UserId");
+                var staffId = HttpContext.Session.GetInt32("Staff_UserId");
+                var userId = ownerId ?? staffId;
+
+                if (userId == null)
+                    return Json(new { success = false, message = "Session expired. Please login again." });
+
+                var user = await _db.Users.FindAsync(userId);
+
+                if (user == null)
+                    return Json(new { success = false, message = "User not found." });
+
+                // Check kung tama ang password (same logic sa Login mo)
+                if (user.Password.Trim() == request.Password?.Trim())
+                {
+                    return Json(new { success = true });
+                }
+
+                return Json(new { success = false, message = "Incorrect password. Please try again." });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Error: " + ex.Message });
+            }
+        }
+
+        // Request model
+        public class VerifySessionPasswordRequest
+        {
+            public string Password { get; set; }
+        }
+
         public class UpdateProductRequest
         {
             public int ProductId { get; set; }
@@ -4125,6 +4219,24 @@ namespace Infoman.Controllers
             public decimal Quantity { get; set; }
             public string Reason { get; set; }
             public string Notes { get; set; }
+        }
+
+        public class RecipeSaveModel
+        {
+            public int ProductSizeId { get; set; }
+            public decimal Margin { get; set; }
+            public List<RecipeItemModel> Ingredients { get; set; }
+
+            // ✅ Bagong dagdag para sa Manual Price
+            public bool IsManualPrice { get; set; }
+            public decimal ManualPrice { get; set; }
+        }
+
+        public class RecipeItemModel
+        {
+            public int RawMaterialId { get; set; }
+            public decimal Quantity { get; set; }
+            public string UnitUsed { get; set; }
         }
 
         public class MarkSupplierReturnRequest

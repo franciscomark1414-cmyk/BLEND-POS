@@ -2419,7 +2419,7 @@
                 </div>
             </div>
         </div>
-    </div>
+    </div> 
 
     <!-- ✅ TAB CONTENT: UNIT MANAGEMENT -->
 <div id="settings-unit-tab" style="display: none;">
@@ -3893,10 +3893,12 @@ function switchSettingsTab(tabName) {
     // 1. Alisin ang active class sa lahat ng buttons
     document.getElementById('tab-security-btn').classList.remove('active');
     document.getElementById('tab-category-btn').classList.remove('active');
+    document.getElementById('tab-unit-btn').classList.remove('active');
     
     // 2. Itago lahat ng tab contents
     document.getElementById('settings-security-tab').style.display = 'none';
     document.getElementById('settings-category-tab').style.display = 'none';
+    document.getElementById('settings-unit-tab').style.display = 'none'; 
 
     // 3. Ipakita ang napiling tab
     if (tabName === 'security') {

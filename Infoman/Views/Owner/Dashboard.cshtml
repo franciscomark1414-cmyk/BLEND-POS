@@ -8738,8 +8738,6 @@ function calculateReceivingRow(rowId) {
     }
 
     const displayUnit = selectedOption.getAttribute('data-unit') || '';
-    const baseUnit = selectedOption.getAttribute('data-base-unit') || '';
-
     const received = parseFloat(receivedInput.value) || 0;
     const conv = parseFloat(convInput.value) || 1;
     const totalPrice = parseFloat(totalPriceInput.value) || 0;
@@ -8747,26 +8745,29 @@ function calculateReceivingRow(rowId) {
     const acceptedQty = Math.min(Math.max(parseFloat(acceptedInput.value) || 0, 0), received);
     const rejectedQty = received - acceptedQty;
 
-    // ✅ Converted Qty (e.g., 100 * 1 = 100)
+    // ✅ Converted Qty (e.g., 5 * 1 = 5)
     const convertedInDisplayUnit = acceptedQty * conv;
     convertedOut.value = convertedInDisplayUnit.toFixed(2);
 
-    // ✅ UNIT PRICE AT LABEL LOGIC
-    let unitPricePerDisplay = 0;
-    let priceLabelText = `per ${displayUnit}`; // Default ay kung ano ang display unit (e.g., "per kg")
+    // ✅ I-COMPUTE MUNA ANG ACCEPTED PRICE
+    // Halimbawa: Total = ₱1000, Accepted = 5, Received = 10
+    // AcceptedPrice = 1000 * (5 / 10) = ₱500
+    const safeAcceptedPrice = received > 0 ? totalPrice * (acceptedQty / received) : 0;
+    acceptedPriceOut.value = safeAcceptedPrice.toFixed(2);
 
-    if (convertedInDisplayUnit > 0 && totalPrice > 0) {
-        unitPricePerDisplay = totalPrice / convertedInDisplayUnit;
+    // ✅ UNIT PRICE — dapat base sa ACCEPTED PRICE ÷ CONVERTED QTY
+    // Halimbawa: ₱500 ÷ 5 kg = ₱100/kg ← ✅ TAMA
+    let unitPricePerDisplay = 0;
+    let priceLabelText = `per ${displayUnit}`;
+
+    if (convertedInDisplayUnit > 0 && safeAcceptedPrice > 0) {
+        unitPricePerDisplay = safeAcceptedPrice / convertedInDisplayUnit;
     }
 
     unitPriceOut.value = unitPricePerDisplay.toFixed(2);
     if (priceLabel) {
         priceLabel.textContent = priceLabelText;
     }
-
-    // ✅ ACCEPTED PRICE
-    const safeAcceptedPrice = received > 0 ? totalPrice * (acceptedQty / received) : 0;
-    acceptedPriceOut.value = safeAcceptedPrice.toFixed(2);
 
     rejectedInput.value = rejectedQty.toFixed(2);
 

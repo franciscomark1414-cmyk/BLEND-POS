@@ -36,6 +36,7 @@ namespace Infoman.Models
         public string RejectionReason { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal TotalPrice { get; set; }
+        public decimal AcceptedTotalPrice { get; set; }
         public DateTime? ExpiryDate { get; set; }
     }
 }

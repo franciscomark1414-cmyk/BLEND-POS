@@ -6627,6 +6627,8 @@ async function produceProduct(productSizeId, sizeName, currentStock) {
         const data = await response.json();
         const batches = data.batches;
         const unit = data.unit || 'kg';
+        const costLabel = (unit === 'g' || unit === 'kg') ? 'kg'
+                : ((unit === 'mL' || unit === 'L') ? 'L' : unit);
 
         if (!batches || batches.length === 0) {
             tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No batches found</td></tr>`;
@@ -6670,7 +6672,7 @@ async function produceProduct(productSizeId, sizeName, currentStock) {
                         ${quantityRemaining.toFixed(2)} ${unit}
                     </td>
                     <td>${formattedExpiryDate}</td>
-                    <td>₱${batch.unitPrice.toFixed(2)}</td>
+                    <td>₱${batch.unitPrice.toFixed(2)} / ${costLabel}</td>
                     <td>${status}</td>
                     <td>
                         <div class="d-flex gap-1">
@@ -8713,6 +8715,32 @@ function costUnitLabel(baseUnit) {
     return baseUnit === 'g' ? 'kg' : (baseUnit === 'mL' ? 'L' : baseUnit);
 }
 
+// Stored value: laging per kg / per L / per pcs
+function pricePerCostUnit(acceptedPrice, acceptedBaseQty, baseUnit) {
+    const div = (baseUnit === 'g' || baseUnit === 'mL') ? 1000 : 1;
+    return acceptedBaseQty > 0 ? acceptedPrice / (acceptedBaseQty / div) : 0;
+}
+
+// Display lang: per g kapag < 1000, per kg kapag >= 1000
+function formatUnitPrice(acceptedPrice, acceptedBaseQty, baseUnit) {
+    if (acceptedBaseQty <= 0) return { value: 0, label: '' };
+
+    if (baseUnit === 'g' || baseUnit === 'mL') {
+        if (acceptedBaseQty >= 1000) {
+            return {
+                value: acceptedPrice / (acceptedBaseQty / 1000),
+                label: baseUnit === 'g' ? 'per kg' : 'per L'
+            };
+        }
+        return {
+            value: acceptedPrice / acceptedBaseQty,
+            label: baseUnit === 'g' ? 'per g' : 'per mL'
+        };
+    }
+
+    return { value: acceptedPrice / acceptedBaseQty, label: 'per pc' };
+}
+
 function calculateReceivingRow(rowId) {
     const q = (cls) => document.querySelector(`${cls}[data-row="${rowId}"]`);
 
@@ -8738,6 +8766,7 @@ function calculateReceivingRow(rowId) {
     }
 
     const displayUnit = selectedOption.getAttribute('data-unit') || '';
+    const baseUnit = getBaseUnitForRow(rowId);   // g / mL / pcs
     const received = parseFloat(receivedInput.value) || 0;
     const conv = parseFloat(convInput.value) || 1;
     const totalPrice = parseFloat(totalPriceInput.value) || 0;
@@ -8745,35 +8774,31 @@ function calculateReceivingRow(rowId) {
     const acceptedQty = Math.min(Math.max(parseFloat(acceptedInput.value) || 0, 0), received);
     const rejectedQty = received - acceptedQty;
 
-    // ✅ Converted Qty (e.g., 5 * 1 = 5)
+    // Converted qty sa receiving unit (kg / g / L / mL / pcs)
     const convertedInDisplayUnit = acceptedQty * conv;
     convertedOut.value = convertedInDisplayUnit.toFixed(2);
 
-    // ✅ I-COMPUTE MUNA ANG ACCEPTED PRICE
-    // Halimbawa: Total = ₱1000, Accepted = 5, Received = 10
-    // AcceptedPrice = 1000 * (5 / 10) = ₱500
+    // Accepted price = proporsyon ng total base sa accepted qty
+    // Halimbawa: Total ₱1000, Accepted 5, Received 10 → ₱500
     const safeAcceptedPrice = received > 0 ? totalPrice * (acceptedQty / received) : 0;
     acceptedPriceOut.value = safeAcceptedPrice.toFixed(2);
 
-    // ✅ UNIT PRICE — dapat base sa ACCEPTED PRICE ÷ CONVERTED QTY
-    // Halimbawa: ₱500 ÷ 5 kg = ₱100/kg ← ✅ TAMA
-    let unitPricePerDisplay = 0;
-    let priceLabelText = `per ${displayUnit}`;
+    // Base quantity ng accepted (g / mL / pcs), para sa formatUnitPrice
+    // Kung kg/L ang receiving unit, i-multiply sa 1000 para maging g/mL
+    const toBaseFactor = (displayUnit === 'kg' || displayUnit === 'L') ? 1000 : 1;
+    const acceptedBaseQty = convertedInDisplayUnit * toBaseFactor;
 
-    if (convertedInDisplayUnit > 0 && safeAcceptedPrice > 0) {
-        unitPricePerDisplay = safeAcceptedPrice / convertedInDisplayUnit;
-    }
-
-    unitPriceOut.value = unitPricePerDisplay.toFixed(2);
-    if (priceLabel) {
-        priceLabel.textContent = priceLabelText;
-    }
+    // Display: per g/mL kapag < 1000, per kg/L kapag >= 1000
+    const fmt = formatUnitPrice(safeAcceptedPrice, acceptedBaseQty, baseUnit);
+    unitPriceOut.value = fmt.value.toFixed(2);
+    if (priceLabel) priceLabel.textContent = fmt.label || `per ${baseUnit}`;
 
     rejectedInput.value = rejectedQty.toFixed(2);
 
+    // Warning kung walang price, dapat huli para hindi ma-overwrite ng label
     if (received > 0 && totalPrice <= 0) {
         totalPriceInput.style.borderColor = 'red';
-        if (priceLabel) priceLabel.textContent = `⚠️ Missing Price`;
+        if (priceLabel) priceLabel.textContent = '⚠️ Missing Price';
     } else {
         totalPriceInput.style.borderColor = '';
     }
@@ -8903,22 +8928,22 @@ document.getElementById('receivingForm')?.addEventListener('submit', async funct
             ? r4(acceptedTotalPrice / acceptedInDisplay)
             : 0;
 
-        items.push({
-            rawMaterialId: parseInt(materialSelect.value),
-            rawMaterialName: selectedOption.text,
-            // ✅ QTY IN BASE UNIT (for backend storage)
-            receivedQty: receivedBase,
-            acceptedQty: acceptedBase,
-            rejectedQty: rejectedBase,
-            // ✅ UNIT = BASE UNIT (g, mL, pcs) — para sa backend
-            unit: baseUnit,
-            // ✅ UNIT PRICE = per DISPLAY UNIT (per kg, per L, per pcs) — para sa batch
-            unitPrice: unitPricePerDisplay,
-            disposition: "Waste",
-            rejectionReason: reason,
-            expiryDate: expiryDate,
-            storeName: globalStoreName
-        });
+       const acceptedTotal = receivedPkg > 0 ? totalPrice * (acceptedPkg / receivedPkg) : 0;
+
+items.push({
+    rawMaterialId: parseInt(materialSelect.value),
+    rawMaterialName: selectedOption.text,
+    receivedQty: receivedBase,
+    acceptedQty: acceptedBase,
+    rejectedQty: rejectedBase,
+    unit: baseUnit,
+    totalPrice: Math.round(totalPrice * 100) / 100,
+    acceptedTotalPrice: Math.round(acceptedTotal * 100) / 100,
+    disposition: "Waste",
+    rejectionReason: reason,
+    expiryDate: expiryDate,
+    storeName: globalStoreName
+});
     }
 
     if (items.length === 0) {
@@ -9137,6 +9162,8 @@ function viewDeliveryDetails(receivingId) {
     delivery.items.forEach(item => {
         const storeNameDisplay = item.storeName ? `<br><small class="text-muted">Store: ${escapeHtml(item.storeName)}</small>` : '';
         const unitPriceFmt = `₱${item.unitPrice.toFixed(2)}`;
+const costUnitLabel = (item.unit === 'g' || item.unit === 'kg') ? 'kg'
+                    : ((item.unit === 'mL' || item.unit === 'L') ? 'L' : item.unit);
         const totalPriceFmt = `₱${item.totalPrice.toFixed(2)}`;
         const acceptedPriceFmt = `₱${item.acceptedPrice.toFixed(2)}`;
 
@@ -9149,7 +9176,7 @@ function viewDeliveryDetails(receivingId) {
                 <td>
                     <strong>${escapeHtml(item.name)}</strong> ${returnBadge}
                     ${storeNameDisplay}
-                    <br><small class="text-muted">Price: ${unitPriceFmt} / ${item.unit}</small>
+                    <br><small class="text-muted">Price: ${unitPriceFmt} / ${costUnitLabel}</small>
                 </td>
                 <td class="text-success fw-bold">${item.acceptedQtyWithUnit}</td>
                 <td class="text-danger fw-bold">${item.rejectedQtyWithUnit}</td>

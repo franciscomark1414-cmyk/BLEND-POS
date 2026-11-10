@@ -2185,36 +2185,29 @@ namespace Infoman.Controllers
                 await _db.SaveChangesAsync();
 
                 // Process each item
-                // Process each item
                 foreach (var item in model.Items)
                 {
-                    // 1. I-convert muna sa BASE UNIT gamit ang JS data (100 display unit -> 100,000 base unit)
                     var rawMat = await _db.RawMaterials.FindAsync(item.RawMaterialId);
                     if (rawMat == null) continue;
 
+                    // 1. Qty ay BASE unit na (g / mL / pcs) galing sa JS
                     decimal receivedInBaseUnit = item.ReceivedQty;
                     decimal acceptedInBaseUnit = item.AcceptedQty;
                     decimal rejectedInBaseUnit = item.RejectedQty;
 
-                    if (rawMat.BaseUnit == "g" && item.Unit == "kg")
-                    {
-                        receivedInBaseUnit = item.ReceivedQty * 1000;
-                        acceptedInBaseUnit = item.AcceptedQty * 1000;
-                        rejectedInBaseUnit = item.RejectedQty * 1000;
-                    }
-                    else if (rawMat.BaseUnit == "mL" && item.Unit == "L")
-                    {
-                        receivedInBaseUnit = item.ReceivedQty * 1000;
-                        acceptedInBaseUnit = item.AcceptedQty * 1000;
-                        rejectedInBaseUnit = item.RejectedQty * 1000;
-                    }
+                    // 2. Cost unit = kg / L / pcs
+                    decimal costDiv = (rawMat.BaseUnit == "g" || rawMat.BaseUnit == "mL") ? 1000m : 1m;
+                    decimal receivedCostQty = receivedInBaseUnit / costDiv;
+                    decimal acceptedCostQty = acceptedInBaseUnit / costDiv;
+                    decimal rejectedCostQty = rejectedInBaseUnit / costDiv;
 
-                    // 2. I-save sa ReceivingItem (BASE UNIT)
-                    // ✅ I-convert pabalik sa Display Unit para tama ang math
-                    decimal conversionFactor = (rawMat.BaseUnit == "g" || rawMat.BaseUnit == "mL") ? 1000m : 1m;
-                    decimal receivedInDisplayUnit = receivedInBaseUnit / conversionFactor;
-                    decimal acceptedInDisplayUnit = acceptedInBaseUnit / conversionFactor;
+                    // 3. Unit price PER COST UNIT (per kg / L / pcs), galing sa total
+                    //    Server ang nag-compute para walang maling value na makapasok
+                    decimal unitPricePerCostUnit = acceptedCostQty > 0
+                        ? Math.Round(item.AcceptedTotalPrice / acceptedCostQty, 4)
+                        : 0m;
 
+                    // 4. ReceivingItem
                     var receivingItem = new ReceivingItem
                     {
                         ReceivingId = receiving.ReceivingId,
@@ -2224,14 +2217,9 @@ namespace Infoman.Controllers
                         AcceptedQty = acceptedInBaseUnit,
                         RejectedQty = rejectedInBaseUnit,
                         RejectionReason = item.RejectedQty > 0 ? item.RejectionReason : null,
-
-                        // ✅ I-save ang Unit Price per Display Unit (per kg / per g)
-                        UnitPrice = item.UnitPrice,
-
-                        // ✅ I-compute ang Total gamit ang Display Unit Qty
-                        TotalPrice = receivedInDisplayUnit * item.UnitPrice,
-                        AcceptedPrice = acceptedInDisplayUnit * item.UnitPrice,
-
+                        UnitPrice = unitPricePerCostUnit,
+                        TotalPrice = item.TotalPrice,
+                        AcceptedPrice = item.AcceptedTotalPrice,
                         ExpiryDate = item.ExpiryDate,
                         StoreName = item.StoreName,
                         ReturnStatus = null,
@@ -2240,87 +2228,72 @@ namespace Infoman.Controllers
                     _db.ReceivingItems.Add(receivingItem);
                     await _db.SaveChangesAsync();
 
-                    // 3. CREATE STOCK BATCH (DAPAT BASE UNIT DIN ANG ITATAMA)
-                    if (item.AcceptedQty > 0)
+                    // 5. Batch (UnitPrice per kg/L/pcs)
+                    if (acceptedInBaseUnit > 0)
                     {
-                        // ✅ ITO ANG TAMANG VALUE NA DAPAT NAKA-SAVE SA BATCH
-                        decimal batchQtyInBaseUnit = acceptedInBaseUnit;
-
-                        // ✅ TAMA: Ang item.UnitPrice ay per DISPLAY unit na (per kg, per L, per pcs)
-                        // I-save as-is — per display unit na ito
-                        decimal standardizedUnitPrice = item.UnitPrice;
-
                         var batch = new RawMaterialBatch
                         {
                             RawMaterialId = item.RawMaterialId,
-                            QuantityReceived = acceptedInBaseUnit, // 20,000 g (Base unit parin)
-                            QuantityRemaining = batchQtyInBaseUnit,
+                            QuantityReceived = acceptedInBaseUnit,
+                            QuantityRemaining = acceptedInBaseUnit,
                             ReceivedDate = DateTime.Now,
                             ExpiryDate = item.ExpiryDate,
-                            UnitPrice = item.UnitPrice // ✅ Naka-save na as PER KG!
+                            UnitPrice = unitPricePerCostUnit
                         };
                         _db.RawMaterialBatches.Add(batch);
                         await _db.SaveChangesAsync();
 
-                        // Expiry check para sa waste log
                         if (item.ExpiryDate.HasValue && item.ExpiryDate.Value.Date < DateTime.Today)
                         {
-                            decimal totalCost = item.AcceptedQty * item.UnitPrice; // Display unit cost
-
-                            var wasteLog = new WasteLog
+                            _db.WasteLogs.Add(new WasteLog
                             {
                                 RawMaterialId = item.RawMaterialId,
-                                Quantity = batchQtyInBaseUnit, // Base unit
+                                Quantity = acceptedInBaseUnit,
                                 Reason = WasteLog.WasteReason.Expired,
                                 Date = DateTime.Now,
                                 RecordedBy = "Receiving",
                                 Notes = $"Auto-generated expired batch from DR#{model.DRNumber}",
-                                TotalCost = totalCost,
+                                TotalCost = acceptedCostQty * unitPricePerCostUnit,
                                 ExpiryDate = item.ExpiryDate,
                                 BatchId = batch.BatchId
-                            };
-                            _db.WasteLogs.Add(wasteLog);
-                            batch.QuantityRemaining = 0; // Zero out expired
+                            });
+                            batch.QuantityRemaining = 0;
                             await _db.SaveChangesAsync();
                         }
                     }
 
-                    // 4. HANDLE REJECTED ITEMS
-                    if (item.RejectedQty > 0)
+                    // 6. Rejected
+                    if (rejectedInBaseUnit > 0)
                     {
                         if (item.Disposition == "Waste")
                         {
-                            decimal totalCost = item.RejectedQty * item.UnitPrice;
-
-                            var wasteLog = new WasteLog
+                            _db.WasteLogs.Add(new WasteLog
                             {
                                 RawMaterialId = item.RawMaterialId,
-                                Quantity = rejectedInBaseUnit, // ✅ Base unit na agad
+                                Quantity = rejectedInBaseUnit,
                                 Reason = WasteLog.WasteReason.QualityIssue,
                                 Date = DateTime.Now,
                                 RecordedBy = "Receiving",
                                 Notes = $"Rejected from DR#{model.DRNumber}: {item.RejectionReason}",
-                                TotalCost = totalCost,
+                                TotalCost = rejectedCostQty * unitPricePerCostUnit,
                                 ExpiryDate = item.ExpiryDate,
                                 BatchId = null
-                            };
-                            _db.WasteLogs.Add(wasteLog);
+                            });
                         }
                         else if (item.Disposition == "Return")
                         {
-                            var rejectedForReturn = new RejectedForReturn
+                            _db.RejectedForReturns.Add(new RejectedForReturn
                             {
                                 ReceivingId = receiving.ReceivingId,
                                 RawMaterialId = item.RawMaterialId,
-                                Quantity = item.RejectedQty, // Pwede display unit dito para sa supplier return
+                                Quantity = rejectedInBaseUnit,
                                 Reason = item.RejectionReason,
-                                UnitPrice = item.UnitPrice,
+                                UnitPrice = unitPricePerCostUnit,
                                 Status = "Pending Return"
-                            };
-                            _db.RejectedForReturns.Add(rejectedForReturn);
+                            });
                         }
                     }
-                } // ✅ DITO TAPOS ANG FOREACH LOOP PARA SA MGA ITEMS
+                }// ✅ DITO TAPOS ANG FOREACH LOOP PARA SA MGA ITEMS
 
                 await _db.SaveChangesAsync();
 
@@ -4208,6 +4181,8 @@ namespace Infoman.Controllers
             public string Disposition { get; set; }
             public string RejectionReason { get; set; }
             public decimal UnitPrice { get; set; }
+            public decimal TotalPrice { get; set; }
+            public decimal AcceptedTotalPrice { get; set; }
             public DateTime? ExpiryDate { get; set; }
         }
 

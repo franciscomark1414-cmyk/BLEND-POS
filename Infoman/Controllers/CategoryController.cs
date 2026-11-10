@@ -32,7 +32,7 @@ namespace Infoman.Controllers
 
             // Bilang ng gumagamit sa bawat category (1 query bawat table, hindi per-category)
             var rawCounts = await _db.RawMaterials
-                .Where(r => r.CategoryId != null)
+                .Where(r => r.CategoryId != null && !r.IsDeleted)
                 .GroupBy(r => r.CategoryId)
                 .Select(g => new { Id = g.Key, Count = g.Count() })
                 .ToDictionaryAsync(x => x.Id!.Value, x => x.Count);
@@ -189,6 +189,14 @@ namespace Infoman.Controllers
                 });
             }
 
+            // I-unlink ang mga soft-deleted na raw material para hindi sila mag-block sa FK
+            if (cat.Type == CategoryType.RawMaterial)
+            {
+                await _db.RawMaterials
+                    .Where(r => r.CategoryId == id && r.IsDeleted)
+                    .ExecuteUpdateAsync(s => s.SetProperty(r => r.CategoryId, (int?)null));
+            }
+
             try
             {
                 _db.Categories.Remove(cat);
@@ -211,8 +219,8 @@ namespace Infoman.Controllers
             string name = cat.Name;
 
             if (cat.Type == CategoryType.RawMaterial)
-                // Kasama ang soft-deleted na raw materials, dahil puwede pa silang ma-Restore at may FK
-                return await _db.RawMaterials.CountAsync(r => r.CategoryId == id);
+                // Active raw materials lang ang binibilang
+                return await _db.RawMaterials.CountAsync(r => r.CategoryId == id && !r.IsDeleted);
 
             // Product: active products lang ang binibilang
             return await _db.Products.CountAsync(p => !p.IsDeleted && p.Category == name);

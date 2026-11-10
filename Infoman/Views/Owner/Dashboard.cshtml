@@ -804,6 +804,89 @@
 .form-control, .form-select {
     font-size: 0.9rem !important;
 }
+
+/* ========== RECEIVE DELIVERY ========== */
+.main-content {
+    min-width: 0;
+}
+
+.receive-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid #f0e6b0;
+    border-radius: 12px;
+}
+
+#receivingItemsBody .form-control,
+#receivingItemsBody .form-select,
+#receivingItemsBody .input-group-text {
+    height: 34px;
+    font-size: 0.85rem !important;
+    padding: 0.25rem 0.5rem;
+}
+
+#receivingItemsBody .input-group {
+    flex-wrap: nowrap;
+}
+
+#receivingItemsBody .input-group-text {
+    padding: 0.25rem 0.4rem;
+    font-size: 0.75rem !important;
+}
+
+#receivingItemsBody .reason-select {
+    min-width: 110px;
+}
+
+#receivingItemsBody td {
+    padding: 6px 6px !important;
+    vertical-align: middle;
+}
+
+#receivingItemsBody .price-label {
+    font-size: 0.7rem;
+    text-align: center;
+}
+
+#receivingItemsBody .dr-hint {
+    font-size: 0.7rem;
+}
+
+#confirmMessage {
+    white-space: pre-line;
+}
+
+/* ========== BATCH HISTORY MODAL (compact, walang horizontal scroll) ========== */
+#batchHistoryModal .modal-body {
+    max-height: none;
+    overflow-x: hidden;
+}
+
+#batchHistoryModal table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+#batchHistoryModal th,
+#batchHistoryModal td {
+    font-size: 0.82rem !important;
+    padding: 6px 8px !important;
+    white-space: normal;
+    vertical-align: middle;
+}
+
+#batchHistoryModal .action-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+#batchHistoryModal .action-stack .btn {
+    font-size: 0.72rem !important;
+    padding: 3px 6px;
+    width: 100%;
+    white-space: nowrap;
+}
    
     </style>
 </head>
@@ -1004,9 +1087,9 @@
         </h2>
         <p class="page-header-subtitle">Manage your delivery batches and stock levels.</p>
     </div>
-    <button class="btn btn-primary" onclick="toggleAddDeliveryPanel()">
-        <i class="fas fa-plus"></i> Add Delivery (Batch)
-    </button>
+    <button class="btn btn-primary" onclick="showModule('receiving')">
+    <i class="fas fa-plus"></i> Receive Delivery
+</button>
 </div>
 
     <div class="mb-3">
@@ -1056,68 +1139,7 @@
             </table>
         </div>
 
-        <div id="addDeliveryPanel" style="flex: 1; display: none; border: 2px solid #28a745; padding: 15px; border-radius: 10px; background-color: #f0fff0; height: fit-content;">
-            <h5 style="color: #28a745;">
-                <i class="fas fa-truck-loading"></i> Add New Delivery (Stock Batch)
-            </h5>
-            <p class="text-muted small mb-3">
-                <i class="fas fa-info-circle"></i> Each delivery creates a separate batch for FEFO tracking.
-            </p>
-
-            <form id="addDeliveryForm">
-                @Html.AntiForgeryToken()
-
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Raw Material <span class="text-danger">*</span></label>
-                    <select id="deliveryMaterialSelect" name="RawMaterialId" class="form-control" required>
-                        <option value="">-- Select Raw Material --</option>
-                        @if (ViewBag.RawMaterials != null)
-                        {
-                            foreach (var item in ViewBag.RawMaterials)
-                            {
-                                <option value="@item.RawMaterialId" data-unit="@item.Unit">
-                                    @item.Name (@item.Unit) - Current Stock: @($"{item.Stock:F2} {item.Unit}")
-                                </option>
-                            }
-                        }
-                    </select>
-                    <small class="text-muted">Select the raw material you're receiving</small>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Quantity <span class="text-danger">*</span></label>
-                    <input type="number" id="deliveryQuantity" name="Quantity" class="form-control" step="0.01" min="0.01" required placeholder="0.00">
-                    <small class="text-muted">Enter quantity</small>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Unit Price (₱) <span class="text-danger">*</span></label>
-                    <input type="number" id="deliveryUnitPrice" name="UnitPrice" class="form-control" step="0.01" min="0" required placeholder="0.00">
-                    <small class="text-muted">Price per unit</small>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Expiry Date <span class="text-muted">(Optional)</span></label>
-                    <input type="date" id="deliveryExpiryDate" name="ExpiryDate" class="form-control">
-                    <small class="text-muted">
-                        <i class="fas fa-calendar-alt"></i> FEFO: Earliest expiry will be used first.
-                    </small>
-                </div>
-
-                <div class="alert alert-warning py-2 small">
-                    <i class="fas fa-lightbulb"></i> <strong>FEFO Note:</strong> Batches with the earliest expiry date will be consumed first.
-                </div>
-
-                <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-success flex-grow-1">
-                        <i class="fas fa-check-circle"></i> Save Delivery
-                    </button>
-                    <button type="button" class="btn btn-secondary" onclick="toggleAddDeliveryPanel()">
-                        <i class="fas fa-times"></i> Cancel
-                    </button>
-                </div>
-            </form>
-        </div>
+      
     </div>
 </div>
 
@@ -2555,82 +2577,81 @@
                 </button>
             </div>
 
-            <div class="card shadow-sm border-0">
-                <div class="card-body p-4">
-                    <h6 class="fw-bold mb-3 text-uppercase">Items to be Receive</h6>
-                    
-                    <form id="receivingForm">
-                        @Html.AntiForgeryToken()
-                        
-                        <!-- TOP HEADER INFO (Supplier, DR, etc) -->
-                       <div class="row mb-4 g-2"> <!-- Ginawang g-2 para masikip ng konti -->
-    <div class="col-md-6 mb-3">
-    <div class="alert alert-info py-2 mb-0" style="border-radius: 8px;">
-        <i class="fas fa-info-circle"></i> <strong>Note:</strong> Please provide <strong>either</strong> a Supplier <strong>or</strong> a Store Name to identify this delivery.
-    </div>
-</div>
-<div class="w-100"></div> <!-- Force new line -->
+<div class="card shadow-sm border-0">
+    <div class="card-body p-4">
 
-<div class="col-md-4">
-    <label class="form-label fw-bold small">Supplier <span class="text-muted">(Optional if Store Name is provided)</span></label>
-    <select id="supplierId" class="form-control form-control-sm">
-        <option value="">-- Select Supplier --</option>
-    </select>
-</div>
-<div class="col-md-4">
-    <label class="form-label fw-bold small">Store Name <span class="text-muted">(Optional if Supplier is provided)</span></label>
-    <input type="text" id="globalStoreName" class="form-control form-control-sm" placeholder="e.g., Store 1">
-</div>
-    <div class="col-md-3">
-        <label class="form-label fw-bold small">DR Number <span class="text-danger">*</span></label>
-        <input type="text" id="drNumber" class="form-control form-control-sm" required readonly>
-    </div>
-    <div class="col-md-3">
-        <label class="form-label fw-bold small">Date Received</label>
-        <input type="date" id="dateReceived" class="form-control form-control-sm" value="@DateTime.Now.ToString("yyyy-MM-dd")">
-    </div>
-</div>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold mb-0 text-uppercase">Items to be Received</h6>
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetReceivingForm()">
+                <i class="fas fa-undo"></i> Reset
+            </button>
+        </div>
 
-                        <!-- THE TABLE -->
-                      <div style="overflow-x: auto; width: 100%;">
-    <table class="table" style="min-width: 1200px; white-space: nowrap;">
-        <thead class="table-warning text-center" style="font-size: 12px; font-weight: 700; vertical-align: middle;">
-            <tr>
-                <th style="width: 15%; min-width: 150px;">Item</th>
-                <th style="width: 8%;">Received Qty</th>
-                <th style="width: 8%;">Package Unit</th>
-                <th style="width: 15%;">Package Conversion</th>
-                <th style="width: 8%;">Receiving Unit</th>
-                <th style="width: 8%;">Accepted (Pkg)</th>
-                <th style="width: 8%;">Rejected (Pkg)</th>
-                <th style="width: 12%;">Reason</th>
-                <th style="width: 8%;">Converted Qty</th>
-                <th style="width: 8%;">Total Price (₱)</th>
-                <th style="width: 10%;">Accepted Price (₱)</th>
-                <th style="width: 8%;">Unit Price (₱)</th>
-                <th style="width: 10%;">Expiry Date</th>
-                <th style="width: 5%;">Action</th>
-            </tr>
-        </thead>
-        <tbody id="receivingItemsBody" style="font-size: 13px;">
-        </tbody>
-    </table>
-</div>
+        <div class="alert alert-info py-2 mb-3" style="border-radius: 8px;">
+            <i class="fas fa-info-circle"></i>
+            Provide <strong>either</strong> a Supplier <strong>or</strong> a Store Name.
+        </div>
 
-                        <!-- BUTTONS -->
-                        <div class="d-flex flex-column gap-2" style="width: 250px;">
-                            <button type="button" class="btn btn-success btn-sm fw-bold w-100" onclick="addReceivingRow()">
-                                Add Item
-                            </button>
-                            <button type="submit" class="btn btn-outline-success btn-sm fw-bold w-100">
-                                Save
-                            </button>
-                        </div>
+        <form id="receivingForm">
+            @Html.AntiForgeryToken()
 
-                    </form>
+            <div class="row g-3 mb-4">
+                <div class="col-12 col-md-6 col-xl-3">
+                    <label class="form-label fw-bold small">Supplier <span class="text-muted">(Optional)</span></label>
+                    <select id="supplierId" class="form-select form-select-sm">
+                        <option value="">-- Select Supplier --</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-6 col-xl-3">
+                    <label class="form-label fw-bold small">Store Name <span class="text-muted">(Optional)</span></label>
+                    <input type="text" id="globalStoreName" class="form-control form-control-sm" placeholder="e.g., Store 1">
+                </div>
+                <div class="col-12 col-md-6 col-xl-3">
+                    <label class="form-label fw-bold small">DR Number <span class="text-danger">*</span></label>
+                    <input type="text" id="drNumber" class="form-control form-control-sm" readonly>
+                </div>
+                <div class="col-12 col-md-6 col-xl-3">
+                    <label class="form-label fw-bold small">Date Received</label>
+                    <input type="date" id="dateReceived" class="form-control form-control-sm" value="@DateTime.Now.ToString("yyyy-MM-dd")">
                 </div>
             </div>
-        </div>
+
+            <div class="receive-table-wrap mb-3">
+                <table class="table mb-0" style="min-width: 1000px;">
+                    <thead class="table-warning text-center" style="font-size: 11px; font-weight: 700;">
+                        <tr>
+                            <th style="width: 15%;">Item</th>
+                            <th style="width: 9%;">Received Qty</th>
+                            <th style="width: 9%;">Package Unit</th>
+                            <th style="width: 11%;">Package Conv.</th>
+                            <th style="width: 7%;">Recv. Unit</th>
+                            <th style="width: 9%;">Accepted (Pkg)</th>
+                            <th style="width: 9%;">Rejected (Pkg)</th>
+                            <th style="width: 10%;">Reason</th>
+                            <th style="width: 8%;">Converted Qty</th>
+                            <th style="width: 9%;">Total (₱)</th>
+                            <th style="width: 9%;">Accepted (₱)</th>
+                            <th style="width: 8%;">Unit Price (₱)</th>
+                            <th style="width: 10%;">Expiry</th>
+                            <th style="width: 4%;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="receivingItemsBody" style="font-size: 13px;"></tbody>
+                </table>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-success btn-sm fw-bold px-4" onclick="addReceivingRow()">
+                    <i class="fas fa-plus"></i> Add Item
+                </button>
+                <button type="submit" class="btn btn-outline-success btn-sm fw-bold px-4">
+                    <i class="fas fa-save"></i> Save
+                </button>
+            </div>
+        </form>
+    </div>
+</div>       
+</div>
 
 <div id="supplierReturnReceiptModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 10004;">
     <div style="background: white; border-radius: 12px; width: 400px; max-width: 90%; padding: 25px;">
@@ -2976,7 +2997,7 @@
 <!-- Batch History Modal - CENTERED VERSION -->
 <!-- Batch History Modal - with Edit Stock button -->
 <div id="batchHistoryModal" class="modal fade" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-info text-white">
                 <h5 class="modal-title">
@@ -3129,6 +3150,8 @@
         </div>
     </div>
 </div>
+
+
 
 <!-- Add Size Modal - Redesigned like Add Product -->
 <div class="modal fade" id="addSizeModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
@@ -3291,6 +3314,27 @@
     </div>
 </div>
 
+<div class="modal fade" id="editExpiryModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px;">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="fas fa-calendar-alt me-2"></i> Edit Expiry Date</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="fw-bold mb-3" id="expiryBatchLabel"></p>
+                <label class="form-label">Expiry Date</label>
+                <input type="date" id="editExpiryInput" class="form-control">
+                <small class="text-muted">Iwan na blangko kung walang expiry.</small>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-info text-white" onclick="saveBatchExpiry()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ==================================================== -->
 <!-- FINANCIALS MODULE -->
 <!-- ==================================================== -->
@@ -3430,9 +3474,6 @@
             <button class="btn btn-success btn-sm" onclick="openAddExpenseModal()">
                 <i class="fas fa-plus"></i> Add Expense
             </button>
-            <button class="btn btn-outline-danger btn-sm" onclick="openWithdrawCashModal()">
-    <i class="fas fa-money-bill-wave"></i> Withdraw Cash
-</button>
         </div>
         <div class="card-body">
             <div class="table-responsive">
@@ -3499,39 +3540,7 @@
     </div>
 </div>
 
-<!-- Withdraw Cash Modal -->
-<div class="modal fade" id="withdrawCashModal" tabindex="-1" data-bs-backdrop="static">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title fw-bold"><i class="fas fa-money-bill-wave"></i> Withdraw Cash</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle"></i> <strong>Cash on Hand:</strong> 
-                    <span id="currentCashOnHand" class="fw-bold">₱0.00</span>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Date <span class="text-danger">*</span></label>
-                    <input type="date" id="wdDate" class="form-control" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Amount (₱) <span class="text-danger">*</span></label>
-                    <input type="number" id="wdAmount" class="form-control" step="0.01" min="0.01" required placeholder="0.00">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Reason</label>
-                    <textarea id="wdReason" class="form-control" rows="2" placeholder="e.g., Personal use, Supplier payment, etc."></textarea>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button class="btn btn-danger fw-bold" onclick="saveWithdrawal()">Withdraw</button>
-            </div>
-        </div>
-    </div>
-</div>
+
 
 <!-- Password Verification Modal (Gatekeeper) -->
 <div class="modal fade" id="passwordGateModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
@@ -3548,8 +3557,8 @@
                     <i class="fas fa-shield-alt"></i>
                 </div>
                 <p style="color: #666; margin-bottom: 20px;">
-                    You are about to <strong>modify stock</strong>. Please enter your password to continue.
-                </p>
+    You are about to <strong id="gateActionText">modify stock</strong>. Please enter your password to continue.
+</p>
 
                 <div class="mb-3 text-start">
                     <label class="form-label fw-bold">Password <span class="text-danger">*</span></label>
@@ -4371,7 +4380,7 @@ async function showModule(module) {
     document.getElementById('finStartDateLabel').innerText = 'Select Month';
     
     // Saka mag-load
-    loadFinancialSummary();
+   loadFinancialSummary(true);
 }
 }
    // Toggle Add Delivery Panel (gaya ng toggleRawMaterialForm)
@@ -6265,7 +6274,7 @@ function loadLowStockTab(items) {
                                         ${item.expiringStockWithUnit}
                                         ${item.batchCount > 1 ? `<br/><small class="text-muted">(${item.batchCount} batches)</small>` : ''}
                                     </td>
-                                    <td class="text-danger">${item.earliestExpiryDate}</td>
+                                    <td class="text-danger">${item.expiryDate ? new Date(item.expiryDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</td>
                                     <td class="text-danger fw-bold">${item.daysLeft} days</td>
                                     <td><span class="badge bg-info">⏰ Expiring Soon</span></td>
                                     <td>
@@ -6675,17 +6684,22 @@ async function produceProduct(productSizeId, sizeName, currentStock) {
                     <td>₱${batch.unitPrice.toFixed(2)} / ${costLabel}</td>
                     <td>${status}</td>
                     <td>
-                        <div class="d-flex gap-1">
-                            ${batch.usage?.length > 0 ? 
-                                `<button class="btn btn-sm btn-outline-info" onclick='showUsageDetails(${JSON.stringify(batch.usage)})'>
-                                    📋 View Usage (${batch.usage.length})
-                                </button>` : 
-                                '<span class="text-muted">No usage</span>'}
-                            <button class="btn btn-sm btn-outline-warning" onclick="showEditStockModal(${batch.batchId}, ${batch.quantityRemainingInBaseUnit}, '${materialName}', '${unit}', ${batch.rawMaterialId})">
-    ✏️ Edit Stock
-</button>
-                        </div>
-                    </td>
+    <div class="action-stack">
+        ${batch.usage?.length > 0 ?
+            `<button class="btn btn-sm btn-outline-info" onclick='showUsageDetails(${JSON.stringify(batch.usage)})'>
+                📋 Usage (${batch.usage.length})
+            </button>` :
+            '<span class="text-muted small">No usage</span>'}
+        <button class="btn btn-sm btn-outline-warning"
+                onclick="showEditStockModal(${batch.batchId}, ${batch.quantityRemainingInBaseUnit}, '${materialName}', '${unit}', ${batch.rawMaterialId})">
+            ✏️ Edit Stock
+        </button>
+        <button class="btn btn-sm btn-outline-info"
+                onclick="requestExpiryEdit(${batch.batchId}, '${batch.expiryDate ? batch.expiryDate.split('T')[0] : ''}', '${materialName}')">
+            📅 Expiry
+        </button>
+    </div>
+</td>
                 </tr>
             `;
         });
@@ -6703,6 +6717,42 @@ async function produceProduct(productSizeId, sizeName, currentStock) {
         tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error loading batches: ${error.message}</td></tr>`;
     }
 }
+let currentExpiryBatchId = null;
+
+function openEditExpiryModal(batchId, currentExpiry, materialName) {
+    currentExpiryBatchId = batchId;
+    document.getElementById('expiryBatchLabel').innerText = `Batch #${batchId} - ${materialName}`;
+    document.getElementById('editExpiryInput').value = currentExpiry || '';
+    new bootstrap.Modal(document.getElementById('editExpiryModal')).show();
+}
+
+async function saveBatchExpiry() {
+    const newExpiry = document.getElementById('editExpiryInput').value || null;
+    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+
+    showLoading('Saving expiry...');
+    try {
+        const res = await fetch('/RawMaterial/UpdateBatchExpiry', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
+            body: JSON.stringify({ batchId: currentExpiryBatchId, expiryDate: newExpiry })
+        });
+        const data = await res.json();
+        hideLoading();
+
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('editExpiryModal')).hide();
+            await showAlert('Expiry date updated.', 'Success', '✅');
+            saveAndReload();
+        } else {
+            await showAlert('Error: ' + data.message, 'Error', '❌');
+        }
+    } catch (err) {
+        hideLoading();
+        await showAlert('Error: ' + err.message, 'Error', '❌');
+    }
+}
+
 
 
 async function displayInPOS(productSizeId, productName, sizeName) {
@@ -8572,13 +8622,13 @@ function addReceivingRow() {
     let materialOptions = '<option value="">-- Select Item --</option>';
     if (rawMaterialsList && rawMaterialsList.length > 0) {
         rawMaterialsList.forEach(m => {
-            // ✅ BAGONG DATA-ATTRIBUTE: data-unit = display unit (kg), data-base-unit = base unit (g)
-            materialOptions += `<option value="${m.rawMaterialId}" 
-                                         data-unit="${m.unit}" 
-                                         data-base-unit="${m.baseUnit}">
-                                    ${escapeHtml(m.name)}
-                                </option>`;
-        });
+    const skuText = m.sku ? ` (${escapeHtml(m.sku)})` : '';
+    materialOptions += `<option value="${m.rawMaterialId}"
+                                 data-unit="${m.unit}"
+                                 data-base-unit="${m.baseUnit}">
+                            ${escapeHtml(m.name)}${skuText}
+                        </option>`;
+});
     }
 
     const row = `
@@ -8597,9 +8647,7 @@ function addReceivingRow() {
             <td>
                 <div class="input-group input-group-sm">
                     <span class="input-group-text bg-light px-2" style="font-size: 11px;" title="Conversion factor">1 =</span>
-                    <input type="number" class="form-control text-center pkg-conversion" 
-                           data-row="${rowId}" step="0.01" min="0.01" value="1" 
-                           placeholder="1" oninput="calculateReceivingRow(${rowId})">
+                   <input type="number" class="form-control text-center pkg-conversion" data-row="${rowId}" step="0.01" min="0.01" placeholder="1" oninput="calculateReceivingRow(${rowId})">
                 </div>
             </td>
             <td>
@@ -8607,10 +8655,10 @@ function addReceivingRow() {
                 <input type="text" class="form-control form-control-sm text-center recv-unit bg-light" data-row="${rowId}" readonly placeholder="--">
             </td>
             <td>
-                <input type="number" class="form-control form-control-sm text-center accepted-qty" data-row="${rowId}" step="0.01" min="0" placeholder="0" oninput="calculateReceivingRow(${rowId})">
+               <input type="number" class="form-control form-control-sm text-center accepted-qty" data-row="${rowId}" step="0.01" min="0" placeholder="0" oninput="calculateReceivingRow(${rowId})">
             </td>
             <td>
-                <input type="number" class="form-control form-control-sm text-center rejected-qty" data-row="${rowId}" step="0.01" min="0" placeholder="0" oninput="calculateReceivingRow(${rowId}); toggleReasonDropdown(${rowId})">
+                <input type="number" class="form-control form-control-sm text-center rejected-qty" data-row="${rowId}" step="0.01" min="0" placeholder="0" readonly oninput="calculateReceivingRow(${rowId}); toggleReasonDropdown(${rowId})">
             </td>
             <td>
                 <select class="form-select form-select-sm reason-select" data-row="${rowId}" style="display:none; min-width: 120px;">
@@ -8624,7 +8672,7 @@ function addReceivingRow() {
                 <input type="text" class="form-control form-control-sm text-center converted-qty bg-light fw-bold" data-row="${rowId}" readonly value="0">
             </td>
             <td>
-                <input type="number" class="form-control form-control-sm text-center total-price" data-row="${rowId}" step="0.01" min="0" value="0" oninput="calculateReceivingRow(${rowId})">
+                <input type="number" class="form-control form-control-sm text-center total-price" data-row="${rowId}" step="0.01" min="0" placeholder="0.00" oninput="calculateReceivingRow(${rowId})">
             </td>
             <td>
                 <input type="text" class="form-control form-control-sm text-center accepted-price bg-light fw-bold text-success" 
@@ -8870,6 +8918,34 @@ document.getElementById('receivingForm')?.addEventListener('submit', async funct
             return;
         }
     }
+
+    // ✅ WARNING KUNG WALANG EXPIRY DATE (hindi hard block)
+const noExpiryItems = [];
+for (let row of document.querySelectorAll('#receivingItemsBody tr')) {
+    const rowId = row.id.split('-').pop();
+    const mat = document.querySelector(`.material-select[data-row="${rowId}"]`);
+    if (!mat || !mat.value) continue;
+
+    const expiryInput = document.querySelector(`.expiry-date[data-row="${rowId}"]`);
+    const itemName = mat.options[mat.selectedIndex].text.trim();
+
+    if (!expiryInput.value) {
+        noExpiryItems.push(itemName);
+        expiryInput.style.borderColor = '#ffc107';   // visual cue sa field
+        expiryInput.style.boxShadow = '0 0 0 2px rgba(255,193,7,0.4)';
+    } else {
+        expiryInput.style.borderColor = '';
+        expiryInput.style.boxShadow = '';
+    }
+}
+
+if (noExpiryItems.length > 0) {
+    const proceed = await showConfirm(
+    `No expiry date for:\n• ${noExpiryItems.join('\n• ')}\n\nAre you sure you want to save without expiry dates?`,
+    'No Expiry Date'
+);
+    if (!proceed) return;   // bumalik sa form para mapunan
+}
 
     const items = [];
     const rows = document.querySelectorAll('#receivingItemsBody tr');
@@ -9161,9 +9237,9 @@ function viewDeliveryDetails(receivingId) {
     
     delivery.items.forEach(item => {
         const storeNameDisplay = item.storeName ? `<br><small class="text-muted">Store: ${escapeHtml(item.storeName)}</small>` : '';
-        const unitPriceFmt = `₱${item.unitPrice.toFixed(2)}`;
-const costUnitLabel = (item.unit === 'g' || item.unit === 'kg') ? 'kg'
-                    : ((item.unit === 'mL' || item.unit === 'L') ? 'L' : item.unit);
+                                                        const unitPriceFmt = `₱${item.unitPrice.toFixed(2)}`;
+                                                        const costUnitLabel = (item.unit === 'g' || item.unit === 'kg') ? 'kg'
+                                                            : ((item.unit === 'mL' || item.unit === 'L') ? 'L' : item.unit);
         const totalPriceFmt = `₱${item.totalPrice.toFixed(2)}`;
         const acceptedPriceFmt = `₱${item.acceptedPrice.toFixed(2)}`;
 
@@ -10317,6 +10393,7 @@ function showEditStockModal(batchId, currentRemainingInBaseUnit, materialName, u
     };
 
     // ✅ I-reset ang password field at error message
+                                                    document.getElementById('gateActionText').innerText = 'modify stock';
     document.getElementById('gatePasswordInput').value = '';
     document.getElementById('gatePasswordError').style.display = 'none';
 
@@ -10325,6 +10402,19 @@ function showEditStockModal(batchId, currentRemainingInBaseUnit, materialName, u
     gateModal.show();
 
     // ✅ Focus agad sa password field
+    setTimeout(() => document.getElementById('gatePasswordInput').focus(), 300);
+}
+
+let pendingExpiryData = null;
+
+function requestExpiryEdit(batchId, currentExpiry, materialName) {
+    pendingExpiryData = { batchId, currentExpiry, materialName };
+
+     document.getElementById('gateActionText').innerText = 'modify expiry date';
+    document.getElementById('gatePasswordInput').value = '';
+    document.getElementById('gatePasswordError').style.display = 'none';
+
+    new bootstrap.Modal(document.getElementById('passwordGateModal')).show();
     setTimeout(() => document.getElementById('gatePasswordInput').focus(), 300);
 }
 
@@ -10353,10 +10443,9 @@ async function submitGatePassword() {
         const result = await response.json();
 
         if (result.success) {
-            // ✅ Tama ang password — isara ang gate, buksan ang edit modal
             bootstrap.Modal.getInstance(document.getElementById('passwordGateModal')).hide();
 
-            // ✅ Ipakita ang edit modal gamit ang stored data
+            // Stock edit flow
             if (pendingBatchData) {
                 openActualEditStockModal(
                     pendingBatchData.batchId,
@@ -10367,8 +10456,16 @@ async function submitGatePassword() {
                 );
                 pendingBatchData = null;
             }
+            // Expiry edit flow
+            else if (pendingExpiryData) {
+                openEditExpiryModal(
+                    pendingExpiryData.batchId,
+                    pendingExpiryData.currentExpiry,
+                    pendingExpiryData.materialName
+                );
+                pendingExpiryData = null;
+            }
         } else {
-            // ❌ Mali ang password
             errorEl.style.display = 'block';
             errorEl.innerText = result.message || 'Incorrect password.';
             document.getElementById('gatePasswordInput').value = '';
@@ -10974,65 +11071,56 @@ function toggleFinDateInputs() {
     }
 }
 
-                                                async function loadFinancialSummary() {
-                                                    const periodType = document.getElementById('finPeriodType').value;
-                                                    const startDate = document.getElementById('finStartDate').value || null;
-                                                    const endDate = document.getElementById('finEndDate').value || null;
+                                                async function loadFinancialSummary(silent = false) {
+    const periodType = document.getElementById('finPeriodType').value;
+    const startDate = document.getElementById('finStartDate').value || null;
+    const endDate = document.getElementById('finEndDate').value || null;
 
-                                                    if (periodType === 'custom') {
-                                                        if (!startDate || !endDate) {
-                                                            showAlert('Please select both Start Date and End Date.', 'Required', '⚠️');
-                                                            return;
-                                                        }
-                                                    } else {
-                                                        if (!startDate) {
-                                                            showAlert('Please select a date.', 'Required', '⚠️');
-                                                            return;
-                                                        }
-                                                    }
+    if (periodType === 'custom') {
+        if (!startDate || !endDate) {
+            if (!silent) showAlert('Please select both Start Date and End Date.', 'Required', '⚠️');
+            return;
+        }
+    } else if (!startDate) {
+        if (!silent) showAlert('Please select a date.', 'Required', '⚠️');
+        return;
+    }
 
-                                                    showLoading('Loading financial data...');
+    if (!silent) showLoading('Loading financial data...');
 
-                                                    try {
-                                                        const url = `/Finance/GetSummary?periodType=${periodType}&startDate=${startDate || ''}&endDate=${endDate || ''}`;
-                                                        const res = await fetch(url);
-                                                        const data = await res.json();
-                                                        hideLoading();
+    try {
+        const url = `/Finance/GetSummary?periodType=${periodType}&startDate=${startDate || ''}&endDate=${endDate || ''}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!silent) hideLoading();
 
-                                                        console.log('Financial Summary Data:', data);
+        document.getElementById('finTotalSales').innerText = `₱${(data.totalSales || 0).toFixed(2)}`;
+        document.getElementById('finPurchases').innerText = `₱${(data.rawMaterialPurchases || 0).toFixed(2)}`;
+        document.getElementById('finOtherExpenses').innerText = `₱${(data.otherExpenses || 0).toFixed(2)}`;
+        document.getElementById('finNetProfit').innerText = `₱${(data.profit || 0).toFixed(2)}`;
 
-                                                        // ✅ SUMMARY CARDS
-                                                        document.getElementById('finTotalSales').innerText = `₱${(data.totalSales || 0).toFixed(2)}`;
-                                                        document.getElementById('finPurchases').innerText = `₱${(data.rawMaterialPurchases || 0).toFixed(2)}`;
-                                                        document.getElementById('finOtherExpenses').innerText = `₱${(data.otherExpenses || 0).toFixed(2)}`;
-                                                        document.getElementById('finNetProfit').innerText = `₱${(data.profit || 0).toFixed(2)}`;
+        const deliveryCount = data.deliveryCount || 0;
+        document.getElementById('finPurchasesSource').innerHTML =
+            `<i class="fas fa-truck"></i> From ${deliveryCount} delivery${deliveryCount !== 1 ? 'ies' : ''}`;
 
-                                                        // ✅ PURCHASES SOURCE
-                                                        const deliveryCount = data.deliveryCount || 0;
-                                                        document.getElementById('finPurchasesSource').innerHTML =
-                                                            `<i class="fas fa-truck"></i> From ${deliveryCount} delivery${deliveryCount !== 1 ? 'ies' : ''}`;
+        document.getElementById('finCashInflow').innerText = `₱${(data.cashInflow || 0).toFixed(2)}`;
+        document.getElementById('finCashExpenses').innerText = `₱${(data.otherExpenses || 0).toFixed(2)}`;
+        document.getElementById('finCashWithdrawals').innerText = `₱${(data.withdrawals || 0).toFixed(2)}`;
+        document.getElementById('finCashOutflow').innerText = `₱${(data.cashOutflow || 0).toFixed(2)}`;
+        document.getElementById('finCashMovement').innerText = `₱${(data.cashMovement || 0).toFixed(2)}`;
 
-                                                        // ✅ CASH FLOW
-                                                        document.getElementById('finCashInflow').innerText = `₱${(data.cashInflow || 0).toFixed(2)}`;
-                                                        document.getElementById('finCashExpenses').innerText = `₱${(data.otherExpenses || 0).toFixed(2)}`;
-                                                        document.getElementById('finCashWithdrawals').innerText = `₱${(data.withdrawals || 0).toFixed(2)}`;
-                                                        document.getElementById('finCashOutflow').innerText = `₱${(data.cashOutflow || 0).toFixed(2)}`;
-                                                        document.getElementById('finCashMovement').innerText = `₱${(data.cashMovement || 0).toFixed(2)}`;
+        document.getElementById('finProfitSales').innerText = `₱${(data.totalSales || 0).toFixed(2)}`;
+        document.getElementById('finCOGS').innerText = `₱${(data.cogs || 0).toFixed(2)}`;
+        document.getElementById('finProfitExpenses').innerText = `₱${(data.otherExpenses || 0).toFixed(2)}`;
+        document.getElementById('finProfit').innerText = `₱${(data.profit || 0).toFixed(2)}`;
 
-                                                        // ✅ PROFIT SUMMARY
-                                                        document.getElementById('finProfitSales').innerText = `₱${(data.totalSales || 0).toFixed(2)}`;
-                                                        document.getElementById('finCOGS').innerText = `₱${(data.cogs || 0).toFixed(2)}`;
-                                                        document.getElementById('finProfitExpenses').innerText = `₱${(data.otherExpenses || 0).toFixed(2)}`;
-                                                        document.getElementById('finProfit').innerText = `₱${(data.profit || 0).toFixed(2)}`;
-
-                                                        // ✅ Load Expenses Table
-                                                        loadExpensesTable();
-                                                    } catch (err) {
-                                                        hideLoading();
-                                                        console.error('Error loading summary:', err);
-                                                        showAlert('Error loading financial summary: ' + err.message, 'Error', '❌');
-                                                    }
-                                                }
+        loadExpensesTable();
+    } catch (err) {
+        if (!silent) hideLoading();
+        console.error('Error loading summary:', err);
+        if (!silent) showAlert('Error loading financial summary: ' + err.message, 'Error', '❌');
+    }
+}
 
 // 3. Load Expenses Table
 async function loadExpensesTable() {
@@ -11154,59 +11242,9 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('finStartDate').value = now.toISOString().slice(0, 7) + '-01';
 });
 
-function openWithdrawCashModal() {
-    // Kunin ang current cash on hand mula sa dashboard
-    const cashOnHandText = document.getElementById('finCashMovement').innerText.replace('₱','').replace(',','');
-    const cashOnHand = parseFloat(cashOnHandText) || 0;
-    
-    document.getElementById('currentCashOnHand').innerText = `₱${cashOnHand.toFixed(2)}`;
-    document.getElementById('wdDate').value = new Date().toISOString().split('T')[0];
-    document.getElementById('wdAmount').value = '';
-    document.getElementById('wdReason').value = '';
-    new bootstrap.Modal(document.getElementById('withdrawCashModal')).show();
-}
 
-async function saveWithdrawal() {
-    const date = document.getElementById('wdDate').value;
-    const amount = parseFloat(document.getElementById('wdAmount').value);
-    const reason = document.getElementById('wdReason').value;
 
-    if (!date || !amount || amount <= 0) {
-        showAlert('Please enter a valid amount.', 'Required', '⚠️');
-        return;
-    }
 
-    // Kunin ang current cash on hand
-    const cashOnHandText = document.getElementById('finCashMovement').innerText.replace('₱','').replace(',','');
-    const cashOnHand = parseFloat(cashOnHandText) || 0;
-
-    // ✅ CHECK KUNG KULANG ANG PERA
-    if (amount > cashOnHand) {
-        showAlert(`❌ Insufficient cash on hand! Available: ₱${cashOnHand.toFixed(2)}. Cannot withdraw ₱${amount.toFixed(2)}.`, 'Insufficient Funds', '❌');
-        return;
-    }
-
-    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
-
-    try {
-        const res = await fetch('/Finance/AddWithdrawal', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
-            body: JSON.stringify({ withdrawalDate: date, amount: amount, reason: reason })
-        });
-        const data = await res.json();
-
-        if (data.success) {
-            bootstrap.Modal.getInstance(document.getElementById('withdrawCashModal')).hide();
-            showAlert('Cash withdrawn successfully!', 'Success', '✅');
-            loadFinancialSummary();
-        } else {
-            showAlert(data.message, 'Error', '❌');
-        }
-    } catch (err) {
-        showAlert('Error: ' + err.message, 'Error', '❌');
-    }
-}
 
 document.addEventListener('DOMContentLoaded', function() {
     const supplierSelect = document.getElementById('SupplierId'); // Palitan ng tamang ID
@@ -11672,6 +11710,11 @@ function escapeHtml(str) {
         return m;
     });
 }
+
+document.getElementById('passwordGateModal').addEventListener('hidden.bs.modal', function () {
+    pendingBatchData = null;
+    pendingExpiryData = null;
+});
 
 document.addEventListener('DOMContentLoaded', function() {
     // ==========================================

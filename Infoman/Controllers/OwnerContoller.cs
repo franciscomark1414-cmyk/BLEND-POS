@@ -2108,6 +2108,7 @@ namespace Infoman.Controllers
                 {
                     r.RawMaterialId,
                     r.Name,
+                    r.SKU,
                     r.Unit,           // Display Unit (e.g., kg, pcs)
                     r.BaseUnit,       // Base Unit (e.g., g, mL)
                     r.ConversionFactor,

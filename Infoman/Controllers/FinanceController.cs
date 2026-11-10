@@ -173,48 +173,5 @@ namespace Infoman.Controllers
             return Json(new { success = true, message = "Expense deleted." });
         }
 
-        [HttpPost]
-        public async Task<IActionResult> AddWithdrawal([FromBody] WithdrawalViewModel model)
-        {
-            if (model == null || model.Amount <= 0)
-                return Json(new { success = false, message = "Invalid amount." });
-
-            // ✅ Total Sales (all-time)
-            var totalSales = await _context.Orders
-                .Where(o => o.Status == "COMPLETED" || o.Status == "PENDING_BLENDING")
-                .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
-
-            var totalExpenses = await _context.Expenses
-                .SumAsync(e => (decimal?)e.Amount) ?? 0;
-
-            var totalWithdrawals = await _context.CashWithdrawals
-                .SumAsync(w => (decimal?)w.Amount) ?? 0;
-
-            // ✅ Cash on Hand = Sales - Expenses - Withdrawals
-            var cashOnHand = totalSales - totalExpenses - totalWithdrawals;
-
-            if (model.Amount > cashOnHand)
-            {
-                return Json(new
-                {
-                    success = false,
-                    message = $"Insufficient cash! Available: ₱{cashOnHand:F2}"
-                });
-            }
-
-            var withdrawal = new CashWithdrawal
-            {
-                WithdrawalDate = model.WithdrawalDate == default ? DateTime.Now : model.WithdrawalDate,
-                Amount = model.Amount,
-                Reason = model.Reason,
-                RecordedBy = "Owner",
-                DateCreated = DateTime.Now
-            };
-
-            _context.CashWithdrawals.Add(withdrawal);
-            await _context.SaveChangesAsync();
-
-            return Json(new { success = true, message = "Withdrawal successful!" });
-        }
     }
 }

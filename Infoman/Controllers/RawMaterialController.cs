@@ -1167,6 +1167,32 @@ namespace Infoman.Controllers
             }
         }
 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateBatchExpiry([FromBody] UpdateBatchExpiryRequest request)
+        {
+            if (HttpContext.Session.GetInt32("Owner_UserId") is null)
+                return Json(new { success = false, message = "Unauthorized." });
+
+            var batch = await _context.RawMaterialBatches.FindAsync(request.BatchId);
+            if (batch == null)
+                return Json(new { success = false, message = "Batch not found." });
+
+            if (request.ExpiryDate.HasValue && request.ExpiryDate.Value.Date < DateTime.Today.AddYears(-5))
+                return Json(new { success = false, message = "Invalid expiry date." });
+
+            batch.ExpiryDate = request.ExpiryDate?.Date;
+            await _context.SaveChangesAsync();
+
+            return Json(new { success = true });
+        }
+
+        public class UpdateBatchExpiryRequest
+        {
+            public int BatchId { get; set; }
+            public DateTime? ExpiryDate { get; set; }
+        }
+
         public class VerifyPasswordRequest
         {
             public string Password { get; set; }

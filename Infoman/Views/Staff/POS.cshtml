@@ -1223,10 +1223,23 @@
         }
 
         #voidRefundModal .modal-qty-content {
-            width: 760px;
-            max-width: 95%;
-            border-radius: var(--radius-lg);
-        }
+    width: 900px;
+    max-width: 95vw;
+    max-height: 92vh;
+    border-radius: var(--radius-lg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Body ng modal — ito ang mag-sa-scroll */
+#voidRefundModal .modal-qty-content > div:nth-child(2) {
+    padding: 20px 24px !important;
+    background: var(--surface);
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+}
         #voidRefundModal .modal-qty-content > div:first-child {
             background: var(--ink-900) !important;
             color: #fff !important;
@@ -1249,10 +1262,7 @@
         #voidRefundModal .modal-qty-content > div:first-child button:hover {
             color: #fff !important;
         }
-        #voidRefundModal .modal-qty-content > div:nth-child(2) {
-            padding: 24px !important;
-            background: var(--surface);
-        }
+       
 
         /* Tabs (Refund / Change) */
         #voidRefundModal [style*="border-bottom: 2px solid #eee"] {
@@ -2327,20 +2337,21 @@
                 <!-- EXCHANGE TAB CONTENT -->
                 <div id="exchangeTabContent" style="display: none;">
                     <!-- Step Indicator -->
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 20px; gap: 10px;">
-                        <div style="flex: 1; text-align: center; padding: 10px; background: var(--ink-50); color: var(--ink-700); border: 1px solid var(--ink-200); border-radius: var(--radius-md);">
-                            <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--brand);">STEP 1</span><br>
-                            <strong style="font-size: 12.5px;">Select Items to Return</strong>
-                        </div>
-                        <div style="flex: 1; text-align: center; padding: 10px; background: var(--ink-50); color: var(--ink-700); border: 1px solid var(--ink-200); border-radius: var(--radius-md);">
-                            <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--brand);">STEP 2</span><br>
-                            <strong style="font-size: 12.5px;">Choose Replacement</strong>
-                        </div>
-                        <div style="flex: 1; text-align: center; padding: 10px; background: var(--ink-50); color: var(--ink-700); border: 1px solid var(--ink-200); border-radius: var(--radius-md);">
-                            <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--brand);">STEP 3</span><br>
-                            <strong style="font-size: 12.5px;">Confirm Difference</strong>
-                        </div>
-                    </div>
+                  <!-- Step Indicator -->
+<div style="display: flex; justify-content: space-between; margin-bottom: 16px; gap: 8px;">
+    <div style="flex: 1; text-align: center; padding: 8px; background: var(--ink-50); border: 1px solid var(--ink-200); border-radius: var(--radius-md);">
+        <span style="font-size: 9px; font-weight: 700; letter-spacing: 0.08em; color: var(--brand);">STEP 1</span><br>
+        <strong style="font-size: 11.5px;">Select Items</strong>
+    </div>
+    <div style="flex: 1; text-align: center; padding: 8px; background: var(--ink-50); border: 1px solid var(--ink-200); border-radius: var(--radius-md);">
+        <span style="font-size: 9px; font-weight: 700; letter-spacing: 0.08em; color: var(--brand);">STEP 2</span><br>
+        <strong style="font-size: 11.5px;">Choose Replacement</strong>
+    </div>
+    <div style="flex: 1; text-align: center; padding: 8px; background: var(--ink-50); border: 1px solid var(--ink-200); border-radius: var(--radius-md);">
+        <span style="font-size: 9px; font-weight: 700; letter-spacing: 0.08em; color: var(--brand);">STEP 3</span><br>
+        <strong style="font-size: 11.5px;">Confirm Difference</strong>
+    </div>
+</div>
 
                     <!-- Select Order Section -->
                     <div style="background: var(--ink-50); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--ink-200); margin-bottom: 20px;">
@@ -2353,68 +2364,72 @@
                     </div>
 
                     <!-- Two Column Layout -->
-                    <div style="display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <!-- Two Column Layout — FIXED PROPORTIONS -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
 
-                        <!-- LEFT: Items to RETURN -->
-                        <div style="flex: 1; min-width: 250px;">
-                            <div style="background: var(--surface); border: 1px solid var(--ink-200); border-radius: var(--radius-md); overflow: hidden;">
-                                <div style="background: var(--warning-soft); padding: 12px 16px; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #92400e; border-bottom: 1px solid #fde68a;">
-                                    <i class="fas fa-arrow-left"></i>&nbsp; Items to Return
-                                </div>
-                                <div id="exchangeReturnItems" style="max-height: 350px; overflow-y: auto; padding: 10px;">
-                                    <div class="text-muted text-center" style="padding: 20px;">Select an order first</div>
-                                </div>
-                            </div>
-                        </div>
+    <!-- LEFT: Items to RETURN -->
+    <div>
+        <div style="background: var(--surface); border: 1px solid var(--ink-200); border-radius: var(--radius-md); overflow: hidden; height: 100%; display: flex; flex-direction: column;">
+            <div style="background: var(--warning-soft); padding: 10px 14px; font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: #92400e; border-bottom: 1px solid #fde68a;">
+                <i class="fas fa-arrow-left"></i>&nbsp; Items to Return
+            </div>
+            <div id="exchangeReturnItems" style="flex: 1; overflow-y: auto; padding: 10px; max-height: 320px;">
+                <div class="text-muted text-center" style="padding: 20px; font-size: 12px;">Select an order first</div>
+            </div>
+        </div>
+    </div>
 
-                        <!-- RIGHT: Replacement Items -->
-                        <div style="flex: 1; min-width: 250px;">
-                            <div style="background: var(--surface); border: 1px solid var(--ink-200); border-radius: var(--radius-md); overflow: hidden;">
-                                <div style="background: var(--success-soft); padding: 12px 16px; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--success); border-bottom: 1px solid #bbf7d0;">
-                                    <i class="fas fa-arrow-right"></i>&nbsp; Replacement Items
-                                </div>
-                                <div id="exchangeReplaceItems" style="max-height: 350px; overflow-y: auto; padding: 10px;">
-                                    <div id="replaceItemsList" class="text-muted text-center" style="padding: 20px;">No replacement items added yet</div>
-                                </div>
-                                <div style="padding: 10px;">
-                                    <button type="button" class="btn btn-success w-100" onclick="showProductSearchForExchange()" style="border-radius: var(--radius-md); padding: 10px;">
-                                        <i class="fas fa-plus"></i> Add Replacement Item
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+    <!-- RIGHT: Replacement Items -->
+    <div>
+        <div style="background: var(--surface); border: 1px solid var(--ink-200); border-radius: var(--radius-md); overflow: hidden; height: 100%; display: flex; flex-direction: column;">
+            <div style="background: var(--success-soft); padding: 10px 14px; font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--success); border-bottom: 1px solid #bbf7d0;">
+                <i class="fas fa-arrow-right"></i>&nbsp; Replacement Items
+            </div>
+            <div id="exchangeReplaceItems" style="flex: 1; overflow-y: auto; padding: 10px; max-height: 320px;">
+                <div id="replaceItemsList" class="text-muted text-center" style="padding: 20px; font-size: 12px;">No replacement items added yet</div>
+            </div>
+            <div style="padding: 10px; border-top: 1px solid var(--ink-200);">
+                <button type="button" class="btn btn-success w-100" onclick="showProductSearchForExchange()" style="border-radius: var(--radius-md); padding: 9px; font-size: 12.5px; font-weight: 600;">
+                    <i class="fas fa-plus"></i> Add Replacement Item
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
 
                     <!-- Summary Card -->
-                    <div style="background: var(--surface); padding: 18px; border-radius: var(--radius-md); margin: 15px 0; border: 1px solid var(--ink-200); box-shadow: var(--shadow-xs);">
-                        <div style="display: flex; text-align: center; gap: 10px; flex-wrap: wrap;">
-                            <div style="flex: 1;">
-                                <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--danger);">Return Value</div>
-                                <div style="font-size: 20px; font-weight: 800; color: var(--danger); font-variant-numeric: tabular-nums;" id="exchangeTotalReturn">₱0.00</div>
-                            </div>
-                            <div style="flex: 1;">
-                                <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--success);">Replacement Value</div>
-                                <div style="font-size: 20px; font-weight: 800; color: var(--success); font-variant-numeric: tabular-nums;" id="exchangeTotalReplace">₱0.00</div>
-                            </div>
-                            <div style="flex: 1;">
-                                <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--info);">Difference</div>
-                                <div style="font-size: 20px; font-weight: 800; color: var(--brand); font-variant-numeric: tabular-nums;" id="exchangePriceDiff">₱0.00</div>
-                                <div id="exchangeDiffType" style="font-size: 11px;"></div>
-                            </div>
-                        </div>
+                  <!-- Summary Card -->
+<div style="background: var(--surface); padding: 14px 16px; border-radius: var(--radius-md); margin: 12px 0; border: 1px solid var(--ink-200);">
+    <div style="display: flex; text-align: center; gap: 10px;">
+        <div style="flex: 1;">
+            <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--danger);">Return Value</div>
+            <div style="font-size: 18px; font-weight: 800; color: var(--danger); font-variant-numeric: tabular-nums;" id="exchangeTotalReturn">₱0.00</div>
+        </div>
+        <div style="flex: 1; border-left: 1px solid var(--ink-200); border-right: 1px solid var(--ink-200);">
+            <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--success);">Replacement Value</div>
+            <div style="font-size: 18px; font-weight: 800; color: var(--success); font-variant-numeric: tabular-nums;" id="exchangeTotalReplace">₱0.00</div>
+        </div>
+        <div style="flex: 1;">
+            <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--info);">Difference</div>
+            <div style="font-size: 18px; font-weight: 800; color: var(--brand); font-variant-numeric: tabular-nums;" id="exchangePriceDiff">₱0.00</div>
+            <div id="exchangeDiffType" style="font-size: 10px;"></div>
+        </div>
+    </div>
 
-                        <!-- PAYMENT FOR DIFFERENCE SECTION -->
-                        <div id="exchangePaymentSection" style="margin-top: 15px; padding-top: 14px; border-top: 1px dashed var(--ink-200); display: none;">
-                            <label style="font-size: 12px; font-weight: 700; margin-bottom: 8px; display: block; color: var(--ink-700); text-transform: uppercase; letter-spacing: 0.05em;">
-                                <i class="fas fa-credit-card"></i> Payment for difference
-                            </label>
-                            <div style="display: flex; gap: 12px;">
-                                <button type="button" class="exchange-payment-btn" data-method="Cash" onclick="selectExchangePayment('Cash')" style="flex: 1; padding: 11px; border-radius: var(--radius-md); border: 1.5px solid var(--ink-200); background: var(--surface); cursor: pointer; font-weight: 600; color: var(--ink-700); transition: all var(--transition);">
-                                    💵 Cash
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+    <!-- Payment for difference -->
+    <div id="exchangePaymentSection" style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--ink-200); display: none;">
+        <label style="font-size: 11px; font-weight: 700; margin-bottom: 6px; display: block; color: var(--ink-700); text-transform: uppercase; letter-spacing: 0.05em;">
+            <i class="fas fa-credit-card"></i> Payment for Difference
+        </label>
+        <div style="display: flex; gap: 10px;">
+            <button type="button" class="exchange-payment-btn" data-method="Cash" onclick="selectExchangePayment('Cash')" 
+                    style="flex: 1; padding: 9px; border-radius: var(--radius-md); border: 1.5px solid var(--ink-200); background: var(--surface); cursor: pointer; font-weight: 600; color: var(--ink-700); font-size: 12.5px;">
+                💵 Cash
+            </button>
+        </div>
+    </div>
+</div>
 
                     <!-- Reason Section -->
                     <div style="margin-bottom: 15px;">
@@ -3568,7 +3583,7 @@ async function payWithGCashFromReceipt(orderId) {
     }
 }
 
-       async function showReceiptPopup(orderId) {
+     async function showReceiptPopup(orderId) {
     if (!orderId) {
         await showAlert('No order selected.', 'Error', '❌');
         return;
@@ -3586,7 +3601,6 @@ async function payWithGCashFromReceipt(orderId) {
             return;
         }
         
-        // ✅ Filter out voided and refunded items
         const activeItems = data.order.items.filter(item => !item.isVoided && !item.isRefunded);
         
         if (activeItems.length === 0) {
@@ -3617,21 +3631,139 @@ async function payWithGCashFromReceipt(orderId) {
         
         window.currentOrderId = orderId;
         
-        showReceiptModal(
-            orderDetails, 
-            data.order.paymentMethod || 'Cash', 
-            data.order.discountType || 'None', 
-            discountPercent, 
-            discountSavings, 
-            discountedTotal, 
-            orderId, 
-            data.order.status  // DAPAT "PENDING_BLENDING" NA ITO PAGKATAPOS NG GCASH
-        );
+        // ✅ CHECK KUNG ITO AY EXCHANGE REPLACEMENT
+        const isExchangeReplacement = data.order.isExchangeReplacement || 
+                                       (data.order.originalOrderId && data.order.originalOrderId > 0);
+        
+        if (isExchangeReplacement) {
+            // I-load ang exchange details
+            await loadExchangeInfoForReceipt(orderId);
+        } else {
+            // Normal receipt
+            showReceiptModal(
+                orderDetails, 
+                data.order.paymentMethod || 'Cash', 
+                data.order.discountType || 'None', 
+                discountPercent, 
+                discountSavings, 
+                discountedTotal, 
+                orderId, 
+                data.order.status
+            );
+        }
         
     } catch (error) {
         hideLoading();
         console.error('Error loading receipt:', error);
         await showAlert('Error loading receipt: ' + error.message, 'Error', '❌');
+    }
+}
+
+// ✅ BAGONG FUNCTION: Para i-load ang exchange details sa receipt
+async function loadExchangeInfoForReceipt(orderId) {
+    try {
+        const response = await fetch(`/Owner/GetExchangeDetails?orderId=${orderId}`);
+        const data = await response.json();
+        
+        if (data.success && data.exchange) {
+            const ex = data.exchange;
+            
+            // Build exchange summary HTML
+            let exchangeSummaryHtml = `
+                <div style="margin: 10px 0; padding: 10px; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 8px;">
+                    <div style="font-weight: 700; font-size: 12px; margin-bottom: 6px; color: #0369a1;">
+                        🔄 EXCHANGE TRANSACTION
+                    </div>
+                    <div style="font-size: 11px; color: #0c4a6e;">
+                        <strong>From Order #${ex.originalOrderId}</strong>
+                        <br>Reason: ${escapeHtml(ex.reason)}
+                    </div>
+                </div>
+            `;
+            
+            // Get order details
+            const orderResponse = await fetch(`/VoidRefund/GetOrderDetails?orderId=${orderId}`);
+            const orderData = await orderResponse.json();
+            
+            if (orderData.success && orderData.order) {
+                const activeItems = orderData.order.items.filter(item => !item.isVoided && !item.isRefunded);
+                
+                const orderDetails = [];
+                let subtotal = 0;
+                
+                activeItems.forEach(item => {
+                    const itemSubtotal = item.price * item.quantity;
+                    orderDetails.push({
+                        name: item.productName,
+                        size: item.sizeName,
+                        quantity: item.quantity,
+                        price: item.price,
+                        subtotal: itemSubtotal
+                    });
+                    subtotal += itemSubtotal;
+                });
+                
+                const discountPercent = orderData.order.discountPercent || 0;
+                const discountedTotal = subtotal * (1 - discountPercent);
+                const discountSavings = subtotal - discountedTotal;
+                
+                window.currentOrderId = orderId;
+                window.isExchangeReplacement = true;
+                window.exchangeOriginalOrderId = ex.originalOrderId;
+                
+                showReceiptModal(
+                    orderDetails, 
+                    orderData.order.paymentMethod || 'Cash', 
+                    orderData.order.discountType || 'None', 
+                    discountPercent, 
+                    discountSavings, 
+                    discountedTotal, 
+                    orderId, 
+                    orderData.order.status
+                );
+            }
+        } else {
+            // Fallback sa normal receipt
+            const orderResponse = await fetch(`/VoidRefund/GetOrderDetails?orderId=${orderId}`);
+            const orderData = await orderResponse.json();
+            
+            if (orderData.success && orderData.order) {
+                const activeItems = orderData.order.items.filter(item => !item.isVoided && !item.isRefunded);
+                
+                const orderDetails = [];
+                let subtotal = 0;
+                
+                activeItems.forEach(item => {
+                    const itemSubtotal = item.price * item.quantity;
+                    orderDetails.push({
+                        name: item.productName,
+                        size: item.sizeName,
+                        quantity: item.quantity,
+                        price: item.price,
+                        subtotal: itemSubtotal
+                    });
+                    subtotal += itemSubtotal;
+                });
+                
+                const discountPercent = orderData.order.discountPercent || 0;
+                const discountedTotal = subtotal * (1 - discountPercent);
+                const discountSavings = subtotal - discountedTotal;
+                
+                window.currentOrderId = orderId;
+                showReceiptModal(
+                    orderDetails, 
+                    orderData.order.paymentMethod || 'Cash', 
+                    orderData.order.discountType || 'None', 
+                    discountPercent, 
+                    discountSavings, 
+                    discountedTotal, 
+                    orderId, 
+                    orderData.order.status
+                );
+            }
+        }
+    } catch (error) {
+        console.error('Error loading exchange info:', error);
     }
 }
 
@@ -5861,6 +5993,8 @@ async function refreshOrderItemsAfterRefund(orderId) {
                 }
                 if (hoursDisplay) hoursDisplay.innerText = '0.0';
 
+                            disablePOSPage();
+
                 // ✅ I-CHECK MUNA KUNG MAY ACTIVE SHIFT BAGO I-DISABLE ANG POS
                 fetch('/Staff/CheckActiveShift')
                     .then(r => r.json())
@@ -5995,24 +6129,47 @@ function disablePOSPage() {
 
     showLoading('Processing time out...');
 
-    fetch('/Staff/TimeOut', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'RequestVerificationToken': getToken()
-        },
-        body: JSON.stringify({ password: password })
-    })
-    .then(res => res.json())
-    .then(async data => {
-        hideLoading();
-        if (data.success) {
-            await showAlert(data.message, 'Success', '✅');
-            checkAttendanceStatus();
-        } else {
-            await showAlert('❌ ' + data.message, 'Error', '❌');
-        }
-    });
+                fetch('/Staff/TimeOut', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': getToken()
+                    },
+                    body: JSON.stringify({ password: password })
+                })
+                    .then(res => res.json())
+                    .then(async data => {
+                        hideLoading();
+                        if (data.success) {
+                            await showAlert(data.message, 'Success', '✅');
+
+                            // ✅ I-CHECK KUNG MAY ACTIVE SHIFT PARA I-FORCE ANG END DAY
+                            try {
+                                const shiftResponse = await fetch('/Staff/CheckActiveShift');
+                                const shiftData = await shiftResponse.json();
+
+                                if (shiftData.hasActiveShift) {
+                                    // ✅ I-FORCE ANG END DAY MODAL NA LUMABAS AGAD
+                                    // Kailangan nating i-set ang checkAttendanceStatus muna para ma-update ang UI
+                                    checkAttendanceStatus();
+
+                                    // Ipakita ang End Day modal (force mode)
+                                    setTimeout(() => {
+                                        showEndShiftModalForce(shiftData);
+                                    }, 500);
+
+                                } else {
+                                    // Kung wala nang shift (naka-close na), refresh lang
+                                    checkAttendanceStatus();
+                                }
+                            } catch (err) {
+                                console.error('Error checking shift after time out:', err);
+                                checkAttendanceStatus(); // Fallback
+                            }
+                        } else {
+                            await showAlert('❌ ' + data.message, 'Error', '❌');
+                        }
+                    });
 }
 
 function showPasswordPrompt(message) {
@@ -6400,30 +6557,37 @@ function renderReplacementItems() {
     const container = document.getElementById('replaceItemsList');
     
     if (exchangeReplaceItemsData.length === 0) {
-        container.innerHTML = '<div class="text-muted text-center" style="padding: 30px;"><i class="fas fa-box-open" style="font-size: 30px; margin-bottom: 10px; display: block;"></i>No replacement items added yet.<br>Click "Add Replacement Item" to start.</div>';
+        container.innerHTML = '<div class="text-muted text-center" style="padding: 20px; font-size: 12px;"><i class="fas fa-box-open" style="font-size: 24px; margin-bottom: 8px; display: block; opacity: 0.5;"></i>No replacement items yet.<br>Click "Add Replacement Item" below.</div>';
         return;
     }
     
-    let html = '<div style="display: flex; flex-direction: column; gap: 10px;">';
+    let html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
     exchangeReplaceItemsData.forEach((item, index) => {
         html += `
-            <div style="background: white; border: 1px solid #28a745; border-radius: 10px; padding: 10px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                    <div style="flex: 1;">
-                        <div><strong>${escapeHtml(item.productName)}</strong> <span style="color: #666; font-size: 12px;">(${escapeHtml(item.sizeName)})</span></div>
-                        <div style="font-size: 12px; color: #28a745;">₱${item.price.toFixed(2)} each</div>
+            <div style="background: white; border: 1px solid #28a745; border-radius: 8px; padding: 8px 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: 600; font-size: 12.5px; color: var(--ink-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            ${escapeHtml(item.productName)}
+                        </div>
+                        <div style="font-size: 11px; color: #28a745;">
+                            ${escapeHtml(item.sizeName)} · ₱${item.price.toFixed(2)}
+                        </div>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <button class="btn btn-sm btn-outline-secondary" onclick="updateReplaceQty(${index}, ${item.quantity - 1})" style="border-radius: 50%; width: 30px; height: 30px;">-</button>
-                        <span style="min-width: 30px; text-align: center; font-weight: bold;">${item.quantity}</span>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="updateReplaceQty(${index}, ${item.quantity + 1})" style="border-radius: 50%; width: 30px; height: 30px;">+</button>
-                        <button class="btn btn-sm btn-danger" onclick="removeReplaceItem(${index})" style="border-radius: 8px;">
-                            <i class="fas fa-trash"></i>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="updateReplaceQty(${index}, ${item.quantity - 1})" 
+                                style="width: 24px; height: 24px; padding: 0; border-radius: 50%; font-size: 11px;">−</button>
+                        <span style="min-width: 20px; text-align: center; font-weight: 700; font-size: 12px;">${item.quantity}</span>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="updateReplaceQty(${index}, ${item.quantity + 1})" 
+                                style="width: 24px; height: 24px; padding: 0; border-radius: 50%; font-size: 11px;">+</button>
+                        <button class="btn btn-sm btn-danger" onclick="removeReplaceItem(${index})" 
+                                style="width: 24px; height: 24px; padding: 0; border-radius: 6px; font-size: 10px; margin-left: 4px;">
+                            <i class="fas fa-times"></i>
                         </button>
                     </div>
                 </div>
-                <div class="text-end mt-1" style="font-size: 12px;">
-                    <strong>Subtotal:</strong> ₱${(item.price * item.quantity).toFixed(2)}
+                <div style="font-size: 11px; color: #666; margin-top: 4px; text-align: right;">
+                    Subtotal: <strong style="color: #28a745;">₱${(item.price * item.quantity).toFixed(2)}</strong>
                 </div>
             </div>
         `;
@@ -6436,26 +6600,36 @@ function renderReturnItems(items) {
     const container = document.getElementById('exchangeReturnItems');
     
     if (!items || items.length === 0) {
-        container.innerHTML = '<div class="text-muted text-center" style="padding: 20px;">No items to return</div>';
+        container.innerHTML = '<div class="text-muted text-center" style="padding: 20px; font-size: 12px;">No items to return</div>';
         return;
     }
     
-    let html = '<div style="display: flex; flex-direction: column; gap: 10px;">';
+    let html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
     
-    items.forEach((item, idx) => {
+    items.forEach((item) => {
         html += `
-            <div class="return-item-div" data-order-item-id="${item.orderItemId}" data-price="${item.price}" data-max-qty="${item.quantity}" style="background: white; border: 1px solid #ffc107; border-radius: 10px; padding: 10px;">
-                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                    <div style="width: 40px; text-align: center;">
-                        <input type="checkbox" class="return-item-checkbox" data-id="${item.orderItemId}" data-price="${item.price}" data-name="${escapeHtml(item.productName)}" data-size="${escapeHtml(item.sizeName)}" onchange="toggleReturnItem(this)">
+            <div class="return-item-div" data-order-item-id="${item.orderItemId}" data-price="${item.price}" data-max-qty="${item.quantity}" 
+                 style="background: white; border: 1px solid #ffc107; border-radius: 8px; padding: 8px 10px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" class="return-item-checkbox" 
+                           data-id="${item.orderItemId}" 
+                           data-price="${item.price}" 
+                           data-name="${escapeHtml(item.productName)}" 
+                           data-size="${escapeHtml(item.sizeName)}" 
+                           onchange="toggleReturnItem(this)">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: 600; font-size: 12.5px; color: var(--ink-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            ${escapeHtml(item.productName)}
+                        </div>
+                        <div style="font-size: 11px; color: #666;">
+                            ${escapeHtml(item.sizeName)} · ₱${item.price.toFixed(2)}
+                        </div>
                     </div>
-                    <div style="flex: 1;">
-                        <div><strong>${escapeHtml(item.productName)}</strong> <span style="color: #666; font-size: 12px;">(${escapeHtml(item.sizeName)})</span></div>
-                        <div style="font-size: 12px; color: #28a745;">₱${item.price.toFixed(2)} each</div>
-                    </div>
-                    <div>
-                        <input type="number" class="form-control return-qty" data-id="${item.orderItemId}" style="width: 80px; border-radius: 8px;" min="0" max="${item.quantity}" value="0" disabled placeholder="Qty" onchange="updateExchangeSummary()" onkeyup="updateExchangeSummary()">
-                    </div>
+                    <input type="number" class="form-control return-qty" 
+                           data-id="${item.orderItemId}" 
+                           style="width: 60px; padding: 4px 6px; font-size: 12px; text-align: center;" 
+                           min="0" max="${item.quantity}" value="0" disabled 
+                           onchange="updateExchangeSummary()" onkeyup="updateExchangeSummary()">
                 </div>
             </div>
         `;
@@ -6464,7 +6638,6 @@ function renderReturnItems(items) {
     html += '</div>';
     container.innerHTML = html;
     
-    // ✅ IMPORTANTE: I-call ang updateExchangeSummary AFTER mag-render
     updateExchangeSummary();
 }
 
@@ -7670,22 +7843,30 @@ async function payWithQRPh() {
     }
 }
 
-// ============================================================
-// SHIFT MANAGEMENT — Initialize POS Flow
-// ============================================================
+// ✅ FIXED: May check agad sa PingSession bago mag-load ng POS
 async function initializePOSFlow() {
     try {
+        // 1. Check kung deleted na ang account
+        const sessionRes = await fetch('/Account/PingSession', { headers: { 'Accept': 'application/json' } });
+        if (sessionRes.status === 401) {
+            const sessionData = await sessionRes.json().catch(() => ({}));
+            if (sessionData.accountDeleted) {
+                // Ipapakita nito yung modal (galing sa interceptor)
+                if (window.showAccountDeletedModal) {
+                    window.showAccountDeletedModal(sessionData.message);
+                }
+                return; // Itigil ang pag-load
+            }
+        }
+
+        // 2. Check Shift
         const response = await fetch('/Staff/CheckActiveShift');
-        
-        // ✅ Kung hindi OK ang response (500 error, etc.), huwag i-crash
         if (!response.ok) {
-            console.error('CheckActiveShift failed:', response.status);
-            enablePOSAfterShiftCheck(); // Fallback: enable POS
+            enablePOSAfterShiftCheck(); 
             return;
         }
         
         const data = await response.json();
-
         if (!data.success) {
             await showAlert(data.message, 'Error', '❌');
             return;
@@ -7705,49 +7886,36 @@ async function initializePOSFlow() {
         }
     } catch (error) {
         console.error('Initialize POS error:', error);
-        enablePOSAfterShiftCheck(); // Fallback: enable POS
+        enablePOSAfterShiftCheck(); 
     }
 }
 
 // Check kung expired na ang shift (> 8 hours or yesterday)
-async function checkShiftAge(shiftId) {
-    try {
-        const response = await fetch('/Staff/CheckActiveShift');
-        const data = await response.json();
-        
-        // ✅ Kung walang startTime, huwag i-force close
-        if (!data.startTime) {
-            console.warn('No startTime from server — skipping expiry check');
-            return { isExpired: false };
-        }
-        
-        const startDate = new Date(data.startTime);
-        
-        // ✅ Kung invalid date, huwag i-force close
-        if (isNaN(startDate.getTime())) {
-            console.warn('Invalid startTime:', data.startTime, '— skipping expiry check');
-            return { isExpired: false };
-        }
-        
-        const today = new Date();
-        const hoursElapsed = (today - startDate) / (1000 * 60 * 60);
-        
-        // ✅ I-check lang ang hours (> 8), hindi ang date boundary
-        // Kasi kung 7:59 AM ka nag-open shift at 8:01 AM na ngayon, hindi dapat mag-force close
-        const isOver12Hours = hoursElapsed > 12; 
-        
-        // ✅ Idagdag: kung 24+ hours na, siguradong expired
-        const isOver24Hours = hoursElapsed > 24;
-        
-        return {
-            isExpired: isOver8Hours || isOver24Hours,
-            hoursElapsed: hoursElapsed
-        };
-    } catch (error) {
-        console.error('checkShiftAge error:', error);
-        return { isExpired: false }; // ✅ Safe fallback
-    }
-}
+            async function checkShiftAge(shiftId) {
+                try {
+                    const response = await fetch('/Staff/CheckActiveShift');
+                    const data = await response.json();
+
+                    if (!data.startTime) return { isExpired: false };
+
+                    const startDate = new Date(data.startTime);
+                    if (isNaN(startDate.getTime())) return { isExpired: false };
+
+                    const today = new Date();
+                    const hoursElapsed = (today - startDate) / (1000 * 60 * 60);
+
+                    const isOver12Hours = hoursElapsed > 12;
+                    const isOver24Hours = hoursElapsed > 24;
+
+                    return {
+                        isExpired: isOver12Hours || isOver24Hours,
+                        hoursElapsed: hoursElapsed
+                    };
+                } catch (error) {
+                    console.error('checkShiftAge error:', error);
+                    return { isExpired: false };
+                }
+            }
 
 // Show Start Shift modal
 function showStartShiftModal() {
@@ -7854,6 +8022,7 @@ function enablePOSAfterShiftCheck() {
         timeInBtn.style.display = 'inline-block';
     }
 
+    disablePOSPage();
     // Check attendance status (para lumabas ang Time In button kung wala pa)
     checkAttendanceStatus();
 }
@@ -8086,6 +8255,74 @@ function collectDenominations() {
         }))
         .filter(x => x.quantity > 0);
 }
+
+           // ============================================================
+// GLOBAL FETCH INTERCEPTOR + WATCHDOG
+// ============================================================
+(function () {
+    const originalFetch = window.fetch;
+
+    window.fetch = async function (url, options) {
+        const response = await originalFetch(url, options);
+
+        if (response.status === 401) {
+            try {
+                const clone = response.clone();
+                const data = await clone.json();
+                if (data && data.accountDeleted) {
+                    window.showAccountDeletedModal(data.message);
+                    throw new Error('ACCOUNT_DELETED');
+                }
+            } catch (e) { /* ignore */ }
+        }
+        return response;
+    };
+
+    // Gawaing global para matatawag sa initializePOSFlow
+    window.showAccountDeletedModal = function(message) {
+        if (document.getElementById('accountDeletedModal')) return;
+        document.body.style.pointerEvents = 'none';
+
+        const modalHtml = `
+            <div id="accountDeletedModal" class="modal-qty" style="display: flex; z-index: 999999; pointer-events: auto;">
+                <div class="modal-qty-content" style="width: 380px; max-width: 90%; text-align: center; padding: 30px;">
+                    <div style="font-size: 60px; margin-bottom: 15px;">🚫</div>
+                    <h3 style="font-weight: 700; color: #dc3545; margin-bottom: 10px;">Account Deactivated</h3>
+                    <p style="color: #666; margin-bottom: 20px; font-size: 14px; line-height: 1.5;">
+                        ${escapeHtml(message) || 'Your account has been deactivated by the owner.'}
+                        <br><br>
+                        You will be logged out now. Please contact the owner if this is an error.
+                    </p>
+                    <button onclick="window.location.href='/Account/Login'"
+                            style="width: 100%; padding: 12px; background: #dc3545; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                        Go to Login
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        setTimeout(() => { window.location.href = '/Account/Login'; }, 5000);
+    };
+})();
+
+// Watchdog every 10 seconds (mas mabilis)
+setInterval(async function () {
+    if (document.getElementById('accountDeletedModal')) return; // Kung bukas na, skip
+    
+    try {
+        const res = await fetch('/Account/PingSession', {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+        });
+
+        if (res.status === 401) {
+            const data = await res.clone().json().catch(() => ({}));
+            if (data && data.accountDeleted) {
+                // Interceptor handles it
+            }
+        }
+    } catch (e) { /* silent */ }
+}, 10000);
 
         function escapeHtml(str) {
     if (!str) return '';

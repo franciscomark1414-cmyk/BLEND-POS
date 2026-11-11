@@ -149,12 +149,12 @@ namespace Infoman.Service
                 {
                     originalOrder.ReturnStatus = "EXCHANGED";
                     originalOrder.Status = "EXCHANGED";
+                    originalOrder.TotalAmount = 0;// ✅ TAMA ITO, hindi na counted
                 }
                 else
                 {
-                    // Partial exchange — keep the order active
                     originalOrder.ReturnStatus = "PARTIALLY_EXCHANGED";
-                    // DO NOT change originalOrder.Status — keep it as COMPLETED
+                    originalOrder.Status = "COMPLETED"; // ✅ Tama, partial lang
                 }
                 originalOrder.ExchangeDate = DateTime.Now;
                 originalOrder.ExchangeReason = reason;
@@ -225,7 +225,7 @@ namespace Infoman.Service
                 {
                     OrderNumber = $"EX-{DateTime.Now:yyyyMMddHHmmss}",
                     Date = DateTime.Now,
-                    TotalAmount = customerPayable,
+                    TotalAmount = replacementAmount, // ✅ ₱87 (buong halaga ng replacement)
                     OriginalTotalAmount = replacementAmount,
                     Status = newOrderStatus,
                     PaymentMethod = (adjustmentAmount > 0 && !string.IsNullOrEmpty(paymentMethodForDifference))

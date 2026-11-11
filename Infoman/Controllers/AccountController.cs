@@ -146,5 +146,13 @@ namespace Infoman.Controllers
                 return Json(new { success = false, message = ex.Message });
             }
         }
+
+        [HttpGet]
+        public IActionResult PingSession()
+        {
+            // Kung umabot dito, meaning valid pa ang session
+            // (Naka-intercept na ng filter kung invalid)
+            return Json(new { success = true });
+        }
     }
 }

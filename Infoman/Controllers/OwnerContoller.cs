@@ -106,10 +106,12 @@ namespace Infoman.Controllers
             ViewBag.TotalOrdersToday = todaysOrders.Count;
 
             // ========== ALL-TIME NET REVENUE ==========
-            // ✅ TotalAmount ay NET NA dahil nababawasan ito sa ApproveRequest
             var allOrders = await _db.Orders
-                .Where(o => o.Status == "COMPLETED" || o.Status == "PENDING_BLENDING")
-                .ToListAsync();
+    .Where(o => o.Status == "COMPLETED" ||
+                o.Status == "PENDING_BLENDING" ||
+                o.Status == "EXCHANGED" ||      // ✅ ISAMA ITO
+                o.ReturnStatus == "PARTIALLY_EXCHANGED") // ✅ AT ITO
+    .ToListAsync();
 
             decimal allTimeNetRevenue = allOrders.Sum(o => o.TotalAmount);
 
@@ -171,9 +173,12 @@ namespace Infoman.Controllers
             foreach (var day in last7Days)
             {
                 var dayOrders = await _db.Orders
-                    .Include(o => o.Adjustments)
-                    .Where(o => o.Date.Date == day.Date && o.Status == "COMPLETED")
-                    .ToListAsync();
+        .Include(o => o.Adjustments)
+        .Where(o => o.Date.Date == day.Date &&
+                   (o.Status == "COMPLETED" ||
+                    o.Status == "PENDING_BLENDING" ||
+                    o.Status == "EXCHANGED")) // ✅ Isama lahat
+        .ToListAsync();
 
                 decimal dayNetRevenue = 0;
                 foreach (var order in dayOrders)
@@ -1140,6 +1145,10 @@ namespace Infoman.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SaveRecipe([FromBody] RecipeSaveModel model)
         {
+
+            if (model.Margin <= 0 || model.Margin >= 1)
+                return Json(new { success = false, message = "Invalid margin. Must be between 0 and 1 (e.g., 0.3 for 30%)." });
+
             var productSize = await _db.ProductSizes
                 .Include(ps => ps.RecipeItems)
                 .Include(ps => ps.Product)
@@ -1734,14 +1743,10 @@ namespace Infoman.Controllers
             {
                 // ✅ Include PENDING_BLENDING and COMPLETED
                 var dailyRevenue = await _db.Orders
-                    .Where(o => o.Date.Date == day && (o.Status == "COMPLETED" || o.Status == "PENDING_BLENDING"))
+                    .Where(o => o.Date.Date == day && (o.Status == "COMPLETED" || o.Status == "PENDING_BLENDING" || o.Status == "EXCHANGED"))
                     .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
 
-                var dailyRefunds = await _db.RefundTransactions
-                    .Where(r => r.CreatedAt.Date == day)
-                    .SumAsync(r => (decimal?)r.Amount) ?? 0;
-
-                salesRevenue.Add(dailyRevenue - dailyRefunds);
+                salesRevenue.Add(dailyRevenue);
 
                 // ✅ Include PENDING_BLENDING and COMPLETED
                 var dailyOrders = await _db.Orders
@@ -1980,7 +1985,7 @@ namespace Infoman.Controllers
             {
                 var dailyRevenue = await _db.Orders
                     .Where(o => o.Date.Date == day &&
-                                (o.Status == "COMPLETED" || o.Status == "PENDING_BLENDING"))
+                                (o.Status == "COMPLETED" || o.Status == "PENDING_BLENDING" || o.Status == "EXCHANGED"))
                     .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
                 salesRevenue.Add(dailyRevenue);
 
@@ -2358,7 +2363,9 @@ namespace Infoman.Controllers
                     r.ReceivingId,
                     r.DRNumber,
                     r.DateReceived,
-                    SupplierName = r.Supplier != null ? r.Supplier.Name : "—",
+                    SupplierName = r.Supplier != null
+            ? r.Supplier.Name
+            : (r.ReceivingItems.Select(ri => ri.StoreName).FirstOrDefault(s => s != null) ?? "—"),
                     TotalItems = r.ReceivingItems.Count,
 
                     // ✅ I-CONVERT ANG TOTAL ACCEPTED PABALIK SA DISPLAY UNIT

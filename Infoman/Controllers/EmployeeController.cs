@@ -284,13 +284,41 @@ namespace Infoman.Controllers
                     return Json(new { success = false, message = "Employee not found" });
                 }
 
-                // ✅ SOFT DELETE - set IsDeleted = true
-              //  employee.IsDeleted = true;
+                // 1. I-deactivate ang user
                 employee.Status = "Inactive";
+
+                // 2. I-force close ang active shift
+                var openShifts = await _db.Shifts
+                    .Where(s => s.StaffUserId == id && s.Status == "OPEN")
+                    .ToListAsync();
+
+                var ownerId = HttpContext.Session.GetInt32("Owner_UserId");
+
+                foreach (var shift in openShifts)
+                {
+                    shift.Status = "FORCE_CLOSED";
+                    shift.EndTime = DateTime.Now;
+                    shift.ClosedByUserId = ownerId;
+                    shift.ClosingNotes = "Auto-closed: employee account deactivated";
+                }
+
+                // 3. I-force clock-out kung naka-time in pa
+                var today = DateTime.Today;
+                var attendance = await _db.EmployeeAttendances
+                    .FirstOrDefaultAsync(a => a.UserId == id && a.Date == today && !a.CheckOutTime.HasValue);
+
+                if (attendance != null)
+                {
+                    attendance.CheckOutTime = DateTime.Now.TimeOfDay;
+                    if (attendance.CheckInTime.HasValue)
+                    {
+                        attendance.HoursWorked = (decimal)(attendance.CheckOutTime.Value - attendance.CheckInTime.Value).TotalHours;
+                    }
+                }
 
                 await _db.SaveChangesAsync();
 
-                return Json(new { success = true, message = "Employee deactivated successfully" });
+                return Json(new { success = true, message = "Employee deactivated and sessions closed successfully" });
             }
             catch (Exception ex)
             {

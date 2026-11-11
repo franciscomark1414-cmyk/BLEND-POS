@@ -1,147 +1,251 @@
 ﻿@model Infoman.Models.LoginViewModel
 @{
-    Layout = null; // ✅ Para hindi mabalot sa _Layout.cshtml at maging standalone full-screen
+    Layout = null;
 }
-<style>
-    body {
-        margin: 0;
-        font-family: 'Segoe UI', sans-serif;
-        background: linear-gradient(to bottom, #f5f1e6, #e8dcc7);
-    }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Login - Neldie's Mango & More</title>
+    <style>
+            :root {
+                --mango: #FF8C1A;
+                --mango-light: #FFB347;
+                --cream: #FFF6E5;
+                --green: #5BA55B;
+                --text: #3B2F24;
+                --muted: #7A6A5A;
+            }
 
-    .login-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        height: 100vh;
-    }
+            * {
+                box-sizing: border-box;
+            }
 
-    .brand {
-        text-align: center;
-        margin-bottom: 25px;
-    }
+            html, body {
+                height: 100%;
+                margin: 0;
+            }
 
-    .logo {
-        background: linear-gradient(to right, orange, #ffb347);
-        color: white;
-        font-size: 28px;
-        padding: 10px 16px;
-        border-radius: 12px;
-        display: inline-block;
-    }
+            body {
+                font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+                color: var(--text);
+                background-color: #f5ead7;
+                background-image: linear-gradient(to bottom, #f5f1e6, #e8dcc7);
+            }
 
-    .brand h1 {
-        margin: 10px 0 5px;
-        font-size: 30px;
-    }
+            /* Full-screen background image with a soft warm overlay */
+            .bg-layer {
+                position: fixed;
+                top: 0;
+                right: 0;
+                bottom: 0;
+                left: 0;
+                z-index: 0;
+                background: linear-gradient( rgba(255, 246, 229, 0.45), rgba(255, 246, 229, 0.45) ), url('/images/login-bg.jpg') center / cover no-repeat;
+            }
 
-    .brand p {
-        color: #666;
-        font-size: 14px;
-    }
+            .login-container {
+                position: relative;
+                z-index: 1;
+                min-height: 100vh;
+                min-height: 100dvh;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 24px 16px;
+            }
 
-    .login-card {
-        background: #fff;
-        padding: 30px;
-        width: 380px; /* mas malaki */
-        border-radius: 12px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-    }
+            .brand {
+                text-align: center;
+                margin-bottom: 24px;
+            }
 
-        .login-card h3 {
-            margin-bottom: 5px;
-        }
+            .logo {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 64px;
+                height: 64px;
+                font-size: 28px;
+                color: #fff;
+                background: linear-gradient(135deg, var(--mango), var(--mango-light));
+                border-radius: 18px;
+                box-shadow: 0 8px 18px rgba(255, 140, 26, 0.35);
+            }
 
-    .subtitle {
-        font-size: 13px;
-        color: #777;
-        margin-bottom: 15px;
-    }
+            .brand h1 {
+                margin: 12px 0 4px;
+                font-size: clamp(22px, 4vw, 30px);
+                font-weight: 700;
+                color: #2e2116;
+            }
 
-        .role-toggle .active {
-            background: #fff;
-            font-weight: bold;
-        }
+            .brand p {
+                margin: 0;
+                font-size: 14px;
+                color: var(--muted);
+            }
 
-    .form-group {
-        margin-bottom: 15px;
-    }
+            .login-card {
+                width: 100%;
+                max-width: 380px;
+                padding: 36px 32px;
+                background: rgba(255, 255, 255, 0.8);
+                backdrop-filter: blur(14px);
+                -webkit-backdrop-filter: blur(14px);
+                border: 1px solid rgba(255, 255, 255, 0.7);
+                border-radius: 18px;
+                box-shadow: 0 20px 45px rgba(120, 70, 20, 0.18);
+            }
 
-        .form-group label {
-            font-size: 13px;
-            display: block;
-            margin-bottom: 5px;
-        }
+            .accent {
+                display: block;
+                width: 40px;
+                height: 4px;
+                margin: 0 auto 14px;
+                background: var(--green);
+                border-radius: 4px;
+            }
 
-        .form-group input {
-            width: 100%;
-            padding: 10px;
-            border-radius: 8px;
-            border: 1px solid #ccc;
-        }
+            .login-card h3 {
+                margin: 0 0 24px;
+                font-size: 22px;
+                font-weight: 700;
+                text-align: center;
+                color: #2e2116;
+            }
 
-    .login-btn {
-        width: 100%;
-        padding: 12px;
-        background: linear-gradient(to right, orange, #ffb347);
-        border: none;
-        border-radius: 8px;
-        color: white;
-        font-weight: bold;
-        cursor: pointer;
-    }
+            .form-group {
+                margin-bottom: 18px;
+            }
 
-        .login-btn:hover {
-            opacity: 0.9;
-        }
+                .form-group label {
+                    display: block;
+                    margin-bottom: 6px;
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: var(--text);
+                }
 
-    .error {
-        color: red;
-        margin-top: 10px;
-        font-size: 13px;
-    }
+                .form-group input {
+                    width: 100%;
+                    padding: 12px 14px;
+                    font-size: 15px;
+                    color: var(--text);
+                    background: #fff;
+                    border: 1px solid #e3d5bf;
+                    border-radius: 10px;
+                    outline: none;
+                    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+                }
 
-    .demo {
-        margin-top: 15px;
-        color: #777;
-        font-size: 12px;
-    }
-</style>
+                    .form-group input:focus {
+                        border-color: var(--mango);
+                        box-shadow: 0 0 0 3px rgba(255, 140, 26, 0.18);
+                    }
 
-<div class="login-container">
-    <div class="brand">
-        <div class="logo">🍹</div>
-        <h1>Neldie's Mango & More</h1>
-        <p>Quandew Systems Inc.</p>
+            .login-btn {
+                width: 100%;
+                margin-top: 6px;
+                padding: 13px;
+                font-size: 15px;
+                font-weight: 700;
+                letter-spacing: 0.5px;
+                color: #fff;
+                background: linear-gradient(90deg, var(--mango), var(--mango-light));
+                border: none;
+                border-radius: 10px;
+                box-shadow: 0 8px 18px rgba(255, 140, 26, 0.3);
+                cursor: pointer;
+                transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+            }
+
+                .login-btn:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 12px 22px rgba(255, 140, 26, 0.38);
+                    filter: brightness(1.03);
+                }
+
+                .login-btn:active {
+                    transform: translateY(0);
+                }
+
+                .login-btn:focus-visible {
+                    outline: 3px solid rgba(255, 140, 26, 0.35);
+                    outline-offset: 2px;
+                }
+
+            .error {
+                margin: 14px 0 0;
+                padding: 8px 10px;
+                font-size: 13px;
+                text-align: center;
+                color: #c0392b;
+                background: rgba(192, 57, 43, 0.08);
+                border-radius: 8px;
+            }
+
+            @@media (max-width: 480px) {
+                .login-card {
+                    padding: 28px 22px;
+                    border-radius: 16px;
+                }
+
+                .logo {
+                    width: 56px;
+                    height: 56px;
+                    font-size: 24px;
+                    border-radius: 16px;
+                }
+            }
+
+            @@media (prefers-reduced-motion: reduce) {
+                .login-btn {
+                    transition: none;
+                }
+            }
+    </style>
+</head>
+<body>
+    <div class="bg-layer"></div>
+
+    <div class="login-container">
+        <div class="brand">
+            <div class="logo">🍹</div>
+            <h1>Neldie's Mango & More</h1>
+            <p>Quandew Systems Inc.</p>
+        </div>
+
+        <div class="login-card">
+            <span class="accent"></span>
+            <h3>Sign In</h3>
+
+            <form asp-action="Login" method="post">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input asp-for="Username" placeholder="Enter username" />
+                </div>
+
+                <div class="form-group">
+                    <label>Password</label>
+                    <input asp-for="Password" type="password" placeholder="Enter password" />
+                    <span asp-validation-for="Password" class="text-danger" style="font-size: 12px;"></span>
+                </div>
+
+                <button type="submit" class="login-btn">LogIn</button>
+            </form>
+
+            @if (ViewBag.Error != null)
+            {
+                <p class="error">@ViewBag.Error</p>
+            }
+        </div>
     </div>
 
-    <div class="login-card">
-        <h3>Sign In</h3>
-        <p class="subtitle">Select your role and enter your credentials</p>
-
-
-        <form asp-action="Login" method="post">
-            <div class="form-group">
-                <label>Username</label>
-                <input asp-for="Username" placeholder="Enter username" />
-            </div>
-
-            <div class="form-group">
-                <label>Password</label>
-                <input asp-for="Password" type="password" placeholder="Enter password" />
-                <span asp-validation-for="Password" class="text-danger" style="font-size: 12px;"></span>
-            </div>
-            <button type="submit" class="login-btn">LogIn</button>
-        </form>
-
-        @if (ViewBag.Error != null)
-        {
-            <p class="error">@ViewBag.Error</p>
-        }
-
-    </div>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/4.0.0/jquery.validate.unobtrusive.min.js"></script>
-</div>
+</body>
+</html>

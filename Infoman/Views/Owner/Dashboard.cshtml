@@ -1605,7 +1605,7 @@
 </div>
                             <div class="col-md-6">
                                 <label class="form-label">Margin</label>
-                                <select id="marginSelect" class="form-control" onchange="updateSellingPrice()">
+                                <select id="marginSelect" class="form-control" onchange="updateTotals()">
                                     <option value="0.3">30%</option>
                                     <option value="0.4">40%</option>
                                     <option value="0.5">50%</option>
@@ -2796,7 +2796,7 @@
                                 <tr>
                                     <th>DR #</th>
                                     <th>Date</th>
-                                    <th>Supplier</th>
+                                   <th>Supplier / StoreName</th>
                                     <th>Items</th>
                                     <th>Accepted</th>
                                     <th>Rejected</th>
@@ -3283,6 +3283,17 @@
                         <small class="text-muted">Leave 0 to auto-calculate based on ingredients</small>
                     </div>
                 </div>
+
+                <div class="row mb-3">
+    <div class="col-md-6">
+        <label class="form-label fw-bold">Profit Margin</label>
+        <select id="newSizeMargin" class="form-control">
+            <option value="0.3" selected>30%</option>
+            <option value="0.4">40%</option>
+            <option value="0.5">50%</option>
+        </select>
+    </div>
+</div>
                 
                 <hr />
                 
@@ -5854,6 +5865,19 @@ function updateNewIngredientUnitDropdown(selectElement) {
             document.getElementById('viewSellingPrice').innerHTML = `₱${data.sellingPrice.toFixed(2)}`;
             document.getElementById('viewTotalCost').innerHTML = `₱${data.totalCost.toFixed(2)}`;
             document.getElementById('viewProfit').innerHTML = `₱${data.profit.toFixed(2)}`;
+            // Product info
+document.getElementById('viewProductSKU').innerText = data.productSKU || '-';
+document.getElementById('viewProductCategory').innerText = data.productCategory || '-';
+document.getElementById('viewStock').innerText = data.stock != null ? `${data.stock} pcs` : '-';
+
+// Margin (target set in the DB) and markup (profit ÷ cost)
+const marginPct = Math.round((data.margin || 0) * 100);
+const markupPct = data.totalCost > 0
+    ? ((data.sellingPrice - data.totalCost) / data.totalCost) * 100
+    : 0;
+
+document.getElementById('viewMargin').innerText = marginPct;
+document.getElementById('viewMarkup').innerText = markupPct.toFixed(0);
 
             // Display ingredients...
             const tbody = document.getElementById('viewIngredientsBody');
@@ -5927,12 +5951,17 @@ priceInput.value = recipeData.sellingPrice.toFixed(2);
 priceInput.readOnly = !recipeData.isManualPrice;
 
                     // I-set ang margin select
-                    const marginSelect = document.getElementById('marginSelect');
-                    const marginValue = recipeData.margin || 0.3;
-                    if (marginValue === 0.3) marginSelect.value = '0.3';
-                    else if (marginValue === 0.4) marginSelect.value = '0.4';
-                    else if (marginValue === 0.5) marginSelect.value = '0.5';
-                    else marginSelect.value = '0.3';
+                   // Set the margin dropdown to the saved value (adds the option if it's not in the list)
+const marginSelect = document.getElementById('marginSelect');
+const marginVal = String(Math.round((recipeData.margin || 0.3) * 100) / 100); // "0.3", "0.35", ...
+
+if (![...marginSelect.options].some(o => o.value === marginVal)) {
+    const opt = document.createElement('option');
+    opt.value = marginVal;
+    opt.textContent = Math.round((recipeData.margin || 0.3) * 100) + '%';
+    marginSelect.appendChild(opt);
+}
+marginSelect.value = marginVal;
 
                     // I-load ang ingredients
                     const tbody = document.getElementById('ingredientsBody');
@@ -5963,6 +5992,18 @@ priceInput.readOnly = !recipeData.isManualPrice;
         });
 }
 
+// Mirrors OwnerController.RoundToPriceEnding
+function roundToPriceEnding(price) {
+    const rounded = Math.round(price);
+    if (rounded <= 0) return 0;
+    if (rounded < 10) return 9;
+
+    const base = Math.floor(rounded / 10) * 10;
+    let result = base + 9;
+    if (result < rounded) result = base + 19;
+    return result;
+}
+
 
 function toggleManualPrice() {
     const isManual = document.getElementById('manualPriceCheckbox').checked;
@@ -5970,10 +6011,8 @@ function toggleManualPrice() {
     priceInput.readOnly = !isManual;
 
     if (!isManual) {
-        // Switching back to auto → recompute & write price
-        updateSellingPrice();
+        updateTotals();          // was: updateSellingPrice()
     } else {
-        // Switching to manual → keep current value, but let user edit
         priceInput.focus();
         priceInput.select();
     }
@@ -6223,7 +6262,7 @@ function closeQuantityModal() {
     document.getElementById('recipeTotalCost').value = `₱${totalCost.toFixed(2)}`;
 
     const margin = parseFloat(document.getElementById('marginSelect')?.value || 0.3);
-    const autoPrice = totalCost / (1 - margin);
+    const autoPrice = roundToPriceEnding(totalCost / (1 - margin));
 
     // ✅ NEW: check the checkbox FIRST
     const isManual = document.getElementById('manualPriceCheckbox')?.checked === true;
@@ -6509,7 +6548,7 @@ function loadLowStockTab(items) {
         `;
     }
     
-    html += `</tbody>}</div>`;
+    html += `</tbody></div>`;
     container.innerHTML = html;
 }
 
@@ -9423,7 +9462,7 @@ function viewDeliveryDetails(receivingId) {
 
                 <div class="row mb-4">
                     <div class="col-md-6">
-                        <p class="mb-1"><strong>Supplier/Store:</strong> <br> ${escapeHtml(delivery.supplierName)}</p>
+                                                                        <p class="mb-1"><strong>Supplier / StoreName:</strong> <br> ${escapeHtml(delivery.supplierName)}</p>
                     </div>
                     <div class="col-md-6 text-end">
                         <p class="mb-1 text-muted">Total Billed Price: <strong>₱${delivery.grandTotalPrice.toFixed(2)}</strong></p>
@@ -11142,7 +11181,7 @@ async function saveNewSize() {
                 productId: parseInt(productId),
                 sizeName: sizeName,
                 price: price,
-                margin: 0.3,
+                margin: parseFloat(document.getElementById('newSizeMargin').value) || 0.3,
                 ingredients: ingredients
             })
         });

@@ -28,6 +28,13 @@ builder.Services.AddSession(options =>
 builder.Services.AddScoped<OwnerAuthorizationFilter>();
 builder.Services.AddScoped<StaffAuthorizationFilter>();
 
+builder.Services.AddScoped<StaffSessionValidationFilter>();
+
+builder.Services.AddControllersWithViews(options =>
+{
+    options.Filters.Add<StaffSessionValidationFilter>();
+});
+
 // ========== REGISTER CUSTOM SERVICES ==========
 builder.Services.AddScoped<FIFOService>();
 builder.Services.AddScoped<VoidRefundService>();

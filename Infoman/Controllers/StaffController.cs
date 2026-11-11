@@ -2,9 +2,11 @@
 using Infoman.Data;
 using Infoman.Models;
 using Infoman.Service;
+using Infoman.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+
 
 namespace Infoman.Controllers
 {
@@ -14,13 +16,17 @@ namespace Infoman.Controllers
         private readonly ConnectionDatabase _db;
         private readonly FIFOService _fifoService;
         private readonly PaymentOptions _paymentOptions;
+        private readonly ShiftService _shiftService;  // ✅ BAGO
 
-
-        public StaffController(ConnectionDatabase db, IOptions<PaymentOptions> paymentOptions)
+        public StaffController(
+            ConnectionDatabase db,
+            IOptions<PaymentOptions> paymentOptions,
+            ShiftService shiftService)  // ✅ BAGO
         {
             _db = db;
             _fifoService = new FIFOService(_db);
             _paymentOptions = paymentOptions.Value;
+            _shiftService = shiftService;  // ✅ BAGO
         }
 
         // PHASE 1: Payment gate. Cash lang ang tinatanggap kapag naka-OFF ang GCash/QRPh.
@@ -234,6 +240,10 @@ namespace Infoman.Controllers
 
                 if (isNewOrder)
                 {
+                    // ✅ HANAPIN ANG ACTIVE SHIFT NG STAFF (BAGO GUMAWA NG ORDER)
+                    var activeShift = await _db.Shifts
+                        .FirstOrDefaultAsync(s => s.Status == "OPEN" && s.StaffUserId == userId);
+
                     // Gumawa ng bagong order
                     string finalStatus = request.PaymentMethod == "Cash" ? "PENDING_BLENDING" : "PENDING_PAYMENT";
 
@@ -250,8 +260,10 @@ namespace Infoman.Controllers
                         ReceiptNumber = await GenerateUniqueReceiptNumberAsync(),
                         OriginalTotalAmount = 0,
                         CreatedAt = DateTime.Now,
-                        StaffUserId = userId
+                        StaffUserId = userId,
+                        ShiftId = activeShift?.ShiftId  // ✅ IDINAGDAG DITO SA TAMANG ORDER CREATION
                     };
+
                     _db.Orders.Add(order);
                     const int maxRetries = 3;
                     for (int attempt = 1; attempt <= maxRetries; attempt++)
@@ -270,7 +282,6 @@ namespace Infoman.Controllers
                         }
                     }
                 }
-
                 orderId = order.OrderId;
 
                 // ✅ I-add ang item sa existing order (GINAMIT NA ANG DYNAMIC ID)
@@ -1095,6 +1106,129 @@ namespace Infoman.Controllers
             return Json(new { isOnline = isOnline });
         }
 
+        // ============================================================
+        // SHIFT MANAGEMENT ENDPOINTS (para sa POS Start/End Day)
+        // ============================================================
+
+        /// <summary>
+        /// GET: Check if may active shift (para sa POS pag-load)
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> CheckActiveShift()
+        {
+            var staffId = GetCurrentUserId();
+
+            if (staffId == 0)
+                return Json(new { success = false, hasActiveShift = false, message = "Not logged in" });
+
+            var activeShift = await _db.Shifts
+                .Include(s => s.StaffUser)
+                .FirstOrDefaultAsync(s => s.Status == "OPEN" && s.StaffUserId == staffId);
+
+            if (activeShift == null)
+                return Json(new { success = true, hasActiveShift = false });
+
+            // ✅ Compute live instead of reading the null column
+            var expectedCash = await _shiftService.CalculateExpectedCashAsync(activeShift.ShiftId);
+
+            return Json(new
+            {
+                success = true,
+                hasActiveShift = true,
+                shiftId = activeShift.ShiftId,
+                startTime = activeShift.StartTime.ToString("o"),
+                openingFloat = activeShift.OpeningFloat,
+                expectedCash = expectedCash,
+                staffName = activeShift.StaffUser?.FullName ?? "Unknown"
+            });
+        }
+
+        /// <summary>
+        /// POST: Open new shift (Start Day)
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> OpenShift([FromBody] OpenShiftRequest request)
+        {
+            var userId = GetCurrentUserId();
+            if (userId == 0)
+                return Json(new { success = false, message = "Not logged in." });
+
+            if (request == null || request.OpeningFloat < 0)
+                return Json(new { success = false, message = "Invalid opening float." });
+
+            var (success, message, shift) = await _shiftService.StartShiftAsync(
+                userId,
+                request.OpeningFloat,
+                request.Notes
+            );
+
+            if (!success)
+                return Json(new { success = false, message });
+
+            return Json(new
+            {
+                success = true,
+                message,
+                shiftId = shift!.ShiftId,
+                startTime = shift.StartTime.ToString("MMM dd, yyyy hh:mm tt")
+            });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CloseShift([FromBody] CloseShiftRequest request)
+        {
+            var userId = GetCurrentUserId();
+            if (userId == 0)
+                return Json(new { success = false, message = "Not logged in." });
+
+            if (request == null || request.ShiftId <= 0)
+                return Json(new { success = false, message = "Invalid shift." });
+
+            if (request.PhysicalCashCounted < 0)
+                return Json(new { success = false, message = "Physical cash cannot be negative." });
+
+            var lines = request.Denominations?
+                .Where(d => d.Quantity > 0)
+                .Select(d => new CashCountLine { Denomination = d.Denomination, Quantity = d.Quantity })
+                .ToList();
+
+            // Kung may denomination count, yun ang physical cash
+            decimal physical = (lines != null && lines.Any())
+                ? lines.Sum(l => l.Denomination * l.Quantity)
+                : request.PhysicalCashCounted;
+
+            var shift = await _shiftService.GetShiftByIdAsync(request.ShiftId);
+            if (shift == null)
+                return Json(new { success = false, message = "Shift not found." });
+
+            bool isForceClose = shift.StaffUserId != userId;
+
+            var (success, message, closedShift) = isForceClose
+                ? await _shiftService.ForceCloseShiftAsync(
+                    request.ShiftId, physical, userId,
+                    request.Notes ?? "Force-closed by another user",
+                    lines, request.GcashCounted)
+                : await _shiftService.CloseShiftAsync(
+                    request.ShiftId, physical, request.Notes, userId,
+                    lines, request.GcashCounted);
+
+            if (!success)
+                return Json(new { success = false, message });
+
+            return Json(new
+            {
+                success = true,
+                message,
+                shiftId = closedShift!.ShiftId,
+                status = closedShift.Status,
+                expectedCash = closedShift.ExpectedCash,
+                physicalCash = closedShift.PhysicalCashCounted,
+                variance = closedShift.Variance
+            });
+        }
+
         // Request model
         public class UpdateOrderItemQuantityRequest
         {
@@ -1145,5 +1279,24 @@ namespace Infoman.Controllers
         {
             public string Password { get; set; }
         }
+
+        // ============================================================
+        // REQUEST MODELS for SHIFT MANAGEMENT
+        // ============================================================
+        public class OpenShiftRequest
+        {
+            public decimal OpeningFloat { get; set; }
+            public string? Notes { get; set; }
+        }
+
+        public class CloseShiftRequest
+        {
+            public int ShiftId { get; set; }
+            public decimal PhysicalCashCounted { get; set; }
+            public string? Notes { get; set; }
+            public List<CashCountLine>? Denominations { get; set; }
+            public decimal? GcashCounted { get; set; }
+        }
+
     }
 }

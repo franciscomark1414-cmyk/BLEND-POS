@@ -392,7 +392,12 @@ namespace Infoman.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<int?>("ShiftId")
+                        .HasColumnType("int");
+
                     b.HasKey("ExpenseId");
+
+                    b.HasIndex("ShiftId");
 
                     b.ToTable("Expenses");
                 });
@@ -1187,6 +1192,90 @@ namespace Infoman.Migrations
                     b.ToTable("RejectedForReturn");
                 });
 
+            modelBuilder.Entity("Infoman.Models.Shift", b =>
+                {
+                    b.Property<int>("ShiftId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ShiftId"));
+
+                    b.Property<int?>("ClosedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ClosingNotes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EndTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("ExpectedCash")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("GcashCounted")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("OpeningFloat")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("PhysicalCashCounted")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("StaffUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("StartTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("Variance")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("ShiftId");
+
+                    b.HasIndex("ClosedByUserId");
+
+                    b.HasIndex("StaffUserId");
+
+                    b.ToTable("Shifts");
+                });
+
+            modelBuilder.Entity("Infoman.Models.ShiftCashCount", b =>
+                {
+                    b.Property<int>("ShiftCashCountId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ShiftCashCountId"));
+
+                    b.Property<decimal>("Denomination")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ShiftId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Subtotal")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("ShiftCashCountId");
+
+                    b.HasIndex("ShiftId");
+
+                    b.ToTable("ShiftCashCounts");
+                });
+
             modelBuilder.Entity("Infoman.Models.StockAdjustmentLog", b =>
                 {
                     b.Property<int>("AdjustmentId")
@@ -1633,6 +1722,9 @@ namespace Infoman.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<int?>("ShiftId")
+                        .HasColumnType("int");
+
                     b.Property<int?>("StaffUserId")
                         .HasColumnType("int");
 
@@ -1674,6 +1766,8 @@ namespace Infoman.Migrations
                     b.HasIndex("ReceiptNumber")
                         .IsUnique()
                         .HasFilter("[ReceiptNumber] IS NOT NULL AND [ReceiptNumber] <> ''");
+
+                    b.HasIndex("ShiftId");
 
                     b.HasIndex("StaffUserId");
 
@@ -1756,6 +1850,15 @@ namespace Infoman.Migrations
                     b.Navigation("NewOrder");
 
                     b.Navigation("OriginalOrder");
+                });
+
+            modelBuilder.Entity("Infoman.Models.Expense", b =>
+                {
+                    b.HasOne("Infoman.Models.Shift", "Shift")
+                        .WithMany("Expenses")
+                        .HasForeignKey("ShiftId");
+
+                    b.Navigation("Shift");
                 });
 
             modelBuilder.Entity("Infoman.Models.InventoryMovement", b =>
@@ -2021,6 +2124,34 @@ namespace Infoman.Migrations
                     b.Navigation("Receiving");
                 });
 
+            modelBuilder.Entity("Infoman.Models.Shift", b =>
+                {
+                    b.HasOne("Infoman.Models.User", "ClosedByUser")
+                        .WithMany()
+                        .HasForeignKey("ClosedByUserId");
+
+                    b.HasOne("Infoman.Models.User", "StaffUser")
+                        .WithMany()
+                        .HasForeignKey("StaffUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ClosedByUser");
+
+                    b.Navigation("StaffUser");
+                });
+
+            modelBuilder.Entity("Infoman.Models.ShiftCashCount", b =>
+                {
+                    b.HasOne("Infoman.Models.Shift", "Shift")
+                        .WithMany("CashCounts")
+                        .HasForeignKey("ShiftId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Shift");
+                });
+
             modelBuilder.Entity("Infoman.Models.StockAdjustmentLog", b =>
                 {
                     b.HasOne("Infoman.Models.User", "AdjustedByUser")
@@ -2131,11 +2262,17 @@ namespace Infoman.Migrations
                         .WithMany("ReplacementOrders")
                         .HasForeignKey("OriginalOrderId");
 
+                    b.HasOne("Infoman.Models.Shift", "Shift")
+                        .WithMany("Orders")
+                        .HasForeignKey("ShiftId");
+
                     b.HasOne("Infoman.Models.User", "Staff")
                         .WithMany()
                         .HasForeignKey("StaffUserId");
 
                     b.Navigation("OriginalOrder");
+
+                    b.Navigation("Shift");
 
                     b.Navigation("Staff");
                 });
@@ -2173,6 +2310,15 @@ namespace Infoman.Migrations
             modelBuilder.Entity("Infoman.Models.Receiving", b =>
                 {
                     b.Navigation("ReceivingItems");
+                });
+
+            modelBuilder.Entity("Infoman.Models.Shift", b =>
+                {
+                    b.Navigation("CashCounts");
+
+                    b.Navigation("Expenses");
+
+                    b.Navigation("Orders");
                 });
 
             modelBuilder.Entity("Infoman.Models.Supplier", b =>

@@ -33,6 +33,8 @@ builder.Services.AddScoped<FIFOService>();
 builder.Services.AddScoped<VoidRefundService>();
 builder.Services.AddScoped<RefundService>();
 builder.Services.AddScoped<ExchangeService>();
+// ✅ IDAGDAG: Shift Service for Start/Close/Force-Close
+builder.Services.AddScoped<Infoman.Services.ShiftService>();
 
 // PHASE 1: Payment feature flags (GCash/QRPh naka-OFF hangga't hindi naaayos ang PayMongo)
 builder.Services.Configure<PaymentOptions>(builder.Configuration.GetSection(PaymentOptions.SectionName));

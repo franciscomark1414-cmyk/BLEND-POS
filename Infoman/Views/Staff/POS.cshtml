@@ -1700,11 +1700,15 @@
             border: none;
         }
 
-        /* Custom Confirm / Alert modals */
-        #customConfirmModal .modal-qty-content,
-        #customAlertModal .modal-qty-content {
-            padding: 28px 26px;
-        }
+            #customConfirmModal,
+            #customAlertModal {
+                z-index: 999999 !important; /* ✅ PINAKAMATAAS PARA NASA HARAP */
+            }
+
+                #customConfirmModal .modal-qty-content,
+                #customAlertModal .modal-qty-content {
+                    padding: 28px 26px;
+                }
         #confirmIcon,
         #alertIcon {
             width: 56px;
@@ -1918,6 +1922,76 @@
             color: var(--ink-400);
         }
         .close:hover { color: var(--ink-900); }
+
+        .denom-grid { display: grid; gap: 6px; margin-bottom: 14px; }
+.denom-row { display: grid; grid-template-columns: 90px 1fr 110px; align-items: center; gap: 10px; font-size: 13px; }
+.denom-row input { text-align: right; padding: 6px 8px; border-radius: 8px; border: 1px solid #cbd5e1; }
+.denom-sub { text-align: right; font-variant-numeric: tabular-nums; color: #334155; }
+
+
+/* Denomination Breakdown Style */
+.denom-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink-500);
+    margin: 16px 0 8px 0;
+    border-bottom: 1px solid var(--ink-200);
+    padding-bottom: 4px;
+}
+.denom-grid {
+    background: var(--ink-50);
+    border: 1px solid var(--ink-200);
+    border-radius: var(--radius-md);
+    padding: 8px 12px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+.denom-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    border-bottom: 1px dashed var(--ink-200);
+}
+.denom-row:last-child {
+    border-bottom: none;
+}
+.denom-label {
+    font-family: monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-700);
+    width: 80px;
+}
+.denom-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.denom-input-wrap span {
+    font-size: 12px;
+    color: var(--ink-400);
+}
+.denom-input {
+    width: 60px;
+    text-align: center;
+    padding: 4px;
+    border: 1px solid var(--ink-300);
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 700;
+}
+.denom-sub {
+    font-family: monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-500);
+    width: 70px;
+    text-align: right;
+}
+
     </style>
 </head>
 <body>
@@ -1939,9 +2013,9 @@
                 </div>
             </div>
             <div class="attendance-buttons">
-                <button id="timeInBtn" class="time-btn time-in-btn" onclick="timeIn()">
-                    <i class="fas fa-fingerprint"></i> TIME IN
-                </button>
+               <button id="timeInBtn" class="time-btn time-in-btn" onclick="timeIn()" disabled style="display: none;">
+    <i class="fas fa-fingerprint"></i> TIME IN
+</button>
                 <button id="timeOutBtn" class="time-btn time-out-btn" style="display:none;" onclick="timeOut()">
                     <i class="fas fa-sign-out-alt"></i> TIME OUT
                 </button>
@@ -2003,6 +2077,9 @@
                     <button id="voidRefundBtn" class="btn btn-outline-danger btn-sm" onclick="showVoidRefundPanel()">
                         <i class="fas fa-undo-alt"></i> Return / Refund
                     </button>
+                    <button id="endDayBtn" class="btn btn-sm" onclick="showEndDayModal()" style="background: #dc2626; color: white; font-weight: 700; padding: 8px 16px; border-radius: 20px; border: none; box-shadow: 0 4px 12px rgba(220,38,38,0.3); display: none;">
+    <i class="fas fa-stop-circle"></i> End Day
+</button>
                 </div>
 
                 <div class="products-grid" id="productsGrid">
@@ -2475,6 +2552,195 @@
                 </p>
                 <p id="paymentStatus" style="color: var(--info); font-weight: 700;"></p>
                 <button onclick="closeQRModal()" class="btn-cancel" style="padding: 10px 20px; border-radius: var(--radius-md);">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+        <!-- ============================================================ -->
+    <!-- SHIFT MANAGEMENT MODALS                                       -->
+    <!-- ============================================================ -->
+
+    <!-- START DAY MODAL -->
+    <div id="startShiftModal" class="modal-qty" style="display: none; z-index: 100000;">
+        <div class="modal-qty-content" style="width: 450px; max-width: 95%; padding: 0; text-align: left;">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #16a34a, #22c55e); color: white; padding: 20px 24px; border-radius: 16px 16px 0 0;">
+                <h3 style="margin: 0; font-size: 18px; font-weight: 700;">
+                    <i class="fas fa-play-circle"></i> Start Day — Open Shift
+                </h3>
+                <p style="margin: 4px 0 0; font-size: 13px; opacity: 0.9;">Enter your opening cash float to begin</p>
+            </div>
+            
+            <!-- Body -->
+            <div style="padding: 24px;">
+                <div style="background: var(--ink-50); padding: 12px; border-radius: 10px; margin-bottom: 16px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
+                        <span>Cashier:</span>
+                        <strong id="startShiftStaffName">@ViewBag.StaffUsername</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                        <span>Date:</span>
+                        <strong id="startShiftDate">--</strong>
+                    </div>
+                </div>
+
+                <label class="form-label fw-bold" style="font-size: 13px;">
+                    Opening Cash Float (₱) <span class="text-danger">*</span>
+                </label>
+                <input type="number" 
+                       id="startShiftFloat" 
+                       class="form-control" 
+                       step="0.01" 
+                       min="0" 
+                       placeholder="e.g., 1000.00"
+                       style="font-size: 20px; padding: 12px; font-weight: bold; border-radius: 10px; text-align: right; margin-bottom: 6px;">
+                <small class="text-muted" style="font-size: 12px;">
+                    <i class="fas fa-info-circle"></i> Enter the cash amount currently in the drawer.
+                </small>
+
+                <label class="form-label fw-bold mt-3" style="font-size: 13px;">
+                    Notes (Optional)
+                </label>
+                <textarea id="startShiftNotes" 
+                          class="form-control" 
+                          rows="2" 
+                          placeholder="e.g., Loose change provided by owner"
+                          style="font-size: 13px; border-radius: 10px;"></textarea>
+            </div>
+
+            <!-- Footer -->
+            <div style="padding: 16px 24px; background: var(--ink-50); border-radius: 0 0 16px 16px; display: flex; gap: 10px;">
+                <button type="button" 
+                        onclick="logoutFromShiftModal()" 
+                        class="btn-cancel" 
+                        style="flex: 1; padding: 12px; border-radius: 10px; font-weight: 600;">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+                <button type="button" 
+                        id="startShiftBtn"
+                        onclick="submitStartShift()" 
+                        class="btn-confirm" 
+                        style="flex: 2; padding: 12px; border-radius: 10px; font-weight: 700; background: #16a34a; box-shadow: 0 4px 12px rgba(22,163,74,0.3);">
+                    <i class="fas fa-play"></i> Open Shift
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- END DAY MODAL -->
+    <!-- END DAY MODAL -->
+    <div id="endShiftModal" class="modal-qty" style="display: none; z-index: 100000;">
+        <div class="modal-qty-content" style="width: 500px; max-width: 95%; padding: 0; text-align: left;">
+
+            <!-- Header -->
+            <div id="endShiftHeader" style="background: linear-gradient(135deg, #dc2626, #ef4444); color: white; padding: 20px 24px; border-radius: 16px 16px 0 0;">
+                <h3 style="margin: 0; font-size: 18px; font-weight: 700;">
+                    <i class="fas fa-stop-circle"></i> <span id="endShiftTitleText">End Day — Close Shift</span>
+                </h3>
+                <p id="endShiftSubtitle" style="margin: 4px 0 0; font-size: 13px; opacity: 0.9;">Enter your physical cash count</p>
+            </div>
+
+            <!-- Body -->
+            <div style="padding: 20px; max-height: 65vh; overflow-y: auto;">
+                <!-- Warning box for force-close -->
+                <div id="endShiftWarningBox" style="display: none; background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+                    <div style="font-weight: 700; color: #92400e; font-size: 13px; margin-bottom: 6px;">
+                        <i class="fas fa-exclamation-triangle"></i> Forced Close Detected
+                    </div>
+                    <div style="font-size: 12px; color: #78350f;" id="endShiftWarningText">
+                        This shift was not closed properly. You are about to force-close it.
+                    </div>
+                </div>
+
+                <!-- Summary -->
+                <div style="background: var(--ink-50); padding: 12px; border-radius: 10px; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
+                        <span>Shift #:</span> <strong id="endShiftId">--</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
+                        <span>Opened at:</span> <strong id="endShiftStartTime">--</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
+                        <span>Opening Float:</span> <strong id="endShiftOpeningFloat">₱0.00</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                        <span>Expected Cash:</span> <strong id="endShiftExpectedCash" style="color: #0369a1;">₱0.00</strong>
+                    </div>
+                </div>
+
+                <!-- Denomination Breakdown -->
+                <div class="denom-section-title">Physical Cash Denomination Breakdown</div>
+                <div id="denomContainer" class="denom-grid">
+                    <!-- JS will populate inputs here -->
+                </div>
+
+                <!-- Physical Cash Input -->
+                <div style="margin-top: 16px;">
+                    <label class="form-label fw-bold" style="font-size: 13px; margin-bottom: 4px; display: block;">
+                        Total Physical Cash Counted (₱) <span class="text-danger">*</span>
+                    </label>
+                    <input type="number"
+                           id="endShiftPhysicalCash"
+                           class="form-control"
+                           step="0.01"
+                           min="0"
+                           placeholder="0.00"
+                           readonly
+                           style="font-size: 20px; padding: 12px; font-weight: bold; border-radius: 10px; text-align: right; background-color: var(--ink-100); cursor: not-allowed; margin-bottom: 4px;">
+                    <small class="text-muted" style="font-size: 11px;">
+                        <i class="fas fa-calculator"></i> Auto-calculated from denominations above.
+                    </small>
+                </div>
+
+                <!-- Variance Preview -->
+                <div id="variancePreview" style="margin-top: 12px; padding: 12px; border-radius: 10px; background: var(--ink-50); display: none;">
+                    <div style="display: flex; justify-content: space-between; font-size: 14px;">
+                        <span>Variance:</span>
+                        <strong id="varianceAmount">₱0.00</strong>
+                    </div>
+                    <div id="varianceLabel" style="font-size: 11px; text-align: right; margin-top: 2px;"></div>
+                </div>
+
+                <!-- GCash Input -->
+                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--ink-200);">
+                    <label class="form-label fw-bold" style="font-size: 13px; margin-bottom: 4px; display: block;">
+                        GCash Total Input (Optional)
+                    </label>
+                    <input type="number"
+                           id="endShiftGcashCounted"
+                           class="form-control"
+                           step="0.01"
+                           min="0"
+                           placeholder="e.g., 2100.00"
+                           style="font-size: 16px; padding: 10px; border-radius: 8px; text-align: right; margin-bottom: 4px;">
+                </div>
+
+                <!-- Closing Notes -->
+                <div style="margin-top: 16px;">
+                    <label class="form-label fw-bold" style="font-size: 13px;">Closing Remarks / Notes</label>
+                    <textarea id="endShiftNotes"
+                              class="form-control"
+                              rows="2"
+                              placeholder="e.g., Smooth shift. Spent ₱150 cash for emergency ice."
+                              style="font-size: 13px; border-radius: 8px;"></textarea>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="padding: 16px 24px; background: var(--ink-50); border-radius: 0 0 16px 16px; display: flex; gap: 10px;">
+                <button type="button"
+                        onclick="closeShiftModal()"
+                        class="btn-cancel"
+                        style="flex: 1; padding: 12px; border-radius: 10px; font-weight: 600;">
+                    Cancel
+                </button>
+                <button type="button"
+                        id="endShiftBtn"
+                        onclick="submitEndShift()"
+                        class="btn-confirm"
+                        style="flex: 2; padding: 12px; border-radius: 10px; font-weight: 700; background: #dc2626; box-shadow: 0 4px 12px rgba(220,38,38,0.3);">
+                    <i class="fas fa-check"></i> Finalize & Close
+                </button>
             </div>
         </div>
     </div>
@@ -4646,9 +4912,10 @@ function switchVoidTab(tab) {
     }
     
     // ========== ATTENDANCE & POS INITIALIZATION ==========
-    checkAttendanceStatus();
-    updateDateTime();
-    loadOrderQueue();
+    // ✅ BAGONG FLOW: Check Shift first, then Attendance
+initializePOSFlow();
+updateDateTime();
+loadOrderQueue();
     
     setInterval(loadOrderQueue, 5000);
     setInterval(updateDateTime, 1000);
@@ -5535,7 +5802,7 @@ async function refreshOrderItemsAfterRefund(orderId) {
         // ============================================================
         // ATTENDANCE
         // ============================================================
-        function checkAttendanceStatus() {
+            function checkAttendanceStatus() {
     fetch('/Staff/GetTodayAttendance')
         .then(res => res.json())
         .then(data => {
@@ -5543,12 +5810,10 @@ async function refreshOrderItemsAfterRefund(orderId) {
             const timeOutBtn = document.getElementById('timeOutBtn');
             const statusBadge = document.getElementById('attendanceStatusBadge');
             const hoursDisplay = document.getElementById('todayHoursDisplay');
-            
-            console.log('Attendance data:', data); // For debugging
-            
-            // ✅ FIX: Check both isClockedIn and hasClockedOut properly
+
+            console.log('Attendance data:', data);
+
             if (data.isClockedIn === true) {
-                // Currently clocked in
                 timeInBtn.style.display = 'none';
                 timeOutBtn.style.display = 'inline-block';
                 if (statusBadge) {
@@ -5557,12 +5822,22 @@ async function refreshOrderItemsAfterRefund(orderId) {
                     statusBadge.style.color = 'white';
                 }
                 if (hoursDisplay) hoursDisplay.innerText = data.hoursToday || '0';
-                
-                // Enable POS
                 enablePOSPage();
-                
-            } else if (data.hasClockedOut === true) {
-                // Already clocked out for the day
+
+               fetch('/Staff/CheckActiveShift')
+    .then(r => r.json())
+    .then(shiftData => {
+        const endDayBtn = document.getElementById('endDayBtn');
+        if (endDayBtn) {
+            if (shiftData.hasActiveShift) {  // ✅ ALISIN ANG isOwnShift
+                endDayBtn.style.display = 'inline-block';
+            } else {
+                endDayBtn.style.display = 'none';
+            }
+        }
+    });
+            }
+            else if (data.hasClockedOut === true) {
                 timeInBtn.style.display = 'none';
                 timeOutBtn.style.display = 'none';
                 if (statusBadge) {
@@ -5571,12 +5846,12 @@ async function refreshOrderItemsAfterRefund(orderId) {
                     statusBadge.style.color = 'white';
                 }
                 if (hoursDisplay) hoursDisplay.innerText = data.hoursToday || '0';
-                
-                // Disable POS
                 disablePOSPage();
-                
-            } else {
-                // Not clocked in yet
+                const endDayBtn = document.getElementById('endDayBtn');
+                if (endDayBtn) endDayBtn.style.display = 'none';
+            }
+            else {
+                // ⭕ Not clocked in yet
                 timeInBtn.style.display = 'inline-block';
                 timeOutBtn.style.display = 'none';
                 if (statusBadge) {
@@ -5585,17 +5860,27 @@ async function refreshOrderItemsAfterRefund(orderId) {
                     statusBadge.style.color = 'white';
                 }
                 if (hoursDisplay) hoursDisplay.innerText = '0.0';
-                
-                // Disable POS
-                disablePOSPage();
-                
-                // Show reminder (optional)
-                // showAttendanceReminder();
+
+                // ✅ I-CHECK MUNA KUNG MAY ACTIVE SHIFT BAGO I-DISABLE ANG POS
+                fetch('/Staff/CheckActiveShift')
+                    .then(r => r.json())
+                    .then(shiftData => {
+                        if (shiftData.hasActiveShift) {
+                            // May active shift — enable POS para makapag-Time In
+                            enablePOSPage();
+                        } else {
+                            // Walang shift — disable POS
+                            disablePOSPage();
+                        }
+                    })
+                    .catch(() => disablePOSPage()); // Fallback kung may error
+
+                const endDayBtn = document.getElementById('endDayBtn');
+                if (endDayBtn) endDayBtn.style.display = 'none';
             }
         })
         .catch(error => console.error('Error checking attendance:', error));
 }
-
 function enablePOSPage() {
     // Enable product cards
     const productCards = document.querySelectorAll('.product-card');
@@ -5674,17 +5959,32 @@ function disablePOSPage() {
             bootstrap.Modal.getInstance(document.getElementById('attendanceReminderModal')).hide();
             timeIn();
         }
-        function timeIn() {
-            fetch('/Staff/TimeIn', { method: 'POST', headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() } })
-                .then(res => res.json()).then(async data => { 
-    if (data.success) { 
-        await showAlert(data.message, 'Success', '✅'); 
-        checkAttendanceStatus(); 
-    } else { 
-        await showAlert('❌ ' + data.message, 'Error', '❌'); 
-    } 
-});
-        }
+       function timeIn() {
+    fetch('/Staff/TimeIn', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() } 
+    })
+    .then(res => res.json())
+    .then(async data => { 
+        if (data.success) { 
+            await showAlert(data.message, 'Success', '✅'); 
+            
+            // ✅ Pagkatapos mag-time in, i-check kung may active shift
+            const shiftResponse = await fetch('/Staff/CheckActiveShift');
+            const shiftData = await shiftResponse.json();
+            
+            if (!shiftData.hasActiveShift) {
+                // Walang active shift — ipakita ang Start Day modal
+                showStartShiftModal();
+            } else {
+                // May active shift na — i-refresh lang ang status
+                checkAttendanceStatus();
+            }
+        } else { 
+            await showAlert('❌ ' + data.message, 'Error', '❌'); 
+        } 
+    });
+}
                 async function timeOut() {
     const confirmed = await showConfirm('End your shift?', 'Time Out');
     if (!confirmed) return;
@@ -7368,6 +7668,423 @@ async function payWithQRPh() {
         console.error('QRPh payment error:', error);
         await showAlert('❌ Payment failed: ' + error.message, 'Error', '❌');
     }
+}
+
+// ============================================================
+// SHIFT MANAGEMENT — Initialize POS Flow
+// ============================================================
+async function initializePOSFlow() {
+    try {
+        const response = await fetch('/Staff/CheckActiveShift');
+        
+        // ✅ Kung hindi OK ang response (500 error, etc.), huwag i-crash
+        if (!response.ok) {
+            console.error('CheckActiveShift failed:', response.status);
+            enablePOSAfterShiftCheck(); // Fallback: enable POS
+            return;
+        }
+        
+        const data = await response.json();
+
+        if (!data.success) {
+            await showAlert(data.message, 'Error', '❌');
+            return;
+        }
+
+        if (!data.hasActiveShift) {
+            showStartShiftModal();
+            return;
+        }
+
+        const shiftAge = await checkShiftAge(data.shiftId);
+        
+        if (shiftAge.isExpired) {
+            showEndShiftModalForce(data);
+        } else {
+            enablePOSAfterShiftCheck();
+        }
+    } catch (error) {
+        console.error('Initialize POS error:', error);
+        enablePOSAfterShiftCheck(); // Fallback: enable POS
+    }
+}
+
+// Check kung expired na ang shift (> 8 hours or yesterday)
+async function checkShiftAge(shiftId) {
+    try {
+        const response = await fetch('/Staff/CheckActiveShift');
+        const data = await response.json();
+        
+        // ✅ Kung walang startTime, huwag i-force close
+        if (!data.startTime) {
+            console.warn('No startTime from server — skipping expiry check');
+            return { isExpired: false };
+        }
+        
+        const startDate = new Date(data.startTime);
+        
+        // ✅ Kung invalid date, huwag i-force close
+        if (isNaN(startDate.getTime())) {
+            console.warn('Invalid startTime:', data.startTime, '— skipping expiry check');
+            return { isExpired: false };
+        }
+        
+        const today = new Date();
+        const hoursElapsed = (today - startDate) / (1000 * 60 * 60);
+        
+        // ✅ I-check lang ang hours (> 8), hindi ang date boundary
+        // Kasi kung 7:59 AM ka nag-open shift at 8:01 AM na ngayon, hindi dapat mag-force close
+        const isOver12Hours = hoursElapsed > 12; 
+        
+        // ✅ Idagdag: kung 24+ hours na, siguradong expired
+        const isOver24Hours = hoursElapsed > 24;
+        
+        return {
+            isExpired: isOver8Hours || isOver24Hours,
+            hoursElapsed: hoursElapsed
+        };
+    } catch (error) {
+        console.error('checkShiftAge error:', error);
+        return { isExpired: false }; // ✅ Safe fallback
+    }
+}
+
+// Show Start Shift modal
+function showStartShiftModal() {
+    const dateEl = document.getElementById('startShiftDate');
+    const modalEl = document.getElementById('startShiftModal');
+    
+    if (!modalEl) {
+        console.error('startShiftModal element not found!');
+        return;
+    }
+    
+    if (dateEl) {
+        dateEl.innerText = new Date().toLocaleDateString('en-US', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+    }
+    
+    modalEl.style.display = 'flex';
+    const floatInput = document.getElementById('startShiftFloat');
+    if (floatInput) setTimeout(() => floatInput.focus(), 300);
+}
+
+async function submitStartShift() {
+    const openingFloat = parseFloat(document.getElementById('startShiftFloat').value);
+    const notes = document.getElementById('startShiftNotes').value.trim();
+
+    if (isNaN(openingFloat) || openingFloat < 0) {
+        await showAlert('Please enter a valid opening cash float.', 'Required', '⚠️');
+        return;
+    }
+
+    const btn = document.getElementById('startShiftBtn');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Opening...';
+
+    try {
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+        
+        // ✅ TIMEOUT PARA HINDI MAG-STUCK
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+        const response = await fetch('/Staff/OpenShift', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': token
+            },
+            body: JSON.stringify({ openingFloat, notes }),
+            signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        // ✅ I-CHECK KUNG JSON ANG RESPONSE
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            console.error('Non-JSON response:', text.substring(0, 500));
+            throw new Error(`Server returned ${response.status}. Check browser console for details.`);
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+            document.getElementById('startShiftModal').style.display = 'none';
+            await showAlert(
+                `✅ Shift opened!\n\nOpening Float: ₱${openingFloat.toFixed(2)}\n\nYou can now Time In and start taking orders.`,
+                'Shift Opened',
+                '✅'
+            );
+            enablePOSAfterShiftCheck();
+        } else {
+            await showAlert('❌ ' + data.message, 'Error', '❌');
+        }
+    } catch (error) {
+        console.error('Submit start shift error:', error);
+        
+        if (error.name === 'AbortError') {
+            await showAlert('❌ Request timed out (15s). Please check your connection and try again.', 'Timeout', '❌');
+        } else {
+            await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+        }
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+// Logout from Start Shift modal
+async function logoutFromShiftModal() {
+    const confirmed = await showConfirm('Logout without opening a shift?', 'Logout');
+    if (confirmed) {
+        await processLogout();
+    }
+}
+
+// Enable POS after shift check (para makapag-Time In)
+function enablePOSAfterShiftCheck() {
+    const timeInBtn = document.getElementById('timeInBtn');
+    if (timeInBtn) {
+        timeInBtn.disabled = false;
+        timeInBtn.style.display = 'inline-block';
+    }
+
+    // Check attendance status (para lumabas ang Time In button kung wala pa)
+    checkAttendanceStatus();
+}
+
+// Show End Day modal (normal — manual click ng button)
+async function showEndDayModal() {
+    try {
+        const response = await fetch('/Staff/CheckActiveShift');
+        const data = await response.json();
+
+        if (!data.success || !data.hasActiveShift) {
+            await showAlert('No active shift to close.', 'Notice', 'ℹ️');
+            return;
+        }
+
+        openEndShiftModal(data, false); // Not force
+    } catch (error) {
+        await showAlert('Error: ' + error.message, 'Error', '❌');
+    }
+}
+
+// Show End Day modal (force — auto kapag expired na)
+async function showEndShiftModalForce(data) {
+    openEndShiftModal(data, true); // Force mode
+}
+
+// Open End Shift Modal (shared)
+function openEndShiftModal(data, isForce) {
+    document.getElementById('endShiftId').innerText = '#' + data.shiftId;
+    document.getElementById('endShiftStartTime').innerText =
+        new Date(data.startTime).toLocaleString('en-PH', {
+            month: 'short', day: 'numeric', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+    document.getElementById('endShiftOpeningFloat').innerText = '₱' + (data.openingFloat || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+    document.getElementById('endShiftExpectedCash').innerText = '₱' + (data.expectedCash || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+
+    const warningBox = document.getElementById('endShiftWarningBox');
+    const titleText = document.getElementById('endShiftTitleText');
+    const subtitle = document.getElementById('endShiftSubtitle');
+
+    if (isForce) {
+        warningBox.style.display = 'block';
+        document.getElementById('endShiftWarningText').innerHTML = 
+            `This shift was not closed properly.<br><br>
+             <strong>Staff:</strong> ${data.staffName}<br>
+             <strong>Started:</strong> ${data.startTime}<br><br>
+             <em>You are about to force-close it. Cash may be commingled with today's cash.</em>`;
+        titleText.innerText = 'Force Close Shift';
+        subtitle.innerText = 'Please count the cash carefully';
+    } else {
+        warningBox.style.display = 'none';
+        titleText.innerText = 'End Day — Close Shift';
+        subtitle.innerText = 'Enter your physical cash count per denomination';
+    }
+
+    // ✅ I-RESET ang values
+    document.getElementById('endShiftNotes').value = '';
+    document.getElementById('endShiftGcashCounted').value = '';
+    document.getElementById('variancePreview').style.display = 'none';
+
+    // ✅ I-BUILD ANG DENOMINATION INPUTS
+    buildDenomInputs(); 
+
+    document.getElementById('endShiftModal').style.display = 'flex';
+}
+
+// Compute variance preview while typing
+function updateVariancePreview() {
+    const physicalCash = parseFloat(document.getElementById('endShiftPhysicalCash').value) || 0;
+    const expectedText = document.getElementById('endShiftExpectedCash').innerText.replace('₱', '').replace(',', '');
+    const expectedCash = parseFloat(expectedText) || 0;
+    const variance = physicalCash - expectedCash;
+
+    const preview = document.getElementById('variancePreview');
+    const amountEl = document.getElementById('varianceAmount');
+    const labelEl = document.getElementById('varianceLabel');
+
+    preview.style.display = 'block';
+
+    if (variance === 0) {
+        amountEl.innerText = '₱0.00';
+        amountEl.style.color = '#16a34a';
+        labelEl.innerText = 'Balanced ✓';
+        labelEl.style.color = '#16a34a';
+        preview.style.background = '#ecfdf3';
+    } else if (variance > 0) {
+        amountEl.innerText = '+₱' + variance.toFixed(2);
+        amountEl.style.color = '#0284c7';
+        labelEl.innerText = 'OVER — Sobra sa drawer';
+        labelEl.style.color = '#0284c7';
+        preview.style.background = '#e0f2fe';
+    } else {
+        amountEl.innerText = '-₱' + Math.abs(variance).toFixed(2);
+        amountEl.style.color = '#dc2626';
+        labelEl.innerText = 'SHORT — Kulang sa drawer';
+        labelEl.style.color = '#dc2626';
+        preview.style.background = '#fee2e2';
+    }
+}
+
+// Close End Shift Modal
+function closeShiftModal() {
+    document.getElementById('endShiftModal').style.display = 'none';
+}
+
+            async function submitEndShift() {
+                const physicalCash = parseFloat(document.getElementById('endShiftPhysicalCash').value);
+                const gcashCountedVal = document.getElementById('endShiftGcashCounted').value;
+                const gcashCounted = gcashCountedVal ? parseFloat(gcashCountedVal) : null;
+
+                if (isNaN(physicalCash) || physicalCash < 0) {
+                    await showAlert('Please enter the denomination quantities first.', 'Required', '⚠️');
+                    return;
+                }
+
+                const notes = document.getElementById('endShiftNotes').value.trim();
+                const shiftIdText = document.getElementById('endShiftId').innerText;
+                const shiftId = parseInt(shiftIdText.replace('#', ''));
+
+                const confirmed = await showConfirm(
+                    `Close this shift?\n\nPhysical Cash: ₱${physicalCash.toFixed(2)}\nGCash: ${gcashCounted ? '₱' + gcashCounted.toFixed(2) : 'N/A'}\n\nAfter closing, you will not be able to modify this shift.`,
+                    'Confirm Close Shift'
+                );
+
+                if (!confirmed) return;
+
+                const btn = document.getElementById('endShiftBtn');
+                const originalText = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Closing...';
+
+                try {
+                    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+                    const response = await fetch('/Staff/CloseShift', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': token
+                        },
+                        body: JSON.stringify({
+                            shiftId: shiftId,
+                            physicalCashCounted: physicalCash,
+                            notes: notes,
+                            denominations: collectDenominations(), // ✅ Naka-save na ang breakdown
+                            gcashCounted: gcashCounted // ✅ Naka-save na ang GCash input
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        document.getElementById('endShiftModal').style.display = 'none';
+
+                        const variance = data.variance || 0;
+                        let varianceMsg = '';
+                        if (variance === 0) varianceMsg = '✅ Cash is balanced.';
+                        else if (variance > 0) varianceMsg = `⚠️ OVER by ₱${variance.toFixed(2)}`;
+                        else varianceMsg = `⚠️ SHORT by ₱${Math.abs(variance).toFixed(2)}`;
+
+                        await showAlert(
+                            `✅ Shift closed!\n\nExpected: ₱${(data.expectedCash || 0).toFixed(2)}\nCounted: ₱${physicalCash.toFixed(2)}\n\n${varianceMsg}`,
+                            'Shift Closed',
+                            '✅'
+                        );
+
+                        setTimeout(() => window.location.reload(), 1500);
+                    } else {
+                        await showAlert('❌ ' + data.message, 'Error', '❌');
+                    }
+                } catch (error) {
+                    await showAlert('Error: ' + error.message, 'Error', '❌');
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
+            }
+
+const DENOMS = [1000, 500, 200, 100, 50, 20, 10, 5, 1, 0.25];
+
+function buildDenomInputs() {
+    const container = document.getElementById('denomContainer');
+    if (!container) return;
+
+    // I-generate ang HTML para sa bawat denomination
+    container.innerHTML = DENOMS.map(d => {
+        const label = d >= 1 ? d.toLocaleString('en-PH', { minimumFractionDigits: 2 }) : d.toFixed(2);
+        return `
+            <div class="denom-row">
+                <div class="denom-label">₱${label}</div>
+                <div class="denom-input-wrap">
+                    <span>×</span>
+                    <input type="number" class="denom-input" min="0" step="1" value="0" data-denom="${d}" oninput="recalcDenomTotal()" onkeypress="return event.charCode >= 48 && event.charCode <= 57">
+                </div>
+                <div class="denom-sub" data-sub="${d}">= ₱0.00</div>
+            </div>
+        `;
+    }).join('');
+    
+    recalcDenomTotal();
+}
+
+function recalcDenomTotal() {
+    let total = 0;
+    const inputs = document.querySelectorAll('#denomContainer input[data-denom]');
+    
+    inputs.forEach(inp => {
+        const d = parseFloat(inp.dataset.denom);
+        const q = parseInt(inp.value, 10) || 0;
+        const sub = d * q;
+        total += sub;
+        
+        // I-update ang subtotal display
+        const subDisplay = document.querySelector(`#denomContainer [data-sub="${d}"]`);
+        if (subDisplay) {
+            subDisplay.textContent = `= ₱${sub.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
+        }
+    });
+
+    // I-set ang total sa read-only input at i-trigger ang variance preview
+    document.getElementById('endShiftPhysicalCash').value = total.toFixed(2);
+    updateVariancePreview();
+}
+
+function collectDenominations() {
+    return [...document.querySelectorAll('#denomContainer input[data-denom]')]
+        .map(inp => ({
+            denomination: parseFloat(inp.dataset.denom),
+            quantity: parseInt(inp.value, 10) || 0
+        }))
+        .filter(x => x.quantity > 0);
 }
 
         function escapeHtml(str) {

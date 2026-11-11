@@ -347,31 +347,50 @@
             background: #c82333;
         }
 
-        /* ========== INGREDIENT ROW ========== */
-        .ingredient-row {
-            background: #f9f9f9;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            padding: 10px;
-            margin-bottom: 10px;
-        }
+       .ingredient-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 6px;
+    transition: all 0.2s;
+}
 
-        .ingredient-row:hover {
-            background: #fff8f0;
-            border-color: var(--primary);
-        }
+.ingredient-row:hover {
+    border-color: #cbd5e1;
+}
 
-        .ingredient-row .btn-remove {
-            background: var(--danger);
-            border: none;
-            border-radius: 6px;
-            color: white;
-            font-size: 14px;
-            font-weight: bold;
-            height: 38px;
-            width: 100%;
-            cursor: pointer;
-        }
+.ingredient-row select,
+.ingredient-row input {
+    height: 32px !important;
+    font-size: 12.5px !important;
+    padding: 4px 8px !important;
+}
+
+.btn-remove-ing {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: #fee2e2;
+    color: #dc2626;
+    border: none;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.btn-remove-ing:hover {
+    background: #dc2626;
+    color: white;
+}
 
         /* ========== ADD DELIVERY PANEL ========== */
         #addDeliveryPanel {
@@ -887,8 +906,51 @@
     width: 100%;
     white-space: nowrap;
 }
+
+.sr-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.55); display: flex; align-items: center; justify-content: center; z-index: 100001; padding: 16px; }
+.sr-card { background: #fff; width: min(760px, 100%); max-height: 90vh; overflow: auto; border-radius: 14px; box-shadow: 0 20px 50px rgba(0,0,0,.3); font-size: 14px; color: #1e293b; }
+.sr-head { background: #0f172a; color: #fff; padding: 18px 22px; display: flex; justify-content: space-between; align-items: flex-start; border-radius: 14px 14px 0 0; }
+.sr-eyebrow { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; opacity: .7; }
+.sr-title { font-size: 20px; font-weight: 700; margin-top: 2px; }
+.sr-close { background: none; border: none; color: #cbd5e1; font-size: 26px; line-height: 1; cursor: pointer; }
+.sr-body { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 18px; }
+@@media (max-width: 640px) { .sr-body { grid-template-columns: 1fr; } }
+.sr-section { border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; background: #fff; }
+.sr-section.wide { grid-column: 1 / -1; }
+.sr-section h4 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: #475569; margin: 0 0 10px; }
+.sr-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; background: #f8fafc; }
+.sr-meta span { display: block; font-size: 11px; text-transform: uppercase; color: #64748b; letter-spacing: .05em; }
+.sr-meta strong { font-size: 14px; }
+.sr-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px dashed #e2e8f0; gap: 12px; }
+.sr-row:last-child { border-bottom: none; }
+.sr-row.sr-total { font-weight: 700; border-top: 1px solid #cbd5e1; border-bottom: none; margin-top: 4px; padding-top: 10px; }
+.sr-table { width: 100%; border-collapse: collapse; }
+.sr-table th { font-size: 11px; text-transform: uppercase; color: #64748b; text-align: left; padding: 6px 4px; border-bottom: 1px solid #e2e8f0; }
+.sr-table td { padding: 7px 4px; border-bottom: 1px solid #f1f5f9; }
+.sr-table tfoot td { font-weight: 700; border-top: 1px solid #cbd5e1; border-bottom: none; }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sr-empty { color: #94a3b8; font-style: italic; padding: 10px 0; text-align: center; }
+.sr-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; margin-left: 6px; vertical-align: middle; }
+.sr-ok { background: #dcfce7; color: #166534; }
+.sr-over { background: #dbeafe; color: #1e40af; }
+.sr-short { background: #fee2e2; color: #991b1b; }
+.sr-ok-text { color: #15803d; }
+.sr-over-text { color: #1d4ed8; }
+.sr-short-text { color: #b91c1c; }
+.sr-foot { padding: 12px 18px; border-top: 1px solid #e2e8f0; text-align: right; }
+.sr-btn { background: #334155; color: #fff; border: none; padding: 8px 18px; border-radius: 8px; cursor: pointer; }
    
     </style>
+
+    <script>
+  (function () {
+    var m = sessionStorage.getItem('activeModule') || 'dashboard';
+    var s = document.createElement('style');
+    s.id = 'initialModuleStyle';
+    s.textContent = '.module{display:none!important}#' + m + 'Module{display:block!important}';
+    document.head.appendChild(s);
+  })();
+</script>
 </head>
 <body>
 <div class="dashboard-container">
@@ -1452,11 +1514,14 @@
                                     <label class="form-label">Product Name <span class="text-danger">*</span></label>
                                     <input type="text" name="Name" class="form-control" required />
                                 </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">SKU Prefix <span class="text-danger">*</span></label>
-                                    <input type="text" name="SKU" class="form-control" required placeholder="e.g., MS" />
-                                    <small class="text-muted">Enter prefix only (e.g., MS, STR, CHOC). System will auto-number: MS001, MS002, etc.</small>
-                                </div>
+                              <div class="col-md-6">
+    <label class="form-label">Auto-Generated SKU Prefix</label>
+    <!-- ✅ TINANGGAL ANG required, GINAWANG lowercase ang placeholder para sa matching -->
+    <input type="text" id="skuPrefixInput" name="SKU" class="form-control" readonly 
+           style="background-color: var(--ink-100); font-weight: bold; text-transform: uppercase;" 
+           placeholder="Will be auto-generated" />
+    <small class="text-muted"><i class="fas fa-magic"></i> Auto-generated based on the first 3 letters of the Product Name.</small>
+</div>
                             </div>
                             <div class="row mb-3">
                                 <div class="col-md-6">
@@ -1954,6 +2019,7 @@
             <li class="nav-item"><button class="nav-link" onclick="switchReportTab('waste', event)"><i class="fas fa-trash-alt me-1"></i> Waste Tracking</button></li>
             <li class="nav-item"><button class="nav-link" onclick="switchReportTab('receipts', event)"><i class="fas fa-receipt me-1"></i> Receipt History</button></li>
             <li class="nav-item"><button class="nav-link" onclick="switchReportTab('adjustments', event)"><i class="fas fa-clipboard-list me-1"></i> Stock Adjustments</button></li>
+             <li class="nav-item"><button class="nav-link" onclick="switchReportTab('shifts', event)"><i class="fas fa-cash-register me-1"></i> Shift Management</button></li>
         </ul>
 
         <!-- Tab contents remain the same -->
@@ -2068,6 +2134,47 @@
                 </div>
             </div>
         </div>
+
+                    <!-- ============================================================ -->
+            <!-- SHIFT MANAGEMENT TAB                                          -->
+            <!-- ============================================================ -->
+            <div id="shiftsTab" class="tab-pane fade">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-cash-register text-primary me-2"></i> Shift Management</h5>
+                        <div class="d-flex gap-2">
+                            <input type="date" id="shiftFilterFrom" class="form-control form-control-sm" style="width: 150px;" onchange="loadShifts()">
+                            <input type="date" id="shiftFilterTo" class="form-control form-control-sm" style="width: 150px;" onchange="loadShifts()">
+                            <button class="btn btn-sm btn-outline-primary" onclick="loadShifts()">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Shift #</th>
+                                        <th>Date</th>
+                                        <th>Staff</th>
+                                        <th>Status</th>
+                                        <th class="text-end">Opening Float</th>
+                                        <th class="text-end">Expected Cash</th>
+                                        <th class="text-end">Actual Counted</th>
+                                        <th class="text-end">Variance</th>
+                                        <th class="text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="shiftsTableBody">
+                                    <tr><td colspan="9" class="text-center text-muted py-4">Loading shifts...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
     </div>
 </div>
 
@@ -3694,51 +3801,78 @@ if (ctx) {
 }
  
 // ========== SESSION TIMEOUT LOGIC ==========
-const SESSION_TIMEOUT_MS = 1 * 60 * 1000; // 5 minutes (300,000 ms)
+const SESSION_TIMEOUT_MS = 1 * 60 * 1000; // 5 minutes
+const LOCK_FLAG_KEY = 'sessionLocked';
+const LAST_ACTIVITY_KEY = 'lastActivityAt';
 let timeoutId;
 
-// Function para i-check kung naka-enable ang timeout
 function isTimeoutEnabled() {
     return sessionStorage.getItem('enableSessionTimeout') === 'true';
 }
 
-// Function para i-toggle ang setting
+function markActivity() {
+    sessionStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString());
+}
+
 function toggleSessionTimeout(element) {
     const isEnabled = element.checked;
     sessionStorage.setItem('enableSessionTimeout', isEnabled);
-    
+
     if (isEnabled) {
         resetSessionTimer();
         showAlert('Session timeout is now ON (5 minutes).', 'Settings Updated', '✅');
     } else {
         clearTimeout(timeoutId);
+        sessionStorage.removeItem(LOCK_FLAG_KEY);
+        sessionStorage.removeItem(LAST_ACTIVITY_KEY);
         showAlert('Session timeout is now OFF.', 'Settings Updated', 'ℹ️');
     }
 }
 
-// Function para i-reset ang timer kapag may galaw ang user
-// Function para i-reset ang timer kapag may galaw ang user
+function showLockScreen() {
+    sessionStorage.setItem(LOCK_FLAG_KEY, 'true');
+    clearTimeout(timeoutId);
+    document.getElementById('unlockPasswordInput').value = '';
+    document.getElementById('unlockError').style.display = 'none';
+    new bootstrap.Modal(document.getElementById('sessionLockModal')).show();
+    setTimeout(() => document.getElementById('unlockPasswordInput').focus(), 300);
+}
+
 function resetSessionTimer() {
-    if (!isTimeoutEnabled()) return; // Kung naka-off, wag mag-timer
-    
-    // Wag i-reset kung bukas ang lock modal
+    if (!isTimeoutEnabled()) return;
+    if (sessionStorage.getItem(LOCK_FLAG_KEY) === 'true') return;
     if (document.getElementById('sessionLockModal').classList.contains('show')) return;
 
+    markActivity();
     clearTimeout(timeoutId);
-    
-    timeoutId = setTimeout(() => {
-        if (isTimeoutEnabled()) {
-            // ✅ Ipakita ang LOCK SCREEN imbes na logout
-            document.getElementById('unlockPasswordInput').value = '';
-            document.getElementById('unlockError').style.display = 'none';
-            
-            const lockModal = new bootstrap.Modal(document.getElementById('sessionLockModal'));
-            lockModal.show();
-            
-            // Focus agad sa password input
-            setTimeout(() => document.getElementById('unlockPasswordInput').focus(), 300);
-        }
-    }, SESSION_TIMEOUT_MS);
+    timeoutId = setTimeout(showLockScreen, SESSION_TIMEOUT_MS);
+}
+
+// Tinatawag pagka-load ng page para hindi ma-bypass ang lock sa pag-refresh
+function restoreSessionLock() {
+    if (!isTimeoutEnabled()) return;
+
+    // 1. Naka-lock na bago mag-refresh → lock ulit agad
+    if (sessionStorage.getItem(LOCK_FLAG_KEY) === 'true') {
+        showLockScreen();
+        return;
+    }
+
+    // 2. Ituloy ang natitirang oras mula sa huling galaw ng user
+    const last = parseInt(sessionStorage.getItem(LAST_ACTIVITY_KEY) || '0', 10);
+
+    if (!last) {
+        markActivity();
+        timeoutId = setTimeout(showLockScreen, SESSION_TIMEOUT_MS);
+        return;
+    }
+
+    const elapsed = Date.now() - last;
+    if (elapsed >= SESSION_TIMEOUT_MS) {
+        showLockScreen();
+    } else {
+        timeoutId = setTimeout(showLockScreen, SESSION_TIMEOUT_MS - elapsed);
+    }
 }
 
 // ✅ BAGONG FUNCTION: Para mag-unlock
@@ -3778,6 +3912,8 @@ async function unlockSession() {
             
             document.getElementById('unlockPasswordInput').value = '';
             errorEl.style.display = 'none';
+
+            sessionStorage.removeItem(LOCK_FLAG_KEY);
             
             // Reset timer ulit
             resetSessionTimer();
@@ -3817,9 +3953,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Simulan ang timer kung naka-enable
-    if (isTimeoutEnabled()) {
-        resetSessionTimer();
-    }
+    restoreSessionLock();
 
     // Mag-add ng event listeners para ma-detect ang user activity
     ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt => {
@@ -4288,7 +4422,7 @@ async function rejectRequest(requestId) {
 }
 
 async function showModule(module) {
-    
+    sessionStorage.setItem('activeModule', module);
 
     var modules = ['dashboard', 'rawMaterials', 'inventory', 'products', 'inventoryAlerts', 'reports', 'employees', 'financials', 'suppliers', 'receiving', 'receivingHistory', 'returns', 'settings'];
     
@@ -4844,7 +4978,14 @@ function showAddProductModal() {
         return;
     }
     
+    // ✅ 1. RESET FORM
     form.reset();
+    
+    // ✅ 2. I-CLEAR ANG SKU PREFIX INPUT
+    const skuInput = document.getElementById('skuPrefixInput');
+    if (skuInput) {
+        skuInput.value = ''; // Clear the "AUTO-GENERATED..." placeholder
+    }
 
     loadCategoryDropdown('addProductCategory', 'Product', { valueKey: 'name', placeholder: '-- Select Category (optional) --' });
 
@@ -4873,9 +5014,20 @@ function showAddProductModal() {
         showAlert('Error loading form. Please refresh and try again.', 'Error', '❌');
     });
     
-    // ✅ ADD THE FORM SUBMIT HANDLER HERE
+    // ✅ 3. ADD THE FORM SUBMIT HANDLER HERE
     form.onsubmit = async function(e) {
         e.preventDefault();
+
+        // ✅ 4. FINAL SAFETY CHECK: Kung blangko pa rin ang SKU, i-generate natin bago mag-submit
+        const skuField = document.getElementById('skuPrefixInput');
+        const nameField = form.querySelector('input[name="Name"]');
+        
+        if (skuField && (!skuField.value || skuField.value === 'AUTO-GENERATED...')) {
+            let name = nameField.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+            let prefix = name.length >= 3 ? name.substring(0, 3) : (name.length > 0 ? name.padEnd(3, 'X') : 'PRD');
+            skuField.value = prefix;
+        }
+
         const submitBtn = form.querySelector('button[type="submit"]');
         const originalText = submitBtn.innerHTML;
         
@@ -4884,20 +5036,19 @@ function showAddProductModal() {
         submitBtn.disabled = true;
         
         try {
-
-                                                            const unitsValid = await validateIngredientsUnits();
-                                                            if (!unitsValid) {
-                                                                submitBtn.innerHTML = originalText;
-                                                                submitBtn.disabled = false;
-                                                                return; // Stop submission
-                                                            }
+            const unitsValid = await validateIngredientsUnits();
+            if (!unitsValid) {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+                return; // Stop submission
+            }
 
             // Reindex all size rows bago mag-submit
             reindexSizeRows();
             
             const sizeRows = document.querySelectorAll('#sizesContainer .size-row');
             if (sizeRows.length === 0) {
-                await showAlert(' Please add at least one size', 'Error');
+                await showAlert('Please add at least one size', 'Error');
                 submitBtn.innerHTML = originalText;
                 submitBtn.disabled = false;
                 return;
@@ -4934,9 +5085,9 @@ function showAddProductModal() {
             const formData = new FormData(form);
 
             console.log("=== FORM DATA DEBUG ===");
-for (let pair of formData.entries()) {
-    console.log(pair[0] + ': ' + pair[1]);
-}
+            for (let pair of formData.entries()) {
+                console.log(pair[0] + ': ' + pair[1]);
+            }
             
             const response = await fetch('/Owner/AddProduct', {
                 method: 'POST',
@@ -4948,18 +5099,13 @@ for (let pair of formData.entries()) {
             
             const result = await response.json();
             
-                       if (result.success) {
-                // ✅ Close the Add Product Modal
+            if (result.success) {
                 const modal = bootstrap.Modal.getInstance(document.getElementById('addProductModal'));
                 if (modal) modal.hide();
                 
-                // ✅ Kunin ang Product ID (kung ibinabalik ito ng server)
-                // Kung hindi ibinabalik ng server ang ID, pwede nating gamitin ang pangalan.
-                // Palitan ang 'result.productId' kung iba ang key name na ginagamit ng server mo.
                 const newProductId = result.productId || 0; 
                 const productName = document.getElementById('addProductForm').querySelector('input[name="Name"]').value;
                 
-                // ✅ Ipakita ang Custom Success Modal IMBES NA MAG-RELOAD AGAD
                 showProductSuccessModal(newProductId, productName);
                 
             } else {
@@ -5027,7 +5173,6 @@ function removeSizeRow(sizeId) {
     reindexSizeRows();
 }
 
-// Gumawa ng Promise version ng addSizeRow
 function addSizeRowPromise(predefinedName = null, enableManualPrice = true) {
     return new Promise((resolve, reject) => {
         const container = document.getElementById('sizesContainer');
@@ -5043,49 +5188,38 @@ function addSizeRowPromise(predefinedName = null, enableManualPrice = true) {
                     materialOptions += `<option value="${m.id}" data-price="${price}" data-unit="${m.unit}">${m.name} (${m.unit} - ₱${price})</option>`;
                 });
                 
-                // ✅ ADD DATA-MANUAL-PRICE FLAG
                 const sizeHtml = `
                     <div class="size-row border p-3 mb-3 rounded" data-size-id="${sizeId}" data-manual-price="${enableManualPrice}" style="background: #fef9e6; position: relative;">
                         <button type="button" class="btn-remove-size" onclick="removeSizeRow(${sizeId})">✕</button>
                         <div class="row">
                             <div class="col-md-3 mb-2">
                                 <label class="form-label fw-bold">Size Name</label>
-                                <input type="text" name="Sizes[${sizeId}].SizeName" class="form-control" value="${sizeName}" required placeholder="e.g., Small, Medium, Large">
+                                <input type="text" name="Sizes[${sizeId}].SizeName" class="form-control" value="${sizeName}" required placeholder="e.g., Small">
                             </div>
                             <div class="col-md-3 mb-2">
-    <label class="form-label fw-bold">Selling Price (₱)</label>
-    <input type="number" 
-           name="Sizes[${sizeId}].Price" 
-           class="form-control price-input" 
-           step="0.01" 
-           value="0" 
-           placeholder="0.00"
-           data-original-value="0">
-    <small class="text-muted">Enter 0 to auto-calculate, or type your own price</small>
-</div>
+                                <label class="form-label fw-bold">Selling Price (₱)</label>
+                                <input type="number" name="Sizes[${sizeId}].Price" class="form-control price-input" step="0.01" value="0" placeholder="0.00">
+                            </div>
                             <div class="col-md-6 mb-2">
                                 <label class="form-label fw-bold">Recipe / Ingredients</label>
                                 <div class="recipe-items" id="recipe-items-${sizeId}">
-                                    <div class="row mb-2 g-2 ingredient-row" data-ingredient-index="0">
-                                        <div class="col-md-5">
-                                            <select name="Sizes[${sizeId}].RecipeItems[0].RawMaterialId" class="form-control" required onchange="updateUnitDropdown(this)">
-                                                ${materialOptions}
-                                            </select>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <input type="number" name="Sizes[${sizeId}].RecipeItems[0].Quantity" class="form-control" placeholder="Qty" step="0.01" min="0.01" value="1" required>
-                                        </div>
-                                        <div class="col-md-4">
-                                           
-                                             <select name="Sizes[${sizeId}].RecipeItems[0].UnitUsed" class="form-control unit-select" required>
-                                                <option value="kg">📦 kilogram (kg)</option>
-                                                <option value="g">⚖️ gram (g)</option>
-                                                <option value="L">💧 liter (L)</option>
-                                                <option value="mL">🧪 milliliter (mL)</option>
-                                                <option value="pcs">🔢 pieces (pcs)</option>
-                                            </select>
-                                        </div>
+                                    
+                                    <!-- ✅ UNANG ROW (FLEXBOX) -->
+                                    <div class="ingredient-row">
+                                        <select name="Sizes[${sizeId}].RecipeItems[0].RawMaterialId" class="form-control form-control-sm" required onchange="updateUnitDropdown(this)" style="flex: 1;">
+                                            ${materialOptions}
+                                        </select>
+                                        <input type="number" name="Sizes[${sizeId}].RecipeItems[0].Quantity" class="form-control form-control-sm" placeholder="Qty" step="0.01" min="0.01" value="1" required style="width: 70px; flex-shrink: 0;">
+                                        <select name="Sizes[${sizeId}].RecipeItems[0].UnitUsed" class="form-control form-control-sm unit-select" required style="width: 110px; flex-shrink: 0;">
+                                            <option value="kg">📦 kg</option>
+                                            <option value="g">⚖️ g</option>
+                                            <option value="L">💧 L</option>
+                                            <option value="mL">🧪 mL</option>
+                                            <option value="pcs">🔢 pcs</option>
+                                        </select>
+                                        <div style="width: 28px; flex-shrink: 0;"></div> <!-- Spacer para pantay sa may X button -->
                                     </div>
+
                                 </div>
                                 <button type="button" class="btn btn-sm btn-link text-success mt-1" onclick="addRecipeItem(${sizeId})">
                                     <i class="fas fa-plus"></i> Add Ingredient
@@ -5223,28 +5357,32 @@ function addSizeRow(predefinedName = null) {
                 materialOptions += `<option value="${m.id}" data-price="${price}" data-unit="${m.unit}">${m.name} (${m.unit} - ₱${price})</option>`;
             });
             
+            // ✅ BAGONG LAYOUT: Pure Flexbox, walang row/col na nagko-conflict
             const html = `
-                <div class="row g-2 mb-2 ingredient-row" style="background: #f9f9f9; padding: 8px; border-radius: 6px; margin-bottom: 8px;">
-                    <div class="col-5">
-                        <select name="Sizes[${sizeId}].RecipeItems[${itemCount}].RawMaterialId" class="form-control form-control-sm" required onchange="updateUnitDropdown(this)">
-                            ${materialOptions}
-                        </select>
-                    </div>
-                    <div class="col-2">
-                        <input type="number" name="Sizes[${sizeId}].RecipeItems[${itemCount}].Quantity" class="form-control form-control-sm" placeholder="Qty" step="0.01" min="0.01" value="1" required>
-                    </div>
-                    <div class="col-4">
-                       <select name="Sizes[${sizeId}].RecipeItems[${itemCount}].UnitUsed" class="form-control form-control-sm unit-select" required>
-                            <option value="kg"> kilogram (kg)</option>
-<option value="g"> gram (g)</option>
-<option value="L"> liter (L)</option>
-<option value="mL"> milliliter (mL)</option>
-<option value="pcs"> pieces (pcs)</option>
-                        </select>
-                    </div>
-                    <div class="col-1">
-                        <button type="button" class="btn-remove" onclick="this.closest('.ingredient-row').remove()">✕</button>
-                    </div>
+                <div class="ingredient-row">
+                    
+                    <!-- Ingredient Dropdown -->
+                    <select name="Sizes[${sizeId}].RecipeItems[${itemCount}].RawMaterialId" class="form-control form-control-sm" required onchange="updateUnitDropdown(this)" style="flex: 1;">
+                        ${materialOptions}
+                    </select>
+
+                    <!-- Quantity -->
+                    <input type="number" name="Sizes[${sizeId}].RecipeItems[${itemCount}].Quantity" class="form-control form-control-sm" placeholder="Qty" step="0.01" min="0.01" value="1" required style="width: 70px; flex-shrink: 0;">
+
+                    <!-- Unit Dropdown -->
+                    <select name="Sizes[${sizeId}].RecipeItems[${itemCount}].UnitUsed" class="form-control form-control-sm unit-select" required style="width: 110px; flex-shrink: 0;">
+                        <option value="kg">📦 kg</option>
+                        <option value="g">⚖️ g</option>
+                        <option value="L">💧 L</option>
+                        <option value="mL">🧪 mL</option>
+                        <option value="pcs">🔢 pcs</option>
+                    </select>
+
+                    <!-- Remove Button (Minimalist X) -->
+                    <button type="button" class="btn-remove-ing" onclick="this.closest('.ingredient-row').remove()" title="Remove Ingredient">
+                        <i class="fas fa-times"></i>
+                    </button>
+
                 </div>
             `;
             container.insertAdjacentHTML('beforeend', html);
@@ -6936,7 +7074,8 @@ async function displayInPOS(productSizeId, productName, sizeName) {
             'discounts': 'discountsTab',
             'waste': 'wasteTrackingTab' ,  // <-- BAGONG IDAGDAG
                 'receipts': 'receiptsTab',
-                'adjustments': 'adjustmentsTab' 
+                'adjustments': 'adjustmentsTab',
+                'shifts': 'shiftsTab'
         };
 
         var targetId = tabIdMap[tabName];
@@ -6963,6 +7102,9 @@ async function displayInPOS(productSizeId, productName, sizeName) {
                 updateWasteSummary(lastReportsData.wasteLogs);
             }, 100);
         }
+        if (tabName === 'shifts') {
+    loadShifts();
+}
     }
                                                 function loadReportsData() {
     showReportsLoading();
@@ -11700,6 +11842,254 @@ async function deleteUnit(id) {
 }
 */
 
+// ============================================================
+// SHIFT MANAGEMENT — Owner Reports Tab
+// ============================================================
+
+// 1. Load Shifts (para sa table)
+async function loadShifts() {
+    const tbody = document.getElementById('shiftsTableBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center"><div class="spinner-border spinner-border-sm me-2"></div> Loading...</td></tr>';
+
+    const from = document.getElementById('shiftFilterFrom')?.value || '';
+    const to = document.getElementById('shiftFilterTo')?.value || '';
+
+    try {
+        const response = await fetch(`/Owner/GetShifts?from=${from}&to=${to}`);
+        const data = await response.json();
+
+        if (!data.success || !data.shifts || data.shifts.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No shifts found for this period.</td></tr>';
+            return;
+        }
+
+        let html = '';
+        data.shifts.forEach(shift => {
+            // Status badge
+            let statusBadge = '';
+            if (shift.status === 'OPEN') {
+                statusBadge = '<span class="badge bg-info">🟢 OPEN</span>';
+            } else if (shift.status === 'CLOSED') {
+                statusBadge = '<span class="badge bg-success">✅ CLOSED</span>';
+            } else if (shift.status === 'FORCE_CLOSED') {
+                statusBadge = '<span class="badge bg-warning text-dark">⚠️ FORCE CLOSED</span>';
+            }
+
+            // Variance color
+            let varianceHtml = '<span class="text-muted">—</span>';
+            if (shift.variance !== null && shift.variance !== undefined) {
+                if (shift.variance === 0) {
+                    varianceHtml = '<span class="text-success fw-bold">₱0.00 ✅</span>';
+                } else if (shift.variance > 0) {
+                    varianceHtml = `<span class="text-info fw-bold">+₱${shift.variance.toFixed(2)} 🔵</span>`;
+                } else {
+                    varianceHtml = `<span class="text-danger fw-bold">-₱${Math.abs(shift.variance).toFixed(2)} 🔴</span>`;
+                }
+            }
+
+            const expectedHtml = shift.expectedCash !== null ? `₱${shift.expectedCash.toFixed(2)}` : '<span class="text-muted">—</span>';
+            const physicalHtml = shift.physicalCashCounted !== null ? `₱${shift.physicalCashCounted.toFixed(2)}` : '<span class="text-muted">—</span>';
+
+            html += `
+                <tr>
+                    <td><strong>#${shift.shiftId}</strong></td>
+                    <td>${shift.startTime}</td>
+                    <td>${escapeHtml(shift.staffName)}</td>
+                    <td>${statusBadge}</td>
+                    <td class="text-end">₱${shift.openingFloat.toFixed(2)}</td>
+                    <td class="text-end">${expectedHtml}</td>
+                    <td class="text-end">${physicalHtml}</td>
+                    <td class="text-end">${varianceHtml}</td>
+                    <td class="text-center">
+                        <button class="btn btn-sm btn-primary" onclick="viewShiftDetails(${shift.shiftId})">
+                            <i class="fas fa-eye"></i> View Details
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    } catch (error) {
+        console.error('Error loading shifts:', error);
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-danger">Error loading shifts: ' + error.message + '</td></tr>';
+    }
+}
+
+function shiftPeso(n) {
+    const v = Math.abs(Number(n || 0));
+    return '₱' + v.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function shiftSigned(n) {
+    const v = Number(n || 0);
+    return (v < 0 ? '−' : (v > 0 ? '+' : '')) + shiftPeso(v);
+}
+
+function shiftDate(value) {
+    if (!value) return '—';
+    return new Date(value).toLocaleString('en-PH', {
+        month: 'short', day: 'numeric', year: 'numeric',
+        hour: 'numeric', minute: '2-digit'
+    });
+}
+
+function varianceLabel(v) {
+    if (Math.abs(v) < 0.005) return '<span class="sr-badge sr-ok">Balanced</span>';
+    return v > 0
+        ? '<span class="sr-badge sr-over">Over</span>'
+        : '<span class="sr-badge sr-short">Short</span>';
+}
+
+function varianceTextClass(v) {
+    if (Math.abs(v) < 0.005) return 'sr-ok-text';
+    return v > 0 ? 'sr-over-text' : 'sr-short-text';
+}
+
+async function viewShiftDetails(shiftId) {
+    showLoading('Loading shift details...');
+    try {
+        const res = await fetch(`/Owner/GetShiftDetails?shiftId=${shiftId}`);
+        const data = await res.json();
+        hideLoading();
+
+        if (!data.success) {
+            await showAlert(data.message || 'Unable to load shift details.', 'Error', '❌');
+            return;
+        }
+        renderShiftReport(data);
+    } catch (err) {
+        hideLoading();
+        await showAlert('Error loading shift details: ' + err.message, 'Error', '❌');
+    }
+}
+
+function renderShiftReport(data) {
+    const s = data.shift;
+    const physical = data.physicalCash || 0;
+    const variance = data.cashVariance || 0;
+    const gcashVar = data.gcashVariance || 0;
+    const hasGcash = (data.gcashExpected || 0) > 0 || s.gcashCounted != null;
+    const hasDenoms = data.denominations && data.denominations.length > 0;
+
+    const denomRows = hasDenoms
+        ? data.denominations.map(d => `
+            <tr>
+                <td>${shiftPeso(d.denomination)}</td>
+                <td class="num">× ${d.quantity}</td>
+                <td class="num">${shiftPeso(d.subtotal)}</td>
+            </tr>`).join('')
+        : `<tr><td colspan="3" class="sr-empty">No denomination breakdown recorded for this shift.</td></tr>`;
+
+    const expenseRows = (data.expenses && data.expenses.length)
+        ? data.expenses.map(e => `
+            <tr>
+                <td>${shiftDate(e.expenseDate)}</td>
+                <td>${escapeHtml(e.category)}</td>
+                <td>${escapeHtml(e.description || '—')}</td>
+                <td class="num sr-short-text">−${shiftPeso(e.amount)}</td>
+            </tr>`).join('')
+        : `<tr><td colspan="4" class="sr-empty">No expenses during this shift.</td></tr>`;
+
+    const gcashBlock = hasGcash ? `
+        <div class="sr-row"><span>Expected GCash sales</span>
+            <span class="num">${shiftPeso(data.gcashExpected)}</span></div>
+        <div class="sr-row"><span>Actual GCash counted</span>
+            <span class="num">${s.gcashCounted == null ? '<em>Not recorded</em>' : shiftPeso(s.gcashCounted)}</span></div>
+        <div class="sr-row sr-total"><span>GCash variance ${s.gcashCounted == null ? '' : varianceLabel(gcashVar)}</span>
+            <span class="num ${varianceTextClass(gcashVar)}">${s.gcashCounted == null ? '—' : shiftSigned(gcashVar)}</span></div>`
+        : `<div class="sr-empty">No GCash transactions in this shift.</div>`;
+
+    const statusText = (s.status || '').replace('_', ' ');
+
+    const html = `
+    <div class="sr-overlay" id="shiftDetailsModal">
+        <div class="sr-card">
+            <div class="sr-head">
+                <div>
+                    <div class="sr-eyebrow">End of Day Reconciliation</div>
+                    <div class="sr-title">Shift #${s.shiftId}</div>
+                </div>
+                <button class="sr-close" onclick="closeShiftDetailsModal()" aria-label="Close">&times;</button>
+            </div>
+
+            <div class="sr-body">
+                <div class="sr-section wide sr-meta">
+                    <div><span>Cashier</span><strong>${escapeHtml(s.staffName)}</strong></div>
+                    <div><span>Closed by</span><strong>${escapeHtml(s.closedByName || '—')}</strong></div>
+                    <div><span>Time in</span><strong>${shiftDate(s.startTime)}</strong></div>
+                    <div><span>Time out</span><strong>${shiftDate(s.endTime)}</strong></div>
+                    <div><span>Status</span><strong>${escapeHtml(statusText)}</strong></div>
+                </div>
+
+                <div class="sr-section">
+                    <h4>Physical Cash Count</h4>
+                    <table class="sr-table">
+                        <thead>
+                            <tr><th>Denomination</th><th class="num">Qty</th><th class="num">Subtotal</th></tr>
+                        </thead>
+                        <tbody>${denomRows}</tbody>
+                        <tfoot>
+                            <tr><td colspan="2">Total physical cash</td>
+                                <td class="num">${shiftPeso(physical)}</td></tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <div class="sr-section">
+                    <h4>Cash Reconciliation</h4>
+                    <div class="sr-row"><span>Opening float</span>
+                        <span class="num">${shiftPeso(data.openingFloat)}</span></div>
+                    <div class="sr-row"><span>Cash sales</span>
+                        <span class="num sr-ok-text">+${shiftPeso(data.cashSales)}</span></div>
+                    <div class="sr-row"><span>Cash expenses</span>
+                        <span class="num sr-short-text">−${shiftPeso(data.cashExpenses)}</span></div>
+                    <div class="sr-row sr-total"><span>Expected cash in drawer</span>
+                        <span class="num">${shiftPeso(data.expectedCash)}</span></div>
+                    <div class="sr-row"><span>Physical cash counted</span>
+                        <span class="num">${shiftPeso(physical)}</span></div>
+                    <div class="sr-row sr-total"><span>Cash variance ${varianceLabel(variance)}</span>
+                        <span class="num ${varianceTextClass(variance)}">${shiftSigned(variance)}</span></div>
+                </div>
+
+                <div class="sr-section">
+                    <h4>GCash Reconciliation</h4>
+                    ${gcashBlock}
+                </div>
+
+                <div class="sr-section">
+                    <h4>Closing Remarks</h4>
+                    <div>${s.closingNotes ? escapeHtml(s.closingNotes) : '<span class="sr-empty">No remarks.</span>'}</div>
+                </div>
+
+                <div class="sr-section wide">
+                    <h4>Expenses During Shift</h4>
+                    <table class="sr-table">
+                        <thead>
+                            <tr><th>Date</th><th>Category</th><th>Description</th><th class="num">Amount</th></tr>
+                        </thead>
+                        <tbody>${expenseRows}</tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="sr-foot">
+                <button class="sr-btn" onclick="closeShiftDetailsModal()">Close</button>
+            </div>
+        </div>
+    </div>`;
+
+    const existing = document.getElementById('shiftDetailsModal');
+    if (existing) existing.remove();
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function closeShiftDetailsModal() {
+    const modal = document.getElementById('shiftDetailsModal');
+    if (modal) modal.remove();
+}
+
 // ========== HELPER FUNCTION ==========
 function escapeHtml(str) {
     if (!str) return '';
@@ -11716,6 +12106,32 @@ document.getElementById('passwordGateModal').addEventListener('hidden.bs.modal',
     pendingExpiryData = null;
 });
 
+// ============================================================
+// AUTO-GENERATE SKU PREFIX BASED ON PRODUCT NAME
+// ============================================================
+document.addEventListener('DOMContentLoaded', function() {
+    const productNameInput = document.querySelector('input[name="Name"]');
+    const skuPrefixInput = document.getElementById('skuPrefixInput');
+
+    if (productNameInput && skuPrefixInput) {
+        productNameInput.addEventListener('input', function() {
+            // Kunin ang input, gawing uppercase, at tanggalin ang spaces/special chars
+            let name = this.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+            
+            let prefix = '';
+            if (name.length >= 3) {
+                prefix = name.substring(0, 3); // Kunin ang unang 3 letra
+            } else if (name.length > 0) {
+                // Kung 1 o 2 letra palang, i-pad ng 'X' (e.g., "M" -> "MXX")
+                prefix = name.padEnd(3, 'X'); 
+            }
+
+            // I-set ang value sa readonly input
+            skuPrefixInput.value = prefix;
+        });
+    }
+});
+
 document.addEventListener('DOMContentLoaded', function() {
     // ==========================================
     // 1. EXISTING LOGIC (MODULE LOADING)
@@ -11730,7 +12146,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // sessionStorage ONLY
     var savedModule = sessionStorage.getItem('activeModule');
-    sessionStorage.removeItem('activeModule'); // clear agad after reading
+    
     
     if (fromProductSave === 'true') {
         showModule('products');
@@ -11740,6 +12156,7 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
          showModule('dashboard'); // ✅ bagong login = laging dashboard
     }
+    document.getElementById('initialModuleStyle')?.remove();
 
         // ==========================================
     // 2. NEW LOGIC (SUPPLIER VS STORE NAME)

@@ -25,5 +25,8 @@ namespace Infoman.Models
         public string RecordedBy { get; set; } = "Owner";
 
         public DateTime DateCreated { get; set; } = DateTime.Now;
+        // ✅ BAGONG DAGDAG: Link ng Expense sa Shift
+        public int? ShiftId { get; set; }
+        public Shift? Shift { get; set; }
     }
 }

@@ -2,6 +2,7 @@
 using Infoman.Filters;
 using Infoman.Models;
 using Infoman.Service;
+using Infoman.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,10 +15,12 @@ namespace Infoman.Controllers
     {
         private readonly ConnectionDatabase _db;
         private readonly FIFOService _fifoService;
-        public OwnerController(ConnectionDatabase db)
+        private readonly ShiftService _shiftService;
+        public OwnerController(ConnectionDatabase db, ShiftService shiftService)
         {
             _db = db;
             _fifoService = new FIFOService(_db);
+            _shiftService = shiftService;
         }
 
         private async Task RefreshProductPricesInternal()
@@ -607,15 +610,19 @@ namespace Infoman.Controllers
                     }
                     catch (DbUpdateException ex) when (IsUniqueViolation(ex) && attempt < maxRetries)
                     {
+                        // ✅ ITO ANG FIX: I-detach ang failed entity at gumawa ng bagong SKU
                         _db.Entry(product).State = EntityState.Detached;
+
+                        // I-generate ulit ang bagong SKU base sa pinaka-latest na database state
                         product.SKU = await GenerateUniqueProductSkuAsync(userPrefix);
 
-                        // Kailangan i-update din ang SKU ng mga sizes dahil naka-depende sila sa product SKU
+                        // ✅ I-update din ang SKU ng mga sizes dahil naka-depende sila sa product SKU
                         foreach (var size in product.Sizes)
                         {
                             size.SKU = GenerateSizeSKU(product.SKU, size.SizeName);
                         }
 
+                        // I-add ulit sa context para mag-retry
                         _db.Products.Add(product);
                     }
                 }
@@ -3975,7 +3982,19 @@ namespace Infoman.Controllers
 
         private async Task<string> GenerateUniqueProductSkuAsync(string prefix)
         {
-            // Kunin lahat ng existing SKU na may prefix
+            // ✅ SANITY CHECK: Siguraduhing valid ang prefix (A-Z at 0-9 lang)
+            if (string.IsNullOrWhiteSpace(prefix))
+            {
+                prefix = "PRD";
+            }
+            else
+            {
+                prefix = new string(prefix.Where(c => char.IsLetterOrDigit(c)).ToArray()).ToUpper();
+                if (prefix.Length < 3) prefix = prefix.PadRight(3, 'X');
+                if (prefix.Length > 3) prefix = prefix.Substring(0, 3); // Limit to 3 chars
+            }
+
+            // ✅ KUNIN LAHAT NG EXISTING SKUS NA NAGSISIMULA SA PREFIX
             var existingSkus = await _db.Products
                 .Where(p => p.SKU != null && p.SKU.StartsWith(prefix))
                 .Select(p => p.SKU)
@@ -3984,13 +4003,18 @@ namespace Infoman.Controllers
             int max = 0;
             foreach (var sku in existingSkus)
             {
+                // ✅ SIGURADUHING NUMBER LANG ANG KUNIN (Iwas crash sa mga SKU na may dash)
                 var numPart = sku.Substring(prefix.Length);
-                if (int.TryParse(numPart, out var n) && n > max) max = n;
+                if (int.TryParse(numPart, out var n) && n > max)
+                {
+                    max = n;
+                }
             }
 
+            // ✅ GUMAWA NG BAGONG SKU
             string candidate = $"{prefix}{(max + 1):D3}";
 
-            // Safety: kung existing pa rin (may manual na prefix+number), increment
+            // ✅ FINAL SAFETY NET: Kung may kapareho pa rin, dagdagan ulit
             while (await _db.Products.AnyAsync(p => p.SKU == candidate))
             {
                 max++;
@@ -4096,6 +4120,113 @@ namespace Infoman.Controllers
             catch (Exception ex)
             {
                 return Json(new { success = false, message = "Error: " + ex.Message });
+            }
+        }
+
+        // ============================================================
+        // SHIFT MANAGEMENT — Owner Reports Tab
+        // ============================================================
+
+        /// <summary>
+        /// GET: /Owner/GetShifts — listahan ng lahat ng shifts para sa Reports table
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> GetShifts(DateTime? from = null, DateTime? to = null)
+        {
+            try
+            {
+                var shifts = await _shiftService.GetAllShiftsAsync(from, to);
+
+                var result = shifts.Select(s => new
+                {
+                    s.ShiftId,
+                    StartTime = s.StartTime.ToString("MMM dd, yyyy hh:mm tt"),
+                    StaffName = s.StaffUser?.FullName ?? "Unknown",
+                    s.Status,
+                    s.OpeningFloat,
+                    s.ExpectedCash,
+                    s.PhysicalCashCounted,
+                    s.Variance
+                }).ToList();
+
+                return Json(new { success = true, shifts = result });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// GET: /Owner/GetShiftDetails?shiftId=X — buong breakdown para sa "View Details" modal
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> GetShiftDetails(int shiftId)
+        {
+            try
+            {
+                var shift = await _db.Shifts
+                    .Include(s => s.StaffUser)
+                    .Include(s => s.ClosedByUser)
+                    .Include(s => s.CashCounts)
+                    .FirstOrDefaultAsync(s => s.ShiftId == shiftId);
+
+                if (shift == null)
+                    return Json(new { success = false, message = "Shift not found." });
+
+                var sales = await _db.Orders
+                    .Where(o => o.ShiftId == shiftId
+                             && (o.Status == "COMPLETED" || o.Status == "PENDING_BLENDING"))
+                    .Select(o => new { o.PaymentMethod, o.TotalAmount })
+                    .ToListAsync();
+
+                decimal cashSales = sales.Where(o => o.PaymentMethod == "Cash").Sum(o => o.TotalAmount);
+                decimal gcashSales = sales.Where(o => o.PaymentMethod == "GCash").Sum(o => o.TotalAmount);
+
+                var expenses = await _db.Expenses
+                    .Where(e => e.ShiftId == shiftId)
+                    .OrderByDescending(e => e.ExpenseDate)
+                    .Select(e => new { e.ExpenseDate, e.Category, e.Description, e.Amount })
+                    .ToListAsync();
+
+                decimal cashExpenses = expenses.Sum(e => e.Amount);
+
+                // Closed shifts use the snapshot. Open shifts use the live computation.
+                decimal liveExpected = shift.OpeningFloat + cashSales - cashExpenses;
+                decimal expectedCash = shift.ExpectedCash ?? liveExpected;
+                decimal physical = shift.PhysicalCashCounted ?? 0;
+
+                return Json(new
+                {
+                    success = true,
+                    shift = new
+                    {
+                        shift.ShiftId,
+                        shift.Status,
+                        staffName = shift.StaffUser?.FullName ?? "Unknown",
+                        closedByName = shift.ClosedByUser?.FullName,
+                        startTime = shift.StartTime,
+                        endTime = shift.EndTime,
+                        closingNotes = shift.ClosingNotes,
+                        gcashCounted = shift.GcashCounted
+                    },
+                    openingFloat = shift.OpeningFloat,
+                    cashSales,
+                    cashExpenses,
+                    expectedCash,
+                    physicalCash = physical,
+                    cashVariance = physical - expectedCash,
+                    gcashExpected = gcashSales,
+                    gcashVariance = (shift.GcashCounted ?? 0) - gcashSales,
+                    denominations = shift.CashCounts
+                        .OrderByDescending(c => c.Denomination)
+                        .Select(c => new { c.Denomination, c.Quantity, c.Subtotal }),
+                    expenses
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
             }
         }
 

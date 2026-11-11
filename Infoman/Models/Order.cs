@@ -62,6 +62,9 @@ public class Order
     public DateTime? ExchangeDate { get; set; }
     [StringLength(500)]
     public string? ExchangeReason { get; set; }
+    // ✅ BAGONG DAGDAG: Link ng Order sa Shift
+    public int? ShiftId { get; set; }
+    public Shift? Shift { get; set; }
 
     // Navigation properties
     public virtual ICollection<OrderItem> Items { get; set; }

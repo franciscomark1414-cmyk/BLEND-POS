@@ -40,6 +40,8 @@ namespace Infoman.Data
         public DbSet<Expense> Expenses { get; set; }
         public DbSet<CashWithdrawal> CashWithdrawals { get; set; }
         public DbSet<Unit> Units { get; set; }
+        public DbSet<Shift> Shifts { get; set; }
+        public DbSet<ShiftCashCount> ShiftCashCounts { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

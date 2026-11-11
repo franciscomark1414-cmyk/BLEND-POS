@@ -41,10 +41,9 @@ namespace Infoman.Controllers
             var password = model.Password.Trim();
 
             var user = _context.Users
-                .FirstOrDefault(u => u.Username.Trim().ToLower() == username.ToLower()
-                                  && u.Password.Trim() == password);
+    .FirstOrDefault(u => u.Username.Trim().ToLower() == username.ToLower());
 
-            if (user == null)
+            if (user == null || user.Password.Trim() != password)
             {
                 ViewBag.Error = "Invalid Username or Password";
                 return View(model);

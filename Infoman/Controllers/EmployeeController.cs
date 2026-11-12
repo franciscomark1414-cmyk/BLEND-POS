@@ -244,7 +244,7 @@ namespace Infoman.Controllers
                 employee.Email = model.Email?.Trim();
                 employee.Status = model.Status ?? "Active";
 
-                // Sa Edit method, bago i-save:
+                // ✅ VALIDATION & SAVING NG PASSWORD
                 if (!string.IsNullOrWhiteSpace(model.Password))
                 {
                     if (model.Password.Length < 8)
@@ -259,6 +259,9 @@ namespace Infoman.Controllers
                     {
                         return Json(new { success = false, message = "Password must contain uppercase, lowercase, number, and special character." });
                     }
+
+                    // ✅ ITO ANG KULANG KANINA! Dapat i-save ang bagong password.
+                    employee.Password = model.Password;
                 }
 
                 await _db.SaveChangesAsync();

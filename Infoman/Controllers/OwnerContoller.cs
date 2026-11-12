@@ -2182,12 +2182,11 @@ namespace Infoman.Controllers
                     return Json(new { success = false, message = $"DR Number '{model.DRNumber}' already exists. Please refresh to generate a new one." });
                 }
 
-                // Create receiving header
                 var receiving = new Receiving
                 {
                     SupplierId = model.SupplierId == 0 ? null : model.SupplierId,
-                    DRNumber = model.DRNumber,
-                    InvoiceNumber = model.InvoiceNumber,
+                    DRNumber = model.DRNumber,           // Dito natin i-save ang manual input
+                    InvoiceNumber = model.BatchNumber,   // Dito natin itatago ang auto-generated Batch Number
                     DateReceived = model.DateReceived,
                     Remarks = model.Remarks,
                     CreatedBy = "Owner",
@@ -2361,31 +2360,13 @@ namespace Infoman.Controllers
                 .Select(r => new
                 {
                     r.ReceivingId,
+                    BatchNumber = r.InvoiceNumber, // ✅ Kinukuha ang Batch No. galing sa InvoiceNumber column
                     r.DRNumber,
                     r.DateReceived,
-                    SupplierName = r.Supplier != null
-            ? r.Supplier.Name
-            : (r.ReceivingItems.Select(ri => ri.StoreName).FirstOrDefault(s => s != null) ?? "—"),
+                    SupplierName = r.Supplier != null ? r.Supplier.Name : (r.ReceivingItems.Select(ri => ri.StoreName).FirstOrDefault(s => s != null) ?? "—"),
                     TotalItems = r.ReceivingItems.Count,
 
-                    // ✅ I-CONVERT ANG TOTAL ACCEPTED PABALIK SA DISPLAY UNIT
-                    TotalAccepted = r.ReceivingItems.Sum(ri =>
-                        (ri.RawMaterial.BaseUnit == "g" && ri.RawMaterial.Unit == "kg") ||
-                        (ri.RawMaterial.BaseUnit == "mL" && ri.RawMaterial.Unit == "L")
-                        ? ri.AcceptedQty / 1000
-                        : ri.AcceptedQty
-),
-
-                    // ✅ I-CONVERT DIN ANG TOTAL REJECTED
-                    TotalRejected = r.ReceivingItems.Sum(ri =>
-                        (ri.RawMaterial.BaseUnit == "g" && ri.RawMaterial.Unit == "kg") ||
-                        (ri.RawMaterial.BaseUnit == "mL" && ri.RawMaterial.Unit == "L")
-                        ? ri.RejectedQty / 1000
-                        : ri.RejectedQty
-),
-
-                    // ✅ BAGONG DAGDAG: KUNIN ANG UNIT NG UNANG ITEM (Para sa display sa table)
-                    DisplayUnit = r.ReceivingItems.Select(ri => ri.RawMaterial.Unit).FirstOrDefault() ?? "",
+                   
 
                     Items = r.ReceivingItems.Select(ri => new
                     {
@@ -2854,10 +2835,11 @@ namespace Infoman.Controllers
             var result = new
             {
                 receivingId = receiving.ReceivingId,
-                drNumber = receiving.DRNumber,
-                // ✅ Kunin ang StoreName kung walang Supplier
+                batchNumber = receiving.InvoiceNumber, // ✅ Ipinapasa ang Batch Number
+                drNumber = receiving.DRNumber,         // ✅ Ipinapasa ang Manual DR Number
                 supplierName = receiving.Supplier?.Name ?? receiving.ReceivingItems.FirstOrDefault()?.StoreName ?? "—",
                 dateReceived = receiving.DateReceived,
+                // ...
 
                 // ✅ IDAGDAG ANG TOTAL SUMMARY PARA SA RECEIPT
                 grandTotalPrice = receiving.ReceivingItems.Sum(ri => ri.TotalPrice),
@@ -4054,11 +4036,14 @@ namespace Infoman.Controllers
         private async Task<string> GenerateDRNumberInternalAsync()
         {
             string datePart = DateTime.Now.ToString("yyyyMM");
-            string prefix = $"DR-{datePart}-";
 
+            // ✅ Palitan ng BATCH- ang prefix
+            string prefix = $"BATCH-{datePart}-";
+
+            // ✅ Dahil sa InvoiceNumber natin tinatago ang auto-generated, dito tayo mag-search
             var existing = await _db.Receivings
-                .Where(r => r.DRNumber != null && r.DRNumber.StartsWith(prefix))
-                .Select(r => r.DRNumber)
+                .Where(r => r.InvoiceNumber != null && r.InvoiceNumber.StartsWith(prefix))
+                .Select(r => r.InvoiceNumber)
                 .ToListAsync();
 
             int max = 0;
@@ -4300,6 +4285,7 @@ namespace Infoman.Controllers
         public class ReceivingViewModel
         {
             public int SupplierId { get; set; }
+            public string BatchNumber { get; set; }
             public string DRNumber { get; set; }
             public string InvoiceNumber { get; set; }
             public DateTime DateReceived { get; set; } = DateTime.Now;

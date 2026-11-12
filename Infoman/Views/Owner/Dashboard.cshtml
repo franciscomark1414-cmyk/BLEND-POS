@@ -62,66 +62,240 @@
         }
 
         /* ========== SIDEBAR - FULL GRADIENT ========== */
-        .sidebar {
-            width: 260px;
-            background: linear-gradient(180deg, var(--gradient-start), var(--gradient-mid1), var(--gradient-mid2), var(--gradient-end));
-            color: var(--text-on-dark);
-            position: fixed;
-            height: 100vh;
-            left: 0;
-            top: 0;
-            padding: 20px 0;
-            z-index: 100;
-            box-shadow: 4px 0 12px rgba(0,0,0,0.1);
-        }
+     /* ========== SIDEBAR (FOREST GREEN + MANGO ACCENT, COLLAPSIBLE) ========== */
+.sidebar {
+    width: var(--sidebar-w);
+    background: var(--forest);
+    color: #fff;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.12);
+    transition: width 0.3s ease, transform 0.3s ease;
+    overflow: visible;
+}
 
-        .sidebar .logo-area {
-            text-align: center;
-            padding: 20px;
-            border-bottom: 1px solid rgba(255,255,255,0.2);
-            margin-bottom: 20px;
-        }
+/* Floating toggle button on the sidebar edge */
+.sidebar-toggle {
+    position: absolute;
+    top: 34px;
+    right: -13px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    background: var(--mango);
+    color: var(--forest);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    cursor: pointer;
+    z-index: 2;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s ease, background 0.2s ease;
+}
+.sidebar-toggle:hover {
+    background: var(--mango-dark);
+}
+html.sidebar-collapsed .sidebar-toggle {
+    transform: rotate(180deg);
+}
 
-        .sidebar .logo-area .logo-icon {
-            background: rgba(255,255,255,0.2);
-            width: 50px;
-            height: 50px;
-            line-height: 50px;
-            border-radius: 12px;
-            font-size: 24px;
-            margin: 0 auto 10px;
-        }
+/* Brand */
+.sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 22px 18px;
+    min-height: 88px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    margin-bottom: 12px;
+}
+.brand-logo {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #FF9F1C, #FFB84D);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+    box-shadow: 0 6px 14px rgba(255, 159, 28, 0.35);
+}
+.brand-text {
+    min-width: 0;
+    transition: opacity 0.2s ease;
+}
+.brand-text h5 {
+    margin: 0;
+    color: #fff;
+    font-weight: 700;
+    font-size: 1rem;
+    white-space: nowrap;
+}
+.brand-text small {
+    color: #FFD9A0;
+    font-size: 0.72rem;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
 
-        .sidebar .logo-area h5 {
-            color: var(--text-on-dark);
-        }
+/* Navigation */
+.sidebar-nav {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 16px;
+}
+.sidebar .nav-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 3px 12px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 0.92rem;
+    white-space: nowrap;
+    transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+.sidebar .nav-item i {
+    width: 22px;
+    text-align: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+.sidebar .nav-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: opacity 0.2s ease;
+}
+.sidebar .nav-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+.sidebar .nav-item.active {
+    background: var(--mango);
+    color: var(--forest);
+    font-weight: 700;
+    box-shadow: 0 6px 16px rgba(255, 159, 28, 0.35);
+}
+.sidebar .nav-logout {
+    margin-top: auto;
+    color: #FFC2C2;
+}
+.sidebar .nav-logout:hover {
+    background: rgba(220, 53, 69, 0.25);
+    color: #fff;
+}
 
-        .sidebar .logo-area small {
-            color: rgba(255,255,255,0.8);
-        }
+/* Tooltip (shown only in collapsed mode) */
+.sidebar .nav-item::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: calc(100% + 16px);
+    top: 50%;
+    transform: translateY(-50%) translateX(-6px);
+    background: #fff;
+    color: var(--forest);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 1100;
+}
+html.sidebar-collapsed .sidebar .nav-item:hover::after {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+}
 
-        .sidebar .nav-item {
-            padding: 12px 24px;
-            cursor: pointer;
-            transition: all 0.3s;
-            color: rgba(255,255,255,0.85);
-        }
+/* Collapsed state */
+html.sidebar-collapsed .sidebar {
+    width: var(--sidebar-w-collapsed);
+}
+html.sidebar-collapsed .sidebar-brand {
+    justify-content: center;
+    padding: 22px 0;
+}
+html.sidebar-collapsed .brand-text,
+html.sidebar-collapsed .nav-label {
+    opacity: 0;
+    width: 0;
+    overflow: hidden;
+}
+html.sidebar-collapsed .sidebar .nav-item {
+    justify-content: center;
+    gap: 0;
+    padding: 10px 0;
+}
 
-        .sidebar .nav-item:hover {
-            background: rgba(0,0,0,0.15);
-            color: #fff;
-        }
+/* Main content offset follows sidebar width */
+.main-content {
+    flex: 1;
+    min-width: 0;
+    margin-left: var(--sidebar-w);
+    padding: 24px 28px;
+    min-height: 100vh;
+    transition: margin-left 0.3s ease;
+}
+html.sidebar-collapsed .main-content {
+    margin-left: var(--sidebar-w-collapsed);
+}
 
-        .sidebar .nav-item.active {
-            background: rgba(0,0,0,0.2);
-            color: #fff;
-            border-left: 4px solid #fff;
-        }
+/* Mobile menu button (hidden on desktop) */
+.mobile-menu-btn {
+    display: none;
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 999;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    border: none;
+    background: var(--forest);
+    color: #fff;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
 
-        .sidebar .nav-item i {
-            width: 24px;
-            margin-right: 12px;
-        }
+/* Mobile: sidebar becomes a slide-in drawer */
+@@media (max-width: 768px) {
+    .sidebar {
+        width: var(--sidebar-w) !important;
+        transform: translateX(-100%);
+        box-shadow: none;
+    }
+    .sidebar.open {
+        transform: translateX(0);
+        box-shadow: 8px 0 30px rgba(0, 0, 0, 0.3);
+    }
+    .sidebar-toggle {
+        display: none;
+    }
+    .main-content {
+        margin-left: 0 !important;
+        padding: 68px 14px 16px;
+    }
+    .mobile-menu-btn {
+        display: inline-flex;
+    }
+}
 
         /* ========== MAIN CONTENT ========== */
         .main-content {
@@ -939,7 +1113,356 @@
 .sr-short-text { color: #b91c1c; }
 .sr-foot { padding: 12px 18px; border-top: 1px solid #e2e8f0; text-align: right; }
 .sr-btn { background: #334155; color: #fff; border: none; padding: 8px 18px; border-radius: 8px; cursor: pointer; }
-   
+
+:root {
+    --forest: #164B35;
+    --forest-dark: #0F3626;
+    --mango: #FF9F1C;
+    --mango-dark: #E08A0A;
+    --cream: #FFF9EF;
+    --text-dark: #292929;
+    --text-muted: #777777;
+    --sidebar-w: 260px;
+    --sidebar-w-collapsed: 78px;
+}
+   /* ========== DASHBOARD MODULE (REDESIGN) ========== */
+.dash-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+.dash-title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--forest);
+    margin: 0;
+}
+.dash-subtitle {
+    color: var(--text-muted);
+    margin: 4px 0 0;
+    font-size: 0.95rem;
+}
+.dash-date {
+    background: #fff;
+    border: 1px solid #EEF2EC;
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 0.85rem;
+    color: #555;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* KPI cards */
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 18px;
+    margin-bottom: 24px;
+}
+.kpi-card {
+    background: #fff;
+    border: 1px solid #EEF2EC;
+    border-radius: 16px;
+    padding: 18px;
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    min-height: 104px;
+    height: 100%;
+    box-shadow: 0 4px 14px rgba(22, 75, 53, 0.06);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    text-decoration: none;
+    color: inherit;
+}
+.kpi-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 24px rgba(22, 75, 53, 0.12);
+}
+.kpi-card.critical {
+    border-left: 4px solid #dc3545;
+}
+.kpi-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+.kpi-icon.mango { background: rgba(255, 159, 28, 0.15); color: var(--mango-dark); }
+.kpi-icon.forest { background: rgba(22, 75, 53, 0.1); color: var(--forest); }
+.kpi-icon.danger { background: rgba(220, 53, 69, 0.1); color: #dc3545; }
+.kpi-body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+.kpi-label {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+.kpi-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-dark);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.kpi-card.critical .kpi-value { color: #dc3545; }
+.kpi-sub {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+.kpi-badges { margin-top: 6px; }
+
+/* Panels (chart + best sellers) */
+.dash-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    gap: 18px;
+    align-items: stretch;
+}
+.dash-panel {
+    background: #fff;
+    border: 1px solid #EEF2EC;
+    border-radius: 16px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.dash-panel-head {
+    padding: 16px 20px;
+    border-bottom: 1px solid #EEF2EC;
+}
+.dash-panel-head h5 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--forest);
+}
+.dash-panel-body {
+    padding: 18px 20px;
+    flex: 1;
+}
+.chart-box {
+    position: relative;
+    height: 300px;
+}
+
+/* Best selling ranking */
+.rank-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.rank-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px dashed #EEF2EC;
+}
+.rank-item:last-child { border-bottom: none; }
+.rank-badge {
+    min-width: 36px;
+    height: 26px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: #EEF2EC;
+    color: var(--forest);
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.rank-badge.gold { background: #FF9F1C; color: #fff; }
+.rank-badge.silver { background: #B8C2BD; color: #fff; }
+.rank-badge.bronze { background: #D9A066; color: #fff; }
+.rank-thumb {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--cream);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.rank-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.rank-thumb img + .rank-thumb-fallback { display: none; }
+.rank-thumb-fallback {
+    color: var(--mango);
+    font-size: 18px;
+}
+.rank-info {
+    flex: 1;
+    min-width: 0;
+}
+.rank-name {
+    font-weight: 600;
+    color: var(--text-dark);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.rank-size {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+.rank-qty {
+    font-weight: 700;
+    color: var(--forest);
+    font-size: 0.95rem;
+    white-space: nowrap;
+    text-align: right;
+}
+.rank-qty small {
+    display: block;
+    font-weight: 500;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+}
+.empty-mini {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 30px 0;
+    list-style: none;
+}
+
+/* Dashboard responsive */
+@@media (max-width: 1199px) {
+    .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@@media (max-width: 991px) {
+    .dash-grid { grid-template-columns: 1fr; }
+    .chart-box { height: 260px; }
+}
+@@media (max-width: 576px) {
+    .kpi-grid { grid-template-columns: 1fr; }
+    .kpi-value { font-size: 1.25rem; }
+    .dash-title { font-size: 1.3rem; }
+    .main-content { padding: 68px 10px 16px; }
+}
+
+/* ===== REFINEMENT: SIDEBAR GRADIENT + LOGO ===== */
+.sidebar {
+    background: linear-gradient(180deg, #13B83C 0%, #B7B900 50%, #FF9400 100%);
+    box-shadow: 4px 0 18px rgba(0, 0, 0, 0.12);
+}
+.sidebar .sidebar-brand {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+}
+.sidebar .brand-text h5 {
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+.sidebar .brand-text small {
+    color: #fff;
+    opacity: 0.95;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+.sidebar .nav-item {
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+.sidebar .nav-item:hover {
+    background: rgba(0, 0, 0, 0.18);
+    color: #fff;
+}
+.sidebar .nav-item.active {
+    background: #164B35;
+    color: #fff;
+    font-weight: 700;
+    text-shadow: none;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+}
+.sidebar .nav-logout {
+    color: #fff;
+}
+.sidebar .nav-logout:hover {
+    background: rgba(0, 0, 0, 0.25);
+}
+.sidebar-toggle {
+    background: #164B35;
+    color: #fff;
+    border: 2px solid #fff;
+}
+.sidebar-toggle:hover {
+    background: #0F3626;
+}
+
+/* Logo image */
+.brand-logo {
+    background: #fff;
+    padding: 3px;
+    overflow: hidden;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.25);
+}
+.brand-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    border-radius: 8px;
+}
+.brand-logo .brand-fallback {
+    display: none;
+    font-size: 1rem;
+    font-weight: 800;
+    color: #164B35;
+    letter-spacing: 0.5px;
+}
+.brand-logo.no-image img {
+    display: none;
+}
+.brand-logo.no-image .brand-fallback {
+    display: inline;
+}
+
+/* ===== REFINEMENT: SALES CHART SIZING ===== */
+.dash-grid > * {
+    min-width: 0;
+}
+.dash-panel-body {
+    min-width: 0;
+}
+.chart-box {
+    position: relative;
+    width: 100%;
+    height: 300px;
+}
+.chart-box canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+}
+@@media (max-width: 991px) {
+    .chart-box {
+        height: 260px;
+    }
+}
+@@media (max-width: 576px) {
+    .chart-box {
+        height: 240px;
+    }
+}
     </style>
 
     <script>
@@ -951,192 +1474,198 @@
     document.head.appendChild(s);
   })();
 </script>
+<script>
+    if (window.innerWidth > 768 && localStorage.getItem('ownerSidebarCollapsed') === '1') {
+        document.documentElement.classList.add('sidebar-collapsed');
+    }
+</script>
 </head>
 <body>
 <div class="dashboard-container">
-    <div class="sidebar">
-        <div class="logo-area">
-            <div class="logo-icon mx-auto">🍹</div>
-            <h5 class="mt-2 mb-0">Neldie's Mango</h5>
-            <small>Owner Portal</small>
-        </div>
-        <div class="nav-item active" onclick="showModule('dashboard')">
-            <i class="fas fa-tachometer-alt"></i> Dashboard
-        </div>
-        <div class="nav-item" onclick="showModule('rawMaterials')">
-            <i class="fas fa-tachometer-alt"></i> Raw Materials
-        </div>
-        <div class="nav-item" onclick="showModule('inventory')">
-            <i class="fas fa-boxes"></i> Inventory
-        </div>
-        <div class="nav-item" onclick="showModule('products')">
-            <i class="fas fa-cube"></i> Product Listing
-        </div>
-        <div class="nav-item" onclick="showModule('suppliers')">
-            <i class="fas fa-truck"></i> Suppliers
-        </div>
-        <div class="nav-item" onclick="showModule('receiving')">
-            <i class="fas fa-clipboard-list"></i> Receive Delivery
-        </div>
-        <div class="nav-item" onclick="showModule('receivingHistory')">
-            <i class="fas fa-history"></i> Delivery History
-        </div>
-        <div class="nav-item" onclick="showModule('returns')"> 
-            <i class="fas fa-undo-alt"></i> Returns
-        </div> 
-        <div class="nav-item" onclick="showModule('inventoryAlerts')">
-            <i class="fas fa-bell"></i> Alerts
-        </div>
-        <div class="nav-item" onclick="showModule('reports')">
-            <i class="fas fa-chart-line"></i> Reports
-        </div>
-        <div class="nav-item" onclick="showModule('employees')">
-            <i class="fas fa-users"></i> Employees
-        </div>
-        <div class="nav-item" onclick="showModule('financials')">
-           <i class="fas fa-coins"></i> Financials
-        </div>
-        <div class="nav-item" onclick="showModule('settings')">
-            <i class="fas fa-cog"></i> Settings
-        </div>
-        <div class="nav-item" onclick="handleLogout()" style="border-top: 1px solid rgba(255,255,255,0.2); margin-top: 10px; padding-top: 15px;">
-    <i class="fas fa-sign-out-alt"></i> Logout
-</div>
+    <div class="sidebar" id="ownerSidebar">
+    <button type="button" class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle sidebar" aria-label="Toggle sidebar">
+        <i class="fas fa-chevron-left"></i>
+    </button>
+
+    <div class="sidebar-brand">
+    <div class="brand-logo" id="brandLogo">
+        <img src="/images/logo.png" alt="Neldie's Mango & More logo"
+             onerror="this.parentElement.classList.add('no-image')">
+        <span class="brand-fallback">NM</span>
     </div>
+    <div class="brand-text">
+        <h5>Neldie's Mango</h5>
+        <small>Owner Portal</small>
+    </div>
+</div>
+
+    <nav class="sidebar-nav">
+        <div class="nav-item active" data-tooltip="Dashboard" onclick="showModule('dashboard')">
+            <i class="fas fa-tachometer-alt"></i><span class="nav-label">Dashboard</span>
+        </div>
+        <div class="nav-item" data-tooltip="Raw Materials" onclick="showModule('rawMaterials')">
+            <i class="fas fa-cubes"></i><span class="nav-label">Raw Materials</span>
+        </div>
+        <div class="nav-item" data-tooltip="Inventory" onclick="showModule('inventory')">
+            <i class="fas fa-boxes"></i><span class="nav-label">Inventory</span>
+        </div>
+        <div class="nav-item" data-tooltip="Product Listing" onclick="showModule('products')">
+            <i class="fas fa-cube"></i><span class="nav-label">Product Listing</span>
+        </div>
+        <div class="nav-item" data-tooltip="Suppliers" onclick="showModule('suppliers')">
+            <i class="fas fa-truck"></i><span class="nav-label">Suppliers</span>
+        </div>
+        <div class="nav-item" data-tooltip="Receive Delivery" onclick="showModule('receiving')">
+            <i class="fas fa-clipboard-list"></i><span class="nav-label">Receive Delivery</span>
+        </div>
+        <div class="nav-item" data-tooltip="Delivery History" onclick="showModule('receivingHistory')">
+            <i class="fas fa-history"></i><span class="nav-label">Delivery History</span>
+        </div>
+        <div class="nav-item" data-tooltip="Returns" onclick="showModule('returns')">
+            <i class="fas fa-undo-alt"></i><span class="nav-label">Returns</span>
+        </div>
+        <div class="nav-item" data-tooltip="Alerts" onclick="showModule('inventoryAlerts')">
+            <i class="fas fa-bell"></i><span class="nav-label">Alerts</span>
+        </div>
+        <div class="nav-item" data-tooltip="Reports" onclick="showModule('reports')">
+            <i class="fas fa-chart-line"></i><span class="nav-label">Reports</span>
+        </div>
+        <div class="nav-item" data-tooltip="Employees" onclick="showModule('employees')">
+            <i class="fas fa-users"></i><span class="nav-label">Employees</span>
+        </div>
+        <div class="nav-item" data-tooltip="Financials" onclick="showModule('financials')">
+            <i class="fas fa-coins"></i><span class="nav-label">Financials</span>
+        </div>
+        <div class="nav-item" data-tooltip="Settings" onclick="showModule('settings')">
+            <i class="fas fa-cog"></i><span class="nav-label">Settings</span>
+        </div>
+        <div class="nav-item nav-logout" data-tooltip="Logout" onclick="handleLogout()">
+            <i class="fas fa-sign-out-alt"></i><span class="nav-label">Logout</span>
+        </div>
+    </nav>
+</div>
 
     <div class="main-content">
+        <button type="button" class="mobile-menu-btn" onclick="toggleSidebar()" aria-label="Open menu">
+    <i class="fas fa-bars"></i>
+</button>
 
 <div id="dashboardModule" class="module active">
-    <!-- ✅ BAGONG HEADER PARA SA DASHBOARD -->
-    <div class="mb-4">
-    <h2 class="page-header-title">
-        <i class="fas fa-tachometer-alt" style="color: var(--primary);"></i> Dashboard Overview
-    </h2>
-    <p class="page-header-subtitle">Welcome back! Here's what's happening with your business today.</p>
-</div>
+    <div class="dash-header">
+        <div>
+            <h2 class="dash-title">Dashboard Overview</h2>
+            <p class="dash-subtitle">Welcome back! Here's what's happening with your business today.</p>
+        </div>
+        <div class="dash-date">
+            <i class="fas fa-calendar-alt"></i> @DateTime.Now.ToString("dddd, MMMM d, yyyy")
+        </div>
+    </div>
 
-    <div class="row g-4 mb-4">
-        <div class="col-md-3">
-            <div class="stat-card">
-                <div class="card-body text-center">
-                    <h5>Today's Sales</h5>
-                    <p class="mb-0">₱@ViewBag.TodaysSales.ToString("N2")</p>
-                    <small>@ViewBag.TotalOrdersToday order(s) today</small>
-                </div>
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-icon mango"><i class="fas fa-peso-sign"></i></div>
+            <div class="kpi-body">
+                <span class="kpi-label">Today's Sales</span>
+                <span class="kpi-value">₱@ViewBag.TodaysSales.ToString("N2")</span>
+                <span class="kpi-sub">@ViewBag.TotalOrdersToday order(s) today</span>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="stat-card">
-                <div class="card-body text-center">
-                    <h5>Total Orders Today</h5>
-                    <p class="mb-0">@ViewBag.TotalOrdersToday</p>
-                </div>
+
+        <div class="kpi-card">
+            <div class="kpi-icon forest"><i class="fas fa-receipt"></i></div>
+            <div class="kpi-body">
+                <span class="kpi-label">Total Orders Today</span>
+                <span class="kpi-value">@ViewBag.TotalOrdersToday</span>
+                <span class="kpi-sub">Orders placed today</span>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="stat-card">
-                <div class="card-body text-center">
-                    <h5>Total Revenue</h5>
-                    <p class="mb-0">₱@ViewBag.AllTimeRevenue.ToString("N2")</p>
-                    <small>All time sales</small>
-                </div>
+
+        <div class="kpi-card">
+            <div class="kpi-icon mango"><i class="fas fa-chart-line"></i></div>
+            <div class="kpi-body">
+                <span class="kpi-label">Total Revenue</span>
+                <span class="kpi-value">₱@ViewBag.AllTimeRevenue.ToString("N2")</span>
+                <span class="kpi-sub">All time sales</span>
             </div>
         </div>
-        <div class="col-md-3">
-            <a href="#" onclick="showModule('inventoryAlerts'); return false;" style="text-decoration:none;">
-                <div class="stat-card critical-card">
-                    <div class="card-body text-center">
-                        <div class="d-flex justify-content-between align-items-start mb-1">
-                            <h5 class="text-danger mb-0">⚠️ CRITICAL STOCK</h5>
-                            @if (ViewBag.TotalOtherAlerts > 0)
-                            {
-                                <span class="badge bg-warning text-dark rounded-pill">+@ViewBag.TotalOtherAlerts</span>
-                            }
-                        </div>
-                        <p class="display-4 fw-bold text-danger mb-0">@ViewBag.CriticalStockCount</p>
-                        <small>item@(ViewBag.CriticalStockCount != 1 ? "s" : "") critical</small>
-                        @if (ViewBag.TotalOtherAlerts > 0)
+
+        <a href="#" class="kpi-card critical" onclick="showModule('inventoryAlerts'); return false;">
+            <div class="kpi-icon danger"><i class="fas fa-exclamation-triangle"></i></div>
+            <div class="kpi-body">
+                <span class="kpi-label">Critical Stock</span>
+                <span class="kpi-value">@ViewBag.CriticalStockCount</span>
+                <span class="kpi-sub">item@(ViewBag.CriticalStockCount != 1 ? "s" : "") critical</span>
+                @if (ViewBag.TotalOtherAlerts > 0)
+                {
+                    <div class="kpi-badges">
+                        <span class="badge bg-warning text-dark me-1">+@ViewBag.TotalOtherAlerts</span>
+                        @if (ViewBag.ExpiringCount > 0)
                         {
-                            <div class="mt-2">
-                                @if (ViewBag.ExpiringCount > 0)
-                                {
-                                    <span class="badge bg-info me-1">⏰ @ViewBag.ExpiringCount</span>
-                                }
-                                @if (ViewBag.ExpiredCount > 0)
-                                {
-                                    <span class="badge bg-danger me-1">❌ @ViewBag.ExpiredCount</span>
-                                }
-                                @if (ViewBag.WasteCount > 0)
-                                {
-                                    <span class="badge bg-secondary">🗑️ @ViewBag.WasteCount</span>
-                                }
-                            </div>
+                            <span class="badge bg-info me-1">⏰ @ViewBag.ExpiringCount</span>
+                        }
+                        @if (ViewBag.ExpiredCount > 0)
+                        {
+                            <span class="badge bg-danger me-1">❌ @ViewBag.ExpiredCount</span>
+                        }
+                        @if (ViewBag.WasteCount > 0)
+                        {
+                            <span class="badge bg-secondary">🗑️ @ViewBag.WasteCount</span>
                         }
                     </div>
-                </div>
-            </a>
-        </div>
+                }
+            </div>
+        </a>
     </div>
 
-    <div class="row g-4">
-        <div class="col-md-7">
-            <div class="card h-100">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0">📈 Sales Trend (Last 7 Days)</h5>
-                </div>
-                <div class="card-body">
-                    <canvas id="salesChart" style="max-height: 300px; width: 100%;"></canvas>
+    <div class="dash-grid">
+        <div class="dash-panel">
+            <div class="dash-panel-head">
+                <h5><i class="fas fa-chart-area me-2"></i>Sales Trend (Last 7 Days)</h5>
+            </div>
+            <div class="dash-panel-body">
+                <div class="chart-box">
+                    <canvas id="salesChart"></canvas>
                 </div>
             </div>
         </div>
 
-      <!--  Best Selling Products -->
-<div class="col-md-5">
-    <div class="card h-100">
-        <div class="card-header bg-white">
-            <h5 class="mb-0">🏆 Best Selling Products</h5>
-        </div>
-        <div class="card-body p-0">
-            <div class="list-group list-group-flush">
-                @if (Model.BestSellingProducts.Any())
-                {
-                    foreach (var item in Model.BestSellingProducts)
+        <div class="dash-panel">
+            <div class="dash-panel-head">
+                <h5><i class="fas fa-trophy me-2"></i>Best Selling Products</h5>
+            </div>
+            <div class="dash-panel-body">
+                <ul class="rank-list">
+                    @if (Model.BestSellingProducts.Any())
                     {
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <!-- ✅ IMAGE SECTION  -->
-                            <div class="d-flex align-items-center gap-3">
-                                @if (!string.IsNullOrEmpty(item.ImagePath))
-                                {
-                                    <img src="@item.ImagePath" alt="@item.Name" 
-                                         style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;">
-                                }
-                                else
-                                {
-                                    <div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                                        <i class="fas fa-cup"></i>
-                                    </div>
-                                }
-                                <div>
-                                    <span class="badge @(item.Rank == 1 ? "bg-warning" : "bg-secondary") rounded-pill me-2">#@item.Rank</span>
-                                    <strong>@item.Name</strong>
-                                    <br />
-                                    <small class="text-muted">@item.SizeName</small>
+                        foreach (var item in Model.BestSellingProducts)
+                        {
+                            <li class="rank-item">
+                                <span class="rank-badge @(item.Rank == 1 ? "gold" : item.Rank == 2 ? "silver" : item.Rank == 3 ? "bronze" : "")">#@item.Rank</span>
+                                <div class="rank-thumb">
+                                    @if (!string.IsNullOrEmpty(item.ImagePath))
+                                    {
+                                        <img src="@item.ImagePath" alt="@item.Name" loading="lazy" onerror="this.remove()" />
+                                    }
+                                    <i class="fas fa-mug-hot rank-thumb-fallback"></i>
                                 </div>
-                            </div>
-                            <div class="text-end">
-                                <span class="fw-bold text-primary">@item.TotalSold sold</span>
-                            </div>
-                        </div>
+                                <div class="rank-info">
+                                    <div class="rank-name">@item.Name</div>
+                                    <div class="rank-size">@item.SizeName</div>
+                                </div>
+                                <div class="rank-qty">
+                                    @item.TotalSold
+                                    <small>sold</small>
+                                </div>
+                            </li>
+                        }
                     }
-                }
-                else
-                {
-                    <div class="list-group-item text-center text-muted">No sales data yet</div>
-                }
+                    else
+                    {
+                        <li class="empty-mini">No sales data yet</li>
+                    }
+                </ul>
             </div>
         </div>
-    </div>
-</div>
     </div>
 </div>
 
@@ -2384,7 +2913,13 @@
 
                             <div class="mb-3" id="empPasswordField">
     <label class="form-label fw-bold">Password <span class="text-danger" id="passwordRequired">*</span></label>
-    <input type="password" id="empPassword" class="form-control" placeholder="Enter password">
+    <div class="input-group">
+        <input type="password" id="empPassword" class="form-control" placeholder="Enter password">
+        <!-- Eye Icon Button -->
+        <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('empPassword', 'toggleIcon')" style="border-color: #ced4da;">
+            <i class="fas fa-eye" id="toggleIcon"></i>
+        </button>
+    </div>
     <small class="text-muted" id="passwordHint">
         Leave blank to keep current password when editing<br>
         <span class="text-info">Requirements: 8+ chars, 1 uppercase, 1 lowercase, 1 number, 1 special character (!@@#$%^&*)</span>
@@ -2714,9 +3249,13 @@
                     <input type="text" id="globalStoreName" class="form-control form-control-sm" placeholder="e.g., Store 1">
                 </div>
                 <div class="col-12 col-md-6 col-xl-3">
-                    <label class="form-label fw-bold small">DR Number <span class="text-danger">*</span></label>
-                    <input type="text" id="drNumber" class="form-control form-control-sm" readonly>
-                </div>
+    <label class="form-label fw-bold small">Batch Number</label>
+    <input type="text" id="batchNumber" class="form-control form-control-sm" readonly style="background-color: #e9ecef;">
+</div>
+<div class="col-12 col-md-6 col-xl-3">
+    <label class="form-label fw-bold small">DR Number (Receipt ID) <span class="text-danger">*</span></label>
+    <input type="text" id="drNumberInput" class="form-control form-control-sm" placeholder="Enter DR Number" required>
+</div>
                 <div class="col-12 col-md-6 col-xl-3">
                     <label class="form-label fw-bold small">Date Received</label>
                     <input type="date" id="dateReceived" class="form-control form-control-sm" value="@DateTime.Now.ToString("yyyy-MM-dd")">
@@ -2794,12 +3333,11 @@
                         <table class="table table-bordered table-hover" id="historyTable">
                             <thead class="table-dark">
                                 <tr>
+                                     <th>Batch #</th>
                                     <th>DR #</th>
                                     <th>Date</th>
                                    <th>Supplier / StoreName</th>
                                     <th>Items</th>
-                                    <th>Accepted</th>
-                                    <th>Rejected</th>
                                     <th>Details</th>
                                 </tr>
                             </thead>
@@ -3770,40 +4308,69 @@ let pendingDeleteSizeIds = [];
     // I-update ang sales chart creation para mas maganda ang size
 var ctx = document.getElementById('salesChart')?.getContext('2d');
 if (ctx) {
-    new Chart(ctx, {
-        type: 'line',
-        data: { 
-            labels: labels, 
-            datasets: [{ 
-                label: 'Sales (₱)', 
-                data: data, 
-                borderWidth: 3,
-                fill: true,
-                backgroundColor: 'rgba(54, 162, 235, 0.1)',
-                borderColor: '#3b82f6',
-                tension: 0.3,
-                pointRadius: 4,
-                pointBackgroundColor: '#3b82f6'
-            }] 
+    window.salesChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Sales (₱)',
+                data: data,
+                backgroundColor: '#FF9F1C',
+                hoverBackgroundColor: '#164B35',
+                borderRadius: 8,
+                borderSkipped: false,
+                maxBarThickness: 48
+            }]
         },
-        options: { 
+        options: {
             responsive: true,
-            maintainAspectRatio: true,
+            maintainAspectRatio: false,
+            animation: { duration: 600 },
             plugins: {
-                legend: {
-                    position: 'top',
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#164B35',
+                    titleColor: '#FFFFFF',
+                    bodyColor: '#FFF9EF',
+                    padding: 12,
+                    cornerRadius: 10,
+                    displayColors: false,
+                    callbacks: {
+                        title: function (items) {
+                            return items.length ? items[0].label : '';
+                        },
+                        label: function (c) {
+                            return '₱' + Number(c.parsed.y).toLocaleString('en-PH', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            });
+                        }
+                    }
                 }
             },
             scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: {
-                        color: '#e9ecef'
+                x: {
+                    offset: true,
+                    grid: { display: false },
+                    border: { display: false },
+                    ticks: {
+                        color: '#777777',
+                        font: { size: 11 },
+                        autoSkip: false,
+                        maxRotation: 0,
+                        minRotation: 0
                     }
                 },
-                x: {
-                    grid: {
-                        display: false
+                y: {
+                    beginAtZero: true,
+                    grid: { color: '#EEF2EC' },
+                    border: { display: false },
+                    ticks: {
+                        color: '#777777',
+                        font: { size: 11 },
+                        callback: function (v) {
+                            return '₱' + Number(v).toLocaleString('en-PH');
+                        }
                     }
                 }
             }
@@ -4432,6 +4999,10 @@ async function rejectRequest(requestId) {
     }
 }
 
+window.addEventListener('load', function () {
+    if (window.salesChart) window.salesChart.resize();
+});
+
 async function showModule(module) {
     sessionStorage.setItem('activeModule', module);
 
@@ -4471,6 +5042,9 @@ async function showModule(module) {
     // Load module-specific data
     if (module === 'inventoryAlerts') {
         loadInventoryAlerts();  
+    }
+    if (module === 'dashboard' && window.salesChart) {
+        setTimeout(function () { window.salesChart.resize(); }, 50);
     }
     if (module === 'reports') {
         reportsDataLoaded = false;
@@ -5029,6 +5603,14 @@ function showAddProductModal() {
     form.onsubmit = async function(e) {
         e.preventDefault();
 
+         const unitSelects = form.querySelectorAll('.unit-select');
+    for (let select of unitSelects) {
+        if (select.value === "") {
+            await showAlert('Please select a unit for all ingredients.', 'Missing Unit', '⚠️');
+            return;
+        }
+    }
+
         // ✅ 4. FINAL SAFETY CHECK: Kung blangko pa rin ang SKU, i-generate natin bago mag-submit
         const skuField = document.getElementById('skuPrefixInput');
         const nameField = form.querySelector('input[name="Name"]');
@@ -5055,7 +5637,8 @@ function showAddProductModal() {
             }
 
             // Reindex all size rows bago mag-submit
-            reindexSizeRows();
+            reindexSizeRows();       // ← nandito na ito
+            reindexRecipeItems();
             
             const sizeRows = document.querySelectorAll('#sizesContainer .size-row');
             if (sizeRows.length === 0) {
@@ -5175,14 +5758,12 @@ function reindexSizeRows() {
     });
 }
 
-// I-update ang removeSizeRow function
-function removeSizeRow(sizeId) {
-    const row = document.querySelector(`.size-row[data-size-id="${sizeId}"]`);
+function removeSizeRow(btn) {
+    const row = btn.closest('.size-row');
     if (row) row.remove();
-    
-    // Re-index all remaining size rows
     reindexSizeRows();
 }
+
 
 function addSizeRowPromise(predefinedName = null, enableManualPrice = true) {
     return new Promise((resolve, reject) => {
@@ -5201,7 +5782,7 @@ function addSizeRowPromise(predefinedName = null, enableManualPrice = true) {
                 
                 const sizeHtml = `
                     <div class="size-row border p-3 mb-3 rounded" data-size-id="${sizeId}" data-manual-price="${enableManualPrice}" style="background: #fef9e6; position: relative;">
-                        <button type="button" class="btn-remove-size" onclick="removeSizeRow(${sizeId})">✕</button>
+                        <button type="button" class="btn-remove-size" onclick="removeSizeRow(this)">✕</button>
                         <div class="row">
                             <div class="col-md-3 mb-2">
                                 <label class="form-label fw-bold">Size Name</label>
@@ -5222,6 +5803,7 @@ function addSizeRowPromise(predefinedName = null, enableManualPrice = true) {
                                         </select>
                                         <input type="number" name="Sizes[${sizeId}].RecipeItems[0].Quantity" class="form-control form-control-sm" placeholder="Qty" step="0.01" min="0.01" value="1" required style="width: 70px; flex-shrink: 0;">
                                         <select name="Sizes[${sizeId}].RecipeItems[0].UnitUsed" class="form-control form-control-sm unit-select" required style="width: 110px; flex-shrink: 0;">
+                                        <option value="" disabled selected>-- Select Unit --</option>
                                             <option value="kg">📦 kg</option>
                                             <option value="g">⚖️ g</option>
                                             <option value="L">💧 L</option>
@@ -5232,7 +5814,7 @@ function addSizeRowPromise(predefinedName = null, enableManualPrice = true) {
                                     </div>
 
                                 </div>
-                                <button type="button" class="btn btn-sm btn-link text-success mt-1" onclick="addRecipeItem(${sizeId})">
+                              <button type="button" class="btn btn-sm btn-link text-success mt-1" onclick="addRecipeItem(this)">
                                     <i class="fas fa-plus"></i> Add Ingredient
                                 </button>
                             </div>
@@ -5249,181 +5831,61 @@ function addSizeRowPromise(predefinedName = null, enableManualPrice = true) {
     });
 }
 
-function addSizeRowSync(predefinedName = null) {
-    const container = document.getElementById('sizesContainer');
-    const sizeId = sizeCounter++;
-    const sizeName = predefinedName || '';
-    
-    fetch('/RawMaterial/GetAllWithLatestPrice')
-        .then(response => response.json())
-        .then(materials => {
-            let materialOptions = '<option value="">-- Select Ingredient --</option>';
-            materials.forEach(m => {
-                const price = m.latestBatchPrice > 0 ? m.latestBatchPrice : m.defaultPrice;
-                materialOptions += `<option value="${m.id}" data-price="${price}" data-unit="${m.unit}">${m.name} (${m.unit} - ₱${price})</option>`;
-            });
-            
-            const sizeHtml = `
-                <div class="size-row border p-3 mb-3 rounded" data-size-id="${sizeId}" style="background: #fef9e6; position: relative;">
-                    <button type="button" class="btn-remove-size" onclick="removeSizeRow(${sizeId})">✕</button>
-                    <div class="row">
-                        <div class="col-md-3 mb-2">
-                            <label class="form-label fw-bold">Size Name</label>
-                            <input type="text" name="Sizes[${sizeId}].SizeName" class="form-control" value="${sizeName}" required placeholder="e.g., Small, Medium, Large">
-                        </div>
-                        <div class="col-md-3 mb-2">
-                            <label class="form-label fw-bold">Selling Price (₱)</label>
-                            <input type="number" name="Sizes[${sizeId}].Price" class="form-control" step="0.01" value="0" placeholder="0.00">
-                            <small class="text-muted">Leave 0 to auto-calculate</small>
-                        </div>
-                        <div class="col-md-6 mb-2">
-                            <label class="form-label fw-bold">Recipe / Ingredients</label>
-                            <div class="recipe-items" id="recipe-items-${sizeId}">
-                                <div class="row mb-2 g-2 ingredient-row" data-ingredient-index="0">
-                                    <div class="col-md-5">
-                                        <select name="Sizes[${sizeId}].RecipeItems[0].RawMaterialId" class="form-control" required onchange="updateUnitDropdown(this)">
-                                            ${materialOptions}
-                                        </select>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <input type="number" name="Sizes[${sizeId}].RecipeItems[0].Quantity" class="form-control" placeholder="Qty" step="0.01" min="0.01" value="1" required>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <select name="Sizes[${sizeId}].RecipeItems[0].UnitUsed" class="form-control unit-select" required>
-                                            <option value="kg">📦 kilogram (kg)</option>
-                                            <option value="g">⚖️ gram (g)</option>
-                                            <option value="L">💧 liter (L)</option>
-                                            <option value="mL">🧪 milliliter (mL)</option>
-                                            <option value="pcs">🔢 pieces (pcs)</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                            <button type="button" class="btn btn-sm btn-link text-success mt-1" onclick="addRecipeItem(${sizeId})">
-                                <i class="fas fa-plus"></i> Add Ingredient
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            container.insertAdjacentHTML('beforeend', sizeHtml);
-        })
-        .catch(err => {
-            console.error('Error loading materials:', err);
-        });
-}
 
-// Bagong remove function na magre-reindex ng lahat ng natitirang sizes
-function removeSizeRowAndReindex(sizeId) {
-    // Remove the row
-    const row = document.querySelector(`.size-row[data-size-id="${sizeId}"]`);
-    if (row) row.remove();
-    
-    // Re-index all remaining size rows
-    reindexSizeRows();
-}
 
-// Function to reindex all size rows para mag-match sa model binding
-function reindexSizeRows() {
-    const sizeRows = document.querySelectorAll('#sizesContainer .size-row');
-    
-    sizeRows.forEach((row, newIndex) => {
-        // Update data-size-id attribute
-        row.setAttribute('data-size-id', newIndex);
-        
-        // Update all input names
-        const inputs = row.querySelectorAll('input, select');
-        inputs.forEach(input => {
-            const name = input.getAttribute('name');
-            if (name) {
-                // Replace Sizes[oldIndex] with Sizes[newIndex]
-                const newName = name.replace(/Sizes\[\d+\]/, `Sizes[${newIndex}]`);
-                input.setAttribute('name', newName);
-            }
-        });
-    });
-}
 
-// I-update ang removeSizeRow function
-function removeSizeRow(sizeId) {
-    removeSizeRowAndReindex(sizeId);
-}
 
-// I-set ang addSizeRow function na tawagin ang sync version
+
+
+
+
+// PALITAN ng ganito
 function addSizeRow(predefinedName = null) {
-    addSizeRowSync(predefinedName);
+    return addSizeRowPromise(predefinedName, true);
 }
 
-    function removeSizeRow(sizeId) { document.querySelector(`.size-row[data-size-id="${sizeId}"]`).remove(); }
-     async function addRecipeItem(sizeId) {
-    const container = document.getElementById(`recipe-items-${sizeId}`);
+     async function addRecipeItem(btn) {
+    const sizeRow = btn.closest('.size-row');
+    const container = sizeRow.querySelector('.recipe-items');
+    const sizeIndex = [...document.querySelectorAll('#sizesContainer .size-row')].indexOf(sizeRow);
     const itemCount = container.children.length;
-    
-    fetch('/RawMaterial/GetAllWithLatestPrice')
-        .then(response => response.json())
-        .then(materials => {
-            let materialOptions = '<option value="">-- Select Ingredient --</option>';
-            materials.forEach(m => {
-                const price = m.latestBatchPrice > 0 ? m.latestBatchPrice : m.defaultPrice;
-                materialOptions += `<option value="${m.id}" data-price="${price}" data-unit="${m.unit}">${m.name} (${m.unit} - ₱${price})</option>`;
-            });
-            
-            // ✅ BAGONG LAYOUT: Pure Flexbox, walang row/col na nagko-conflict
-            const html = `
-                <div class="ingredient-row">
-                    
-                    <!-- Ingredient Dropdown -->
-                    <select name="Sizes[${sizeId}].RecipeItems[${itemCount}].RawMaterialId" class="form-control form-control-sm" required onchange="updateUnitDropdown(this)" style="flex: 1;">
-                        ${materialOptions}
-                    </select>
 
-                    <!-- Quantity -->
-                    <input type="number" name="Sizes[${sizeId}].RecipeItems[${itemCount}].Quantity" class="form-control form-control-sm" placeholder="Qty" step="0.01" min="0.01" value="1" required style="width: 70px; flex-shrink: 0;">
+    try {
+        const response = await fetch('/RawMaterial/GetAllWithLatestPrice');
+        const materials = await response.json();
 
-                    <!-- Unit Dropdown -->
-                    <select name="Sizes[${sizeId}].RecipeItems[${itemCount}].UnitUsed" class="form-control form-control-sm unit-select" required style="width: 110px; flex-shrink: 0;">
-                        <option value="kg">📦 kg</option>
-                        <option value="g">⚖️ g</option>
-                        <option value="L">💧 L</option>
-                        <option value="mL">🧪 mL</option>
-                        <option value="pcs">🔢 pcs</option>
-                    </select>
-
-                    <!-- Remove Button (Minimalist X) -->
-                    <button type="button" class="btn-remove-ing" onclick="this.closest('.ingredient-row').remove()" title="Remove Ingredient">
-                        <i class="fas fa-times"></i>
-                    </button>
-
-                </div>
-            `;
-            container.insertAdjacentHTML('beforeend', html);
-        })
-        .catch(async (err) => {
-            console.error('Error loading materials for recipe item:', err);
-            showAlert('Error loading ingredients. Please refresh and try again.', 'Error');
+        let materialOptions = '<option value="">-- Select Ingredient --</option>';
+        materials.forEach(m => {
+            const price = m.latestBatchPrice > 0 ? m.latestBatchPrice : m.defaultPrice;
+            materialOptions += `<option value="${m.id}" data-price="${price}" data-unit="${m.unit}">${m.name} (${m.unit} - ₱${price})</option>`;
         });
+
+        const html = `
+            <div class="ingredient-row">
+                <select name="Sizes[${sizeIndex}].RecipeItems[${itemCount}].RawMaterialId" class="form-control form-control-sm" required onchange="updateUnitDropdown(this)" style="flex: 1;">
+                    ${materialOptions}
+                </select>
+                <input type="number" name="Sizes[${sizeIndex}].RecipeItems[${itemCount}].Quantity" class="form-control form-control-sm" placeholder="Qty" step="0.01" min="0.01" value="1" required style="width: 70px; flex-shrink: 0;">
+                <select name="Sizes[${sizeIndex}].RecipeItems[${itemCount}].UnitUsed" class="form-control form-control-sm unit-select" required style="width: 110px; flex-shrink: 0;">
+                    <option value="" disabled selected>-- Select Unit --</option>
+                    <option value="kg">📦 kg</option>
+                    <option value="g">⚖️ g</option>
+                    <option value="L">💧 L</option>
+                    <option value="mL">🧪 mL</option>
+                    <option value="pcs">🔢 pcs</option>
+                </select>
+                <button type="button" class="btn-remove-ing" onclick="this.closest('.ingredient-row').remove()" title="Remove Ingredient">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>`;
+        container.insertAdjacentHTML('beforeend', html);
+    } catch (err) {
+        console.error('Error loading materials for recipe item:', err);
+        showAlert('Error loading ingredients. Please refresh and try again.', 'Error');
+    }
 }
 
-      function filterProducts() {
-        const searchTerm = document.getElementById('searchProduct').value.toLowerCase();
-        const categoryFilter = document.getElementById('filterCategory').value;
-        const products = document.querySelectorAll('.product-card');
-
-        products.forEach(product => {
-            const name = product.querySelector('h4')?.innerText.toLowerCase() || '';
-            const category = product.getAttribute('data-category') || '';
-            // Kunin ang SKU mula sa table cells
-            const skuCells = product.querySelectorAll('table tbody tr td:nth-child(2) code');
-            let matchesSKU = false;
-            skuCells.forEach(cell => {
-                if (cell.innerText.toLowerCase().includes(searchTerm)) matchesSKU = true;
-            });
-
-            const matches = (name.includes(searchTerm) || matchesSKU) &&
-                            (!categoryFilter || category === categoryFilter);
-            product.style.display = matches ? '' : 'none';
-        });
-    }
+     
 
     function refreshProducts() { saveAndReload(); }
     async function editProduct(productId) {
@@ -5745,32 +6207,33 @@ async function showAddSizeModal(productId, productName) {
     // Reset ingredients table
     const tbody = document.getElementById('newSizeIngredientsBody');
     if (tbody) {
-        tbody.innerHTML = `
-            <tr>
-                <td>
-                    <select class="form-control ingredient-select" onchange="updateNewIngredientUnitDropdown(this)">
-                        <option value="">-- Select Ingredient --</option>
-                    </select>
-                </td>
-                <td>
-                    <input type="number" class="form-control quantity-input" placeholder="Qty" step="0.01" min="0.01" value="1">
-                </td>
-                <td>
-                    <select class="form-control unit-select">
-                        <option value="kg">📦 kilogram (kg)</option>
-                        <option value="g">⚖️ gram (g)</option>
-                        <option value="L">💧 liter (L)</option>
-                        <option value="mL">🧪 milliliter (mL)</option>
-                        <option value="pcs">🔢 pieces (pcs)</option>
-                    </select>
-                </td>
-                <td class="text-center">
-                    <button type="button" class="btn btn-sm btn-danger" onclick="removeNewIngredientRow(this)">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
-            </tr>
-        `;
+            tbody.innerHTML = `
+    <tr>
+        <td>
+            <select class="form-control ingredient-select" onchange="updateNewIngredientUnitDropdown(this)">
+                <option value="">-- Select Ingredient --</option>
+            </select>
+        </td>
+        <td>
+            <input type="number" class="form-control quantity-input" placeholder="Qty" step="0.01" min="0.01" value="1">
+        </td>
+        <td>
+            <select class="form-control unit-select">
+                <option value="" disabled selected>-- Select Unit --</option>
+                <option value="kg">📦 kilogram (kg)</option>
+                <option value="g">⚖️ gram (g)</option>
+                <option value="L">💧 liter (L)</option>
+                <option value="mL">🧪 milliliter (mL)</option>
+                <option value="pcs">🔢 pieces (pcs)</option>
+            </select>
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn btn-sm btn-danger" onclick="removeNewIngredientRow(this)">
+                <i class="fas fa-trash"></i>
+            </button>
+        </td>
+    </tr>
+`;
         
         // Load ingredients into first row
         fetch('/RawMaterial/GetAllWithLatestPrice')
@@ -5802,43 +6265,40 @@ async function showAddSizeModal(productId, productName) {
 }
 
 function updateNewIngredientUnitDropdown(selectElement) {
-    const row = selectElement.closest('tr');
+    // ✅ FIX: Hanapin ang .ingredient-row o tr
+    const row = selectElement.closest('.ingredient-row') || selectElement.closest('tr');
+    if (!row) return;
+
     const unitSelect = row.querySelector('.unit-select');
     const selectedOption = selectElement.options[selectElement.selectedIndex];
     const materialUnit = selectedOption.getAttribute('data-unit');
     
-    if (!materialUnit) return;
-    
-    // Get unit category
-    const weightUnits = ['kg', 'g'];
-    const volumeUnits = ['L', 'mL'];
-    
-    let allowedUnits = [];
-    if (weightUnits.includes(materialUnit)) {
-        allowedUnits = ['kg', 'g'];
-    } else if (volumeUnits.includes(materialUnit)) {
-        allowedUnits = ['L', 'mL'];
-    } else {
-        allowedUnits = ['pcs'];
+    if (!materialUnit) {
+        // Kung walang napiling ingredient, i-reset sa default
+        unitSelect.value = "";
+        return;
     }
     
-    // Enable/disable options
+    const weightUnits = ['kg', 'g'];
+    const volumeUnits = ['L', 'mL'];
+    let allowedUnits = [];
+    
+    if (weightUnits.includes(materialUnit)) allowedUnits = ['kg', 'g'];
+    else if (volumeUnits.includes(materialUnit)) allowedUnits = ['L', 'mL'];
+    else allowedUnits = ['pcs'];
+    
     for (let i = 0; i < unitSelect.options.length; i++) {
         const opt = unitSelect.options[i];
         if (allowedUnits.includes(opt.value)) {
             opt.disabled = false;
         } else {
             opt.disabled = true;
-            if (opt.selected) {
-                // Find first enabled option
-                for (let j = 0; j < unitSelect.options.length; j++) {
-                    if (!unitSelect.options[j].disabled) {
-                        unitSelect.selectedIndex = j;
-                        break;
-                    }
-                }
-            }
         }
+    }
+
+    // ✅ Auto-select sa unang valid na unit (e.g., 'kg' kung weight)
+    if (!allowedUnits.includes(unitSelect.value)) {
+        unitSelect.value = allowedUnits[0]; 
     }
 }
 
@@ -6055,6 +6515,7 @@ function updateSellingPrice() {
     const tbody = document.getElementById('ingredientsBody');
     
     const unitOptions = `
+    <option value="" disabled selected>-- Select Unit --</option>
         <option value="kg">📦 kilogram (kg)</option>
         <option value="g">⚖️ gram (g)</option>
         <option value="L">💧 liter (L)</option>
@@ -6187,8 +6648,12 @@ function closeQuantityModal() {
 }
 
   function calculateIngredientTotal(element) {
-    const row = element.closest('tr');
+    // ✅ FIX: Hanapin ang pinakamalapit na .ingredient-row (para gumana sa div at tr)
+     const row = element.closest('.ingredient-row') || element.closest('tr');
+    if (!row) return;
+
     const select = row.querySelector('.ingredient-select');
+    if (!select) return;
     const selectedOption = select.options[select.selectedIndex];
     let price = parseFloat(selectedOption?.getAttribute('data-price') || 0);
     
@@ -6241,14 +6706,6 @@ function closeQuantityModal() {
     updateTotals();
 }
     function removeIngredientRow(button) { button.closest('tr').remove(); updateTotals(); }
-    function updateSellingPrice() {
-        let totalCostText = document.getElementById('totalCostDisplay').innerText;
-        let totalCost = parseFloat(totalCostText.replace('₱', '')) || 0;
-        let margin = parseFloat(document.getElementById('marginSelect')?.value || 0.3);
-        let sellingPrice = totalCost / (1 - margin);
-        document.getElementById('recipeSellingPrice').value = `₱${sellingPrice.toFixed(2)}`;
-        updateTotals();
-    }
 
       function updateTotals() {
     let totalCost = 0;
@@ -6283,8 +6740,18 @@ function closeQuantityModal() {
     profitLossDisplay.innerHTML = `₱${profitLoss.toFixed(2)}`;
     profitLossDisplay.className = profitLoss >= 0 ? 'fw-bold text-success' : 'fw-bold text-danger';
 }
-   function saveRecipe() {
+   async function saveRecipe() { // ✅ Dapat may async
     const ingredients = [];
+    
+    // ✅ ITO YUNG CHECK NA DAPAT NANDITO
+    const unitSelects = document.querySelectorAll('#ingredientsBody .unit-select');
+    for (let select of unitSelects) {
+        if (select.value === "") {
+            await showAlert('Please select a unit for all ingredients.', 'Missing Unit', '⚠️');
+            return;
+        }
+    }
+
     document.querySelectorAll('#ingredientsBody tr').forEach(row => {
         const select = row.querySelector('.ingredient-select');
         const unitSelect = row.querySelector('.unit-select');
@@ -6300,8 +6767,6 @@ function closeQuantityModal() {
     });
     
     const margin = parseFloat(document.getElementById('marginSelect').value);
-
-    // ✅ KUNIN ANG MANUAL PRICE VALUES DITO
     const isManualPrice = document.getElementById('manualPriceCheckbox').checked;
     const manualPriceValue = parseFloat(document.getElementById('recipeSellingPriceInput').value) || 0;
     
@@ -6315,8 +6780,8 @@ function closeQuantityModal() {
             productSizeId: currentProductSizeId,
             margin: margin,
             ingredients: ingredients,
-            isManualPrice: isManualPrice,        // ✅ Isama sa payload
-            manualPrice: manualPriceValue        // ✅ Isama sa payload
+            isManualPrice: isManualPrice,
+            manualPrice: manualPriceValue
         })
     })
     .then(response => response.json())
@@ -8781,7 +9246,9 @@ function loadReceivingFormData() {
                 rawMaterialsList = [];
             }
             
-            document.getElementById('drNumber').value = await generateDRNumberFromServer();
+            document.getElementById('batchNumber').value = await generateDRNumberFromServer();
+// I-clear ang manual input para ready sa typing
+            document.getElementById('drNumberInput').value = '';
             
             const tbody = document.getElementById('receivingItemsBody');
             if (tbody) {
@@ -9208,14 +9675,15 @@ items.push({
         return;
     }
 
-    const data = {
-        supplierId: supplierId ? parseInt(supplierId) : 0,
-        drNumber: document.getElementById('drNumber').value,
-        invoiceNumber: null,
-        dateReceived: document.getElementById('dateReceived').value,
-        remarks: null,
-        items: items
-    };
+   const data = {
+    supplierId: supplierId ? parseInt(supplierId) : 0,
+    batchNumber: document.getElementById('batchNumber').value, // Auto-generated (ipapasa sa InvoiceNumber)
+    drNumber: document.getElementById('drNumberInput').value,  // Manual input (ipapasa sa DRNumber)
+    invoiceNumber: null,
+    dateReceived: document.getElementById('dateReceived').value,
+    remarks: null,
+    items: items
+};
 
     if (!data.drNumber) {
         await showAlert('DR Number is required.', 'Required', '⚠️');
@@ -9377,29 +9845,25 @@ function loadDeliveryHistory() {
         .then(data => {
             const tbody = document.getElementById('historyTableBody');
             if (!data || data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center">No delivery records yet</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center">No delivery records yet</td></tr>';
                 return;
             }
             
             let html = '';
             data.forEach(r => {
-                // ✅ Fallback kung walang displayUnit (para sa mga lumang records)
-                const unitDisplay = r.displayUnit ? ` ${r.displayUnit}` : '';
-
-                html += `<tr>
-                    <td><strong>${escapeHtml(r.drNumber)}</strong></td>
-                    <td>${new Date(r.dateReceived).toLocaleDateString()}</td>
-                    <td>${escapeHtml(r.supplierName)}</td>
-                    <td>${r.totalItems}</td>
-                    <td class="text-success">${r.totalAccepted.toFixed(2)}${unitDisplay}</td>
-                    <td class="text-danger">${r.totalRejected.toFixed(2)}${unitDisplay}</td>
-                    <td>
-                        <button class="btn btn-sm btn-info" onclick="viewDeliveryDetails(${r.receivingId})">
-                            <i class="fas fa-eye"></i> View
-                        </button>
-                    </td>
-                </tr>`;
-            });
+    html += `<tr>
+        <td><strong>${escapeHtml(r.batchNumber)}</strong></td> <!-- Ito ang Batch Number -->
+        <td>${escapeHtml(r.drNumber)}</td> <!-- Ito ang Manual DR Number -->
+        <td>${new Date(r.dateReceived).toLocaleDateString()}</td>
+        <td>${escapeHtml(r.supplierName)}</td>
+        <td>${r.totalItems}</td>
+        <td>
+            <button class="btn btn-sm btn-info" onclick="viewDeliveryDetails(${r.receivingId})">
+                <i class="fas fa-eye"></i> View
+            </button>
+        </td>
+    </tr>`;
+});
             tbody.innerHTML = html;
         });
 }
@@ -9452,13 +9916,16 @@ function viewDeliveryDetails(receivingId) {
         <div id="deliveryDetailsModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10001;">
             <div style="background: white; border-radius: 12px; width: 850px; max-width: 95%; max-height: 90vh; overflow-y: auto; padding: 25px;">
                 
-                <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
-                    <div>
-                        <h4 class="mb-0 text-primary"><i class="fas fa-receipt"></i> DR#: ${escapeHtml(delivery.drNumber)}</h4>
-                        <small class="text-muted">Date: ${new Date(delivery.dateReceived).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</small>
-                    </div>
-                    <button onclick="closeModal('deliveryDetailsModal')" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
-                </div>
+                <div class="d-flex justify-content-between mb-4 pb-3 border-bottom flex-nowrap gap-3">
+    <div style="min-width: 0; word-wrap: break-word;">
+        <h4 class="mb-0 text-primary text-truncate" title="${escapeHtml(delivery.batchNumber)}">
+            <i class="fas fa-receipt"></i> Batch#: ${escapeHtml(delivery.batchNumber)}
+        </h4>
+        <small class="text-muted d-block mb-1">DR#: <strong>${escapeHtml(delivery.drNumber)}</strong></small>
+        <small class="text-muted">Date: ${new Date(delivery.dateReceived).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</small>
+    </div>
+    <button onclick="closeModal('deliveryDetailsModal')" class="btn-close" style="flex-shrink: 0; align-self: flex-start; margin-top: 5px;" aria-label="Close"></button>
+</div>
 
                 <div class="row mb-4">
                     <div class="col-md-6">
@@ -11095,6 +11562,7 @@ function addNewIngredientRow() {
                     </td>
                     <td>
                         <select class="form-control unit-select">
+                         <option value="" disabled selected>-- Select Unit --</option>
                             <option value="kg">📦 kilogram (kg)</option>
                             <option value="g">⚖️ gram (g)</option>
                             <option value="L">💧 liter (L)</option>
@@ -11122,6 +11590,13 @@ async function saveNewSize() {
     const productIdInput = document.getElementById('addSizeProductId');
     const sizeNameInput = document.getElementById('newSizeName');
     const priceInput = document.getElementById('newSizePrice');
+     const unitSelects = document.querySelectorAll('#newSizeIngredientsBody .unit-select');
+    for (let select of unitSelects) {
+        if (select.value === "") {
+            await showAlert('Please select a unit for all ingredients.', 'Missing Unit', '⚠️');
+            return;
+        }
+    }
     
     if (!productIdInput) {
         console.error('addSizeProductId element not found');
@@ -12145,6 +12620,22 @@ document.getElementById('passwordGateModal').addEventListener('hidden.bs.modal',
     pendingExpiryData = null;
 });
 
+// Function para i-toggle ang show/hide ng password
+function togglePasswordVisibility(inputId, iconId) {
+    const input = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
+    
+    if (input.type === "password") {
+        input.type = "text";
+        icon.classList.remove("fa-eye");
+        icon.classList.add("fa-eye-slash");
+    } else {
+        input.type = "password";
+        icon.classList.remove("fa-eye-slash");
+        icon.classList.add("fa-eye");
+    }
+}
+
 // ============================================================
 // AUTO-GENERATE SKU PREFIX BASED ON PRODUCT NAME
 // ============================================================
@@ -12169,6 +12660,41 @@ document.addEventListener('DOMContentLoaded', function() {
             skuPrefixInput.value = prefix;
         });
     }
+});
+
+function reindexRecipeItems() {
+    document.querySelectorAll('#sizesContainer .size-row').forEach(sizeRow => {
+        sizeRow.querySelectorAll('.ingredient-row').forEach((row, ri) => {
+            row.querySelectorAll('select, input').forEach(el => {
+                const name = el.getAttribute('name');
+                if (name) el.setAttribute('name', name.replace(/RecipeItems\[\d+\]/, `RecipeItems[${ri}]`));
+            });
+        });
+    });
+}
+
+// ========== COLLAPSIBLE SIDEBAR ==========
+function toggleSidebar() {
+    // Mobile: slide the drawer in/out
+    if (window.innerWidth <= 768) {
+        document.getElementById('ownerSidebar').classList.toggle('open');
+        return;
+    }
+
+    // Desktop: collapse/expand and remember the choice
+    var collapsed = document.documentElement.classList.toggle('sidebar-collapsed');
+    localStorage.setItem('ownerSidebarCollapsed', collapsed ? '1' : '0');
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    // On mobile, close the drawer after picking a module
+    document.querySelectorAll('#ownerSidebar .nav-item').forEach(function (item) {
+        item.addEventListener('click', function () {
+            if (window.innerWidth <= 768) {
+                document.getElementById('ownerSidebar').classList.remove('open');
+            }
+        });
+    });
 });
 
 document.addEventListener('DOMContentLoaded', function() {

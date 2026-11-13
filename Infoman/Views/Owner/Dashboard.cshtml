@@ -1463,6 +1463,16 @@ html.sidebar-collapsed .main-content {
         height: 240px;
     }
 }
+
+#newSizeIngredientsTable td {
+    vertical-align: middle;
+}
+#newSizeIngredientsTable .form-control-sm,
+#newSizeIngredientsTable .form-select-sm {
+    height: 31px;
+    font-size: 12.5px;
+    padding: 4px 8px;
+}
     </style>
 
     <script>
@@ -3841,8 +3851,8 @@ html.sidebar-collapsed .main-content {
                         <i class="fas fa-plus"></i> Add Ingredient
                     </button>
                 </div>
-                
-                <div class="table-responsive">
+                                <!-- ✅ ITO ANG TAMANG CONTAINER PARA SA JS -->
+               <div class="table-responsive">
                     <table class="table table-bordered" id="newSizeIngredientsTable">
                         <thead class="table-light">
                             <tr>
@@ -3853,30 +3863,7 @@ html.sidebar-collapsed .main-content {
                             </tr>
                         </thead>
                         <tbody id="newSizeIngredientsBody">
-                            <tr>
-                                <td>
-                                    <select class="form-control ingredient-select" onchange="updateNewIngredientUnitDropdown(this)">
-                                        <option value="">-- Select Ingredient --</option>
-                                    </select>
-                                </td>
-                                <td>
-                                    <input type="number" class="form-control quantity-input" placeholder="Qty" step="0.01" min="0.01" value="1">
-                                </td>
-                                <td>
-                                    <select class="form-control unit-select">
-                                        <option value="kg">📦 kilogram (kg)</option>
-                                        <option value="g">⚖️ gram (g)</option>
-                                        <option value="L">💧 liter (L)</option>
-                                        <option value="mL">🧪 milliliter (mL)</option>
-                                        <option value="pcs">🔢 pieces (pcs)</option>
-                                    </select>
-                                </td>
-                                <td class="text-center">
-                                    <button type="button" class="btn btn-sm btn-danger" onclick="removeNewIngredientRow(this)">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </td>
-                            </tr>
+                            <!-- Dito ilalagay ng JS ang mga rows -->
                         </tbody>
                     </table>
                 </div>
@@ -6186,56 +6173,49 @@ async function refreshProductSizes(productId) {
 }
 
 async function showAddSizeModal(productId, productName) {
-    // Check if elements exist
     const productIdInput = document.getElementById('addSizeProductId');
     const productNameSpan = document.getElementById('addSizeProductName');
     const sizeNameInput = document.getElementById('newSizeName');
     const priceInput = document.getElementById('newSizePrice');
     
-    if (!productIdInput || !productNameSpan) {
-        console.error('Modal elements not found');
-        return;
-    }
+    if (!productIdInput || !productNameSpan) return;
     
-    // Set product info
     productIdInput.value = productId;
     productNameSpan.innerText = productName;
     
     if (sizeNameInput) sizeNameInput.value = '';
     if (priceInput) priceInput.value = '0';
     
-    // Reset ingredients table
     const tbody = document.getElementById('newSizeIngredientsBody');
     if (tbody) {
-            tbody.innerHTML = `
+       tbody.innerHTML = `
     <tr>
         <td>
-            <select class="form-control ingredient-select" onchange="updateNewIngredientUnitDropdown(this)">
+            <select class="form-control form-control-sm ingredient-select" onchange="updateNewIngredientUnitDropdown(this)">
                 <option value="">-- Select Ingredient --</option>
             </select>
         </td>
         <td>
-            <input type="number" class="form-control quantity-input" placeholder="Qty" step="0.01" min="0.01" value="1">
+            <input type="number" class="form-control form-control-sm quantity-input" placeholder="Qty" step="0.01" min="0.01" value="1">
         </td>
         <td>
-            <select class="form-control unit-select">
+            <select class="form-control form-control-sm unit-select">
                 <option value="" disabled selected>-- Select Unit --</option>
-                <option value="kg">📦 kilogram (kg)</option>
-                <option value="g">⚖️ gram (g)</option>
-                <option value="L">💧 liter (L)</option>
-                <option value="mL">🧪 milliliter (mL)</option>
-                <option value="pcs">🔢 pieces (pcs)</option>
+                <option value="kg">📦 kg</option>
+                <option value="g">⚖️ g</option>
+                <option value="L">💧 L</option>
+                <option value="mL">🧪 mL</option>
+                <option value="pcs">🔢 pcs</option>
             </select>
         </td>
         <td class="text-center">
-            <button type="button" class="btn btn-sm btn-danger" onclick="removeNewIngredientRow(this)">
-                <i class="fas fa-trash"></i>
+            <button type="button" class="btn btn-sm btn-danger" onclick="removeNewIngredientRow(this)" title="Remove Ingredient">
+                <i class="fas fa-times"></i>
             </button>
         </td>
     </tr>
 `;
         
-        // Load ingredients into first row
         fetch('/RawMaterial/GetAllWithLatestPrice')
             .then(response => response.json())
             .then(materials => {
@@ -6252,16 +6232,7 @@ async function showAddSizeModal(productId, productName) {
     }
     
     newIngredientCounter = 1;
-    
-    // Show modal
-    const modalEl = document.getElementById('addSizeModal');
-    if (modalEl) {
-        const modal = new bootstrap.Modal(modalEl);
-        modal.show();
-    } else {
-        console.error('addSizeModal element not found');
-        await showAlert('Modal not found. Please refresh the page.', 'Error', '❌');
-    }
+    new bootstrap.Modal(document.getElementById('addSizeModal')).show();
 }
 
 function updateNewIngredientUnitDropdown(selectElement) {
@@ -11550,75 +11521,60 @@ function addNewIngredientRow() {
                 options += `<option value="${m.id}" data-price="${price}" data-unit="${m.unit}">${m.name} (${m.unit} - ₱${price})</option>`;
             });
             
-            const html = `
-                <tr data-ingredient-idx="${index}">
-                    <td>
-                        <select class="form-control ingredient-select" onchange="updateNewIngredientUnitDropdown(this)">
-                            ${options}
-                        </select>
-                    </td>
-                    <td>
-                        <input type="number" class="form-control quantity-input" placeholder="Qty" step="0.01" min="0.01" value="1">
-                    </td>
-                    <td>
-                        <select class="form-control unit-select">
-                         <option value="" disabled selected>-- Select Unit --</option>
-                            <option value="kg">📦 kilogram (kg)</option>
-                            <option value="g">⚖️ gram (g)</option>
-                            <option value="L">💧 liter (L)</option>
-                            <option value="mL">🧪 milliliter (mL)</option>
-                            <option value="pcs">🔢 pieces (pcs)</option>
-                        </select>
-                    </td>
-                    <td class="text-center">
-                        <button type="button" class="btn btn-sm btn-danger" onclick="removeNewIngredientRow(this)">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            `;
-            tbody.insertAdjacentHTML('beforeend', html);
+                       const html = `
+    <tr>
+        <td>
+            <select class="form-control form-control-sm ingredient-select" onchange="updateNewIngredientUnitDropdown(this)">
+                ${options}
+            </select>
+        </td>
+        <td>
+            <input type="number" class="form-control form-control-sm quantity-input" placeholder="Qty" step="0.01" min="0.01" value="1">
+        </td>
+        <td>
+            <select class="form-control form-control-sm unit-select">
+                <option value="" disabled selected>-- Select Unit --</option>
+                <option value="kg">📦 kg</option>
+                <option value="g">⚖️ g</option>
+                <option value="L">💧 L</option>
+                <option value="mL">🧪 mL</option>
+                <option value="pcs">🔢 pcs</option>
+            </select>
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn btn-sm btn-danger" onclick="removeNewIngredientRow(this)" title="Remove Ingredient">
+                <i class="fas fa-times"></i>
+            </button>
+        </td>
+    </tr>
+`;
+tbody.insertAdjacentHTML('beforeend', html);
         });
 }
 function removeNewIngredientRow(btn) {
-    const row = btn.closest('tr');
+    const row = btn.closest('tr'); // ✅ Binago mula .ingredient-row papuntang tr
     if (row) row.remove();
 }
 
 async function saveNewSize() {
-    // ✅ I-CHECK MUNA KUNG EXIST ANG MGA ELEMENTS
     const productIdInput = document.getElementById('addSizeProductId');
     const sizeNameInput = document.getElementById('newSizeName');
     const priceInput = document.getElementById('newSizePrice');
-     const unitSelects = document.querySelectorAll('#newSizeIngredientsBody .unit-select');
-    for (let select of unitSelects) {
-        if (select.value === "") {
-            await showAlert('Please select a unit for all ingredients.', 'Missing Unit', '⚠️');
-            return;
-        }
-    }
     
-    if (!productIdInput) {
-        console.error('addSizeProductId element not found');
-        await showAlert('Form error. Please refresh and try again.', 'Error', '❌');
+    if (!productIdInput || !productIdInput.value) {
+        await showAlert('Product ID not found', 'Error', '❌');
         return;
     }
     
     const productId = productIdInput.value;
-    let sizeName = sizeNameInput ? sizeNameInput.value : '';
+    const sizeName = sizeNameInput ? sizeNameInput.value.trim() : '';
     const price = priceInput ? parseFloat(priceInput.value) || 0 : 0;
-    
-    if (!productId) {
-        await showAlert('Product ID not found', 'Error', '❌');
-        return;
-    }
     
     if (!sizeName) {
         await showAlert('Please enter a size name', 'Required', '⚠️');
         return;
     }
     
-    // Collect ingredients
     const ingredients = [];
     const rows = document.querySelectorAll('#newSizeIngredientsBody tr');
     
@@ -11627,11 +11583,19 @@ async function saveNewSize() {
         const quantity = row.querySelector('.quantity-input');
         const unitSelect = row.querySelector('.unit-select');
         
-        if (select && select.value && quantity && quantity.value) {
+        if (select && select.value) {
+            if (!unitSelect.value) {
+                await showAlert('Please select a unit for all ingredients.', 'Missing Unit', '⚠️');
+                return;
+            }
+            if (!quantity.value || parseFloat(quantity.value) <= 0) {
+                await showAlert('Please enter a valid quantity.', 'Invalid Quantity', '⚠️');
+                return;
+            }
             ingredients.push({
                 rawMaterialId: parseInt(select.value),
                 quantity: parseFloat(quantity.value),
-                unitUsed: unitSelect ? unitSelect.value : 'g'
+                unitUsed: unitSelect.value
             });
         }
     }
@@ -11641,9 +11605,11 @@ async function saveNewSize() {
         return;
     }
     
+    // Ipakita ang loading
     showLoading('Adding size...');
     
     const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    const margin = parseFloat(document.getElementById('newSizeMargin').value) || 0.3;
     
     try {
         const response = await fetch('/Owner/AddProductSize', {
@@ -11656,34 +11622,50 @@ async function saveNewSize() {
                 productId: parseInt(productId),
                 sizeName: sizeName,
                 price: price,
-                margin: parseFloat(document.getElementById('newSizeMargin').value) || 0.3,
+                margin: margin,
                 ingredients: ingredients
             })
         });
         
-        const result = await response.json();
-        hideLoading();
-        
-       if (result.success) {
-        await showAlert('Size added successfully!', 'Success', '✅');
-        const modal = bootstrap.Modal.getInstance(document.getElementById('addSizeModal'));
-        if (modal) modal.hide();
-        
-        // If we came from edit modal, return to it
-        if (window.returnToEditModal) {
-            window.returnToEditModal = false;
-            const productId = document.getElementById('addSizeProductId').value;
-            await refreshProductSizes(productId);
-            const editModal = new bootstrap.Modal(document.getElementById('editProductModal'));
-            editModal.show();
-        } else {
-            saveAndReload();
+        // ✅ ITAGO MUNA ANG LOADING BAGO MAG-ALERT PARA HINDI MAGPATONG
+        hideLoading(); 
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Server returned ${response.status}`);
         }
-    }
+
+        const result = await response.json();
+        
+        if (result.success) {
+            const modalElement = document.getElementById('addSizeModal');
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) modal.hide();
+            
+            await showAlert('Size added successfully!', 'Success', '✅');
+            
+            if (window.returnToEditModal) {
+                window.returnToEditModal = false;
+                const pId = document.getElementById('addSizeProductId').value;
+                try {
+                    await refreshProductSizes(pId);
+                    const editModal = new bootstrap.Modal(document.getElementById('editProductModal'));
+                    editModal.show();
+                } catch (refreshError) {
+                    saveAndReload();
+                }
+            } else {
+                saveAndReload();
+            }
+        } else {
+            // ❌ DITO LALABAS ANG DETALYADONG ERROR
+            await showAlert('Error: ' + result.message, 'Error', '❌');
+        }
     } catch (error) {
-        hideLoading();
-        console.error('Error:', error);
-        await showAlert('Error: ' + error.message, 'Error', '❌');
+        // ✅ SIGURADUHING NAKA-HIDE ANG LOADING PAGKA-CRASH
+        hideLoading(); 
+        console.error('Critical Error in saveNewSize:', error);
+        await showAlert('An error occurred: ' + error.message, 'Error', '❌');
     }
 }
 

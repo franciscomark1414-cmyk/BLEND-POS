@@ -655,36 +655,47 @@ namespace Infoman.Controllers
                 if (product == null)
                     return Json(new { success = false, message = "Product not found" });
 
-                // Generate SKU for the size
-                string sizeSKU = GenerateSizeSKU(product.SKU, request.SizeName);
+                if (request.Ingredients == null || !request.Ingredients.Any())
+                    return Json(new { success = false, message = "Please add at least one ingredient." });
 
+                // ✅ 1. GUMAWA NG SKU
+                string baseSku = GenerateSizeSKU(product.SKU, request.SizeName);
+                string finalSku = baseSku;
+                int counter = 1;
+
+                // ✅ 2. I-CHECK KUNG MAY KAPAREHO, KUNG MERON DAGDAGAN NG NUMBER
+                while (await _db.ProductSizes.AnyAsync(ps => ps.SKU == finalSku))
+                {
+                    finalSku = $"{baseSku}-{counter}";
+                    counter++;
+                }
+
+                // ✅ 3. I-SAVE ANG BAGONG SIZE
                 var productSize = new ProductSize
                 {
                     ProductId = request.ProductId,
                     SizeName = request.SizeName,
-                    SKU = sizeSKU,
+                    SKU = finalSku, // Gamitin ang unique SKU
                     Price = request.Price,
                     Margin = request.Margin,
                     IsAvailableInPOS = true,
                     RecipeItems = new List<RecipeItem>(),
-                    // ✅ SET MANUAL PRICE FLAG
-                    IsManualPrice = request.Price > 0  // Kung may manual price, true; kung auto (0), false
+                    IsManualPrice = request.Price > 0
                 };
 
-                // Add recipe items
                 foreach (var ingredient in request.Ingredients)
                 {
                     var rawMat = await _db.RawMaterials.FindAsync(ingredient.RawMaterialId);
                     if (rawMat != null)
                     {
-                        decimal quantityInBaseUnit = UnitConverter.ToBaseUnit(ingredient.Quantity, ingredient.UnitUsed, rawMat.BaseUnit);
-                        string unitToSave = rawMat.BaseUnit; // ✅ LAGING BASE UNIT ANG I-SAVE
+                        string unitToUse = string.IsNullOrEmpty(ingredient.UnitUsed) ? rawMat.BaseUnit : ingredient.UnitUsed;
+                        decimal quantityInBaseUnit = UnitConverter.ToBaseUnit(ingredient.Quantity, unitToUse, rawMat.BaseUnit);
 
                         productSize.RecipeItems.Add(new RecipeItem
                         {
                             RawMaterialId = ingredient.RawMaterialId,
                             Quantity = quantityInBaseUnit,
-                            UnitUsed = unitToSave
+                            UnitUsed = rawMat.BaseUnit
                         });
                     }
                 }
@@ -692,7 +703,6 @@ namespace Infoman.Controllers
                 _db.ProductSizes.Add(productSize);
                 await _db.SaveChangesAsync();
 
-                // Recompute price if zero (auto price)
                 if (request.Price == 0)
                 {
                     await RecomputeProductSizePrice(productSize.ProductSizeId);
@@ -702,7 +712,9 @@ namespace Infoman.Controllers
             }
             catch (Exception ex)
             {
-                return Json(new { success = false, message = ex.Message });
+                string errorMsg = ex.Message;
+                if (ex.InnerException != null) errorMsg += " | Inner: " + ex.InnerException.Message;
+                return Json(new { success = false, message = errorMsg });
             }
         }
         // ========== HELPER METHOD FOR SIZE SKU ==========

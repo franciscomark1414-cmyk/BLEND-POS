@@ -76,6 +76,8 @@ namespace Infoman.Models
         [ForeignKey("DispositionProcessedBy")]
         public virtual User DispositionProcessedByUser { get; set; }
 
-        
+        public ICollection<OrderItemAddOn> AddOns { get; set; } = new List<OrderItemAddOn>();
+
+
     }
 }

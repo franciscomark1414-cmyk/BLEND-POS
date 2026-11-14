@@ -42,6 +42,9 @@ namespace Infoman.Data
         public DbSet<Unit> Units { get; set; }
         public DbSet<Shift> Shifts { get; set; }
         public DbSet<ShiftCashCount> ShiftCashCounts { get; set; }
+        public DbSet<AddOn> AddOns { get; set; }
+        public DbSet<AddOnRecipeItem> AddOnRecipeItems { get; set; }
+        public DbSet<OrderItemAddOn> OrderItemAddOns { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -246,6 +249,45 @@ namespace Infoman.Data
                 .HasForeignKey(r => r.CategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // Add-on unique name (case-insensitive) sa active lang
+            modelBuilder.Entity<AddOn>()
+                .HasIndex(a => a.Name)
+                .IsUnique()
+                .HasFilter("[IsDeleted] = 0")
+                .HasDatabaseName("UX_AddOns_Name_Active");
+
+            // Add-on unique SKU kung meron
+            modelBuilder.Entity<AddOn>()
+                .HasIndex(a => a.SKU)
+                .IsUnique()
+                .HasFilter("[SKU] IS NOT NULL AND [IsDeleted] = 0")
+                .HasDatabaseName("UX_AddOns_SKU");
+
+            // Cascade delete recipe items kasama ng add-on (soft delete naman, pero safe)
+            modelBuilder.Entity<AddOnRecipeItem>()
+                .HasOne(r => r.AddOn)
+                .WithMany(a => a.RecipeItems)
+                .HasForeignKey(r => r.AddOnId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Cascade delete snapshot kasama ng order item
+            // Cascade delete snapshot kasama ng order item
+            modelBuilder.Entity<OrderItemAddOn>()
+                .HasOne(o => o.OrderItem)
+                .WithMany(oi => oi.AddOns) // ✅ I-LINK SA NAVIGATION PROPERTY
+                .HasForeignKey(o => o.OrderItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Huwag i-cascade delete ang add-on kapag may order items pa
+            modelBuilder.Entity<OrderItemAddOn>()
+                .HasOne(o => o.AddOn)
+                .WithMany()
+                .HasForeignKey(o => o.AddOnId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Category>()
+    .Property(c => c.Type)
+    .HasConversion<string>(); // ✅ Ito ang mag-fo-force na maging "AddOn" (string) ang isave
 
         }
 

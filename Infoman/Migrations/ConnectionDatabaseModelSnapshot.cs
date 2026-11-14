@@ -52,6 +52,100 @@ namespace Infoman.Migrations
                     b.ToTable("CashWithdrawals");
                 });
 
+            modelBuilder.Entity("Infoman.Models.AddOn", b =>
+                {
+                    b.Property<int>("AddOnId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AddOnId"));
+
+                    b.Property<string>("Category")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsManualPrice")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("Margin")
+                        .HasColumnType("decimal(5,4)");
+
+                    b.Property<int>("MaxPerOrder")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("SKU")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("AddOnId");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("UX_AddOns_Name_Active")
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.HasIndex("SKU")
+                        .IsUnique()
+                        .HasDatabaseName("UX_AddOns_SKU")
+                        .HasFilter("[SKU] IS NOT NULL AND [IsDeleted] = 0");
+
+                    b.ToTable("AddOns");
+                });
+
+            modelBuilder.Entity("Infoman.Models.AddOnRecipeItem", b =>
+                {
+                    b.Property<int>("AddOnRecipeItemId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AddOnRecipeItemId"));
+
+                    b.Property<int>("AddOnId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("RawMaterialId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UnitUsed")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.HasKey("AddOnRecipeItemId");
+
+                    b.HasIndex("AddOnId");
+
+                    b.HasIndex("RawMaterialId");
+
+                    b.ToTable("AddOnRecipeItems");
+                });
+
             modelBuilder.Entity("Infoman.Models.Category", b =>
                 {
                     b.Property<int>("CategoryId")
@@ -609,6 +703,48 @@ namespace Infoman.Migrations
                     b.HasIndex("ProductSizeId");
 
                     b.ToTable("OrderItems");
+                });
+
+            modelBuilder.Entity("Infoman.Models.OrderItemAddOn", b =>
+                {
+                    b.Property<int>("OrderItemAddOnId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("OrderItemAddOnId"));
+
+                    b.Property<decimal>("ActualCost")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("AddOnId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("AddOnName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("OrderItemId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("OrderItemId1")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.HasKey("OrderItemAddOnId");
+
+                    b.HasIndex("AddOnId");
+
+                    b.HasIndex("OrderItemId");
+
+                    b.HasIndex("OrderItemId1");
+
+                    b.ToTable("OrderItemAddOns");
                 });
 
             modelBuilder.Entity("Infoman.Models.Payment", b =>
@@ -1774,6 +1910,25 @@ namespace Infoman.Migrations
                     b.ToTable("Orders");
                 });
 
+            modelBuilder.Entity("Infoman.Models.AddOnRecipeItem", b =>
+                {
+                    b.HasOne("Infoman.Models.AddOn", "AddOn")
+                        .WithMany("RecipeItems")
+                        .HasForeignKey("AddOnId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Infoman.Models.RawMaterial", "RawMaterial")
+                        .WithMany()
+                        .HasForeignKey("RawMaterialId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AddOn");
+
+                    b.Navigation("RawMaterial");
+                });
+
             modelBuilder.Entity("Infoman.Models.EmployeeAttendance", b =>
                 {
                     b.HasOne("Infoman.Models.User", "Employee")
@@ -1938,6 +2093,29 @@ namespace Infoman.Migrations
                     b.Navigation("Product");
 
                     b.Navigation("ProductSize");
+                });
+
+            modelBuilder.Entity("Infoman.Models.OrderItemAddOn", b =>
+                {
+                    b.HasOne("Infoman.Models.AddOn", "AddOn")
+                        .WithMany()
+                        .HasForeignKey("AddOnId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Infoman.Models.OrderItem", "OrderItem")
+                        .WithMany()
+                        .HasForeignKey("OrderItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Infoman.Models.OrderItem", null)
+                        .WithMany("AddOns")
+                        .HasForeignKey("OrderItemId1");
+
+                    b.Navigation("AddOn");
+
+                    b.Navigation("OrderItem");
                 });
 
             modelBuilder.Entity("Infoman.Models.Payment", b =>
@@ -2277,6 +2455,11 @@ namespace Infoman.Migrations
                     b.Navigation("Staff");
                 });
 
+            modelBuilder.Entity("Infoman.Models.AddOn", b =>
+                {
+                    b.Navigation("RecipeItems");
+                });
+
             modelBuilder.Entity("Infoman.Models.Category", b =>
                 {
                     b.Navigation("RawMaterials");
@@ -2285,6 +2468,11 @@ namespace Infoman.Migrations
             modelBuilder.Entity("Infoman.Models.ExchangeTransaction", b =>
                 {
                     b.Navigation("ExchangeItems");
+                });
+
+            modelBuilder.Entity("Infoman.Models.OrderItem", b =>
+                {
+                    b.Navigation("AddOns");
                 });
 
             modelBuilder.Entity("Infoman.Models.Product", b =>

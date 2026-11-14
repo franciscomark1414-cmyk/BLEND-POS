@@ -2974,39 +2974,43 @@ html.sidebar-collapsed .main-content {
         <!-- ================= SETTINGS MODULE ================= -->
 <div id="settingsModule" class="module">
     <div class="mb-4">
-        <h2 class="page-header-title">⚙️ Settings</h2>
-        <p class="page-header-subtitle">Manage system configuration</p>
+        <h2 class="page-header-title"><i class="fas fa-cog text-warning me-2"></i> Settings</h2>
+        <p class="page-header-subtitle">Manage system configuration.</p>
     </div>
 
-    <!-- ✅ MGA TABS -->
-    <ul class="nav nav-tabs mb-3">
+    <ul class="nav nav-tabs mb-4">
         <li class="nav-item">
             <button type="button" class="nav-link active" id="tab-security-btn" onclick="switchSettingsTab('security')">
-                <i class="fas fa-shield-alt me-1"></i> Security & Session
+                Security & Session
             </button>
         </li>
         <li class="nav-item">
             <button type="button" class="nav-link" id="tab-category-btn" onclick="switchSettingsTab('category')">
-                <i class="fas fa-tags me-1"></i> Category Management
+                Category Management
             </button>
         </li>
         <li class="nav-item">
-    <button type="button" class="nav-link" id="tab-unit-btn" onclick="switchSettingsTab('unit')">
-        <i class="fas fa-weight me-1"></i> Unit Management
-    </button>
-</li>
+            <button type="button" class="nav-link" id="tab-unit-btn" onclick="switchSettingsTab('unit')">
+                Unit Management
+            </button>
+        </li>
+        <li class="nav-item">
+            <button type="button" class="nav-link" id="tab-addon-btn" onclick="switchSettingsTab('addon')">
+                Add-ons Management
+            </button>
+        </li>
     </ul>
 
-    <!-- ✅ TAB CONTENT: SECURITY -->
+    <!-- SECURITY TAB -->
     <div id="settings-security-tab" style="display: block;">
-        <div class="card shadow-sm">
+        <div class="card shadow-sm border-0">
             <div class="card-header bg-white">
                 <h5 class="mb-0">Auto Logout (Session Timeout)</h5>
             </div>
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <p class="text-muted small mb-0">Kapag naka-ON, awtomatikong ma-lo-logout ang user kapag walang galaw (idle) sa loob ng <strong>5 minuto</strong>.</p>
+                        <p class="text-muted small mb-0">When enabled, the user will be logged out automatically after 5 minutes of inactivity.</p>
                     </div>
                     <div class="form-check form-switch fs-4 mb-0">
                         <input class="form-check-input" type="checkbox" role="switch" id="sessionTimeoutToggle" onchange="toggleSessionTimeout(this)">
@@ -3016,77 +3020,68 @@ html.sidebar-collapsed .main-content {
         </div>
     </div>
 
-    <!-- ✅ TAB CONTENT: CATEGORY MANAGEMENT -->
+    <!-- CATEGORY TAB -->
     <div id="settings-category-tab" style="display: none;">
         <div class="row g-4">
-            <!-- LEFT: Category table -->
             <div class="col-lg-8">
-                <div class="card shadow-sm">
+                <div class="card shadow-sm border-0">
                     <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                        <h5 class="section-title">Categories</h5>
-                        <select id="categoryTypeFilter" class="form-select form-select-sm" style="width: 180px;" onchange="loadCategories()">
+                        <h5 class="section-title mb-0">Categories</h5>
+                        <select id="categoryTypeFilter" class="form-select form-select-sm w-auto" onchange="loadCategories()">
                             <option value="">All Types</option>
                             <option value="RawMaterial">Raw Material</option>
                             <option value="Product">Product</option>
+                            <option value="AddOn">Add-on</option>
                         </select>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body p-0">
                         <div class="table-responsive">
-                            <table class="table table-bordered table-hover align-middle mb-0">
+                            <table class="table table-hover align-middle mb-0">
                                 <thead>
                                     <tr>
                                         <th>Name</th>
-                                        <th style="width:130px;">Type</th>
-                                        <th style="width:100px;">Status</th>
-                                        <th style="width:150px;">Actions</th>
+                                        <th>Type</th>
+                                        <th>Status</th>
+                                        <th class="text-end">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="categoryTableBody">
-                                    <tr><td colspan="4" class="text-center text-muted">Loading...</td></tr>
+                                    <tr><td colspan="4" class="text-center text-muted py-4">Loading...</td></tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <!-- RIGHT: Add / Edit form -->
             <div class="col-lg-4">
-                <div class="card shadow-sm">
+                <div class="card shadow-sm border-0">
                     <div class="card-header bg-white">
-                        <h5 class="section-title" id="categoryFormTitle">➕ Add Category</h5>
+                        <h5 class="section-title" id="categoryFormTitle">Add Category</h5>
                     </div>
                     <div class="card-body">
                         <form id="categoryForm" onsubmit="saveCategory(event)">
                             @Html.AntiForgeryToken()
                             <input type="hidden" id="catEditId" value="0">
-
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Name <span class="text-danger">*</span></label>
                                 <input type="text" id="catName" class="form-control" maxlength="100" placeholder="e.g., Frozen Fruits" required>
                             </div>
-
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Type <span class="text-danger">*</span></label>
-                                <select id="catType" class="form-control">
+                                <select id="catType" class="form-select">
                                     <option value="RawMaterial">Raw Material</option>
                                     <option value="Product">Product</option>
+                                    <option value="AddOn">Add-on</option>
                                 </select>
                                 <small class="text-muted" id="catTypeHint">Decides which dropdown this category appears in.</small>
                             </div>
-
                             <div class="form-check form-switch mb-3">
                                 <input class="form-check-input" type="checkbox" id="catIsActive" checked>
-                                <label class="form-check-label" for="catIsActive">Active (shown in dropdowns)</label>
+                                <label class="form-check-label" for="catIsActive">Active</label>
                             </div>
-
                             <div class="d-flex gap-2">
-                                <button type="submit" class="btn btn-success flex-grow-1">
-                                    <i class="fas fa-save"></i> Save
-                                </button>
-                                <button type="button" id="catCancelBtn" class="btn btn-secondary" style="display:none;" onclick="resetCategoryForm()">
-                                    Cancel
-                                </button>
+                                <button type="submit" class="btn btn-primary flex-grow-1">Save</button>
+                                <button type="button" id="catCancelBtn" class="btn btn-outline-secondary" style="display:none;" onclick="resetCategoryForm()">Cancel</button>
                             </div>
                         </form>
                     </div>
@@ -3095,88 +3090,185 @@ html.sidebar-collapsed .main-content {
         </div>
     </div> 
 
-    <!-- ✅ TAB CONTENT: UNIT MANAGEMENT -->
-<div id="settings-unit-tab" style="display: none;">
-    <div class="row g-4">
-        <!-- LEFT: Unit table -->
-        <div class="col-lg-8">
-            <div class="card shadow-sm">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0">Units</h5>
+    <!-- UNIT TAB -->
+    <div id="settings-unit-tab" style="display: none;">
+        <div class="row g-4">
+            <div class="col-lg-8">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-white">
+                        <h5 class="section-title mb-0">Units</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Symbol</th>
+                                        <th>Base Unit</th>
+                                        <th>Conversion</th>
+                                        <th>Status</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="unitTableBody">
+                                    <tr><td colspan="6" class="text-center text-muted py-4">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-hover align-middle mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Symbol</th>
-                                    <th>Base Unit</th>
-                                    <th>Conv. Factor</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="unitTableBody">
-                                <tr><td colspan="6" class="text-center text-muted">Loading...</td></tr>
-                            </tbody>
-                        </table>
+            </div>
+            <div class="col-lg-4">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-white">
+                        <h5 class="section-title" id="unitFormTitle">Add Unit</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="unitForm" onsubmit="saveUnit(event)">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" id="unitEditId" value="0">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Name <span class="text-danger">*</span></label>
+                                <input type="text" id="unitName" class="form-control" placeholder="e.g., kilogram" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Symbol <span class="text-danger">*</span></label>
+                                <input type="text" id="unitSymbol" class="form-control" placeholder="e.g., kg" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Base Unit <span class="text-danger">*</span></label>
+                                <input type="text" id="unitBaseUnit" class="form-control" placeholder="e.g., g" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Conversion Factor <span class="text-danger">*</span></label>
+                                <input type="number" id="unitConversionFactor" class="form-control" step="0.01" value="1" required>
+                            </div>
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="unitIsActive" checked>
+                                <label class="form-check-label" for="unitIsActive">Active</label>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary flex-grow-1">Save</button>
+                                <button type="button" id="unitCancelBtn" class="btn btn-outline-secondary" style="display:none;" onclick="resetUnitForm()">Cancel</button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- RIGHT: Add / Edit form -->
-        <div class="col-lg-4">
-            <div class="card shadow-sm">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0" id="unitFormTitle">➕ Add Unit</h5>
+    <!-- ADD-ONS TAB -->
+    <div id="settings-addon-tab" style="display: none;">
+        <div class="row g-4">
+            <div class="col-lg-8">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h5 class="section-title mb-0">Add-ons</h5>
+                        <select id="addOnStatusFilter" class="form-select form-select-sm w-auto" onchange="loadAddOns()">
+                            <option value="all">All Status</option>
+                            <option value="active">Active Only</option>
+                            <option value="inactive">Inactive Only</option>
+                        </select>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Price</th>
+                                        <th>Recipe</th>
+                                        <th>Status</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="addOnTableBody">
+                                    <tr><td colspan="5" class="text-center text-muted py-4">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <form id="unitForm" onsubmit="saveUnit(event)">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" id="unitEditId" value="0">
-
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Name <span class="text-danger">*</span></label>
-                            <input type="text" id="unitName" class="form-control" placeholder="e.g., kilogram" required>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Symbol <span class="text-danger">*</span></label>
-                            <input type="text" id="unitSymbol" class="form-control" placeholder="e.g., kg" required>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Base Unit <span class="text-danger">*</span></label>
-                            <input type="text" id="unitBaseUnit" class="form-control" placeholder="e.g., g, mL, pcs" required>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Conversion Factor <span class="text-danger">*</span></label>
-                            <input type="number" id="unitConversionFactor" class="form-control" step="0.01" value="1" required>
-                            <small class="text-muted">e.g., 1000 (kung 1 kg = 1000 g)</small>
-                        </div>
-
-                        <div class="form-check form-switch mb-3">
-                            <input class="form-check-input" type="checkbox" id="unitIsActive" checked>
-                            <label class="form-check-label" for="unitIsActive">Active</label>
-                        </div>
-
-                        <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-success flex-grow-1">
-                                <i class="fas fa-save"></i> Save
-                            </button>
-                            <button type="button" id="unitCancelBtn" class="btn btn-secondary" style="display:none;" onclick="resetUnitForm()">
-                                Cancel
-                            </button>
-                        </div>
-                    </form>
+            </div>
+            <div class="col-lg-4">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-white">
+                        <h5 class="section-title" id="addOnFormTitle">Add Add-on</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="addOnForm" onsubmit="saveAddOn(event)" novalidate>
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" id="addOnEditId" value="0">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Name <span class="text-danger">*</span></label>
+                                <input type="text" id="addOnName" class="form-control" maxlength="100" placeholder="e.g., Extra Sugar" required>
+                            </div>
+                            <div class="mb-3">
+    <label class="form-label fw-bold">Category <span class="text-danger">*</span></label>
+    <select id="addOnCategory" class="form-select" required>
+        <option value="">-- Select Category --</option>
+    </select>
+    <small class="text-muted">Manage categories in Settings > Category Management.</small>
+</div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Max per Order <span class="text-danger">*</span></label>
+                                <input type="number" id="addOnMaxPerOrder" class="form-control" min="1" max="20" value="1" required>
+                            </div>
+                            <hr>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0 fw-bold">Recipe / Ingredients <span class="text-danger">*</span></h6>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="addAddOnIngredientRow()">
+                                    Add Ingredient
+                                </button>
+                            </div>
+                            <div id="addOnIngredientsBody" style="max-height: 220px; overflow-y: auto;"></div>
+                            <div class="mt-2 p-2 bg-light rounded small">
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted">Total Recipe Cost:</span>
+                                    <strong id="addOnRecipeCost">₱0.00</strong>
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="mb-2">
+                                <label class="form-label fw-bold mb-1">Price Mode</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="addOnPriceMode" id="addOnPriceManual" value="manual" checked onchange="toggleAddOnPriceMode()">
+                                    <label class="form-check-label" for="addOnPriceManual">Manual — fixed price</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="addOnPriceMode" id="addOnPriceAuto" value="auto" onchange="toggleAddOnPriceMode()">
+                                    <label class="form-check-label" for="addOnPriceAuto">Auto — compute from recipe + margin</label>
+                                </div>
+                            </div>
+                            <div class="mb-3" id="addOnManualPriceSection">
+                                <label class="form-label fw-bold">Price (₱) <span class="text-danger">*</span></label>
+                                <input type="number" id="addOnPrice" class="form-control" step="0.01" min="0.01" value="0.00">
+                            </div>
+                            <div class="mb-3" id="addOnAutoPriceSection" style="display: none;">
+                                <label class="form-label fw-bold">Margin</label>
+                                <select id="addOnMargin" class="form-select" onchange="updateAddOnAutoPrice()">
+                                    <option value="0.3">30%</option>
+                                    <option value="0.4">40%</option>
+                                    <option value="0.5">50%</option>
+                                </select>
+                                <small class="text-muted">Computed price: <strong id="addOnAutoPriceDisplay">₱0.00</strong></small>
+                            </div>
+                            <div class="form-check form-switch mb-3" id="addOnActiveSection" style="display: none;">
+                                <input class="form-check-input" type="checkbox" id="addOnIsActive" checked>
+                                <label class="form-check-label" for="addOnIsActive">Active</label>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary flex-grow-1">Save</button>
+                                <button type="button" id="addOnCancelBtn" class="btn btn-outline-secondary" style="display:none;" onclick="resetAddOnForm()">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 </div>
 
 
@@ -4547,14 +4639,10 @@ function isUnitCompatible(materialUnit, recipeUnit) {
 }
 
 function updateUnitDropdown(selectElement) {
-    // ✅ Hanapin ang parent row (pwede tr o div)
-    let row = selectElement.closest('tr');
-    if (!row) {
-        row = selectElement.closest('.ingredient-row');
-    }
-    if (!row) return;
+    const trElement = selectElement.closest('tr');
+    if (!trElement) return;
     
-    const unitSelect = row.querySelector('.unit-select');
+    const unitSelect = trElement.querySelector('.unit-select');
     if (!unitSelect) return;
     
     const selectedOption = selectElement.options[selectElement.selectedIndex];
@@ -4562,67 +4650,73 @@ function updateUnitDropdown(selectElement) {
     
     if (!materialUnit) return;
     
-    const materialCategory = getUnitCategory(materialUnit);
-    
-    // Enable/disable options based on compatibility
+    // I-enable lahat muna
     for (let i = 0; i < unitSelect.options.length; i++) {
-        const opt = unitSelect.options[i];
-        const optCategory = getUnitCategory(opt.value);
-        
-        if (materialCategory === optCategory) {
-            opt.disabled = false;
-            opt.style.color = '';
-            opt.style.backgroundColor = '';
-        } else {
-            opt.disabled = true;
-            opt.style.color = '#999';
-            opt.style.backgroundColor = '#f0f0f0';
-        }
+        unitSelect.options[i].disabled = false;
     }
-    
-    // If currently selected unit is disabled, change to first enabled option
+
+    // I-disable ang mga hindi tugma
+    if (materialUnit === 'g' || materialUnit === 'kg') {
+        Array.from(unitSelect.options).forEach(opt => {
+            if (opt.value === 'L' || opt.value === 'mL' || opt.value === 'pcs') opt.disabled = true;
+        });
+    } 
+    else if (materialUnit === 'mL' || materialUnit === 'L') {
+        Array.from(unitSelect.options).forEach(opt => {
+            if (opt.value === 'kg' || opt.value === 'g' || opt.value === 'pcs') opt.disabled = true;
+        });
+    }
+
+    // Kung ang napili ay disabled, auto-select sa unang valid
     if (unitSelect.options[unitSelect.selectedIndex].disabled) {
         for (let i = 0; i < unitSelect.options.length; i++) {
-            if (!unitSelect.options[i].disabled) {
+            if (!unitSelect.options[i].disabled && unitSelect.options[i].value !== "") {
                 unitSelect.selectedIndex = i;
                 break;
             }
         }
     }
     
-    // Recalculate total after unit change (para sa Edit Recipe modal)
-    if (typeof calculateIngredientTotal === 'function') {
-        calculateIngredientTotal(unitSelect);
-    }
+    // Tawagin ang calculate para mag-update agad
+    calculateIngredientTotal(unitSelect);
 }
 
 // ========== SETTINGS TABS LOGIC ==========
 function switchSettingsTab(tabName) {
-    // 1. Alisin ang active class sa lahat ng buttons
     document.getElementById('tab-security-btn').classList.remove('active');
     document.getElementById('tab-category-btn').classList.remove('active');
     document.getElementById('tab-unit-btn').classList.remove('active');
-    
-    // 2. Itago lahat ng tab contents
+    document.getElementById('tab-addon-btn').classList.remove('active');  // ✅ BAGO
+
     document.getElementById('settings-security-tab').style.display = 'none';
     document.getElementById('settings-category-tab').style.display = 'none';
-    document.getElementById('settings-unit-tab').style.display = 'none'; 
+    document.getElementById('settings-unit-tab').style.display = 'none';
+    document.getElementById('settings-addon-tab').style.display = 'none';  // ✅ BAGO
 
-    // 3. Ipakita ang napiling tab
     if (tabName === 'security') {
         document.getElementById('tab-security-btn').classList.add('active');
         document.getElementById('settings-security-tab').style.display = 'block';
     } else if (tabName === 'category') {
         document.getElementById('tab-category-btn').classList.add('active');
         document.getElementById('settings-category-tab').style.display = 'block';
-        // I-load ang categories kapag pinasok ang tab
         loadCategories();
-    }  else if (tabName === 'unit') { // ✅ BAGO
+    } else if (tabName === 'unit') {
         document.getElementById('tab-unit-btn').classList.add('active');
         document.getElementById('settings-unit-tab').style.display = 'block';
         loadUnits();
-    }
+    } else if (tabName === 'addon') {
+    document.getElementById('tab-addon-btn').classList.add('active');
+    document.getElementById('settings-addon-tab').style.display = 'block';
+    
+    // ✅ ITO ANG KULANG: Tawagin ang loadCategoryDropdown para lumabas ang "Extras" at "hehe"
+    loadCategoryDropdown('addOnCategory', 'AddOn', { 
+        valueKey: 'name', 
+        placeholder: '-- Select Category --' 
+    });
+    
+    loadAddOns();
 }
+    }
 
 // ================= CATEGORY MANAGEMENT =================
 let categoryCache = [];
@@ -4652,35 +4746,39 @@ function renderCategoryTable() {
     const tbody = document.getElementById('categoryTableBody');
 
     if (categoryCache.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No categories yet. Add one on the right.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">No categories yet. Add one on the right.</td></tr>';
         return;
     }
 
-    // Walang pangalan sa onclick (iwas apostrophe bug) - id lang ang ipinapasa
     tbody.innerHTML = categoryCache.map(c => `
         <tr>
             <td>
-                <strong>${escapeHtml(c.name)}</strong><br>
-                <small class="text-muted">Used by ${c.usageCount} item(s)</small>
+                <div class="fw-bold text-dark">${escapeHtml(c.name)}</div>
+                <div class="small text-muted">Used by ${c.usageCount} item(s)</div>
             </td>
-            <td><span class="badge ${c.type === 'RawMaterial' ? 'bg-info' : 'bg-primary'}">${c.type === 'RawMaterial' ? 'Raw Material' : 'Product'}</span></td>
-            <td><span class="badge ${c.isActive ? 'bg-success' : 'bg-secondary'}">${c.isActive ? 'Active' : 'Inactive'}</span></td>
             <td>
-                <button class="btn btn-sm btn-primary" onclick="editCategory(${c.id})"><i class="fas fa-edit"></i></button>
-                <button class="btn btn-sm btn-danger" onclick="deleteCategory(${c.id})"><i class="fas fa-trash"></i></button>
+                <span class="badge ${c.type === 'RawMaterial' ? 'bg-light text-dark border' : (c.type === 'AddOn' ? 'bg-warning text-dark' : 'bg-primary')}">
+                    ${c.type === 'RawMaterial' ? 'Raw Material' : (c.type === 'AddOn' ? 'Add-on' : 'Product')}
+                </span>
+            </td>
+            <td>
+                <span class="badge ${c.isActive ? 'bg-success' : 'bg-secondary'}">${c.isActive ? 'Active' : 'Inactive'}</span>
+            </td>
+            <td class="text-end">
+                <button class="btn btn-sm btn-outline-primary me-1" onclick="editCategory(${c.id})">Edit</button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteCategory(${c.id})">Delete</button>
             </td>
         </tr>`).join('');
 }
 
-// ---- Form helpers ----
 function resetCategoryForm() {
     document.getElementById('catEditId').value = 0;
     document.getElementById('catName').value = '';
-    document.getElementById('catType').value = 'RawMaterial';
+    document.getElementById('catType').value = 'RawMaterial'; // Default
     document.getElementById('catType').disabled = false;
     document.getElementById('catIsActive').checked = true;
     document.getElementById('catTypeHint').innerText = 'Decides which dropdown this category appears in.';
-    document.getElementById('categoryFormTitle').innerText = '➕ Add Category';
+    document.getElementById('categoryFormTitle').innerHTML = '<i class="fas fa-plus me-2"></i>Add Category';
     document.getElementById('catCancelBtn').style.display = 'none';
 }
 
@@ -4690,58 +4788,58 @@ function editCategory(id) {
 
     document.getElementById('catEditId').value = c.id;
     document.getElementById('catName').value = c.name;
-    document.getElementById('catType').value = c.type;
-    document.getElementById('catType').disabled = true;     // bawal palitan ang Type habang nag-e-edit
+    
+    // ✅ I-SET ANG VALUE (AddOn, Product, o RawMaterial)
+    document.getElementById('catType').value = c.type; 
+    
+    document.getElementById('catType').disabled = true;
     document.getElementById('catIsActive').checked = c.isActive;
     document.getElementById('catTypeHint').innerText = 'Type cannot be changed once created.';
-    document.getElementById('categoryFormTitle').innerText = '✏️ Edit Category';
+    document.getElementById('categoryFormTitle').innerHTML = '<i class="fas fa-edit me-2"></i>Edit Category';
     document.getElementById('catCancelBtn').style.display = 'inline-block';
     document.getElementById('catName').focus();
 }
 
 // ---- Create / Update ----
-async function saveCategory(e) {
-    e.preventDefault();
+                                                async function saveCategory(e) {
+                                                    e.preventDefault();
 
-    const id = parseInt(document.getElementById('catEditId').value) || 0;
-    const payload = {
-        categoryId: id,
-        name: document.getElementById('catName').value.trim(),
-        type: document.getElementById('catType').value,
-        isActive: document.getElementById('catIsActive').checked
-    };
+                                                    const id = parseInt(document.getElementById('catEditId').value) || 0;
+                                                    const payload = {
+                                                        categoryId: id,
+                                                        name: document.getElementById('catName').value.trim(),
+                                                        type: document.getElementById('catType').value, // <--- Makukuha na nito ang "AddOn"
+                                                        isActive: document.getElementById('catIsActive').checked
+                                                    };
 
-    if (!payload.name) {
-        await showAlert('Please enter a category name.', 'Required', '⚠️');
-        return;
-    }
+                                                    if (!payload.name) {
+                                                        await showAlert('Please enter a category name.', 'Required');
+                                                        return;
+                                                    }
 
-    showLoading('Saving category...');
-    try {
-        const res = await fetch(id === 0 ? '/Category/Create' : '/Category/Update', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getCategoryToken() },
-            body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        hideLoading();
+                                                    showLoading('Saving category...');
+                                                    try {
+                                                        const res = await fetch(id === 0 ? '/Category/Create' : '/Category/Update', {
+                                                            method: 'POST',
+                                                            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getCategoryToken() },
+                                                            body: JSON.stringify(payload)
+                                                        });
+                                                        const data = await res.json();
+                                                        hideLoading();
 
-        if (data.success) {
-            await showAlert(data.message, 'Success', '✅');
-            resetCategoryForm();
-            await loadCategories();
-
-              await refreshInventoryTable();
-              await refreshRawMaterialsTable(); 
-    await refreshAllCategoryDropdowns();
-        } else {
-            await showAlert(data.message, 'Cannot Save', '❌');
-        }
-    } catch (err) {
-        hideLoading();
-        await showAlert('Error: ' + err.message, 'Error', '❌');
-    }
-}
+                                                        if (data.success) {
+                                                            await showAlert(data.message, 'Success', '✅');
+                                                            resetCategoryForm();
+                                                            await loadCategories();
+                                                            await refreshAllCategoryDropdowns();
+                                                        } else {
+                                                            await showAlert(data.message, 'Cannot Save', '❌');
+                                                        }
+                                                    } catch (err) {
+                                                        hideLoading();
+                                                        await showAlert('Error: ' + err.message, 'Error', '❌');
+                                                    }
+                                                }
 
 // ---- Delete (may in-use blocking modal) ----
 async function deleteCategory(id) {
@@ -4834,6 +4932,8 @@ async function loadCategoryDropdown(selectId, type, opts = {}) {
         const list = await res.json();
 
         select.innerHTML = '';
+        
+        // ✅ ITO ANG DEFAULT NA "-- No Category --"
         const ph = document.createElement('option');
         ph.value = '';
         ph.textContent = placeholder;
@@ -4842,7 +4942,7 @@ async function loadCategoryDropdown(selectId, type, opts = {}) {
         list.forEach(c => {
             const o = document.createElement('option');
             o.value = valueKey === 'name' ? c.name : String(c.id);
-            o.textContent = c.name;                      // textContent = safe sa special characters
+            o.textContent = c.name;
             select.appendChild(o);
         });
 
@@ -6485,13 +6585,14 @@ function updateSellingPrice() {
      function addIngredientRowToTable(ingredient, index) {
     const tbody = document.getElementById('ingredientsBody');
     
+    // ✅ FIX: Gawing malinis ang options. 
     const unitOptions = `
-    <option value="" disabled selected>-- Select Unit --</option>
-        <option value="kg">📦 kilogram (kg)</option>
-        <option value="g">⚖️ gram (g)</option>
-        <option value="L">💧 liter (L)</option>
-        <option value="mL">🧪 milliliter (mL)</option>
-        <option value="pcs">🔢 pieces (pcs)</option>
+        <option value="" disabled selected>-- Unit --</option>
+        <option value="kg">kg</option>
+        <option value="g">g</option>
+        <option value="L">L</option>
+        <option value="mL">mL</option>
+        <option value="pcs">pcs</option>
     `;
     
     const rowHtml = `
@@ -6504,7 +6605,7 @@ function updateSellingPrice() {
             <td>
                 <input type="number" class="form-control quantity-input" 
                        onchange="calculateIngredientTotal(this)" 
-                       placeholder="Quantity" step="0.01" min="0.01" value="1">
+                       placeholder="Qty" step="0.01" min="0.01" value="1">
             </td>
             <td>
                 <select class="form-control unit-select" onchange="calculateIngredientTotal(this)">
@@ -6540,7 +6641,8 @@ function updateSellingPrice() {
                 
                 const unitSelect = row.querySelector('.unit-select');
                 for (let i = 0; i < unitSelect.options.length; i++) {
-                    if (unitSelect.options[i].value === ingredient.unitUsed) {
+                    // I-match ang unit (halimbawa: 'mL' == 'mL')
+                    if (unitSelect.options[i].value.toLowerCase() === ingredient.unitUsed.toLowerCase()) {
                         unitSelect.selectedIndex = i;
                         break;
                     }
@@ -6551,9 +6653,9 @@ function updateSellingPrice() {
                     if (selectedOption) selectedOption.setAttribute('data-price', ingredient.price);
                 }
                 
-                // Trigger unit compatibility check
+                // ✅ I-trigger ang unit compatibility at recalculation
                 updateUnitDropdown(select);
-                calculateIngredientTotal(select);
+                calculateIngredientTotal(select); 
             }
         })
         .catch(err => {
@@ -6618,62 +6720,47 @@ function closeQuantityModal() {
     }
 }
 
-  function calculateIngredientTotal(element) {
-    // ✅ FIX: Hanapin ang pinakamalapit na .ingredient-row (para gumana sa div at tr)
-     const row = element.closest('.ingredient-row') || element.closest('tr');
-    if (!row) return;
+function calculateIngredientTotal(element) {
+    const trElement = element.closest('tr');
+    if (!trElement) return;
 
-    const select = row.querySelector('.ingredient-select');
+    const select = trElement.querySelector('.ingredient-select');
     if (!select) return;
+    
     const selectedOption = select.options[select.selectedIndex];
     let price = parseFloat(selectedOption?.getAttribute('data-price') || 0);
     
-    // Get selected unit from dropdown (HINDI galing sa material)
-    const unitSelect = row.querySelector('.unit-select');
-    const selectedUnit = unitSelect ? unitSelect.value : 'g';
+    const unitSelect = trElement.querySelector('.unit-select');
+    const selectedUnit = unitSelect ? unitSelect.value : ''; 
     
-    const quantity = parseFloat(row.querySelector('.quantity-input').value || 0);
-    
-    // Convert to base unit (kg or L) for costing
-       // ✅ TAMANG CONVERSION BASE SA UNIT NG MATERIAL, HINDI BASE UNIT
-    let quantityForCost = quantity;
-    
-    // Kunin ang display unit ng material (e.g., "kg", "L", "g", "mL", "pcs")
-    const materialUnit = selectedOption?.getAttribute('data-unit') || 'kg'; // default to kg kung wala
-    
-    if (materialUnit === 'kg') {
-        if (selectedUnit === 'g') quantityForCost = quantity / 1000;
-        else if (selectedUnit === 'kg') quantityForCost = quantity;
-    } else if (materialUnit === 'L') {
-        if (selectedUnit === 'mL') quantityForCost = quantity / 1000;
-        else if (selectedUnit === 'L') quantityForCost = quantity;
-    } else if (materialUnit === 'g') {
-        if (selectedUnit === 'kg') quantityForCost = quantity * 1000;
-        else if (selectedUnit === 'g') quantityForCost = quantity;
-    } else if (materialUnit === 'mL') {
-        if (selectedUnit === 'L') quantityForCost = quantity * 1000;
-        else if (selectedUnit === 'mL') quantityForCost = quantity;
-    }
-    // pcs - walang conversion
-    
-    if (price === 0 && select.value) {
-        fetch(`/RawMaterial/GetPrice/${select.value}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.price > 0) {
-                    price = data.price;
-                    const total = price * quantityForCost;
-                    row.querySelector('.cost-per-unit').innerText = `₱${price.toFixed(2)}`;
-                    row.querySelector('.total-cost').innerText = `₱${total.toFixed(2)}`;
-                    updateTotals();
-                }
-            });
+    const quantityInput = trElement.querySelector('.quantity-input');
+    const quantity = parseFloat(quantityInput ? quantityInput.value : 0);
+    const materialUnit = selectedOption?.getAttribute('data-unit') || ''; 
+
+    if (!select.value || quantity <= 0) {
+        if (trElement.querySelector('.cost-per-unit')) trElement.querySelector('.cost-per-unit').innerText = `₱0.00`;
+        if (trElement.querySelector('.total-cost')) trElement.querySelector('.total-cost').innerText = `₱0.00`;
+        updateTotals();
         return;
     }
-    
+
+    let quantityForCost = quantity;
+
+    // ✅ Tamang conversion para sa grams at mL
+    if (materialUnit === 'g' || materialUnit === 'kg') {
+        if (selectedUnit === 'kg') quantityForCost = quantity;           
+        else if (selectedUnit === 'g') quantityForCost = quantity / 1000; 
+    } 
+    else if (materialUnit === 'mL' || materialUnit === 'L') {
+        if (selectedUnit === 'L') quantityForCost = quantity;           
+        else if (selectedUnit === 'mL') quantityForCost = quantity / 1000; 
+    }
+
     const total = price * quantityForCost;
-    row.querySelector('.cost-per-unit').innerText = `₱${price.toFixed(2)}`;
-    row.querySelector('.total-cost').innerText = `₱${total.toFixed(2)}`;
+    
+    if (trElement.querySelector('.cost-per-unit')) trElement.querySelector('.cost-per-unit').innerText = `₱${price.toFixed(2)}`;
+    if (trElement.querySelector('.total-cost')) trElement.querySelector('.total-cost').innerText = `₱${total.toFixed(2)}`;
+    
     updateTotals();
 }
     function removeIngredientRow(button) { button.closest('tr').remove(); updateTotals(); }
@@ -12187,20 +12274,20 @@ function renderUnitTable() {
     const tbody = document.getElementById('unitTableBody');
 
     if (unitCache.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No units yet. Add one on the right.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No units yet. Add one on the right.</td></tr>';
         return;
     }
 
     tbody.innerHTML = unitCache.map(u => `
         <tr>
-            <td><strong>${escapeHtml(u.name)}</strong></td>
+            <td class="fw-bold text-dark">${escapeHtml(u.name)}</td>
             <td><code>${escapeHtml(u.symbol)}</code></td>
             <td>${escapeHtml(u.baseUnit)}</td>
             <td>${u.conversionFactor}</td>
             <td><span class="badge ${u.isActive ? 'bg-success' : 'bg-secondary'}">${u.isActive ? 'Active' : 'Inactive'}</span></td>
-            <td>
-                <button class="btn btn-sm btn-primary" onclick="editUnit(${u.unitId})"><i class="fas fa-edit"></i></button>
-                <button class="btn btn-sm btn-danger" onclick="deleteUnit(${u.unitId})"><i class="fas fa-trash"></i></button>
+            <td class="text-end">
+                <button class="btn btn-sm btn-outline-primary me-1" onclick="editUnit(${u.unitId})">Edit</button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteUnit(${u.unitId})">Delete</button>
             </td>
         </tr>`).join('');
 }
@@ -12653,6 +12740,498 @@ function reindexRecipeItems() {
             });
         });
     });
+}
+
+// ============================================================
+// ADD-ONS MANAGEMENT
+// ============================================================
+
+let addOnCache = [];
+let addOnIngredientCounter = 0;
+let addOnRawMaterialsList = [];  // cached para sa ingredient dropdown
+
+function getAddOnToken() {
+    return document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+}
+
+// ============ LOAD ============
+async function loadAddOns() {
+    const tbody = document.getElementById('addOnTableBody');
+    if (!tbody) return;
+
+    // ✅ I-load din ang categories
+    await loadCategoryDropdown('addOnCategory', 'AddOn', { 
+        valueKey: 'name', 
+        placeholder: '-- Select Category --' 
+    });
+
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Loading...</td></tr>';
+
+    try {
+        const res = await fetch('/Owner/GetAllAddOns');
+        const data = await res.json();
+
+        if (!data.success) {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">${escapeHtml(data.message)}</td></tr>`;
+            return;
+        }
+
+        addOnCache = data.addOns || [];
+        renderAddOnTable();
+    } catch (err) {
+        console.error(err);
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error loading add-ons</td></tr>';
+    }
+}
+
+function renderAddOnTable() {
+    const tbody = document.getElementById('addOnTableBody');
+    const filter = document.getElementById('addOnStatusFilter')?.value || 'all';
+
+    let list = addOnCache;
+    if (filter === 'active') list = list.filter(a => a.isActive);
+    else if (filter === 'inactive') list = list.filter(a => !a.isActive);
+
+    if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No add-ons yet. Add one on the right.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = list.map(a => `
+        <tr>
+            <td>
+                <div class="fw-bold text-dark">${escapeHtml(a.name)}</div>
+                <div class="small text-muted">${a.category ? escapeHtml(a.category) + ' • ' : ''}SKU: ${escapeHtml(a.sku || '—')}</div>
+            </td>
+            <td class="fw-bold text-primary">₱${a.price.toFixed(2)}</td>
+            <td>
+                <div class="small text-dark">${a.ingredientsCount} item(s)</div>
+                <div class="small text-muted">Cost: ₱${a.recipeCost.toFixed(2)}</div>
+            </td>
+            <td>
+                <span class="badge ${a.isActive ? 'bg-success' : 'bg-secondary'}">${a.isActive ? 'Active' : 'Inactive'}</span>
+            </td>
+            <td class="text-end">
+                <button class="btn btn-sm btn-outline-primary me-1" onclick="editAddOn(${a.addOnId})">Edit</button>
+                <button class="btn btn-sm btn-outline-warning me-1" onclick="toggleAddOn(${a.addOnId}, ${a.isActive})">${a.isActive ? 'Deactivate' : 'Activate'}</button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteAddOn(${a.addOnId})">Delete</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// ============ FORM: RESET ============
+function resetAddOnForm() {
+    document.getElementById('addOnEditId').value = '0';
+    document.getElementById('addOnName').value = '';
+    document.getElementById('addOnCategory').value = '';
+    document.getElementById('addOnMaxPerOrder').value = '1';
+    document.getElementById('addOnPriceManual').checked = true;
+    document.getElementById('addOnPrice').value = '0.00';
+    document.getElementById('addOnMargin').value = '0.3';
+    document.getElementById('addOnIsActive').checked = true;
+    document.getElementById('addOnIsActive').disabled = false;
+    document.getElementById('addOnIngredientsBody').innerHTML = '';
+    document.getElementById('addOnRecipeCost').innerText = '₱0.00';
+    document.getElementById('addOnAutoPriceDisplay').innerText = '₱0.00';
+    document.getElementById('addOnFormTitle').innerText = '➕ Add Add-on';
+    document.getElementById('addOnCancelBtn').style.display = 'none';
+    document.getElementById('addOnActiveSection').style.display = 'none';
+    toggleAddOnPriceMode();
+    addOnIngredientCounter = 0;
+}
+
+// ============ FORM: PRICE MODE ============
+function toggleAddOnPriceMode() {
+    const isManual = document.getElementById('addOnPriceManual').checked;
+    document.getElementById('addOnManualPriceSection').style.display = isManual ? 'block' : 'none';
+    document.getElementById('addOnAutoPriceSection').style.display = isManual ? 'none' : 'block';
+    if (!isManual) updateAddOnAutoPrice();
+}
+
+function updateAddOnAutoPrice() {
+    const recipeCost = parseFloat(document.getElementById('addOnRecipeCost').innerText.replace('₱', '')) || 0;
+    const margin = parseFloat(document.getElementById('addOnMargin').value) || 0.3;
+
+    let computed = recipeCost / (1 - margin);
+    computed = roundToEnding9(computed);
+
+    document.getElementById('addOnAutoPriceDisplay').innerText = '₱' + computed.toFixed(2);
+}
+
+function roundToEnding9(price) {
+    const rounded = Math.round(price);
+    if (rounded <= 0) return 0;
+    if (rounded < 10) return 9;
+    const base = Math.floor(rounded / 10) * 10;
+    let result = base + 9;
+    if (result < rounded) result = base + 10 + 9;
+    return result;
+}
+
+// ============ FORM: INGREDIENTS ============
+async function loadAddOnRawMaterials() {
+    if (addOnRawMaterialsList.length > 0) return addOnRawMaterialsList;
+
+    try {
+        const res = await fetch('/RawMaterial/GetAllWithLatestPrice');
+        const list = await res.json();
+        addOnRawMaterialsList = list || [];
+        return addOnRawMaterialsList;
+    } catch (err) {
+        console.error('Error loading raw materials:', err);
+        return [];
+    }
+}
+
+async function addAddOnIngredientRow(selectedData = null) {
+    const container = document.getElementById('addOnIngredientsBody');
+    const materials = await loadAddOnRawMaterials();
+
+    if (materials.length === 0) {
+        await showAlert('No raw materials found. Add raw materials first.', 'No Materials', '⚠️');
+        return;
+    }
+
+    const index = addOnIngredientCounter++;
+    const rowId = `addOnIng-${index}`;
+
+    let options = '<option value="">-- Select --</option>';
+    materials.forEach(m => {
+        options += `<option value="${m.id}" data-unit="${m.unit}">${escapeHtml(m.name)} (${m.unit})</option>`;
+    });
+
+    const html = `
+        <div class="ingredient-row mb-2" id="${rowId}" style="display: flex; gap: 6px; align-items: center;">
+            <select class="form-select form-select-sm addon-ing-material" onchange="onAddOnMaterialChange(this)" style="flex: 2;">
+                ${options}
+            </select>
+            <input type="number" class="form-control form-control-sm addon-ing-qty" placeholder="Qty" step="0.01" min="0.01" value="1" style="width: 70px;" oninput="recalcAddOnRecipeCost()">
+            <select class="form-select form-select-sm addon-ing-unit" style="width: 85px;" onchange="recalcAddOnRecipeCost()">
+                <option value="g">g</option>
+                <option value="kg">kg</option>
+                <option value="mL">mL</option>
+                <option value="L">L</option>
+                <option value="pcs">pcs</option>
+            </select>
+            <button type="button" class="btn btn-sm btn-danger" onclick="this.closest('.ingredient-row').remove(); recalcAddOnRecipeCost();" title="Remove">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', html);
+
+    if (selectedData) {
+    const row = document.getElementById(rowId);
+    const matSelect = row.querySelector('.addon-ing-material');
+    matSelect.value = selectedData.rawMaterialId;
+
+    const qtyInput = row.querySelector('.addon-ing-qty');
+    qtyInput.value = parseFloat(selectedData.quantity);  // ✅ DIRECT, WALANG CONVERSION
+
+    const unitSelect = row.querySelector('.addon-ing-unit');
+    unitSelect.value = selectedData.unitUsed || selectedData.unit; // ✅ DAPAT "g"
+
+    onAddOnMaterialChange(matSelect);
+}
+
+    recalcAddOnRecipeCost();
+}
+
+function onAddOnMaterialChange(selectEl) {
+    const row = selectEl.closest('.ingredient-row');
+    const unitSelect = row.querySelector('.addon-ing-unit');
+    const selectedOpt = selectEl.options[selectEl.selectedIndex];
+    const matUnit = selectedOpt.getAttribute('data-unit');
+
+    if (!matUnit) {
+        unitSelect.value = 'g';
+        return;
+    }
+
+    // Enable/disable units based on material type
+    const weight = ['kg', 'g'];
+    const volume = ['L', 'mL'];
+    const count = ['pcs'];
+
+    let allowed = [];
+    if (weight.includes(matUnit)) allowed = weight;
+    else if (volume.includes(matUnit)) allowed = volume;
+    else if (count.includes(matUnit)) allowed = count;
+
+    for (let opt of unitSelect.options) {
+        opt.disabled = !allowed.includes(opt.value);
+    }
+
+    // Auto-select first valid
+    if (!allowed.includes(unitSelect.value)) {
+        unitSelect.value = allowed[0] || 'g';
+    }
+}
+
+function recalcAddOnRecipeCost() {
+    const rows = document.querySelectorAll('#addOnIngredientsBody .ingredient-row');
+    let totalCost = 0;
+
+    rows.forEach(row => {
+        const matSelect = row.querySelector('.addon-ing-material');
+        const qtyInput = row.querySelector('.addon-ing-qty');
+        const unitSelect = row.querySelector('.addon-ing-unit');
+
+        const matId = parseInt(matSelect.value);
+        const qty = parseFloat(qtyInput.value) || 0;
+        const unit = unitSelect.value;
+
+        if (!matId || qty <= 0) return;
+
+        const mat = addOnRawMaterialsList.find(m => m.id === matId);
+        if (!mat) return;
+
+        // Get price per base/cost unit
+        const price = mat.latestBatchPrice > 0 ? mat.latestBatchPrice : (mat.defaultPrice || 0);
+
+        // Convert qty to cost unit (kg / L / pcs)
+        let qtyForCost = qty;
+        if (unit === 'g' && mat.unit === 'kg') qtyForCost = qty / 1000;
+        else if (unit === 'kg' && mat.unit === 'g') qtyForCost = qty * 1000;
+        else if (unit === 'mL' && mat.unit === 'L') qtyForCost = qty / 1000;
+        else if (unit === 'L' && mat.unit === 'mL') qtyForCost = qty * 1000;
+
+        totalCost += qtyForCost * price;
+    });
+
+    document.getElementById('addOnRecipeCost').innerText = '₱' + totalCost.toFixed(2);
+
+    // Update auto-price display if in auto mode
+    if (document.getElementById('addOnPriceAuto').checked) {
+        updateAddOnAutoPrice();
+    }
+}
+
+// ============ FORM: SAVE ============
+async function saveAddOn(e) {
+    e.preventDefault();
+
+    const addOnId = parseInt(document.getElementById('addOnEditId').value) || 0;
+    const name = document.getElementById('addOnName').value.trim();
+    const category = document.getElementById('addOnCategory').value;
+    const maxPerOrder = parseInt(document.getElementById('addOnMaxPerOrder').value) || 1;
+    const isManualPrice = document.getElementById('addOnPriceManual').checked;
+    const isActive = document.getElementById('addOnIsActive').checked;
+
+    if (!name) {
+        await showAlert('Please enter add-on name.', 'Required');
+        return;
+    }
+
+    if (!category || category.trim() === '') {
+        await showAlert('Please select a category.', 'Required', '⚠️');
+        return;
+    }
+
+    const ingredients = [];
+    const rows = document.querySelectorAll('#addOnIngredientsBody .ingredient-row');
+    for (const row of rows) {
+        const matId = parseInt(row.querySelector('.addon-ing-material').value);
+        const qty = parseFloat(row.querySelector('.addon-ing-qty').value);
+        const unit = row.querySelector('.addon-ing-unit').value;
+
+        if (!matId) continue;
+        if (!qty || qty <= 0) {
+            await showAlert('Please enter valid quantity.', 'Invalid');
+            return;
+        }
+        ingredients.push({ rawMaterialId: matId, quantity: qty, unitUsed: unit });
+    }
+
+    if (ingredients.length === 0) {
+        await showAlert('Please add at least one ingredient.', 'Required');
+        return;
+    }
+
+    let price = 0;
+    let margin = 0.3;
+
+    if (isManualPrice) {
+        price = parseFloat(document.getElementById('addOnPrice').value) || 0;
+        if (price <= 0) {
+            await showAlert('Please enter a valid price.', 'Required');
+            return;
+        }
+    } else {
+        // ✅ FIX: I-check kung 0 ang recipe cost bago mag-compute
+        margin = parseFloat(document.getElementById('addOnMargin').value) || 0.3;
+        
+        recalcAddOnRecipeCost();
+        
+        const recipeCost = parseFloat(
+            document.getElementById('addOnRecipeCost').innerText.replace('₱', '')
+        ) || 0;
+        
+        if (recipeCost <= 0) {
+            await showAlert(
+                'Recipe cost is 0.00. This means your ingredients have NO BATCH PRICE (UnitPrice = 0).\n\nPlease go to "Receive Delivery" to add stock with a valid price for these ingredients first.',
+                'Cannot Compute Price', 
+                '⚠️'
+            );
+            return;
+        }
+        
+        price = roundToEnding9(recipeCost / (1 - margin));
+    }
+
+    if (price <= 0) {
+        await showAlert('Computed price is invalid. Please check your recipe and margin.', 'Invalid Price', '⚠️');
+        return;
+    }
+
+    const payload = {
+        addOnId: addOnId,
+        name: name,
+        category: category,
+        price: price,
+        margin: margin,
+        isManualPrice: isManualPrice,
+        maxPerOrder: maxPerOrder,
+        isActive: isActive,
+        ingredients: ingredients
+    };
+
+    showLoading('Saving add-on...');
+    try {
+        const url = addOnId === 0 ? '/Owner/CreateAddOn' : '/Owner/UpdateAddOn';
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getAddOnToken() },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        hideLoading();
+
+        if (data.success) {
+            await showAlert(data.message, 'Success', '✅');
+            resetAddOnForm();
+            await loadAddOns();
+        } else {
+            await showAlert(data.message, 'Error', '❌');
+        }
+    } catch (err) {
+        hideLoading();
+        await showAlert('Error: ' + err.message, 'Error', '❌');
+    }
+}
+
+// ============ FORM: EDIT ============
+async function editAddOn(addOnId) {
+    const addOn = addOnCache.find(a => a.addOnId === addOnId);
+    if (!addOn) return;
+
+    document.getElementById('addOnEditId').value = addOn.addOnId;
+    document.getElementById('addOnName').value = addOn.name;
+    document.getElementById('addOnMaxPerOrder').value = addOn.maxPerOrder;
+    document.getElementById('addOnIsActive').checked = addOn.isActive;
+    document.getElementById('addOnIsActive').disabled = false;
+
+    // ✅ I-LOAD ANG CATEGORY SA DROPDOWN
+    await loadCategoryDropdown('addOnCategory', 'AddOn', {
+        valueKey: 'name',
+        selected: addOn.category || null,
+        placeholder: '-- No Category --'
+    });
+
+    if (addOn.isManualPrice) {
+        document.getElementById('addOnPriceManual').checked = true;
+        document.getElementById('addOnPrice').value = addOn.price.toFixed(2);
+    } else {
+        document.getElementById('addOnPriceAuto').checked = true;
+        document.getElementById('addOnMargin').value = addOn.margin.toString();
+    }
+
+    // Populate ingredients
+    document.getElementById('addOnIngredientsBody').innerHTML = '';
+    addOnIngredientCounter = 0;
+
+    if (addOn.ingredients && addOn.ingredients.length > 0) {
+        for (const ing of addOn.ingredients) {
+            await addAddOnIngredientRow({
+                rawMaterialId: ing.rawMaterialId,
+                quantity: ing.quantity,
+                unitUsed: ing.unitUsed
+            });
+        }
+    }
+
+    document.getElementById('addOnFormTitle').innerHTML = '<i class="fas fa-edit me-2"></i>Edit Add-on';
+    document.getElementById('addOnCancelBtn').style.display = 'inline-block';
+    document.getElementById('addOnActiveSection').style.display = 'block';
+
+    toggleAddOnPriceMode();
+}
+
+// ============ TOGGLE ACTIVE ============
+async function toggleAddOn(addOnId, currentActive) {
+    const confirmed = await showConfirm(
+        `Mark this add-on as ${currentActive ? 'Inactive' : 'Active'}?`,
+        'Toggle Status'
+    );
+    if (!confirmed) return;
+
+    showLoading('Updating...');
+    try {
+        const res = await fetch('/Owner/ToggleAddOnActive', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': getAddOnToken()
+            },
+            body: JSON.stringify({ addOnId, isActive: !currentActive })
+        });
+        const data = await res.json();
+        hideLoading();
+
+        if (data.success) {
+            await showAlert(data.message, 'Success', '✅');
+            await loadAddOns();
+        } else {
+            await showAlert(data.message, 'Error', '❌');
+        }
+    } catch (err) {
+        hideLoading();
+        await showAlert('Error: ' + err.message, 'Error', '❌');
+    }
+}
+
+// ============ DELETE ============
+async function deleteAddOn(addOnId) {
+    const addOn = addOnCache.find(a => a.addOnId === addOnId);
+    if (!addOn) return;
+
+    const confirmed = await showConfirm(
+        `Delete add-on "${addOn.name}"?\n\nThis will hide it from POS.\nHistorical orders will not be affected.`,
+        'Delete Add-on'
+    );
+    if (!confirmed) return;
+
+    showLoading('Deleting...');
+    try {
+        const res = await fetch(`/Owner/DeleteAddOn?id=${addOnId}`, {
+            method: 'POST',
+            headers: { 'RequestVerificationToken': getAddOnToken() }
+        });
+        const data = await res.json();
+        hideLoading();
+
+        if (data.success) {
+            await showAlert(data.message, 'Deleted', '✅');
+            resetAddOnForm();
+            await loadAddOns();
+        } else {
+            await showAlert(data.message, 'Error', '❌');
+        }
+    } catch (err) {
+        hideLoading();
+        await showAlert('Error: ' + err.message, 'Error', '❌');
+    }
 }
 
 // ========== COLLAPSIBLE SIDEBAR ==========

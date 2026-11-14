@@ -4234,6 +4234,229 @@ namespace Infoman.Controllers
             }
         }
 
+        // ============================================================
+        // ADD-ONS MANAGEMENT ENDPOINTS
+        // ============================================================
+
+        [HttpGet]
+        public async Task<IActionResult> GetAllAddOns()
+        {
+            try
+            {
+                var service = new AddOnService(_db);
+                var addOns = await service.GetAllAsync(includeInactive: true);
+
+                var result = new List<object>();
+
+                foreach (var a in addOns)
+                {
+                    var activeRecipe = a.RecipeItems?.Where(r => !r.IsDeleted).ToList() ?? new List<AddOnRecipeItem>();
+
+                    // Compute recipe cost (FIFO) para makita sa UI
+                    decimal recipeCost = await service.ComputeRecipeCostAsync(activeRecipe);
+
+                    // Get raw material details for display
+                    var ingredients = new List<object>();
+                    foreach (var ri in activeRecipe)
+                    {
+                        var rawMat = await _db.RawMaterials.FindAsync(ri.RawMaterialId);
+                        if (rawMat == null) continue;
+
+                        // ✅ I-DISPLAY KUNG ANO ANG UNITUSED — WALANG DOBLE CONVERSION
+                        decimal displayQty = ri.Quantity;
+                        string displayUnit = ri.UnitUsed;
+
+                        // Kung ang UnitUsed ay "kg" o "L", i-convert sa g/mL para pareho sa storage
+                        if (ri.UnitUsed == "kg" && rawMat.BaseUnit == "g")
+                            displayQty = ri.Quantity / 1000;
+                        else if (ri.UnitUsed == "L" && rawMat.BaseUnit == "mL")
+                            displayQty = ri.Quantity / 1000;
+
+                        // Kung g/mL/pcs ang UnitUsed, 1:1 lang — walang conversion
+                        // Dahil ang ri.Quantity ay naka-store na sa base unit (g/mL/pcs)
+
+                        ingredients.Add(new
+                        {
+                            rawMaterialId = ri.RawMaterialId,
+                            name = rawMat.Name,
+                            quantity = displayQty,
+                            unit = ri.UnitUsed,
+                            unitUsed = ri.UnitUsed,
+                            baseUnit = rawMat.BaseUnit
+                        });
+                    }
+
+                    result.Add(new
+                    {
+                        addOnId = a.AddOnId,
+                        name = a.Name,
+                        sku = a.SKU,
+                        category = a.Category,
+                        price = a.Price,
+                        margin = a.Margin,
+                        isManualPrice = a.IsManualPrice,
+                        maxPerOrder = a.MaxPerOrder,
+                        isActive = a.IsActive,
+                        recipeCost = recipeCost,
+                        ingredientsCount = activeRecipe.Count,
+                        ingredients = ingredients
+                    });
+                }
+
+                return Json(new { success = true, addOns = result });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateAddOn([FromBody] AddOnRequest request)
+        {
+            try
+            {
+                if (request == null)
+                    return Json(new { success = false, message = "Invalid request." });
+
+                // ✅ SERVER-SIDE VALIDATION
+                if (string.IsNullOrWhiteSpace(request.Name))
+                    return Json(new { success = false, message = "Add-on name is required." });
+
+                if (string.IsNullOrWhiteSpace(request.Category))
+                    return Json(new { success = false, message = "Category is required." });
+
+                if (request.Price <= 0)
+                    return Json(new { success = false, message = "Price must be greater than 0." });
+
+                var service = new AddOnService(_db);
+
+                var ingredients = (request.Ingredients ?? new List<AddOnIngredientRequest>())
+                    .Select(i => new AddOnRecipeInput
+                    {
+                        RawMaterialId = i.RawMaterialId,
+                        Quantity = i.Quantity,
+                        UnitUsed = i.UnitUsed
+                    }).ToList();
+
+                var (success, message, addOn) = await service.CreateAsync(
+                    name: request.Name,
+                    category: request.Category,
+                    price: request.Price,
+                    margin: request.Margin,
+                    isManualPrice: request.IsManualPrice,
+                    maxPerOrder: request.MaxPerOrder,
+                    ingredients: ingredients);
+
+                if (!success)
+                    return Json(new { success = false, message });
+
+                return Json(new { success = true, message, addOnId = addOn?.AddOnId });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateAddOn([FromBody] AddOnRequest request)
+        {
+            try
+            {
+                if (request == null || request.AddOnId <= 0)
+                    return Json(new { success = false, message = "Invalid request." });
+
+                var service = new AddOnService(_db);
+
+                var ingredients = (request.Ingredients ?? new List<AddOnIngredientRequest>())
+                    .Select(i => new AddOnRecipeInput
+                    {
+                        RawMaterialId = i.RawMaterialId,
+                        Quantity = i.Quantity,
+                        UnitUsed = i.UnitUsed
+                    }).ToList();
+
+                var (success, message) = await service.UpdateAsync(
+                    addOnId: request.AddOnId,
+                    name: request.Name,
+                    category: request.Category,
+                    price: request.Price,
+                    margin: request.Margin,
+                    isManualPrice: request.IsManualPrice,
+                    maxPerOrder: request.MaxPerOrder,
+                    isActive: request.IsActive,
+                    ingredients: ingredients);
+
+                return Json(new { success, message });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteAddOn(int id)
+        {
+            try
+            {
+                var service = new AddOnService(_db);
+                var (success, message) = await service.SoftDeleteAsync(id);
+                return Json(new { success, message });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ToggleAddOnActive([FromBody] ToggleAddOnActiveRequest request)
+        {
+            try
+            {
+                var service = new AddOnService(_db);
+                var (success, message) = await service.ToggleActiveAsync(request.AddOnId, request.IsActive);
+                return Json(new { success, message });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        // Request models
+        public class AddOnRequest
+        {
+            public int AddOnId { get; set; }
+            public string Name { get; set; }
+            public string? Category { get; set; }
+            public decimal Price { get; set; }
+            public decimal Margin { get; set; }
+            public bool IsManualPrice { get; set; }
+            public int MaxPerOrder { get; set; }
+            public bool IsActive { get; set; }
+            public List<AddOnIngredientRequest> Ingredients { get; set; } = new();
+        }
+
+        public class AddOnIngredientRequest
+        {
+            public int RawMaterialId { get; set; }
+            public decimal Quantity { get; set; }
+            public string UnitUsed { get; set; }
+        }
+
+        public class ToggleAddOnActiveRequest
+        {
+            public int AddOnId { get; set; }
+            public bool IsActive { get; set; }
+        }
+
         // Request model
         public class VerifySessionPasswordRequest
         {

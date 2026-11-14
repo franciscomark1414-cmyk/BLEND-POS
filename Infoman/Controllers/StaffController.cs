@@ -285,6 +285,7 @@ namespace Infoman.Controllers
                 orderId = order.OrderId;
 
                 // ✅ I-add ang item sa existing order (GINAMIT NA ANG DYNAMIC ID)
+                // ✅ I-add ang item sa existing order
                 var orderItem = new OrderItem
                 {
                     OrderId = orderId,
@@ -293,23 +294,56 @@ namespace Infoman.Controllers
                     Quantity = request.Quantity,
                     Price = productSize.Price,
                     ActualCost = 0,
-                    DispositionStatusId = targetDispositionStatusId // ✅ DITO IPINASOK ANG VARIABLE
+                    DispositionStatusId = targetDispositionStatusId
                 };
                 _db.OrderItems.Add(orderItem);
+                await _db.SaveChangesAsync(); // Save first to get OrderItemId
+
+                // ✅ BAGO: I-save ang mga Add-ons
+                decimal addOnsTotal = 0;
+                if (request.AddOns != null && request.AddOns.Any())
+                {
+                    foreach (var addOnReq in request.AddOns)
+                    {
+                        var addOn = await _db.AddOns.FindAsync(addOnReq.AddOnId);
+                        if (addOn != null && addOn.IsActive && !addOn.IsDeleted)
+                        {
+                            _db.OrderItemAddOns.Add(new OrderItemAddOn
+                            {
+                                OrderItem = orderItem,
+                                AddOnId = addOn.AddOnId,
+                                AddOnName = addOn.Name, // Snapshot
+                                Price = addOn.Price,    // Snapshot
+                                Quantity = addOnReq.Quantity,
+                                ActualCost = 0
+                            });
+                            addOnsTotal += (addOn.Price * addOnReq.Quantity);
+                        }
+                    }
+                }
                 await _db.SaveChangesAsync();  // ✅ I-save muna ang item
 
-                // ✅ I-recompute ang order total (i-reload ang items)
+                // ✅ I-recompute ang order total
                 var allItems = await _db.OrderItems
-                    .Where(oi => oi.OrderId == orderId && oi.DispositionStatusId == targetDispositionStatusId) // ✅ GINAMIT DIN DITO
+                    .Include(oi => oi.AddOns)
+                    .Where(oi => oi.OrderId == orderId && oi.DispositionStatusId == targetDispositionStatusId)
                     .ToListAsync();
 
+                // Compute base product subtotal
                 decimal newSubtotal = allItems.Sum(i => i.Price * i.Quantity);
-                decimal discountPercent = order.DiscountPercent;  // ✅ Gamitin ang discount ng order
-                decimal newDiscountedTotal = newSubtotal * (1 - discountPercent);
-                decimal newDiscountAmount = newSubtotal - newDiscountedTotal;
+
+                // Compute add-ons subtotal
+                decimal totalAddOns = allItems.Sum(i => i.AddOns.Sum(a => a.Price * a.Quantity));
+
+                // Total bago ang discount (base + add-ons)
+                decimal grossTotal = newSubtotal + totalAddOns;
+
+                decimal discountPercent = order.DiscountPercent;
+                decimal newDiscountedTotal = grossTotal * (1 - discountPercent);
+                decimal newDiscountAmount = grossTotal - newDiscountedTotal;
 
                 order.TotalAmount = newDiscountedTotal;
-                order.OriginalTotalAmount = newSubtotal;
+                order.OriginalTotalAmount = grossTotal;
                 order.DiscountAmount = newDiscountAmount;
 
                 await _db.SaveChangesAsync();
@@ -849,12 +883,13 @@ namespace Infoman.Controllers
 
                 // 2. Kunin ang available items at ang kanilang recipe (hindi kasama ang deleted recipe)
                 var items = await _db.OrderItems
-                    .Include(oi => oi.ProductSize)
-                        .ThenInclude(ps => ps.RecipeItems)
-                            .ThenInclude(ri => ri.RawMaterial)
-                    .Where(oi => oi.OrderId == request.OrderId
-                              && oi.DispositionStatusId == ItemDispositionConstants.AVAILABLE)
-                    .ToListAsync();
+    .Include(oi => oi.ProductSize)
+        .ThenInclude(ps => ps.RecipeItems)
+            .ThenInclude(ri => ri.RawMaterial)
+    .Include(oi => oi.AddOns) // ✅ ISAMA ANG ADD-ONS
+    .Where(oi => oi.OrderId == request.OrderId
+              && oi.DispositionStatusId == ItemDispositionConstants.AVAILABLE)
+    .ToListAsync();
 
                 if (items.Count == 0)
                 {
@@ -903,6 +938,48 @@ namespace Infoman.Controllers
 
                     item.ActualCost = Math.Round(itemCost, 2);
                     totalActualCost += item.ActualCost;
+
+                    // ✅ BAGO: I-deduct ang Add-on ingredients
+                    foreach (var orderAddOn in item.AddOns)
+                    {
+                        // Kunin ang recipe ng add-on
+                        var addOn = await _db.AddOns
+                            .Include(a => a.RecipeItems)
+                                .ThenInclude(ar => ar.RawMaterial)
+                            .FirstOrDefaultAsync(a => a.AddOnId == orderAddOn.AddOnId);
+
+                        if (addOn == null || !addOn.RecipeItems.Any(r => !r.IsDeleted))
+                        {
+                            await tx.RollbackAsync();
+                            return Json(new { success = false, message = $"Add-on '{orderAddOn.AddOnName}' has no active recipe. Cannot proceed." });
+                        }
+
+                        decimal addOnCost = 0;
+                        foreach (var addOnRecipe in addOn.RecipeItems.Where(r => !r.IsDeleted))
+                        {
+                            // Needed base unit = recipe qty * order item qty * add-on qty
+                            decimal neededForAddOn = addOnRecipe.Quantity * item.Quantity * orderAddOn.Quantity;
+
+                            var (ok, cost, _) = await _fifoService.DeductStockWithCostAsync(
+                                addOnRecipe.RawMaterialId,
+                                neededForAddOn,
+                                item.ProductId,
+                                $"{orderNumber}-ADDON",
+                                orderId: request.OrderId,
+                                productSizeId: item.ProductSizeId);
+
+                            if (!ok)
+                            {
+                                await tx.RollbackAsync();
+                                return Json(new { success = false, message = $"Insufficient stock for add-on '{addOn.Name}'. Nothing was deducted." });
+                            }
+
+                            addOnCost += cost;
+                        }
+
+                        orderAddOn.ActualCost = Math.Round(addOnCost, 2);
+                        totalActualCost += orderAddOn.ActualCost;
+                    }
                 }
 
                 await _db.SaveChangesAsync();
@@ -1089,6 +1166,19 @@ namespace Infoman.Controllers
             }
         }
 
+        [HttpGet]
+        public async Task<IActionResult> GetActiveAddOns()
+        {
+            var service = new AddOnService(_db);
+            var list = await service.GetActiveForPosAsync();
+            return Json(list.Select(a => new {
+                addOnId = a.AddOnId,
+                name = a.Name,
+                price = a.Price,
+                maxPerOrder = a.MaxPerOrder
+            }));
+        }
+
         // GET: Staff/GetOnlineStatus
         [HttpGet]
         public async Task<IActionResult> GetOnlineStatus()
@@ -1273,7 +1363,9 @@ namespace Infoman.Controllers
             public string? PaymentMethod { get; set; }     
             public string? DiscountType { get; set; }       
             public decimal DiscountPercent { get; set; }
+            public List<AddOnSelection> AddOns { get; set; } = new();
         }
+        public class AddOnSelection { public int AddOnId { get; set; } public int Quantity { get; set; } }
 
         public class TimeOutRequest
         {

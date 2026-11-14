@@ -2295,6 +2295,12 @@
                 <button class="btn-cancel" onclick="closeQuantityModal()">Cancel</button>
                 <button class="btn-confirm" onclick="confirmAddToCart()">Add to Order</button>
             </div>
+
+            <!-- Add-ons Section -->
+<div id="addOnsSection" style="display: none; margin-top: 15px; text-align: left; max-height: 200px; overflow-y: auto; border-top: 1px solid #eee; padding-top: 15px;">
+    <h6 style="font-size: 13px; font-weight: bold; margin-bottom: 10px;">Add-ons (Optional)</h6>
+    <div id="addOnsList"></div>
+</div>
         </div>
     </div>
 
@@ -2955,6 +2961,7 @@
     }
     document.getElementById('sizeOptionsList').innerHTML = sizesHtml;
     document.getElementById('sizeModal').style.display = 'flex';
+    fetchAddOns();
 }
         function closeSizeModal() { document.getElementById('sizeModal').style.display = 'none'; }
 
@@ -3000,86 +3007,120 @@
         await showAlert(`❌ Cannot add to cart:\n${data.message}`, 'Not Available', '❌');
         closeQuantityModal(); 
         tempSelectedSize = null; 
-        return; 
+        return;
     }
-            const existingIndex = cart.findIndex(item => item.productSizeId === tempSelectedSize.productSizeId);
-            if (existingIndex !== -1) {
-                cart[existingIndex].quantity += modalQuantity;
-            } else {
-                cart.push({
-                    productSizeId: tempSelectedSize.productSizeId,
-                    productName: document.getElementById('sizeModalProductName').innerText,
-                    sizeName: tempSelectedSize.sizeName,
-                    price: tempSelectedSize.price,
-                    quantity: modalQuantity
-                });
-            }
-            updateCartDisplay();
-            closeQuantityModal();
-            tempSelectedSize = null;
+
+          const selectedAddOns = [];
+    document.querySelectorAll('.addon-checkbox:checked').forEach(cb => {
+        const qtyInput = cb.closest('div').querySelector('.addon-qty');
+        selectedAddOns.push({
+            addOnId: parseInt(cb.getAttribute('data-id')),
+            name: cb.getAttribute('data-name'),
+            price: parseFloat(cb.getAttribute('data-price')),
+            quantity: parseInt(qtyInput.value) || 1
+        });
+    });
+
+    const existingIndex = cart.findIndex(item => 
+        item.productSizeId === tempSelectedSize.productSizeId && 
+        JSON.stringify(item.addOns) === JSON.stringify(selectedAddOns)
+    );
+
+    if (existingIndex !== -1) {
+        cart[existingIndex].quantity += modalQuantity;
+    } else {
+        cart.push({
+            productSizeId: tempSelectedSize.productSizeId,
+            productName: document.getElementById('sizeModalProductName').innerText,
+            sizeName: tempSelectedSize.sizeName,
+            price: tempSelectedSize.price,
+            quantity: modalQuantity,
+            addOns: selectedAddOns // ✅ ISAMA SA CART
+        });
+    }
+    updateCartDisplay();
+    closeQuantityModal();
+    tempSelectedSize = null;
         }
 
         // ============================================================
         // CART DISPLAY — redesigned
         // ============================================================
-        function updateCartDisplay() {
-            const cartDiv = document.getElementById('cartItems');
-            const totalSpan = document.getElementById('cartTotal');
-            const discountLine = document.getElementById('discountLine');
+            function updateCartDisplay() {
+                const cartDiv = document.getElementById('cartItems');
+                const totalSpan = document.getElementById('cartTotal');
+                const discountLine = document.getElementById('discountLine');
 
-            if (cart.length === 0) {
-                cartDiv.innerHTML = '<div class="empty-cart"><div class="empty-icon">🛍️</div><p>No items in cart</p></div>';
-                totalSpan.innerHTML = '₱0.00';
-                if (discountLine) discountLine.style.display = 'none';
-                currentDiscountType = 'None';
-                currentDiscountPercent = 0;
-                currentDiscountedTotal = 0;
-                document.getElementById('selectedDiscountDisplay').innerHTML = '';
-                updateDiscountBtnHighlight();
-                return;
-            }
-
-            let html = '';
-            let total = 0;
-            cart.forEach((item, index) => {
-                const itemTotal = item.price * item.quantity;
-                total += itemTotal;
-                html += `
-                    <div class="cart-item">
-                        <div class="cart-item-info">
-                            <div class="cart-item-name">${escapeHtml(item.productName)}</div>
-                            <div class="cart-item-size">${item.sizeName}</div>
-                            <div class="cart-item-unitprice">₱${item.price.toFixed(2)} each</div>
-                        </div>
-                        <div class="cart-item-right">
-                            <span class="cart-item-total">₱${itemTotal.toFixed(2)}</span>
-                            <div class="cart-item-qty">
-                                <button class="qty-btn" onclick="updateCartItemQty(${index}, ${item.quantity - 1})">−</button>
-                                <span class="qty-display">${item.quantity}</span>
-                                <button class="qty-btn" onclick="updateCartItemQty(${index}, ${item.quantity + 1})">+</button>
-                            </div>
-                            <span class="remove-item" onclick="removeFromCart(${index})" title="Remove">✕</span>
-                        </div>
-                    </div>`;
-            });
-
-            currentCartTotal = total;
-            currentDiscountedTotal = total * (1 - currentDiscountPercent);
-
-            cartDiv.innerHTML = html;
-
-            // Update total display
-            if (currentDiscountPercent > 0) {
-                totalSpan.innerHTML = `₱${currentDiscountedTotal.toFixed(2)}`;
-                if (discountLine) {
-                    discountLine.style.display = 'flex';
-                    discountLine.innerHTML = `<span>${currentDiscountType} (${currentDiscountPercent * 100}% off)</span><span>−₱${(currentCartTotal - currentDiscountedTotal).toFixed(2)}</span>`;
+                if (cart.length === 0) {
+                    cartDiv.innerHTML = '<div class="empty-cart"><div class="empty-icon">🛍️</div><p>No items in cart</p></div>';
+                    totalSpan.innerHTML = '₱0.00';
+                    if (discountLine) discountLine.style.display = 'none';
+                    currentDiscountType = 'None';
+                    currentDiscountPercent = 0;
+                    currentDiscountedTotal = 0;
+                    document.getElementById('selectedDiscountDisplay').innerHTML = '';
+                    updateDiscountBtnHighlight();
+                    return;
                 }
-            } else {
-                totalSpan.innerHTML = `₱${total.toFixed(2)}`;
-                if (discountLine) discountLine.style.display = 'none';
+
+                let html = '';
+                let total = 0;
+
+                cart.forEach((item, index) => {
+                    // 1. Compute Add-ons total para sa item na ito
+                    let addOnsTotal = 0;
+                    if (item.addOns) {
+                        item.addOns.forEach(a => addOnsTotal += (a.price * a.quantity));
+                    }
+
+                    // 2. Item Total = (Base Price + Add-ons Price) * Quantity
+                    const itemTotal = (item.price + addOnsTotal) * item.quantity;
+                    total += itemTotal;
+
+                    // 3. Generate HTML para sa Add-ons list (kung meron)
+                    let addOnsHtml = '';
+                    if (item.addOns && item.addOns.length > 0) {
+                        const addOnNames = item.addOns.map(a => `${a.name} (${a.quantity})`).join(', ');
+                        addOnsHtml = `<div style="font-size: 11px; color: #666; margin-top: 4px;">+ ${addOnNames}</div>`;
+                    }
+
+                    html += `
+                        <div class="cart-item">
+                            <div class="cart-item-info">
+                                <div class="cart-item-name">${escapeHtml(item.productName)}</div>
+                                <div class="cart-item-size">${item.sizeName}</div>
+                                <div class="cart-item-unitprice">₱${item.price.toFixed(2)} each</div>
+                                ${addOnsHtml} <!-- ✅ IDINAGDAG ANG ADD-ONS DITO -->
+                            </div>
+                            <div class="cart-item-right">
+                                <span class="cart-item-total">₱${itemTotal.toFixed(2)}</span>
+                                <div class="cart-item-qty">
+                                    <button class="qty-btn" onclick="updateCartItemQty(${index}, ${item.quantity - 1})">−</button>
+                                    <span class="qty-display">${item.quantity}</span>
+                                    <button class="qty-btn" onclick="updateCartItemQty(${index}, ${item.quantity + 1})">+</button>
+                                </div>
+                                <span class="remove-item" onclick="removeFromCart(${index})" title="Remove">✕</span>
+                            </div>
+                        </div>`;
+                });
+
+                currentCartTotal = total;
+                currentDiscountedTotal = total * (1 - currentDiscountPercent);
+
+                cartDiv.innerHTML = html;
+
+                // Update total display
+                if (currentDiscountPercent > 0) {
+                    totalSpan.innerHTML = `₱${currentDiscountedTotal.toFixed(2)}`;
+                    if (discountLine) {
+                        discountLine.style.display = 'flex';
+                        discountLine.innerHTML = `<span>${currentDiscountType} (${currentDiscountPercent * 100}% off)</span><span>−₱${(currentCartTotal - currentDiscountedTotal).toFixed(2)}</span>`;
+                    }
+                } else {
+                    totalSpan.innerHTML = `₱${total.toFixed(2)}`;
+                    if (discountLine) discountLine.style.display = 'none';
+                }
             }
-        }
 
         function updateDiscountBtnHighlight() {
             document.querySelectorAll('.discount-btn-pill').forEach(btn => {
@@ -3300,7 +3341,8 @@ async function createNewOrder() {
                 orderNumber: sharedOrderNumber,
                 paymentMethod: paymentMethod,
                 discountType: currentDiscountType,
-                discountPercent: currentDiscountPercent
+                discountPercent: currentDiscountPercent,
+                addOns: item.addOns ? item.addOns.map(a => ({ addOnId: a.addOnId, quantity: a.quantity })) : [] 
             })
         });
         
@@ -8254,6 +8296,41 @@ function collectDenominations() {
             quantity: parseInt(inp.value, 10) || 0
         }))
         .filter(x => x.quantity > 0);
+}
+
+async function fetchAddOns() {
+    try {
+        const res = await fetch('/Staff/GetActiveAddOns');
+        const addOns = await res.json();
+        const container = document.getElementById('addOnsList');
+        const section = document.getElementById('addOnsSection');
+
+        if (!addOns || addOns.length === 0) {
+            section.style.display = 'none';
+            return;
+        }
+
+        section.style.display = 'block';
+        container.innerHTML = addOns.map(a => `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; background: #f8f9fa; padding: 8px; border-radius: 6px;">
+                <label style="display: flex; align-items: center; gap: 8px; margin: 0; cursor: pointer;">
+                    <input type="checkbox" class="addon-checkbox" data-id="${a.addOnId}" data-price="${a.price}" data-name="${a.name}" onchange="updateAddOnQty(this)">
+                    <span>${a.name}</span>
+                </label>
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <span style="font-size: 12px; color: #666;">+₱${a.price.toFixed(2)}</span>
+                    <input type="number" class="addon-qty" data-id="${a.addOnId}" value="1" min="1" max="${a.maxPerOrder}" style="width: 50px; padding: 2px; display: none;" onchange="updateCartTotal()">
+                </div>
+            </div>
+        `).join('');
+    } catch (err) {
+        console.error("Failed to load add-ons", err);
+    }
+}
+
+function updateAddOnQty(checkbox) {
+    const qtyInput = checkbox.closest('div').querySelector('.addon-qty');
+    qtyInput.style.display = checkbox.checked ? 'block' : 'none';
 }
 
            // ============================================================

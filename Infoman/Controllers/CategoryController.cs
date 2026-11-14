@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Infoman.Controllers
 {
-    // Owner lang ang may access (gamit ang filter na naka-register na sa Program.cs)
     [ServiceFilter(typeof(OwnerAuthorizationFilter))]
     public class CategoryController : Controller
     {
@@ -17,9 +16,7 @@ namespace Infoman.Controllers
             _db = db;
         }
 
-        // ============ READ ============
-
-        // GET /Category/GetAll?type=RawMaterial  (type optional) - para sa Settings table
+        // GET /Category/GetAll
         [HttpGet]
         public async Task<IActionResult> GetAll(string? type = null)
         {
@@ -30,7 +27,7 @@ namespace Infoman.Controllers
 
             var cats = await query.OrderBy(c => c.Type).ThenBy(c => c.Name).ToListAsync();
 
-            // Bilang ng gumagamit sa bawat category (1 query bawat table, hindi per-category)
+            // ✅ BILANGIN ANG GAMIT SA BAWAT TABLE
             var rawCounts = await _db.RawMaterials
                 .Where(r => r.CategoryId != null && !r.IsDeleted)
                 .GroupBy(r => r.CategoryId)
@@ -43,6 +40,12 @@ namespace Infoman.Controllers
                 .Select(g => new { Name = g.Key, Count = g.Count() })
                 .ToDictionaryAsync(x => x.Name, x => x.Count, StringComparer.OrdinalIgnoreCase);
 
+            var addOnCounts = await _db.AddOns
+                .Where(a => !a.IsDeleted && a.Category != null)
+                .GroupBy(a => a.Category)
+                .Select(g => new { Name = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Name!, x => x.Count, StringComparer.OrdinalIgnoreCase);
+
             var result = cats.Select(c => new
             {
                 id = c.CategoryId,
@@ -50,15 +53,19 @@ namespace Infoman.Controllers
                 type = c.Type.ToString(),
                 isActive = c.IsActive,
                 createdAt = c.CreatedAt,
-                usageCount = c.Type == CategoryType.RawMaterial
-                    ? rawCounts.GetValueOrDefault(c.CategoryId)
-                    : productCounts.GetValueOrDefault(c.Name)
+                usageCount = c.Type switch
+                {
+                    CategoryType.RawMaterial => rawCounts.GetValueOrDefault(c.CategoryId),
+                    CategoryType.Product => productCounts.GetValueOrDefault(c.Name),
+                    CategoryType.AddOn => addOnCounts.GetValueOrDefault(c.Name),
+                    _ => 0
+                }
             });
 
             return Json(new { success = true, categories = result });
         }
 
-        // GET /Category/GetOptions?type=Product - ACTIVE lang, para sa mga dropdown
+        // GET /Category/GetOptions
         [HttpGet]
         public async Task<IActionResult> GetOptions(string type)
         {
@@ -75,8 +82,7 @@ namespace Infoman.Controllers
             return Json(list);
         }
 
-        // ============ CREATE ============
-
+        // POST /Category/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([FromBody] CategorySaveRequest request)
@@ -109,8 +115,7 @@ namespace Infoman.Controllers
             return Json(new { success = true, message = "Category added successfully!", id = cat.CategoryId });
         }
 
-        // ============ UPDATE ============
-
+        // POST /Category/Update
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Update([FromBody] CategorySaveRequest request)
@@ -123,11 +128,9 @@ namespace Infoman.Controllers
             if (cat == null)
                 return Json(new { success = false, message = "Category not found." });
 
-            // Duplicate check (hindi isinama ang sarili)
             if (await _db.Categories.AnyAsync(c => c.Type == type && c.Name == name && c.CategoryId != cat.CategoryId))
                 return Json(new { success = false, message = $"A {type} category named \"{name}\" already exists." });
 
-            // Bawal palitan ang Type kung may gumagamit na (masisira ang mga dropdown/records)
             if (cat.Type != type)
             {
                 int usage = await CountUsageAsync(cat);
@@ -145,13 +148,17 @@ namespace Infoman.Controllers
                 cat.IsActive = request.IsActive;
                 await _db.SaveChangesAsync();
 
-                // Product.Category ay string pa rin, kaya i-update din ang mga product kapag na-rename
-                // (kasama ang archived, para consistent pa rin)
                 if (type == CategoryType.Product && !string.Equals(oldName, name, StringComparison.Ordinal))
                 {
                     await _db.Products
                         .Where(p => p.Category == oldName)
                         .ExecuteUpdateAsync(s => s.SetProperty(p => p.Category, name));
+                }
+                else if (type == CategoryType.AddOn && !string.Equals(oldName, name, StringComparison.Ordinal))
+                {
+                    await _db.AddOns
+                        .Where(a => a.Category == oldName)
+                        .ExecuteUpdateAsync(s => s.SetProperty(a => a.Category, name));
                 }
 
                 await tx.CommitAsync();
@@ -165,9 +172,7 @@ namespace Infoman.Controllers
             return Json(new { success = true, message = "Category updated successfully!" });
         }
 
-        // ============ DELETE (with in-use validation) ============
-
-        // POST /Category/Delete?id=5
+        // POST /Category/Delete
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(int id)
@@ -179,7 +184,14 @@ namespace Infoman.Controllers
             int count = await CountUsageAsync(cat);
             if (count > 0)
             {
-                string label = cat.Type == CategoryType.RawMaterial ? "raw material(s)" : "product(s)";
+                string label = cat.Type switch
+                {
+                    CategoryType.RawMaterial => "raw material(s)",
+                    CategoryType.Product => "product(s)",
+                    CategoryType.AddOn => "add-on(s)",
+                    _ => "item(s)"
+                };
+
                 return Json(new
                 {
                     success = false,
@@ -189,7 +201,6 @@ namespace Infoman.Controllers
                 });
             }
 
-            // I-unlink ang mga soft-deleted na raw material para hindi sila mag-block sa FK
             if (cat.Type == CategoryType.RawMaterial)
             {
                 await _db.RawMaterials
@@ -204,7 +215,6 @@ namespace Infoman.Controllers
             }
             catch (DbUpdateException)
             {
-                // Safety net kung may nag-assign ng category habang nagde-delete
                 return Json(new { success = false, inUse = true, message = "This category was just assigned to an item and cannot be deleted." });
             }
 
@@ -219,10 +229,11 @@ namespace Infoman.Controllers
             string name = cat.Name;
 
             if (cat.Type == CategoryType.RawMaterial)
-                // Active raw materials lang ang binibilang
                 return await _db.RawMaterials.CountAsync(r => r.CategoryId == id && !r.IsDeleted);
 
-            // Product: active products lang ang binibilang
+            if (cat.Type == CategoryType.AddOn)
+                return await _db.AddOns.CountAsync(a => !a.IsDeleted && a.Category == name);
+
             return await _db.Products.CountAsync(p => !p.IsDeleted && p.Category == name);
         }
 
@@ -248,7 +259,7 @@ namespace Infoman.Controllers
     {
         public int CategoryId { get; set; }
         public string? Name { get; set; }
-        public string? Type { get; set; }     // "RawMaterial" or "Product"
+        public string? Type { get; set; }
         public bool IsActive { get; set; } = true;
     }
 }

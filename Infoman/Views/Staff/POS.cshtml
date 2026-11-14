@@ -2201,16 +2201,49 @@
     ============================================================ -->
 
     <!-- Review Order Modal -->
-    <div id="reviewOrderModal" class="modal-qty" style="display: none;">
-        <div class="modal-qty-content" style="width: 450px; max-width: 90%;">
-            <h4 style="text-align: center; margin-bottom: 20px;">Review Your Order</h4>
-            <div id="reviewOrderContent" style="margin-bottom: 20px; max-height: 400px; overflow-y: auto;"></div>
-            <div class="modal-buttons">
-                <button class="btn-cancel" onclick="closeReviewModal()">Cancel</button>
-                <button class="btn-confirm" onclick="processFinalOrder()">Confirm Order</button>
+    <!-- Review Order Modal -->
+<div id="reviewOrderModal" class="modal-qty" style="display: none;">
+    <div class="modal-qty-content" style="width: 450px; max-width: 90%; text-align: left;">
+        <h4 style="text-align: center; margin-bottom: 20px;">Review Your Order</h4>
+        
+        <!-- Order Items List -->
+        <div id="reviewOrderContent" style="margin-bottom: 15px; max-height: 250px; overflow-y: auto;"></div>
+        
+        <hr style="margin: 10px 0;">
+
+        <!-- ✅ VOUCHER INPUT (Inilipat dito) -->
+        <div class="mb-3">
+            <label class="form-label fw-bold small text-uppercase text-muted">Voucher Code</label>
+            <div class="input-group">
+                <input type="text" id="posVoucherInput" class="form-control form-control-sm" placeholder="Enter code...">
+                <button class="btn btn-sm btn-outline-primary" onclick="applyVoucherToCart()">Apply</button>
+            </div>
+            <div id="voucherFeedback" class="small mt-1"></div>
+        </div>
+
+        <!-- ✅ CASH RECEIVED INPUT (Inilipat dito) -->
+        <div class="mb-3">
+            <label class="form-label fw-bold small text-uppercase text-muted">Cash Received</label>
+            <input type="number" id="cashReceivedInput" class="form-control form-control-lg fw-bold text-end" placeholder="₱0.00" oninput="calculateChange()">
+            <div class="d-flex justify-content-between mt-2 p-2 bg-light rounded border">
+                <span class="small fw-bold text-muted">Change:</span>
+                <span class="fw-bold fs-5 text-success" id="changeDisplay">₱0.00</span>
             </div>
         </div>
+
+        <!-- Total Display -->
+        <div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 2px solid #333;">
+            <strong style="font-size: 16px;">TOTAL:</strong>
+            <strong style="font-size: 20px; color: #28a745;" id="reviewTotalDisplay">₱0.00</strong>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="modal-buttons mt-4">
+            <button class="btn-cancel" onclick="closeReviewModal()">Cancel</button>
+            <button class="btn-confirm" onclick="processFinalOrder()">Confirm Order</button>
+        </div>
     </div>
+</div>
 
     <!-- Receipt Modal -->
     <div id="receiptModal" class="modal-qty" style="display: none;">
@@ -3037,7 +3070,19 @@
             quantity: modalQuantity,
             addOns: selectedAddOns // ✅ ISAMA SA CART
         });
-    }
+    } 
+    currentVoucher = null;
+document.getElementById('posVoucherInput').value = '';
+document.getElementById('voucherFeedback').innerHTML = '';
+
+                const cashInput = document.getElementById('cashReceivedInput');
+                if (cashInput) cashInput.value = '';
+
+                const changeDisplay = document.getElementById('changeDisplay');
+                if (changeDisplay) {
+                    changeDisplay.innerText = '₱0.00';
+                    changeDisplay.className = 'fw-bold fs-5 text-success'; // Ibalik sa default na kulay
+                }
     updateCartDisplay();
     closeQuantityModal();
     tempSelectedSize = null;
@@ -3197,6 +3242,10 @@ async function confirmOrder() {
     if (window.isEditingMode === true) {
         await updateExistingOrder();
     } else {
+        // Sa loob ng confirmOrder function, bago mag-showReviewModal:
+// I-ensure na naka-save ang voucher data
+window.pendingVoucherCode = currentVoucher ? currentVoucher.code : null;
+window.pendingVoucherDiscount = currentVoucher ? currentVoucher.discountAmount : 0;
         showReviewModal();
     }
 }
@@ -3335,15 +3384,17 @@ async function createNewOrder() {
                 'Content-Type': 'application/json', 
                 'RequestVerificationToken': token 
             },
-            body: JSON.stringify({
-                productSizeId: item.productSizeId,
-                quantity: item.quantity,
-                orderNumber: sharedOrderNumber,
-                paymentMethod: paymentMethod,
-                discountType: currentDiscountType,
-                discountPercent: currentDiscountPercent,
-                addOns: item.addOns ? item.addOns.map(a => ({ addOnId: a.addOnId, quantity: a.quantity })) : [] 
-            })
+                        body: JSON.stringify({
+                            productSizeId: item.productSizeId,
+                            quantity: item.quantity,
+                            orderNumber: sharedOrderNumber,
+                            paymentMethod: paymentMethod,
+                            discountType: currentDiscountType,
+                            discountPercent: currentDiscountPercent,
+                            voucherCode: window.pendingVoucherCode || null,
+                            voucherDiscountPercent: window.pendingVoucherPercent || 0,
+                            addOns: item.addOns ? item.addOns.map(a => ({ addOnId: a.addOnId, quantity: a.quantity })) : []
+                        })
         });
         
         const data = await response.json();
@@ -3365,19 +3416,24 @@ async function createNewOrder() {
     }
 
     if (allSuccessful && orderDetails.length > 0) {
-        const discountSavings = currentCartTotal - currentDiscountedTotal;
-        
-        // ✅ SIMPLE: I-HARDCODE ANG STATUS PARA SA CASH
-        showReceiptModal(
-            orderDetails, 
-            paymentMethod, 
-            currentDiscountType, 
-            currentDiscountPercent, 
-            discountSavings, 
-            currentDiscountedTotal, 
-            lastOrderId, 
-            'PENDING_BLENDING'  // ✅ HARDCODED
-        );
+    // ✅ SAFETY CHECK: Siguraduhing may value ang total
+    let finalTotalToPay = currentDiscountedTotal;
+    if (typeof finalTotalToPay === 'undefined' || isNaN(finalTotalToPay) || finalTotalToPay < 0) {
+        finalTotalToPay = currentCartTotal; // Fallback sa original total kung may error
+    }
+
+    const discountSavings = currentCartTotal - finalTotalToPay;
+    
+    showReceiptModal(
+        orderDetails, 
+        paymentMethod, 
+        currentDiscountType, 
+        currentDiscountPercent, 
+        discountSavings, 
+        finalTotalToPay,  // ✅ Gamitin ang safe value
+        lastOrderId, 
+        'PENDING_BLENDING'
+    );
         
         window.lastClosedOrderId = lastOrderId;
         
@@ -3477,6 +3533,31 @@ if (window.isExchangeReplacement && window.exchangeOriginalOrderId) {
         badgeClass = 'bg-danger';
         statusText = '⚠️ PENDING PAYMENT';
     }
+
+    // Idagdag sa receipt HTML (pagkatapos ng discountHtml)
+let voucherHtml = '';
+if (window.pendingVoucherCode) {
+    voucherHtml = `<div class="receipt-discount" style="color:#28a745;">
+        <span>Voucher (${window.pendingVoucherCode})</span>
+        <span>-₱${window.pendingVoucherDiscount.toFixed(2)}</span>
+    </div>`;
+}
+let cashReceivedHtml = '';
+const cashInput = document.getElementById('cashReceivedInput');
+if (cashInput && cashInput.value) {
+    const cash = parseFloat(cashInput.value);
+    const change = cash - total;
+    cashReceivedHtml = `
+        <div class="receipt-subtotal" style="margin-top:8px; border-top:1px dashed #ccc; padding-top:8px;">
+            <span>Cash Received:</span>
+            <span>₱${cash.toFixed(2)}</span>
+        </div>
+        <div class="receipt-subtotal" style="font-weight:bold; color:#28a745;">
+            <span>Change:</span>
+            <span>₱${change.toFixed(2)}</span>
+        </div>
+    `;
+}
 
     receiptDiv.innerHTML = `
         <div style="text-align:center; margin-bottom: 12px;">
@@ -4957,6 +5038,7 @@ function showReviewModal() {
     const reviewDiv = document.getElementById('reviewOrderContent');
     const now = new Date();
     let itemsHtml = '';
+    
     cart.forEach(item => {
         itemsHtml += `
             <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;">
@@ -4967,6 +5049,7 @@ function showReviewModal() {
                 <div>₱${(item.price * item.quantity).toFixed(2)}</div>
             </div>`;
     });
+    
     let discountHtml = '';
     if (currentDiscountPercent > 0) {
         const discountSavings = currentCartTotal - currentDiscountedTotal;
@@ -4976,6 +5059,7 @@ function showReviewModal() {
                 <span>-₱${discountSavings.toFixed(2)}</span>
             </div>`;
     }
+    
     reviewDiv.innerHTML = `
         <div style="margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #ddd;">
             <small>${now.toLocaleDateString()} ${now.toLocaleTimeString()}</small>
@@ -4987,12 +5071,19 @@ function showReviewModal() {
                 <strong>Subtotal:</strong><strong>₱${currentCartTotal.toFixed(2)}</strong>
             </div>
             ${discountHtml}
-            <div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 2px solid #333;">
-                <strong style="font-size: 16px;">TOTAL:</strong>
-                <strong style="font-size: 16px; color: #28a745;">₱${currentDiscountedTotal.toFixed(2)}</strong>
-            </div>
         </div>`;
+        
+    // ✅ I-update ang Total display sa modal
+    const reviewTotal = document.getElementById('reviewTotalDisplay');
+    if (reviewTotal) {
+        reviewTotal.innerText = `₱${currentDiscountedTotal.toFixed(2)}`;
+    }
+
     document.getElementById('reviewOrderModal').style.display = 'flex';
+    
+    // ✅ I-reset ang cash input at change display pagbukas ng modal
+    document.getElementById('cashReceivedInput').value = '';
+    document.getElementById('changeDisplay').innerText = '₱0.00';
 }
 
         function closeReviewModal() { document.getElementById('reviewOrderModal').style.display = 'none'; }
@@ -8332,6 +8423,81 @@ function updateAddOnQty(checkbox) {
     const qtyInput = checkbox.closest('div').querySelector('.addon-qty');
     qtyInput.style.display = checkbox.checked ? 'block' : 'none';
 }
+
+            // ========== VOUCHER & CASH LOGIC (POS) ==========
+            let currentVoucher = null;
+
+async function applyVoucherToCart() {
+    const code = document.getElementById('posVoucherInput').value.trim();
+    const feedback = document.getElementById('voucherFeedback');
+    if (!code) { feedback.innerHTML = '<span class="text-danger">Please enter a code.</span>'; return; }
+
+    try {
+        const res = await fetch(`/Staff/CheckVoucher?code=${encodeURIComponent(code)}`);
+        const data = await res.json();
+        
+        if (data.success) {
+            currentVoucher = data.voucher; // May kasamang discountPercent ito
+            feedback.innerHTML = `<span class="text-success">✅ Applied: ${data.voucher.discountPercent}% OFF</span>`;
+            updateCartDisplay();
+        } else {
+            currentVoucher = null;
+            feedback.innerHTML = `<span class="text-danger">❌ ${data.message}</span>`;
+            updateCartDisplay();
+        }
+    } catch (err) {
+        feedback.innerHTML = '<span class="text-danger">Error checking voucher.</span>';
+    }
+}
+
+// I-override ang updateCartDisplay para isama ang percent
+const originalUpdateCartDisplay = updateCartDisplay;
+updateCartDisplay = function() {
+    originalUpdateCartDisplay(); 
+
+    if (currentVoucher) {
+        // ✅ Percent computation
+        const discountAmount = currentDiscountedTotal * (currentVoucher.discountPercent / 100);
+        currentDiscountedTotal -= discountAmount;
+        if (currentDiscountedTotal < 0) currentDiscountedTotal = 0;
+
+        const totalSpan = document.getElementById('cartTotal');
+        if (totalSpan) totalSpan.innerHTML = `₱${currentDiscountedTotal.toFixed(2)}`;
+
+        const discountLine = document.getElementById('discountLine');
+        if (discountLine) {
+            discountLine.style.display = 'flex';
+            discountLine.innerHTML += `<br><span class="text-success">Voucher (${currentVoucher.code}): -₱${discountAmount.toFixed(2)} (${currentVoucher.discountPercent}%)</span>`;
+        }
+    }
+    calculateChange();
+};
+
+            function calculateChange() {
+                const cashInput = document.getElementById('cashReceivedInput');
+                if (!cashInput) return;
+
+                const cash = parseFloat(cashInput.value) || 0;
+                const total = currentDiscountedTotal || 0; // Ito ang total pagkatapos ng discount at voucher
+
+                const changeEl = document.getElementById('changeDisplay');
+                if (changeEl) {
+                    const change = cash - total;
+                    changeEl.innerText = `₱${change.toFixed(2)}`;
+                    changeEl.className = change >= 0 ? 'fw-bold fs-5 text-success' : 'fw-bold fs-5 text-danger';
+                }
+            }
+
+            // I-reset ang voucher at cash kapag nag-clear ng cart
+            const originalClearCart = clearCart;
+            clearCart = async function() {
+                await originalClearCart();
+                currentVoucher = null;
+                document.getElementById('posVoucherInput').value = '';
+                document.getElementById('voucherFeedback').innerHTML = '';
+                document.getElementById('cashReceivedInput').value = '';
+                document.getElementById('changeDisplay').innerText = '₱0.00';
+            };
 
            // ============================================================
 // GLOBAL FETCH INTERCEPTOR + WATCHDOG

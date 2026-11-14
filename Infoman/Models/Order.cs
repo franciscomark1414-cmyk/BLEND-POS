@@ -73,6 +73,11 @@ public class Order
     [ForeignKey("OriginalOrderId")]
     public virtual Order? OriginalOrder { get; set; }
     public virtual ICollection<Order>? ReplacementOrders { get; set; }
+    // Idagdag sa loob ng Order class
+    // Sa loob ng Order class
+    public string? VoucherCode { get; set; }
+    public decimal VoucherDiscountPercent { get; set; } = 0;
+    public decimal VoucherDiscountAmount { get; set; } = 0; // Ito ang computed peso value
 
     // ✅ ADD THIS - Navigation property for Staff
     [ForeignKey("StaffUserId")]

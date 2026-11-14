@@ -342,6 +342,25 @@ namespace Infoman.Controllers
                 decimal newDiscountedTotal = grossTotal * (1 - discountPercent);
                 decimal newDiscountAmount = grossTotal - newDiscountedTotal;
 
+                // Sa loob ng PlaceOrder method, hanapin ang voucher block:
+                if (!string.IsNullOrEmpty(request.VoucherCode))
+                {
+                    var v = await _db.Vouchers.FirstOrDefaultAsync(x => x.Code == request.VoucherCode && x.IsActive);
+
+                    if (v != null && (!v.ExpiryDate.HasValue || v.ExpiryDate.Value.Date >= DateTime.Today))
+                    {
+                        // ✅ Percent Logic
+                        decimal voucherDiscountAmount = grossTotal * (v.DiscountPercent / 100m);
+
+                        order.VoucherCode = v.Code;
+                        order.VoucherDiscountPercent = v.DiscountPercent;
+                        order.VoucherDiscountAmount = voucherDiscountAmount;
+
+                        newDiscountedTotal -= voucherDiscountAmount;
+                        if (newDiscountedTotal < 0) newDiscountedTotal = 0;
+                    }
+                }
+                // Saka i-save:
                 order.TotalAmount = newDiscountedTotal;
                 order.OriginalTotalAmount = grossTotal;
                 order.DiscountAmount = newDiscountAmount;
@@ -1355,6 +1374,19 @@ namespace Infoman.Controllers
             return ex.InnerException is Microsoft.Data.SqlClient.SqlException sql
                 && (sql.Number == 2601 || sql.Number == 2627);
         }
+        [HttpGet]
+        public async Task<IActionResult> CheckVoucher(string code)
+        {
+            var voucher = await _db.Vouchers.FirstOrDefaultAsync(v => v.Code == code && v.IsActive);
+            if (voucher == null)
+                return Json(new { success = false, message = "Invalid or inactive voucher." });
+
+            if (voucher.ExpiryDate.HasValue && voucher.ExpiryDate.Value.Date < DateTime.Today)
+                return Json(new { success = false, message = "Voucher has expired." });
+
+            return Json(new { success = true, voucher = new { voucher.Code, voucher.DiscountPercent } });
+        }
+
         public class PlaceOrderRequest
         {
             public int ProductSizeId { get; set; }
@@ -1364,6 +1396,8 @@ namespace Infoman.Controllers
             public string? DiscountType { get; set; }       
             public decimal DiscountPercent { get; set; }
             public List<AddOnSelection> AddOns { get; set; } = new();
+            public string? VoucherCode { get; set; }
+            public decimal VoucherDiscountPercent { get; set; }
         }
         public class AddOnSelection { public int AddOnId { get; set; } public int Quantity { get; set; } }
 

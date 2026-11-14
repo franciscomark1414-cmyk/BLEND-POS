@@ -727,9 +727,6 @@ namespace Infoman.Migrations
                     b.Property<int>("OrderItemId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("OrderItemId1")
-                        .HasColumnType("int");
-
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(18,2)");
 
@@ -741,8 +738,6 @@ namespace Infoman.Migrations
                     b.HasIndex("AddOnId");
 
                     b.HasIndex("OrderItemId");
-
-                    b.HasIndex("OrderItemId1");
 
                     b.ToTable("OrderItemAddOns");
                 });
@@ -1733,6 +1728,40 @@ namespace Infoman.Migrations
                     b.ToTable("VoidLogs");
                 });
 
+            modelBuilder.Entity("Infoman.Models.Voucher", b =>
+                {
+                    b.Property<int>("VoucherId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("VoucherId"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("DiscountPercent")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("EventName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("ExpiryDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.HasKey("VoucherId");
+
+                    b.ToTable("Vouchers");
+                });
+
             modelBuilder.Entity("Infoman.Models.WasteLog", b =>
                 {
                     b.Property<int>("WasteLogId")
@@ -1894,6 +1923,15 @@ namespace Infoman.Migrations
 
                     b.Property<int?>("VoidedBy")
                         .HasColumnType("int");
+
+                    b.Property<string>("VoucherCode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("VoucherDiscountAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("VoucherDiscountPercent")
+                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("OrderId");
 
@@ -2104,14 +2142,10 @@ namespace Infoman.Migrations
                         .IsRequired();
 
                     b.HasOne("Infoman.Models.OrderItem", "OrderItem")
-                        .WithMany()
+                        .WithMany("AddOns")
                         .HasForeignKey("OrderItemId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("Infoman.Models.OrderItem", null)
-                        .WithMany("AddOns")
-                        .HasForeignKey("OrderItemId1");
 
                     b.Navigation("AddOn");
 

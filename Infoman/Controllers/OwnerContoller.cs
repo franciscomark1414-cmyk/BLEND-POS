@@ -826,11 +826,13 @@ namespace Infoman.Controllers
         public async Task<IActionResult> GetReceiptDetail(int orderId)
         {
             var order = await _db.Orders
-                .Include(o => o.Items)
-                    .ThenInclude(oi => oi.Product)
-                .Include(o => o.Items)
-                    .ThenInclude(oi => oi.ProductSize)
-                .FirstOrDefaultAsync(o => o.OrderId == orderId);
+               .Include(o => o.Items)
+        .ThenInclude(oi => oi.Product)
+    .Include(o => o.Items)
+        .ThenInclude(oi => oi.ProductSize)
+    .Include(o => o.Items)
+        .ThenInclude(oi => oi.AddOns)
+    .FirstOrDefaultAsync(o => o.OrderId == orderId);
 
             if (order == null)
                 return Json(new { success = false, message = "Order not found" });
@@ -846,6 +848,18 @@ namespace Infoman.Controllers
                     price = item.Price,
                     subtotal = item.Price * item.Quantity
                 });
+
+                foreach (var a in item.AddOns)
+                {
+                    items.Add(new
+                    {
+                        name = "+ " + a.AddOnName,
+                        size = "Add-on",
+                        quantity = a.Quantity * item.Quantity,
+                        price = a.Price,
+                        subtotal = a.Price * a.Quantity * item.Quantity
+                    });
+                }
             }
 
             var receipt = new
@@ -1873,6 +1887,8 @@ namespace Infoman.Controllers
                     .ThenInclude(oi => oi.Product)
                 .Include(o => o.Items)
                     .ThenInclude(oi => oi.ProductSize)
+                .Include(o => o.Items)
+                    .ThenInclude(oi => oi.AddOns)
                 .Where(o => o.Status == "COMPLETED" || o.Status == "PENDING_BLENDING")
                 .OrderByDescending(o => o.Date)
                 .Select(o => new
@@ -1887,7 +1903,14 @@ namespace Infoman.Controllers
                         size = oi.ProductSize.SizeName,
                         quantity = oi.Quantity,
                         price = oi.Price,
-                        subtotal = oi.Price * oi.Quantity
+                        subtotal = oi.Price * oi.Quantity,
+                        addOns = oi.AddOns.Select(a => new
+                        {
+                            name = a.AddOnName,
+                            quantity = a.Quantity * oi.Quantity,
+                            price = a.Price,
+                            subtotal = a.Price * a.Quantity * oi.Quantity
+                        }).ToList()
                     }).ToList(),
                     subtotal = o.Items.Sum(oi => oi.Price * oi.Quantity),
                     discountType = o.DiscountType ?? "None",

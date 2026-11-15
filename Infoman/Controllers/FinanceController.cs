@@ -99,12 +99,23 @@ namespace Infoman.Controllers
                     .SumAsync(w => (decimal?)w.Amount) ?? 0;
 
                 // 5. COGS
-                var cogs = await _context.OrderItems
+                // 5. COGS (produkto + add-ons)
+                var productCogs = await _context.OrderItems
                     .Include(oi => oi.Order)
-                    .Where(oi => (oi.Order.Status == "COMPLETED") &&
+                    .Where(oi => oi.Order.Status == "COMPLETED" &&
                                  oi.Order.Date >= start && oi.Order.Date <= end &&
                                  oi.DispositionStatusId == 1)
                     .SumAsync(oi => (decimal?)oi.ActualCost) ?? 0;
+
+                var addOnCogs = await _context.OrderItemAddOns
+                    .Include(a => a.OrderItem)
+                        .ThenInclude(oi => oi.Order)
+                    .Where(a => a.OrderItem.Order.Status == "COMPLETED" &&
+                                a.OrderItem.Order.Date >= start && a.OrderItem.Order.Date <= end &&
+                                a.OrderItem.DispositionStatusId == 1)
+                    .SumAsync(a => (decimal?)a.ActualCost) ?? 0;
+
+                var cogs = productCogs + addOnCogs;
 
                 // 6. SUMMARY CALCULATIONS
                 var cashInflow = totalSales;

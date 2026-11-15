@@ -333,7 +333,7 @@ namespace Infoman.Controllers
                 decimal newSubtotal = allItems.Sum(i => i.Price * i.Quantity);
 
                 // Compute add-ons subtotal
-                decimal totalAddOns = allItems.Sum(i => i.AddOns.Sum(a => a.Price * a.Quantity));
+                decimal totalAddOns = allItems.Sum(i => i.AddOns.Sum(a => a.Price * a.Quantity * i.Quantity));
 
                 // Total bago ang discount (base + add-ons)
                 decimal grossTotal = newSubtotal + totalAddOns;

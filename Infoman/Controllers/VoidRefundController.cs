@@ -30,7 +30,9 @@ namespace Infoman.Controllers
                         .ThenInclude(oi => oi.Product)
                     .Include(o => o.Items)
                         .ThenInclude(oi => oi.ProductSize)
-                    .FirstOrDefaultAsync(o => o.OrderId == orderId);
+                     .Include(o => o.Items)
+                        .ThenInclude(oi => oi.AddOns)
+                     .FirstOrDefaultAsync(o => o.OrderId == orderId);
 
                 if (order == null)
                     return Json(new { success = false, message = "Order not found" });
@@ -48,13 +50,22 @@ namespace Infoman.Controllers
                     Subtotal = (order.DiscountPercent > 0 ? oi.Price * (1 - order.DiscountPercent) : oi.Price) * oi.Quantity,
                     IsVoided = oi.DispositionStatusId == 2,
                     IsRefunded = oi.DispositionStatusId == 3,
-                    DispositionStatusId = oi.DispositionStatusId
+                    DispositionStatusId = oi.DispositionStatusId,
+                    AddOns = oi.AddOns.Select(a => new
+                    {
+                        a.OrderItemAddOnId,
+                        a.AddOnId,
+                        Name = a.AddOnName,
+                        Price = a.Price,
+                        Quantity = a.Quantity,
+                        Subtotal = a.Price * a.Quantity * oi.Quantity
+                    }).ToList()
                 }).ToList();
 
                 // ✅ Ang subtotal ay sum ng discounted subtotals
                 decimal subtotal = allItems
-                    .Where(i => !i.IsVoided && !i.IsRefunded)
-                    .Sum(i => i.Subtotal);
+     .Where(i => !i.IsVoided && !i.IsRefunded)
+     .Sum(i => i.Subtotal + i.AddOns.Sum(a => a.Subtotal));
 
                 // ✅ TAMA NA: Hindi na kailangang i-multiply sa (1 - DiscountPercent) kasi discounted na ang items
                 decimal total = subtotal;

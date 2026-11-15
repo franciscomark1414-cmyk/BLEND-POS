@@ -3125,8 +3125,10 @@ document.getElementById('voucherFeedback').innerHTML = '';
                     // 3. Generate HTML para sa Add-ons list (kung meron)
                     let addOnsHtml = '';
                     if (item.addOns && item.addOns.length > 0) {
-                        const addOnNames = item.addOns.map(a => `${a.name} (${a.quantity})`).join(', ');
-                        addOnsHtml = `<div style="font-size: 11px; color: #666; margin-top: 4px;">+ ${addOnNames}</div>`;
+                       const addOnNames = item.addOns.map(a =>
+    `${a.name} (${a.quantity}) +₱${(a.price * a.quantity * item.quantity).toFixed(2)}`
+).join(', ');
+addOnsHtml = `<div style="font-size: 11px; color: #666; margin-top: 4px;">+ ${addOnNames}</div>`;
                     }
 
                     html += `
@@ -3413,6 +3415,17 @@ async function createNewOrder() {
             price: item.price,
             subtotal: item.price * item.quantity
         });
+        if (item.addOns && item.addOns.length > 0) {
+    item.addOns.forEach(a => {
+        orderDetails.push({
+            name: '+ ' + a.name,
+            size: 'Add-on',
+            quantity: a.quantity * item.quantity,
+            price: a.price,
+            subtotal: a.price * a.quantity * item.quantity
+        });
+    });
+}
     }
 
     if (allSuccessful && orderDetails.length > 0) {
@@ -3735,18 +3748,30 @@ async function payWithGCashFromReceipt(orderId) {
         
         const orderDetails = [];
         let subtotal = 0;
-        
-        activeItems.forEach(item => {
-            const itemSubtotal = item.price * item.quantity;
-            orderDetails.push({
-                name: item.productName,
-                size: item.sizeName,
-                quantity: item.quantity,
-                price: item.price,
-                subtotal: itemSubtotal
-            });
-            subtotal += itemSubtotal;
-        });
+                  activeItems.forEach(item => {
+                        const itemSubtotal = item.price * item.quantity;
+                        orderDetails.push({
+                            name: item.productName,
+                            size: item.sizeName,
+                            quantity: item.quantity,
+                            price: item.price,
+                            subtotal: itemSubtotal
+                        });
+                        subtotal += itemSubtotal;
+
+                        (item.addOns || []).forEach(a => {
+                            const addOnSubtotal = a.price * a.quantity * item.quantity;
+                            orderDetails.push({
+                                name: '+ ' + a.name,
+                                size: 'Add-on',
+                                quantity: a.quantity * item.quantity,
+                                price: a.price,
+                                subtotal: addOnSubtotal
+                            });
+                            subtotal += addOnSubtotal;
+                        });
+                    });
+
         
         const discountPercent = data.order.discountPercent || 0;
         const discountedTotal = subtotal * (1 - discountPercent);
@@ -5038,17 +5063,29 @@ function showReviewModal() {
     const reviewDiv = document.getElementById('reviewOrderContent');
     const now = new Date();
     let itemsHtml = '';
-    
-    cart.forEach(item => {
-        itemsHtml += `
-            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;">
-                <div>
-                    <strong>${escapeHtml(item.productName)}</strong><br>
-                    <small>${item.sizeName} × ${item.quantity}</small>
-                </div>
-                <div>₱${(item.price * item.quantity).toFixed(2)}</div>
-            </div>`;
-    });
+            cart.forEach(item => {
+                    itemsHtml += `
+                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;">
+                        <div>
+                            <strong>${escapeHtml(item.productName)}</strong><br>
+                            <small>${item.sizeName} × ${item.quantity}</small>
+                        </div>
+                        <div>₱${(item.price * item.quantity).toFixed(2)}</div>
+                    </div>`;
+
+                    if (item.addOns && item.addOns.length > 0) {
+                        item.addOns.forEach(a => {
+                            const addOnSubtotal = a.price * a.quantity * item.quantity;
+                            itemsHtml += `
+                            <div style="display: flex; justify-content: space-between; padding: 6px 0 6px 12px; border-bottom: 1px solid #eee; color: #555;">
+                                <div>
+                                    <small>+ ${escapeHtml(a.name)} × ${a.quantity * item.quantity}</small>
+                                </div>
+                                <div><small>₱${addOnSubtotal.toFixed(2)}</small></div>
+                            </div>`;
+                        });
+                    }
+                });
     
     let discountHtml = '';
     if (currentDiscountPercent > 0) {

@@ -29,21 +29,40 @@ namespace Infoman.Controllers
                 DateTime now = DateTime.Now;
 
                 // Determine Date Range
+                // Determine Date Range
                 switch (periodType?.ToLower())
                 {
                     case "daily":
                         start = (startDate ?? now).Date;
                         end = start.AddDays(1).AddSeconds(-1);
                         break;
+
                     case "monthly":
                         var monthlyDate = startDate ?? now;
                         start = new DateTime(monthlyDate.Year, monthlyDate.Month, 1);
                         end = start.AddMonths(1).AddSeconds(-1);
                         break;
+
+                    // ✅ BAGONG DAGDAG: QUARTERLY
+                    case "quarterly":
+                        var quarterlyDate = startDate ?? now;
+                        int quarterStartMonth = ((quarterlyDate.Month - 1) / 3) * 3 + 1;
+                        start = new DateTime(quarterlyDate.Year, quarterStartMonth, 1);
+                        end = start.AddMonths(3).AddSeconds(-1);
+                        break;
+
+                    // ✅ BAGONG DAGDAG: YEARLY
+                    case "yearly":
+                        var yearlyDate = startDate ?? now;
+                        start = new DateTime(yearlyDate.Year, 1, 1);
+                        end = start.AddYears(1).AddSeconds(-1);
+                        break;
+
                     case "custom":
                         start = (startDate ?? now).Date;
                         end = (endDate ?? now).Date.AddDays(1).AddSeconds(-1);
                         break;
+
                     default:
                         start = now.Date;
                         end = now.Date.AddDays(1).AddSeconds(-1);

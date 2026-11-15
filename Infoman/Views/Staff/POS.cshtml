@@ -2615,71 +2615,71 @@
     <!-- ============================================================ -->
 
     <!-- START DAY MODAL -->
-    <div id="startShiftModal" class="modal-qty" style="display: none; z-index: 100000;">
-        <div class="modal-qty-content" style="width: 450px; max-width: 95%; padding: 0; text-align: left;">
-            <!-- Header -->
-            <div style="background: linear-gradient(135deg, #16a34a, #22c55e); color: white; padding: 20px 24px; border-radius: 16px 16px 0 0;">
-                <h3 style="margin: 0; font-size: 18px; font-weight: 700;">
-                    <i class="fas fa-play-circle"></i> Start Day — Open Shift
-                </h3>
-                <p style="margin: 4px 0 0; font-size: 13px; opacity: 0.9;">Enter your opening cash float to begin</p>
-            </div>
-            
-            <!-- Body -->
-            <div style="padding: 24px;">
-                <div style="background: var(--ink-50); padding: 12px; border-radius: 10px; margin-bottom: 16px;">
-                    <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
-                        <span>Cashier:</span>
-                        <strong id="startShiftStaffName">@ViewBag.StaffUsername</strong>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 13px;">
-                        <span>Date:</span>
-                        <strong id="startShiftDate">--</strong>
-                    </div>
+<!-- START DAY MODAL -->
+<div id="startShiftModal" class="modal-qty" style="display: none; z-index: 100000;">
+    <div class="modal-qty-content" style="width: 500px; max-width: 95%; padding: 0; text-align: left;">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #16a34a, #22c55e); color: white; padding: 20px 24px; border-radius: 16px 16px 0 0;">
+            <h3 style="margin: 0; font-size: 18px; font-weight: 700;">
+                <i class="fas fa-play-circle"></i> Start Day — Open Shift
+            </h3>
+            <p style="margin: 4px 0 0; font-size: 13px; opacity: 0.9;">Enter your opening cash float</p>
+        </div>
+        
+        <!-- Body -->
+        <div style="padding: 20px; max-height: 65vh; overflow-y: auto;">
+            <div style="background: var(--ink-50); padding: 12px; border-radius: 10px; margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
+                    <span>Cashier:</span>
+                    <strong id="startShiftStaffName">@ViewBag.StaffUsername</strong>
                 </div>
+                <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                    <span>Date:</span>
+                    <strong id="startShiftDate">--</strong>
+                </div>
+            </div>
 
-                <label class="form-label fw-bold" style="font-size: 13px;">
-                    Opening Cash Float (₱) <span class="text-danger">*</span>
+            <!-- Denomination Breakdown -->
+            <div class="denom-section-title">Opening Cash Denomination Breakdown</div>
+            <div id="startDenomContainer" class="denom-grid">
+                <!-- JS will populate inputs here -->
+            </div>
+
+            <!-- Opening Float Input -->
+            <div style="margin-top: 16px;">
+                <label class="form-label fw-bold" style="font-size: 13px; margin-bottom: 4px; display: block;">
+                    Total Opening Cash Float (₱) <span class="text-danger">*</span>
                 </label>
-                <input type="number" 
-                       id="startShiftFloat" 
-                       class="form-control" 
-                       step="0.01" 
-                       min="0" 
-                       placeholder="e.g., 1000.00"
-                       style="font-size: 20px; padding: 12px; font-weight: bold; border-radius: 10px; text-align: right; margin-bottom: 6px;">
-                <small class="text-muted" style="font-size: 12px;">
-                    <i class="fas fa-info-circle"></i> Enter the cash amount currently in the drawer.
+                <input type="number"
+                       id="startShiftFloat"
+                       class="form-control"
+                       step="0.01"
+                       min="0"
+                       placeholder="0.00"
+                       readonly
+                       style="font-size: 20px; padding: 12px; font-weight: bold; border-radius: 10px; text-align: right; background-color: var(--ink-100); cursor: not-allowed; margin-bottom: 4px;">
+                <small class="text-muted" style="font-size: 11px;">
+                    <i class="fas fa-calculator"></i> Auto-calculated from denominations above.
                 </small>
-
-                <label class="form-label fw-bold mt-3" style="font-size: 13px;">
-                    Notes (Optional)
-                </label>
-                <textarea id="startShiftNotes" 
-                          class="form-control" 
-                          rows="2" 
-                          placeholder="e.g., Loose change provided by owner"
-                          style="font-size: 13px; border-radius: 10px;"></textarea>
             </div>
 
-            <!-- Footer -->
-            <div style="padding: 16px 24px; background: var(--ink-50); border-radius: 0 0 16px 16px; display: flex; gap: 10px;">
-                <button type="button" 
-                        onclick="logoutFromShiftModal()" 
-                        class="btn-cancel" 
-                        style="flex: 1; padding: 12px; border-radius: 10px; font-weight: 600;">
-                    <i class="fas fa-sign-out-alt"></i> Logout
-                </button>
-                <button type="button" 
-                        id="startShiftBtn"
-                        onclick="submitStartShift()" 
-                        class="btn-confirm" 
-                        style="flex: 2; padding: 12px; border-radius: 10px; font-weight: 700; background: #16a34a; box-shadow: 0 4px 12px rgba(22,163,74,0.3);">
-                    <i class="fas fa-play"></i> Open Shift
-                </button>
-            </div>
+            <label class="form-label fw-bold mt-3" style="font-size: 13px;">
+                Notes (Optional)
+            </label>
+            <textarea id="startShiftNotes" class="form-control" rows="2" placeholder="e.g., Loose change provided by owner" style="font-size: 13px; border-radius: 10px;"></textarea>
+        </div>
+
+        <!-- Footer -->
+        <div style="padding: 16px 24px; background: var(--ink-50); border-radius: 0 0 16px 16px; display: flex; gap: 10px;">
+            <button type="button" onclick="logoutFromShiftModal()" class="btn-cancel" style="flex: 1; padding: 12px; border-radius: 10px; font-weight: 600;">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+            <button type="button" id="startShiftBtn" onclick="submitStartShift()" class="btn-confirm" style="flex: 2; padding: 12px; border-radius: 10px; font-weight: 700; background: #16a34a; box-shadow: 0 4px 12px rgba(22,163,74,0.3);">
+                <i class="fas fa-play"></i> Open Shift
+            </button>
         </div>
     </div>
+</div>
 
     <!-- END DAY MODAL -->
     <!-- END DAY MODAL -->
@@ -8051,6 +8051,7 @@ async function initializePOSFlow() {
             }
 
 // Show Start Shift modal
+// Show Start Shift modal
 function showStartShiftModal() {
     const dateEl = document.getElementById('startShiftDate');
     const modalEl = document.getElementById('startShiftModal');
@@ -8065,79 +8066,85 @@ function showStartShiftModal() {
             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
         });
     }
+
+    // ✅ I-GENERATE ANG DENOMINATION INPUTS (Gaya ng sa End Day)
+    buildStartDenomInputs();
     
+    // ✅ I-CLEAR ANG NOTES
+    document.getElementById('startShiftNotes').value = '';
+
     modalEl.style.display = 'flex';
-    const floatInput = document.getElementById('startShiftFloat');
-    if (floatInput) setTimeout(() => floatInput.focus(), 300);
 }
 
-async function submitStartShift() {
-    const openingFloat = parseFloat(document.getElementById('startShiftFloat').value);
-    const notes = document.getElementById('startShiftNotes').value.trim();
+            async function submitStartShift() {
+                const openingFloat = parseFloat(document.getElementById('startShiftFloat').value);
+                const notes = document.getElementById('startShiftNotes').value.trim();
 
-    if (isNaN(openingFloat) || openingFloat < 0) {
-        await showAlert('Please enter a valid opening cash float.', 'Required', '⚠️');
-        return;
-    }
+                if (isNaN(openingFloat) || openingFloat < 0) {
+                    await showAlert('Please enter a valid opening cash float.', 'Required', '⚠️');
+                    return;
+                }
 
-    const btn = document.getElementById('startShiftBtn');
-    const originalText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Opening...';
+                const btn = document.getElementById('startShiftBtn');
+                const originalText = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Opening...';
 
-    try {
-        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
-        
-        // ✅ TIMEOUT PARA HINDI MAG-STUCK
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000);
+                try {
+                    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
 
-        const response = await fetch('/Staff/OpenShift', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'RequestVerificationToken': token
-            },
-            body: JSON.stringify({ openingFloat, notes }),
-            signal: controller.signal
-        });
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-        clearTimeout(timeoutId);
+                    const response = await fetch('/Staff/OpenShift', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': token
+                        },
+                        // ✅ IDINAGDAG ANG DENOMINATIONS
+                        body: JSON.stringify({
+                            openingFloat: openingFloat,
+                            notes: notes,
+                            denominations: collectStartDenominations()
+                        }),
+                        signal: controller.signal
+                    });
 
-        // ✅ I-CHECK KUNG JSON ANG RESPONSE
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            const text = await response.text();
-            console.error('Non-JSON response:', text.substring(0, 500));
-            throw new Error(`Server returned ${response.status}. Check browser console for details.`);
-        }
+                    clearTimeout(timeoutId);
 
-        const data = await response.json();
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        const text = await response.text();
+                        console.error('Non-JSON response:', text.substring(0, 500));
+                        throw new Error(`Server returned ${response.status}. Check browser console for details.`);
+                    }
 
-        if (data.success) {
-            document.getElementById('startShiftModal').style.display = 'none';
-            await showAlert(
-                `✅ Shift opened!\n\nOpening Float: ₱${openingFloat.toFixed(2)}\n\nYou can now Time In and start taking orders.`,
-                'Shift Opened',
-                '✅'
-            );
-            enablePOSAfterShiftCheck();
-        } else {
-            await showAlert('❌ ' + data.message, 'Error', '❌');
-        }
-    } catch (error) {
-        console.error('Submit start shift error:', error);
-        
-        if (error.name === 'AbortError') {
-            await showAlert('❌ Request timed out (15s). Please check your connection and try again.', 'Timeout', '❌');
-        } else {
-            await showAlert('❌ Error: ' + error.message, 'Error', '❌');
-        }
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-    }
-}
+                    const data = await response.json();
+
+                    if (data.success) {
+                        document.getElementById('startShiftModal').style.display = 'none';
+                        await showAlert(
+                            `✅ Shift opened!\n\nOpening Float: ₱${openingFloat.toFixed(2)}\n\nYou can now Time In and start taking orders.`,
+                            'Shift Opened',
+                            '✅'
+                        );
+                        enablePOSAfterShiftCheck();
+                    } else {
+                        await showAlert('❌ ' + data.message, 'Error', '❌');
+                    }
+                } catch (error) {
+                    console.error('Submit start shift error:', error);
+                    if (error.name === 'AbortError') {
+                        await showAlert('❌ Request timed out (15s). Please check your connection and try again.', 'Timeout', '❌');
+                    } else {
+                        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+                    }
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
+            }
 
 // Logout from Start Shift modal
 async function logoutFromShiftModal() {
@@ -8356,6 +8363,56 @@ function buildDenomInputs() {
     }).join('');
     
     recalcDenomTotal();
+}
+
+// ✅ BAGONG FUNCTION: Para sa Start Day Denominations
+function buildStartDenomInputs() {
+    const container = document.getElementById('startDenomContainer');
+    if (!container) return;
+
+    container.innerHTML = DENOMS.map(d => {
+        const label = d >= 1 ? d.toLocaleString('en-PH', { minimumFractionDigits: 2 }) : d.toFixed(2);
+        return `
+            <div class="denom-row">
+                <div class="denom-label">₱${label}</div>
+                <div class="denom-input-wrap">
+                    <span>×</span>
+                    <input type="number" class="denom-input" min="0" step="1" value="0" data-start-denom="${d}" oninput="recalcStartDenomTotal()" onkeypress="return event.charCode >= 48 && event.charCode <= 57">
+                </div>
+                <div class="denom-sub" data-start-sub="${d}">= ₱0.00</div>
+            </div>
+        `;
+    }).join('');
+    
+    recalcStartDenomTotal();
+}
+
+function recalcStartDenomTotal() {
+    let total = 0;
+    const inputs = document.querySelectorAll('#startDenomContainer input[data-start-denom]');
+    
+    inputs.forEach(inp => {
+        const d = parseFloat(inp.dataset.startDenom);
+        const q = parseInt(inp.value, 10) || 0;
+        const sub = d * q;
+        total += sub;
+        
+        const subDisplay = document.querySelector(`#startDenomContainer [data-start-sub="${d}"]`);
+        if (subDisplay) {
+            subDisplay.textContent = `= ₱${sub.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
+        }
+    });
+
+    document.getElementById('startShiftFloat').value = total.toFixed(2);
+}
+
+function collectStartDenominations() {
+    return [...document.querySelectorAll('#startDenomContainer input[data-start-denom]')]
+        .map(inp => ({
+            denomination: parseFloat(inp.dataset.startDenom),
+            quantity: parseInt(inp.value, 10) || 0
+        }))
+        .filter(x => x.quantity > 0);
 }
 
 function recalcDenomTotal() {

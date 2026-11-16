@@ -816,6 +816,8 @@ namespace Infoman.Controllers
                     paymentMethod = o.PaymentMethod,
                     returnStatus = o.ReturnStatus ?? "ACTIVE",              // ✅ ADD THIS
                     adjustmentAmount = o.AdjustmentAmount,                  // ✅ ADD THIS
+                    voucherCode = o.VoucherCode,
+                    voucherDiscountAmount = o.VoucherDiscountAmount,
                     originalOrderId = o.OriginalOrderId                     // ✅ ADD THIS
                 })
                 .ToListAsync();

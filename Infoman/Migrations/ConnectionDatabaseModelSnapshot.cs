@@ -1757,6 +1757,9 @@ namespace Infoman.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsUsed")
+                        .HasColumnType("bit");
+
                     b.HasKey("VoucherId");
 
                     b.ToTable("Vouchers");

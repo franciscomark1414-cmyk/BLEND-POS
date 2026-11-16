@@ -236,6 +236,25 @@ namespace Infoman.Controllers
                         .FirstOrDefaultAsync(o => o.OrderNumber == request.OrderNumber);
                 }
 
+                // ✅ VALIDATE VOUCHER BAGO MAG-SAVE NG ITEM
+                Voucher voucherToApply = null;
+                if (!string.IsNullOrEmpty(request.VoucherCode))
+                {
+                    voucherToApply = await _db.Vouchers
+                        .FirstOrDefaultAsync(x => x.Code == request.VoucherCode && x.IsActive);
+
+                    if (voucherToApply == null)
+                        return Json(new { success = false, message = "Invalid or inactive voucher." });
+
+                    if (voucherToApply.ExpiryDate.HasValue && voucherToApply.ExpiryDate.Value.Date < DateTime.Today)
+                        return Json(new { success = false, message = "Voucher has expired." });
+
+                    // Payagan kung ang voucher na ito ay para sa parehong order (multi-item)
+                    bool usedOnThisOrder = order != null && order.VoucherCode == voucherToApply.Code;
+                    if (voucherToApply.IsUsed && !usedOnThisOrder)
+                        return Json(new { success = false, message = "This voucher code has already been used." });
+                }
+
                 bool isNewOrder = (order == null);
 
                 if (isNewOrder)
@@ -339,28 +358,34 @@ namespace Infoman.Controllers
                 decimal grossTotal = newSubtotal + totalAddOns;
 
                 decimal discountPercent = order.DiscountPercent;
-                decimal newDiscountedTotal = grossTotal * (1 - discountPercent);
-                decimal newDiscountAmount = grossTotal - newDiscountedTotal;
 
-                // Sa loob ng PlaceOrder method, hanapin ang voucher block:
-                if (!string.IsNullOrEmpty(request.VoucherCode))
+                // 1. Senior/PWD discount muna (tulad ng POS)
+                decimal afterManualDiscount = grossTotal * (1 - discountPercent);
+                decimal manualDiscountAmount = grossTotal - afterManualDiscount;
+
+                // 2. Voucher pagkatapos ng manual discount
+                decimal voucherDiscountAmount = 0;
+                if (voucherToApply != null)
                 {
-                    var v = await _db.Vouchers.FirstOrDefaultAsync(x => x.Code == request.VoucherCode && x.IsActive);
+                    voucherDiscountAmount = Math.Round(afterManualDiscount * (voucherToApply.DiscountPercent / 100m), 2);
 
-                    if (v != null && (!v.ExpiryDate.HasValue || v.ExpiryDate.Value.Date >= DateTime.Today))
-                    {
-                        // ✅ Percent Logic
-                        decimal voucherDiscountAmount = grossTotal * (v.DiscountPercent / 100m);
+                    order.VoucherCode = voucherToApply.Code;
+                    order.VoucherDiscountPercent = voucherToApply.DiscountPercent;
+                    order.VoucherDiscountAmount = voucherDiscountAmount;
 
-                        order.VoucherCode = v.Code;
-                        order.VoucherDiscountPercent = v.DiscountPercent;
-                        order.VoucherDiscountAmount = voucherDiscountAmount;
-
-                        newDiscountedTotal -= voucherDiscountAmount;
-                        if (newDiscountedTotal < 0) newDiscountedTotal = 0;
-                    }
+                    voucherToApply.IsUsed = true; // ✅ MARK AS USED
                 }
-                // Saka i-save:
+                else
+                {
+                    order.VoucherCode = null;
+                    order.VoucherDiscountPercent = 0;
+                    order.VoucherDiscountAmount = 0;
+                }
+
+                // 3. Final total
+                decimal newDiscountedTotal = Math.Max(0, afterManualDiscount - voucherDiscountAmount);
+                decimal newDiscountAmount = manualDiscountAmount; // senior/PWD lang, hiwalay sa voucher
+
                 order.TotalAmount = newDiscountedTotal;
                 order.OriginalTotalAmount = grossTotal;
                 order.DiscountAmount = newDiscountAmount;
@@ -1380,6 +1405,9 @@ namespace Infoman.Controllers
             var voucher = await _db.Vouchers.FirstOrDefaultAsync(v => v.Code == code && v.IsActive);
             if (voucher == null)
                 return Json(new { success = false, message = "Invalid or inactive voucher." });
+
+            if (voucher.IsUsed)
+                return Json(new { success = false, message = "This voucher has already been used." });
 
             if (voucher.ExpiryDate.HasValue && voucher.ExpiryDate.Value.Date < DateTime.Today)
                 return Json(new { success = false, message = "Voucher has expired." });

@@ -4301,9 +4301,9 @@ html.sidebar-collapsed .main-content {
         <span class="text-danger" id="finCashExpenses">₱0.00</span>
     </div>
     <div class="d-flex justify-content-between mb-2">
-        <span class="small">Less: Withdrawals</span>
-        <span class="text-danger" id="finCashWithdrawals">₱0.00</span>
-    </div>
+            <span class="text-muted small">Less: Raw Material Purchases</span>
+            <span class="text-danger small" id="finCashWithdrawals">₱0.00</span>
+        </div>
 
     <div class="d-flex justify-content-between mb-2">
         <span><strong>Total Cash Outflow:</strong></span>
@@ -5442,13 +5442,24 @@ async function loadFinancials() {
         if (src) {
             src.innerHTML = `<i class="fas fa-truck"></i> From ${count} delivery${count === 1 ? '' : 'ies'}`;
         }
+        const inflow = d.cashInflow;
+        const otherExpenses = d.otherExpenses;
+        const rawMaterials = d.rawMaterialPurchases;
+
+// 2. Bagong formula
+        const totalOutflow = otherExpenses + rawMaterials; 
+        const cashMovement = inflow - totalOutflow;
 
         // Cash Flow card
-        setText('finCashInflow', peso(d.cashInflow));
+         setText('finCashInflow', peso(d.cashInflow));
         setText('finCashExpenses', peso(d.otherExpenses));
-        setText('finCashWithdrawals', peso(d.withdrawals));
-        setText('finCashOutflow', peso(d.cashOutflow));
-        setText('finCashMovement', peso(d.cashMovement));
+        
+        // Ito yung idinagdag natin na Raw Materials sa UI
+        setText('finCashWithdrawals', peso(d.rawMaterialPurchases)); 
+        
+        // Galing na sa backend ang tamang computation
+        setText('finCashOutflow', peso(d.cashOutflow)); 
+        setText('finCashMovement', peso(d.cashMovement));   
 
         // Profit Summary card
         setText('finProfitSales', peso(d.totalSales));
@@ -8061,6 +8072,9 @@ async function displayInPOS(productSizeId, productName, sizeName) {
         if (receipt.discountPercent > 0) {
             discountDisplay = `${receipt.discountType} (${receipt.discountPercent * 100}%)<br>-₱${receipt.discountAmount.toFixed(2)}`;
         }
+        if (receipt.voucherCode) {
+            discountDisplay += `<br><span class="text-success">Voucher (${escapeHtml(receipt.voucherCode)}) -₱${(receipt.voucherDiscountAmount || 0).toFixed(2)}</span>`;
+        }
         
         html += `
             <tr>
@@ -8149,6 +8163,13 @@ function viewReceiptDetail(orderId) {
                 <span>-₱${receipt.discountAmount.toFixed(2)}</span>
             </div>
         `;
+    }
+   if (receipt.voucherCode) {
+        discountHtml += `
+            <div style="display: flex; justify-content: space-between; font-size: 12px; color: #28a745; margin-top: 5px;">
+                <span>Voucher (${escapeHtml(receipt.voucherCode)})</span>
+                <span>-₱${(receipt.voucherDiscountAmount || 0).toFixed(2)}</span>
+            </div>`;
     }
     
     // ✅ BUILD EXCHANGE INFO
@@ -13667,11 +13688,37 @@ async function loadVouchers() {
     try {
         const res = await fetch('/Voucher/GetAll');
         const data = await res.json();
-        if (data.success) {
-            voucherCache = data.vouchers || [];
-            renderVoucherTable(voucherCache);
+        if (data.success && data.vouchers.length > 0) {
+            let html = '';
+            data.vouchers.forEach(v => {
+                const expiry = v.expiryDate ? new Date(v.expiryDate).toLocaleDateString() : 'No Expiry';
+                
+                // ✅ BAGONG LOGIC PARA SA STATUS BADGE
+                let statusBadge = '';
+                if (v.isUsed) {
+                    statusBadge = '<span class="badge bg-danger">Used</span>';
+                } else if (!v.isActive) {
+                    statusBadge = '<span class="badge bg-secondary">Inactive</span>';
+                } else {
+                    statusBadge = '<span class="badge bg-success">Active</span>';
+                }
+
+                html += `
+                    <tr>
+                        <td class="fw-bold">${escapeHtml(v.code)}</td>
+                        <td>${v.discountPercent.toFixed(2)}% OFF</td>
+                        <td>${escapeHtml(v.eventName || '-')}</td>
+                        <td>${expiry}</td>
+                        <td>${statusBadge}</td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteVoucher(${v.voucherId})">Delete</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
         } else {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error loading vouchers</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No vouchers found. Generate one above.</td></tr>';
         }
     } catch (err) {
         tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error loading vouchers</td></tr>';

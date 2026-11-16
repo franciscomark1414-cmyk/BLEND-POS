@@ -21,6 +21,7 @@ namespace Infoman.Models
         public DateTime? ExpiryDate { get; set; }
 
         public bool IsActive { get; set; } = true;
+        public bool IsUsed { get; set; } = false;
 
         public DateTime CreatedAt { get; set; } = DateTime.Now;
     }

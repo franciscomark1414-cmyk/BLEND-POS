@@ -3091,83 +3091,125 @@ document.getElementById('voucherFeedback').innerHTML = '';
         // ============================================================
         // CART DISPLAY — redesigned
         // ============================================================
-            function updateCartDisplay() {
-                const cartDiv = document.getElementById('cartItems');
-                const totalSpan = document.getElementById('cartTotal');
-                const discountLine = document.getElementById('discountLine');
+         function updateCartDisplay() {
+    const cartDiv = document.getElementById('cartItems');
+    const totalSpan = document.getElementById('cartTotal');
+    const discountLine = document.getElementById('discountLine');
 
-                if (cart.length === 0) {
-                    cartDiv.innerHTML = '<div class="empty-cart"><div class="empty-icon">🛍️</div><p>No items in cart</p></div>';
-                    totalSpan.innerHTML = '₱0.00';
-                    if (discountLine) discountLine.style.display = 'none';
-                    currentDiscountType = 'None';
-                    currentDiscountPercent = 0;
-                    currentDiscountedTotal = 0;
-                    document.getElementById('selectedDiscountDisplay').innerHTML = '';
-                    updateDiscountBtnHighlight();
-                    return;
-                }
+    if (cart.length === 0) {
+        cartDiv.innerHTML = '<div class="empty-cart"><div class="empty-icon">🛍️</div><p>No items in cart</p></div>';
+        totalSpan.innerHTML = '₱0.00';
+        if (discountLine) discountLine.style.display = 'none';
+        currentDiscountType = 'None';
+        currentDiscountPercent = 0;
+        currentDiscountedTotal = 0;
+        currentVoucher = null;
+        document.getElementById('selectedDiscountDisplay').innerHTML = '';
+        updateDiscountBtnHighlight();
+        
+        const reviewTotal = document.getElementById('reviewTotalDisplay');
+        if (reviewTotal) reviewTotal.innerText = '₱0.00';
+        
+        // ✅ I-reset din ang cash at change kapag empty
+        const cashInput = document.getElementById('cashReceivedInput');
+        if (cashInput) cashInput.value = '';
+        const changeDisplay = document.getElementById('changeDisplay');
+        if (changeDisplay) {
+            changeDisplay.innerText = '₱0.00';
+            changeDisplay.className = 'fw-bold fs-5 text-success';
+        }
+        return;
+    }
 
-                let html = '';
-                let total = 0;
+    let html = '';
+    let total = 0;
 
-                cart.forEach((item, index) => {
-                    // 1. Compute Add-ons total para sa item na ito
-                    let addOnsTotal = 0;
-                    if (item.addOns) {
-                        item.addOns.forEach(a => addOnsTotal += (a.price * a.quantity));
-                    }
+    cart.forEach((item, index) => {
+        let addOnsTotal = 0;
+        if (item.addOns) {
+            item.addOns.forEach(a => addOnsTotal += (a.price * a.quantity));
+        }
 
-                    // 2. Item Total = (Base Price + Add-ons Price) * Quantity
-                    const itemTotal = (item.price + addOnsTotal) * item.quantity;
-                    total += itemTotal;
+        const itemTotal = (item.price + addOnsTotal) * item.quantity;
+        total += itemTotal;
 
-                    // 3. Generate HTML para sa Add-ons list (kung meron)
-                    let addOnsHtml = '';
-                    if (item.addOns && item.addOns.length > 0) {
-                       const addOnNames = item.addOns.map(a =>
-    `${a.name} (${a.quantity}) +₱${(a.price * a.quantity * item.quantity).toFixed(2)}`
-).join(', ');
-addOnsHtml = `<div style="font-size: 11px; color: #666; margin-top: 4px;">+ ${addOnNames}</div>`;
-                    }
+        let addOnsHtml = '';
+        if (item.addOns && item.addOns.length > 0) {
+            const addOnNames = item.addOns.map(a =>
+                `${a.name} (${a.quantity}) +₱${(a.price * a.quantity * item.quantity).toFixed(2)}`
+            ).join(', ');
+            addOnsHtml = `<div style="font-size: 11px; color: #666; margin-top: 4px;">+ ${addOnNames}</div>`;
+        }
 
-                    html += `
-                        <div class="cart-item">
-                            <div class="cart-item-info">
-                                <div class="cart-item-name">${escapeHtml(item.productName)}</div>
-                                <div class="cart-item-size">${item.sizeName}</div>
-                                <div class="cart-item-unitprice">₱${item.price.toFixed(2)} each</div>
-                                ${addOnsHtml} <!-- ✅ IDINAGDAG ANG ADD-ONS DITO -->
-                            </div>
-                            <div class="cart-item-right">
-                                <span class="cart-item-total">₱${itemTotal.toFixed(2)}</span>
-                                <div class="cart-item-qty">
-                                    <button class="qty-btn" onclick="updateCartItemQty(${index}, ${item.quantity - 1})">−</button>
-                                    <span class="qty-display">${item.quantity}</span>
-                                    <button class="qty-btn" onclick="updateCartItemQty(${index}, ${item.quantity + 1})">+</button>
-                                </div>
-                                <span class="remove-item" onclick="removeFromCart(${index})" title="Remove">✕</span>
-                            </div>
-                        </div>`;
-                });
+        html += `
+            <div class="cart-item">
+                <div class="cart-item-info">
+                    <div class="cart-item-name">${escapeHtml(item.productName)}</div>
+                    <div class="cart-item-size">${item.sizeName}</div>
+                    <div class="cart-item-unitprice">₱${item.price.toFixed(2)} each</div>
+                    ${addOnsHtml}
+                </div>
+                <div class="cart-item-right">
+                    <span class="cart-item-total">₱${itemTotal.toFixed(2)}</span>
+                    <div class="cart-item-qty">
+                        <button class="qty-btn" onclick="updateCartItemQty(${index}, ${item.quantity - 1})">−</button>
+                        <span class="qty-display">${item.quantity}</span>
+                        <button class="qty-btn" onclick="updateCartItemQty(${index}, ${item.quantity + 1})">+</button>
+                    </div>
+                    <span class="remove-item" onclick="removeFromCart(${index})" title="Remove">✕</span>
+                </div>
+            </div>`;
+    });
 
-                currentCartTotal = total;
-                currentDiscountedTotal = total * (1 - currentDiscountPercent);
+    currentCartTotal = total;
+    
+    // ✅ COMPUTE MANUAL DISCOUNT
+    let afterManualDiscount = total * (1 - currentDiscountPercent);
+    let manualDiscountAmount = total - afterManualDiscount;
 
-                cartDiv.innerHTML = html;
+    // ✅ COMPUTE VOUCHER DISCOUNT
+    let voucherDiscountAmount = 0;
+    if (currentVoucher) {
+        voucherDiscountAmount = afterManualDiscount * (currentVoucher.discountPercent / 100);
+        afterManualDiscount -= voucherDiscountAmount;
+        if (afterManualDiscount < 0) afterManualDiscount = 0;
+    }
 
-                // Update total display
-                if (currentDiscountPercent > 0) {
-                    totalSpan.innerHTML = `₱${currentDiscountedTotal.toFixed(2)}`;
-                    if (discountLine) {
-                        discountLine.style.display = 'flex';
-                        discountLine.innerHTML = `<span>${currentDiscountType} (${currentDiscountPercent * 100}% off)</span><span>−₱${(currentCartTotal - currentDiscountedTotal).toFixed(2)}</span>`;
-                    }
-                } else {
-                    totalSpan.innerHTML = `₱${total.toFixed(2)}`;
-                    if (discountLine) discountLine.style.display = 'none';
-                }
+    // ✅ FINAL TOTAL (IISA LANG)
+    currentDiscountedTotal = afterManualDiscount;
+
+    cartDiv.innerHTML = html;
+    totalSpan.innerHTML = `₱${currentDiscountedTotal.toFixed(2)}`;
+
+    // ✅ I-UPDATE ANG DISCOUNT LINE (para makita ang breakdown)
+    if (discountLine) {
+        if (currentDiscountPercent > 0 || currentVoucher) {
+            discountLine.style.display = 'flex';
+            let discountHtml = '';
+            
+            if (currentDiscountPercent > 0) {
+                discountHtml += `<span>${currentDiscountType} (${currentDiscountPercent * 100}% off)</span><span>−₱${manualDiscountAmount.toFixed(2)}</span>`;
             }
+            if (currentVoucher) {
+                discountHtml += `<br><span class="text-success">Voucher (${currentVoucher.code}): -₱${voucherDiscountAmount.toFixed(2)}</span>`;
+            }
+            discountLine.innerHTML = discountHtml;
+        } else {
+            discountLine.style.display = 'none';
+        }
+    }
+
+    // ✅ I-UPDATE ANG TOTAL SA REVIEW MODAL
+    const reviewTotal = document.getElementById('reviewTotalDisplay');
+    if (reviewTotal) {
+        reviewTotal.innerText = `₱${currentDiscountedTotal.toFixed(2)}`;
+    }
+    
+    // ✅ I-UPDATE ANG CHANGE BASE SA BAGONG TOTAL
+    if (typeof calculateChange === 'function') {
+        calculateChange();
+    }
+}
 
         function updateDiscountBtnHighlight() {
             document.querySelectorAll('.discount-btn-pill').forEach(btn => {
@@ -3244,10 +3286,6 @@ async function confirmOrder() {
     if (window.isEditingMode === true) {
         await updateExistingOrder();
     } else {
-        // Sa loob ng confirmOrder function, bago mag-showReviewModal:
-// I-ensure na naka-save ang voucher data
-window.pendingVoucherCode = currentVoucher ? currentVoucher.code : null;
-window.pendingVoucherDiscount = currentVoucher ? currentVoucher.discountAmount : 0;
         showReviewModal();
     }
 }
@@ -3379,26 +3417,29 @@ async function createNewOrder() {
     
     const sharedOrderNumber = `POS-${Date.now()}`;
     
+       const voucherCodeToSend = currentVoucher ? currentVoucher.code : null;
+    const voucherPercentToSend = currentVoucher ? currentVoucher.discountPercent : 0;
+
     for (const item of cart) {
         const response = await fetch('/Staff/PlaceOrder', {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json', 
-                'RequestVerificationToken': token 
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': token
             },
-                        body: JSON.stringify({
-                            productSizeId: item.productSizeId,
-                            quantity: item.quantity,
-                            orderNumber: sharedOrderNumber,
-                            paymentMethod: paymentMethod,
-                            discountType: currentDiscountType,
-                            discountPercent: currentDiscountPercent,
-                            voucherCode: window.pendingVoucherCode || null,
-                            voucherDiscountPercent: window.pendingVoucherPercent || 0,
-                            addOns: item.addOns ? item.addOns.map(a => ({ addOnId: a.addOnId, quantity: a.quantity })) : []
-                        })
+            body: JSON.stringify({
+                productSizeId: item.productSizeId,
+                quantity: item.quantity,
+                orderNumber: sharedOrderNumber,
+                paymentMethod: paymentMethod,
+                discountType: currentDiscountType,
+                discountPercent: currentDiscountPercent,
+                voucherCode: voucherCodeToSend,
+                voucherDiscountPercent: voucherPercentToSend,
+                addOns: item.addOns ? item.addOns.map(a => ({ addOnId: a.addOnId, quantity: a.quantity })) : []
+            })
         });
-        
+
         const data = await response.json();
         
         if (!data.success) {
@@ -5063,37 +5104,37 @@ function showReviewModal() {
     const reviewDiv = document.getElementById('reviewOrderContent');
     const now = new Date();
     let itemsHtml = '';
-            cart.forEach(item => {
-                    itemsHtml += `
-                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;">
-                        <div>
-                            <strong>${escapeHtml(item.productName)}</strong><br>
-                            <small>${item.sizeName} × ${item.quantity}</small>
-                        </div>
-                        <div>₱${(item.price * item.quantity).toFixed(2)}</div>
-                    </div>`;
-
-                    if (item.addOns && item.addOns.length > 0) {
-                        item.addOns.forEach(a => {
-                            const addOnSubtotal = a.price * a.quantity * item.quantity;
-                            itemsHtml += `
-                            <div style="display: flex; justify-content: space-between; padding: 6px 0 6px 12px; border-bottom: 1px solid #eee; color: #555;">
-                                <div>
-                                    <small>+ ${escapeHtml(a.name)} × ${a.quantity * item.quantity}</small>
-                                </div>
-                                <div><small>₱${addOnSubtotal.toFixed(2)}</small></div>
-                            </div>`;
-                        });
-                    }
-                });
     
-    let discountHtml = '';
-    if (currentDiscountPercent > 0) {
-        const discountSavings = currentCartTotal - currentDiscountedTotal;
-        discountHtml = `
-            <div style="display: flex; justify-content: space-between; padding: 8px 0; color: #dc3545;">
-                <span>Discount (${currentDiscountType} ${currentDiscountPercent * 100}%):</span>
-                <span>-₱${discountSavings.toFixed(2)}</span>
+    cart.forEach(item => {
+        itemsHtml += `
+            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;">
+                <div>
+                    <strong>${escapeHtml(item.productName)}</strong><br>
+                    <small>${item.sizeName} × ${item.quantity}</small>
+                </div>
+                <div>₱${(item.price * item.quantity).toFixed(2)}</div>
+            </div>`;
+    });
+    
+   let discountHtml = '';
+if (currentDiscountPercent > 0) {
+    const manualSavings = currentCartTotal * currentDiscountPercent;
+    discountHtml = `
+        <div style="display: flex; justify-content: space-between; padding: 8px 0; color: #dc3545;">
+            <span>Discount (${currentDiscountType} ${currentDiscountPercent * 100}%):</span>
+            <span>-₱${manualSavings.toFixed(2)}</span>
+        </div>`;
+}
+    
+    // ✅ I-display din ang Voucher discount sa Review Modal
+    let voucherHtml = '';
+    if (currentVoucher) {
+        const afterManual = currentCartTotal * (1 - currentDiscountPercent);
+        const vAmt = afterManual * (currentVoucher.discountPercent / 100);
+        voucherHtml = `
+            <div style="display: flex; justify-content: space-between; padding: 8px 0; color: #28a745;">
+                <span>Voucher (${currentVoucher.code}):</span>
+                <span>-₱${vAmt.toFixed(2)}</span>
             </div>`;
     }
     
@@ -5108,19 +5149,35 @@ function showReviewModal() {
                 <strong>Subtotal:</strong><strong>₱${currentCartTotal.toFixed(2)}</strong>
             </div>
             ${discountHtml}
+            ${voucherHtml}
         </div>`;
         
-    // ✅ I-update ang Total display sa modal
+    // ✅ I-set ang Total
     const reviewTotal = document.getElementById('reviewTotalDisplay');
     if (reviewTotal) {
         reviewTotal.innerText = `₱${currentDiscountedTotal.toFixed(2)}`;
     }
 
-    document.getElementById('reviewOrderModal').style.display = 'flex';
+    // ✅ I-RESET LAHAT NG INPUTS
+    const cashInput = document.getElementById('cashReceivedInput');
+    if (cashInput) cashInput.value = '';
     
-    // ✅ I-reset ang cash input at change display pagbukas ng modal
-    document.getElementById('cashReceivedInput').value = '';
-    document.getElementById('changeDisplay').innerText = '₱0.00';
+    const changeDisplay = document.getElementById('changeDisplay');
+    if (changeDisplay) {
+        changeDisplay.innerText = '₱0.00';
+        changeDisplay.className = 'fw-bold fs-5 text-success';
+    }
+    
+    const voucherInput = document.getElementById('posVoucherInput');
+    if (voucherInput) voucherInput.value = '';
+    
+    const voucherFeedback = document.getElementById('voucherFeedback');
+    if (voucherFeedback) voucherFeedback.innerHTML = '';
+    
+    // ✅ HUWAG I-RESET ANG currentVoucher DITO! (Para hindi mawala kung na-apply na)
+    // currentVoucher = null; // ❌ TANGGALIN ITO
+
+    document.getElementById('reviewOrderModal').style.display = 'flex';
 }
 
         function closeReviewModal() { document.getElementById('reviewOrderModal').style.display = 'none'; }
@@ -8529,58 +8586,107 @@ async function applyVoucherToCart() {
     try {
         const res = await fetch(`/Staff/CheckVoucher?code=${encodeURIComponent(code)}`);
         const data = await res.json();
-        
+
         if (data.success) {
-            currentVoucher = data.voucher; // May kasamang discountPercent ito
+            currentVoucher = data.voucher;
             feedback.innerHTML = `<span class="text-success">✅ Applied: ${data.voucher.discountPercent}% OFF</span>`;
-            updateCartDisplay();
         } else {
             currentVoucher = null;
             feedback.innerHTML = `<span class="text-danger">❌ ${data.message}</span>`;
-            updateCartDisplay();
         }
+
+
+        // Keep cart display in sync too (existing behavior)
+        updateCartDisplay();
     } catch (err) {
         feedback.innerHTML = '<span class="text-danger">Error checking voucher.</span>';
     }
 }
 
-// I-override ang updateCartDisplay para isama ang percent
-const originalUpdateCartDisplay = updateCartDisplay;
-updateCartDisplay = function() {
-    originalUpdateCartDisplay(); 
+function removeVoucher() {
+    window.appliedVoucher = null;
+    document.getElementById('posVoucherInput').value = '';
+    const fb = document.getElementById('voucherFeedback');
+    fb.className = 'small mt-1 text-muted';
+    fb.textContent = '';
+    renderReviewOrderTotals();   // 🔑 re-render
+}
 
-    if (currentVoucher) {
-        // ✅ Percent computation
-        const discountAmount = currentDiscountedTotal * (currentVoucher.discountPercent / 100);
-        currentDiscountedTotal -= discountAmount;
-        if (currentDiscountedTotal < 0) currentDiscountedTotal = 0;
+function renderReviewOrderTotals() {
+    // 1. Recompute subtotal from cart
+    const subtotal = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
 
-        const totalSpan = document.getElementById('cartTotal');
-        if (totalSpan) totalSpan.innerHTML = `₱${currentDiscountedTotal.toFixed(2)}`;
-
-        const discountLine = document.getElementById('discountLine');
-        if (discountLine) {
-            discountLine.style.display = 'flex';
-            discountLine.innerHTML += `<br><span class="text-success">Voucher (${currentVoucher.code}): -₱${discountAmount.toFixed(2)} (${currentVoucher.discountPercent}%)</span>`;
-        }
+    // 2. Apply manual discount (senior/PWD) — existing logic
+    let manualDiscount = 0;
+    if (currentDiscountPercent > 0) {
+        manualDiscount = subtotal * currentDiscountPercent;
     }
-    calculateChange();
-};
 
-            function calculateChange() {
-                const cashInput = document.getElementById('cashReceivedInput');
-                if (!cashInput) return;
+    // 3. Apply voucher discount (the missing piece)
+    let voucherDiscount = 0;
+    let voucherCode = null;
+    if (window.appliedVoucher) {
+        voucherCode = window.appliedVoucher.code;
+        voucherDiscount = window.appliedVoucher.discountAmount || 0;
+    }
 
-                const cash = parseFloat(cashInput.value) || 0;
-                const total = currentDiscountedTotal || 0; // Ito ang total pagkatapos ng discount at voucher
+    const total = Math.max(0, subtotal - manualDiscount - voucherDiscount);
+    currentDiscountedTotal = total;
 
-                const changeEl = document.getElementById('changeDisplay');
-                if (changeEl) {
-                    const change = cash - total;
-                    changeEl.innerText = `₱${change.toFixed(2)}`;
-                    changeEl.className = change >= 0 ? 'fw-bold fs-5 text-success' : 'fw-bold fs-5 text-danger';
-                }
-            }
+    // 4. Update the big total in the review modal
+    const totalEl = document.getElementById('reviewTotalDisplay');
+    if (totalEl) totalEl.textContent = '₱' + total.toFixed(2);
+
+    // 5. Render/inject the voucher deduction line
+    let voucherLine = document.getElementById('reviewVoucherLine');
+    if (!voucherLine) {
+        voucherLine = document.createElement('div');
+        voucherLine.id = 'reviewVoucherLine';
+        voucherLine.style.cssText =
+            'display:flex;justify-content:space-between;font-size:13px;' +
+            'color:#ef4444;font-weight:600;margin-top:8px;padding-top:8px;' +
+            'border-top:1px dashed #e2e8f0;';
+        // insert right above the TOTAL row
+        const totalRow = totalEl.closest('div[style*="border-top: 2px solid"]');
+        if (totalRow) totalRow.parentNode.insertBefore(voucherLine, totalRow);
+    }
+
+    if (voucherDiscount > 0) {
+        voucherLine.style.display = 'flex';
+        voucherLine.innerHTML =
+            `<span>Voucher (${voucherCode}):</span>` +
+            `<span>-₱${voucherDiscount.toFixed(2)}</span>`;
+    } else {
+        voucherLine.style.display = 'none';
+        voucherLine.innerHTML = '';
+    }
+
+    // 6. Recalc change if cash input already has a value
+    if (typeof calculateChange === 'function') calculateChange();
+}
+
+// I-override ang updateCartDisplay para isama ang percent
+
+
+function calculateChange() {
+    const cashInput = document.getElementById('cashReceivedInput');
+    const changeEl = document.getElementById('changeDisplay');
+    if (!cashInput || !changeEl) return;
+
+    // Kung walang inilagay na cash, huwag magpakita ng change
+    if (cashInput.value === '' || cashInput.value === null) {
+        changeEl.innerText = '₱0.00';
+        changeEl.className = 'fw-bold fs-5 text-success';
+        return;
+    }
+
+    const cash = parseFloat(cashInput.value) || 0;
+    const total = currentDiscountedTotal || 0;
+    const change = cash - total;
+
+    changeEl.innerText = `₱${change.toFixed(2)}`;
+    changeEl.className = change >= 0 ? 'fw-bold fs-5 text-success' : 'fw-bold fs-5 text-danger';
+}
 
             // I-reset ang voucher at cash kapag nag-clear ng cart
             const originalClearCart = clearCart;

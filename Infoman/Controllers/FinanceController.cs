@@ -119,7 +119,7 @@ namespace Infoman.Controllers
 
                 // 6. SUMMARY CALCULATIONS
                 var cashInflow = totalSales;
-                var cashOutflow = otherExpenses + withdrawals;
+                var cashOutflow = otherExpenses + purchases;
                 var cashMovement = cashInflow - cashOutflow;
                 var profit = totalSales - cogs - otherExpenses;
 

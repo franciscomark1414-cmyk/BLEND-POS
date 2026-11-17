@@ -1947,7 +1947,7 @@ html.sidebar-collapsed .main-content {
                                 <i class="fas fa-edit"></i> Edit
                             </button>
                             <button class="btn btn-sm btn-outline-danger" onclick="archiveProduct(@product.ProductId)">
-                                <i class="fas fa-archive"></i> Archive
+                                <i class="fas fa-archive"></i> Delete
                             </button>
                         </div>
                     </div>
@@ -6518,10 +6518,10 @@ async function refreshProductSizes(productId) {
 }
 
    async function archiveProduct(productId) {
-    const confirmed = await showConfirm('Are you sure you want to archive this product?', 'Archive Product');
+    const confirmed = await showConfirm('Are you sure you want to delete this product?', 'Delete Product');
     if (!confirmed) return;
     
-    showLoading('Archiving product...');
+    showLoading('Deleting product...');
     
     fetch(`/Owner/ArchiveProduct/${productId}`, {
         method: 'POST',
@@ -6531,10 +6531,10 @@ async function refreshProductSizes(productId) {
     .then(async data => { 
         hideLoading();
         if (data.success) { 
-            await showAlert('Product archived successfully', 'Success');
+            await showAlert('Product Delete successfully', 'Success');
             saveAndReload();
         } else { 
-            await showAlert('Error archiving product', 'Error');
+            await showAlert('Error Deleting product', 'Error');
         } 
     })
     .catch(async error => {
@@ -10019,36 +10019,49 @@ function calculateReceivingRow(rowId) {
     }
 
     const displayUnit = selectedOption.getAttribute('data-unit') || '';
-    const baseUnit = getBaseUnitForRow(rowId);   // g / mL / pcs
+    const baseUnit = getBaseUnitForRow(rowId);
     const received = parseFloat(receivedInput.value) || 0;
     const conv = parseFloat(convInput.value) || 1;
     const totalPrice = parseFloat(totalPriceInput.value) || 0;
 
+    // ✅ BAGONG CHECK: Kung blangko ang Accepted, huwag munang mag-compute ng Rejected
+    if (acceptedInput.value.trim() === '') {
+        rejectedInput.value = '0';
+        convertedOut.value = '0.00';
+        acceptedPriceOut.value = '0.00';
+        unitPriceOut.value = '0.00';
+        if (priceLabel) priceLabel.textContent = `per ${baseUnit}`;
+
+        // Warning sa price kahit blangko ang accepted
+        if (received > 0 && totalPrice <= 0) {
+            totalPriceInput.style.borderColor = 'red';
+            if (priceLabel) priceLabel.textContent = '⚠️ Missing Price';
+        } else {
+            totalPriceInput.style.borderColor = '';
+        }
+
+        toggleReasonDropdown(rowId);
+        return;
+    }
+
     const acceptedQty = Math.min(Math.max(parseFloat(acceptedInput.value) || 0, 0), received);
     const rejectedQty = received - acceptedQty;
 
-    // Converted qty sa receiving unit (kg / g / L / mL / pcs)
     const convertedInDisplayUnit = acceptedQty * conv;
     convertedOut.value = convertedInDisplayUnit.toFixed(2);
 
-    // Accepted price = proporsyon ng total base sa accepted qty
-    // Halimbawa: Total ₱1000, Accepted 5, Received 10 → ₱500
     const safeAcceptedPrice = received > 0 ? totalPrice * (acceptedQty / received) : 0;
     acceptedPriceOut.value = safeAcceptedPrice.toFixed(2);
 
-    // Base quantity ng accepted (g / mL / pcs), para sa formatUnitPrice
-    // Kung kg/L ang receiving unit, i-multiply sa 1000 para maging g/mL
     const toBaseFactor = (displayUnit === 'kg' || displayUnit === 'L') ? 1000 : 1;
     const acceptedBaseQty = convertedInDisplayUnit * toBaseFactor;
 
-    // Display: per g/mL kapag < 1000, per kg/L kapag >= 1000
     const fmt = formatUnitPrice(safeAcceptedPrice, acceptedBaseQty, baseUnit);
     unitPriceOut.value = fmt.value.toFixed(2);
     if (priceLabel) priceLabel.textContent = fmt.label || `per ${baseUnit}`;
 
     rejectedInput.value = rejectedQty.toFixed(2);
 
-    // Warning kung walang price, dapat huli para hindi ma-overwrite ng label
     if (received > 0 && totalPrice <= 0) {
         totalPriceInput.style.borderColor = 'red';
         if (priceLabel) priceLabel.textContent = '⚠️ Missing Price';

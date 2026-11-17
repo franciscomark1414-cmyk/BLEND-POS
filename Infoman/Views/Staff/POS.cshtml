@@ -2002,6 +2002,44 @@
     text-align: right;
 }
 
+/* Receipt modal: fit sa screen, sa receipt body lang mag-scroll */
+#receiptModal .modal-qty-content {
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Ang mismong resibo ang mag-sa-scroll */
+#receiptModal #receiptContent {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* Laging nakikita ang action buttons at close */
+#receiptModal .receipt-action-area,
+#receiptModal .modal-qty-content > div:last-child {
+    flex-shrink: 0;
+}
+
+@@media print {
+    body * { visibility: hidden; }
+    #printArea, #printArea * { visibility: visible; }
+    #printArea {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 72mm;          /* 80mm thermal: 72mm ang printable width */
+        padding: 4mm;
+        font-family: monospace;
+        font-size: 12px;
+        color: #000;
+        background: #fff;
+    }
+    .no-print { display: none !important; }
+}
+
     </style>
 </head>
 <body>
@@ -2248,24 +2286,19 @@
     <!-- Receipt Modal -->
     <div id="receiptModal" class="modal-qty" style="display: none;">
         <div class="modal-qty-content" style="width: 400px; max-width: 90%;">
-            <div style="text-align: center; margin-bottom: 4px;">
-                <h3 style="margin: 4px 0; font-size: 17px;">Neldie's Mango & More</h3>
-                <small>Official Receipt</small>
-                <hr>
-            </div>
 
             <div id="receiptContent">
                 <!-- Dynamic receipt content injected here -->
             </div>
 
-            <hr>
-            <div style="text-align: center;">
-                <small style="color: var(--ink-400);">Thank you for your purchase!</small>
-            </div>
 
             <div class="receipt-action-area" id="receiptActionArea">
                 <button id="gcashPayBtnInside" class="btn-start-blending" style="background: #007bff; display: none;" onclick="payWithGCashFromReceipt(window.currentOrderId)">
-                    💳 Pay with GCash
+                     Pay with GCash
+                </button>
+
+                <button class="no-print btn-start-blending" style="background:#334155;" onclick="printReceipt()">
+                      Print Receipt
                 </button>
 
                 <button id="startBlendingBtn" class="btn-start-blending" style="display: none;" onclick="startBlending(window.currentOrderId)">
@@ -2799,6 +2832,8 @@
         </div>
     </div>
 
+    <div id="printArea" style="display:none;"></div>
+
     <input type="hidden" id="showReceiptFlag" value="@(ViewBag.ShowReceipt == true ? "True" : "False")" />
     <input type="hidden" id="pendingOrderId" value="@ViewBag.PendingOrderId" />
 
@@ -3223,20 +3258,32 @@ document.getElementById('voucherFeedback').innerHTML = '';
             } else {
                 displayDiv.innerHTML = '';
             }
+            syncVoucherInputState();
         }
 
-        function selectDiscount(type, percent) {
-            if (currentDiscountType === type && currentDiscountPercent === percent) {
-                currentDiscountType = 'None';
-                currentDiscountPercent = 0;
-            } else {
-                currentDiscountType = type;
-                currentDiscountPercent = percent;
-            }
-            currentDiscountedTotal = currentCartTotal * (1 - currentDiscountPercent);
-            updateCartDisplay();
-            updateDiscountBtnHighlight();
-        }
+       function selectDiscount(type, percent) {
+    const isDeselect = currentDiscountType === type && currentDiscountPercent === percent;
+
+    // Kung may voucher na at pumili ng Senior/PWD, tanggalin ang voucher (discount ang priority)
+    if (!isDeselect && currentVoucher) {
+        currentVoucher = null;
+        const voucherInput = document.getElementById('posVoucherInput');
+        if (voucherInput) voucherInput.value = '';
+                    showAlert('Voucher removed because it cannot be combined with Senior/PWD discount.', 'Notice', '⚠️');
+    }
+
+    if (isDeselect) {
+        currentDiscountType = 'None';
+        currentDiscountPercent = 0;
+    } else {
+        currentDiscountType = type;
+        currentDiscountPercent = percent;
+    }
+
+    currentDiscountedTotal = currentCartTotal * (1 - currentDiscountPercent);
+    updateCartDisplay();
+    updateDiscountBtnHighlight();
+}
 
         async function updateCartItemQty(index, newQty) {
     if (newQty <= 0) { removeFromCart(index); return; }
@@ -3649,6 +3696,7 @@ if (cashInput && cashInput.value) {
         <hr>
         <div style="text-align: center; font-size: 12px; color: #aaa;">Thank you for your purchase!</div>
     `;
+    document.getElementById('printArea').innerHTML = receiptDiv.innerHTML;
 
     // ✅ I-manage ang button visibility
     const actionArea = document.getElementById('receiptActionArea');
@@ -5174,8 +5222,7 @@ if (currentDiscountPercent > 0) {
     const voucherFeedback = document.getElementById('voucherFeedback');
     if (voucherFeedback) voucherFeedback.innerHTML = '';
     
-    // ✅ HUWAG I-RESET ANG currentVoucher DITO! (Para hindi mawala kung na-apply na)
-    // currentVoucher = null; // ❌ TANGGALIN ITO
+    syncVoucherInputState(); 
 
     document.getElementById('reviewOrderModal').style.display = 'flex';
 }
@@ -8581,6 +8628,10 @@ function updateAddOnQty(checkbox) {
 async function applyVoucherToCart() {
     const code = document.getElementById('posVoucherInput').value.trim();
     const feedback = document.getElementById('voucherFeedback');
+     if (isManualDiscountActive()) {
+        feedback.innerHTML = `<span class="text-danger">❌ Voucher cannot be combined with ${currentDiscountType} discount.</span>`;
+        return;
+    }
     if (!code) { feedback.innerHTML = '<span class="text-danger">Please enter a code.</span>'; return; }
 
     try {
@@ -8698,6 +8749,36 @@ function calculateChange() {
                 document.getElementById('cashReceivedInput').value = '';
                 document.getElementById('changeDisplay').innerText = '₱0.00';
             };
+
+
+    function isManualDiscountActive() {
+    return currentDiscountPercent > 0;
+}
+
+            function printReceipt() {
+                const area = document.getElementById('printArea');
+                area.style.display = 'block';
+                window.print();
+                area.style.display = 'none';
+            }
+// I-lock/unlock ang voucher input depende kung may Senior/PWD discount
+function syncVoucherInputState() {
+    const input = document.getElementById('posVoucherInput');
+    const applyBtn = document.querySelector('#posVoucherInput + button');
+    const feedback = document.getElementById('voucherFeedback');
+    const locked = isManualDiscountActive();
+
+    if (input) input.disabled = locked;
+    if (applyBtn) applyBtn.disabled = locked;
+
+    if (feedback) {
+        if (locked) {
+            feedback.innerHTML = `<span class="text-warning">⚠️ Voucher cannot be combined with ${currentDiscountType} discount.</span>`;
+        } else if (!currentVoucher) {
+            feedback.innerHTML = '';
+        }
+    }
+}
 
            // ============================================================
 // GLOBAL FETCH INTERCEPTOR + WATCHDOG

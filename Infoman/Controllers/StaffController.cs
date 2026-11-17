@@ -235,6 +235,11 @@ namespace Infoman.Controllers
                     order = await _db.Orders
                         .FirstOrDefaultAsync(o => o.OrderNumber == request.OrderNumber);
                 }
+                // ✅ BAWAL ISABAY ANG VOUCHER SA SENIOR/PWD (MANUAL) DISCOUNT
+                if (!string.IsNullOrEmpty(request.VoucherCode) && request.DiscountPercent > 0)
+                {
+                    return Json(new { success = false, message = "Vouchers cannot be combined with Senior Citizen / PWD discounts." });
+                }
 
                 // ✅ VALIDATE VOUCHER BAGO MAG-SAVE NG ITEM
                 Voucher voucherToApply = null;

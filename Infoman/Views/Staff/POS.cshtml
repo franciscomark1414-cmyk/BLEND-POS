@@ -54,7 +54,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Neldie's Mango & More - POS</title>
+    <title>Andeng's Mango & More - POS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2040,6 +2040,82 @@
     .no-print { display: none !important; }
 }
 
+#printOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.7);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100001;
+    gap: 12px;
+}
+.printer-body {
+    width: 320px;
+    background: #1e293b;
+    border-radius: 14px 14px 6px 6px;
+    padding: 14px 0 10px;
+    text-align: center;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+}
+.printer-slot {
+    width: 260px;
+    height: 10px;
+    margin: 0 auto;
+    background: #020617;
+    border-radius: 4px;
+}
+.printer-label {
+    color: #cbd5e1;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    margin-top: 8px;
+}
+.paper-window {
+    width: 300px;
+    height: 60vh;
+    overflow: hidden;
+    position: relative;
+    margin: 0 auto;
+}
+.receipt-paper {
+    width: 280px;
+    margin: 0 auto;
+    background: #fff;
+    color: #111;
+    padding: 16px 14px 22px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    border-bottom: 2px dashed #94a3b8;
+    animation: paperOut 1.8s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+    transform: translateY(-101%);
+}
+@@keyframes paperOut {
+    from { transform: translateY(-101%); }
+    to   { transform: translateY(0); }
+}
+#printOverlay .print-status {
+    color: #86efac;
+    font-size: 13px;
+    font-weight: 700;
+    opacity: 0;
+    animation: fadeIn 0.4s ease 1.8s forwards;
+}
+#printOverlay .print-close {
+    margin-top: 6px;
+    padding: 10px 26px;
+    border: none;
+    border-radius: 10px;
+    background: #ff6b35;
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+    opacity: 0;
+    animation: fadeIn 0.4s ease 1.8s forwards;
+}
     </style>
 </head>
 <body>
@@ -2079,7 +2155,7 @@
             <!-- LEFT: Categories -->
             <div class="pos-categories">
                 <div class="store-info">
-                    <h3><i class="fas fa-mug-hot" style="margin-right: 6px; opacity: 0.9;"></i>Neldie's Mango & More</h3>
+                    <h3><i class="fas fa-mug-hot" style="margin-right: 6px; opacity: 0.9;"></i>Andeng's Mango & More</h3>
                     <p>Point of Sale System</p>
                 </div>
                 <div class="category-list">
@@ -3516,42 +3592,63 @@ async function createNewOrder() {
 }
     }
 
-    if (allSuccessful && orderDetails.length > 0) {
-    // ✅ SAFETY CHECK: Siguraduhing may value ang total
-    let finalTotalToPay = currentDiscountedTotal;
-    if (typeof finalTotalToPay === 'undefined' || isNaN(finalTotalToPay) || finalTotalToPay < 0) {
-        finalTotalToPay = currentCartTotal; // Fallback sa original total kung may error
-    }
+                if (allSuccessful && orderDetails.length > 0) {
+                    // ✅ SAFETY CHECK
+                    let finalTotalToPay = currentDiscountedTotal;
+                    if (typeof finalTotalToPay === 'undefined' || isNaN(finalTotalToPay) || finalTotalToPay < 0) {
+                        finalTotalToPay = currentCartTotal;
+                    }
 
-    const discountSavings = currentCartTotal - finalTotalToPay;
-    
-    showReceiptModal(
-        orderDetails, 
-        paymentMethod, 
-        currentDiscountType, 
-        currentDiscountPercent, 
-        discountSavings, 
-        finalTotalToPay,  // ✅ Gamitin ang safe value
-        lastOrderId, 
-        'PENDING_BLENDING'
-    );
-        
-        window.lastClosedOrderId = lastOrderId;
-        
-        cart = [];
-        currentDiscountType = 'None';
-        currentDiscountPercent = 0;
-        window.pendingPaymentMethod = null;
-        window.isEditingMode = false;
-        
-        document.querySelectorAll('.payment-btn').forEach(b => b.classList.remove('active'));
-        updateCartDisplay();
-        updateDiscountBtnHighlight();
-        await loadOrderQueue();
-        
-    } else if (!allSuccessful) {
-        await showAlert('❌ Order failed. Please try again.', 'Order Failed', '❌');
-    }
+                    const discountSavings = currentCartTotal - finalTotalToPay;
+
+                    // ✅ 1. I-SET MUNA ang voucher at cash
+                    window.receiptVoucher = null;
+                    if (currentVoucher && currentDiscountPercent === 0) {
+                        const vAmount = currentCartTotal * (currentVoucher.discountPercent / 100);
+                        window.receiptVoucher = {
+                            code: currentVoucher.code,
+                            percent: currentVoucher.discountPercent,
+                            amount: vAmount
+                        };
+                    }
+
+                    const cashEl = document.getElementById('cashReceivedInput');
+                    window.receiptCash = {
+                        received: cashEl && cashEl.value ? parseFloat(cashEl.value) : 0
+                    };
+
+                    // ✅ 2. SAKA I-SHOW ANG RESIBO
+                    showReceiptModal(
+                        orderDetails,
+                        paymentMethod,
+                        currentDiscountType,
+                        currentDiscountPercent,
+                        discountSavings,
+                        finalTotalToPay,
+                        lastOrderId,
+                        'PENDING_BLENDING'
+                    );
+
+                    window.lastClosedOrderId = lastOrderId;
+
+                    // ✅ 3. LINISIN pagkatapos ng resibo
+                    window.receiptVoucher = null;
+                    window.receiptCash = null;
+
+                    cart = [];
+                    currentDiscountType = 'None';
+                    currentDiscountPercent = 0;
+                    window.pendingPaymentMethod = null;
+                    window.isEditingMode = false;
+
+                    document.querySelectorAll('.payment-btn').forEach(b => b.classList.remove('active'));
+                    updateCartDisplay();
+                    updateDiscountBtnHighlight();
+                    await loadOrderQueue();
+
+                } else if (!allSuccessful) {
+                    await showAlert('❌ Order failed. Please try again.', 'Order Failed', '❌');
+                }
 }
 
 
@@ -3635,18 +3732,18 @@ if (window.isExchangeReplacement && window.exchangeOriginalOrderId) {
         statusText = '⚠️ PENDING PAYMENT';
     }
 
-    // Idagdag sa receipt HTML (pagkatapos ng discountHtml)
 let voucherHtml = '';
-if (window.pendingVoucherCode) {
-    voucherHtml = `<div class="receipt-discount" style="color:#28a745;">
-        <span>Voucher (${window.pendingVoucherCode})</span>
-        <span>-₱${window.pendingVoucherDiscount.toFixed(2)}</span>
-    </div>`;
+if (window.receiptVoucher) {
+    voucherHtml = `
+        <div class="receipt-discount" style="color:#28a745;">
+            <span>Voucher (${escapeHtml(window.receiptVoucher.code)}, ${window.receiptVoucher.percent}% OFF)</span>
+            <span>-₱${window.receiptVoucher.amount.toFixed(2)}</span>
+        </div>`;
 }
+
 let cashReceivedHtml = '';
-const cashInput = document.getElementById('cashReceivedInput');
-if (cashInput && cashInput.value) {
-    const cash = parseFloat(cashInput.value);
+if (window.receiptCash && window.receiptCash.received > 0) {
+    const cash = window.receiptCash.received;
     const change = cash - total;
     cashReceivedHtml = `
         <div class="receipt-subtotal" style="margin-top:8px; border-top:1px dashed #ccc; padding-top:8px;">
@@ -3656,13 +3753,12 @@ if (cashInput && cashInput.value) {
         <div class="receipt-subtotal" style="font-weight:bold; color:#28a745;">
             <span>Change:</span>
             <span>₱${change.toFixed(2)}</span>
-        </div>
-    `;
+        </div>`;
 }
 
     receiptDiv.innerHTML = `
         <div style="text-align:center; margin-bottom: 12px;">
-            <div style="font-weight:600; font-size: 16px;">Neldie's Mango & More</div>
+            <div style="font-weight:600; font-size: 16px;">Andeng's Mango & More</div>
             <div style="font-size: 12px; color: #888;">${now.toLocaleDateString()} ${now.toLocaleTimeString()}</div>
             <div style="font-size: 13px; font-weight: bold; margin-top: 5px;">Receipt #: ${orderId || 'N/A'}</div>
             <div style="font-size: 12px; color: #17a2b8;">Order #: ${shortOrderId}</div>
@@ -3681,11 +3777,13 @@ if (cashInput && cashInput.value) {
             <span>Subtotal</span>
             <span>₱${computedSubtotal.toFixed(2)}</span>
         </div>
-        ${discountHtml}
+                ${discountHtml}
+        ${voucherHtml}
         <div class="receipt-total" style="margin-top: 8px; padding-top: 8px; border-top: 2px solid #333;">
             <span><strong>TOTAL AMOUNT</strong></span>
             <span><strong>₱${total.toFixed(2)}</strong></span>
         </div>
+        ${cashReceivedHtml}
         
         <div style="margin-top: 12px; padding: 10px; background: #f9f9f9; border-radius: 8px;">
             <div>Payment: <strong>${paymentMethod}</strong></div>
@@ -4898,7 +4996,7 @@ async function showUpdatedReceiptAfterVoidWithDifference(
         const receiptDiv = document.getElementById('receiptContent');
         receiptDiv.innerHTML = `
             <div style="text-align:center; margin-bottom: 12px;">
-                <div style="font-weight:600; font-size: 16px;">Neldie's Mango & More</div>
+                <div style="font-weight:600; font-size: 16px;">Andeng's Mango & More</div>
                 <div style="font-size: 12px; color: #888;">${now.toLocaleDateString()} ${now.toLocaleTimeString()}</div>
                 <div style="font-size: 13px; font-weight: bold; margin-top: 5px;">Receipt #: ${order.orderId}</div>
                 <div style="font-size: 12px; color: #17a2b8;">Order #: ${order.orderNumber || order.orderId}</div>
@@ -5950,7 +6048,7 @@ async function showUpdatedReceiptAfterVoid(orderId, refundAmount, newTotal, isPa
         const receiptDiv = document.getElementById('receiptContent');
         receiptDiv.innerHTML = `
             <div style="text-align:center; margin-bottom: 12px;">
-                <div style="font-weight:600; font-size: 16px;">Neldie's Mango & More</div>
+                <div style="font-weight:600; font-size: 16px;">Andeng's Mango & More</div>
                 <div style="font-size: 12px; color: #888;">${now.toLocaleDateString()} ${now.toLocaleTimeString()}</div>
                 <div style="font-size: 13px; font-weight: bold; margin-top: 5px;">Receipt #: ${order.orderId}</div>
                 <div style="font-size: 12px; color: #17a2b8;">Order #: ${order.orderNumber || order.orderId}</div>
@@ -7539,7 +7637,7 @@ function showExchangeReceiptModal(exchangeData, message) {
         <div id="exchangeReceiptModal" class="modal-qty" style="display: flex; z-index: 10050;">
             <div class="modal-qty-content" style="width: 450px; max-width: 90%;">
                 <div style="text-align: center; margin-bottom: 20px;">
-                    <h3 style="margin: 5px 0;">Neldie's Mango & More</h3>
+                    <h3 style="margin: 5px 0;">Andeng's Mango & More</h3>
                     <small style="color: #666;">Exchange Receipt</small>
                     <hr style="margin: 10px 0;">
                 </div>
@@ -8755,12 +8853,28 @@ function calculateChange() {
     return currentDiscountPercent > 0;
 }
 
-            function printReceipt() {
-                const area = document.getElementById('printArea');
-                area.style.display = 'block';
-                window.print();
-                area.style.display = 'none';
-            }
+   function printReceipt() {
+    const receiptHtml = document.getElementById('receiptContent').innerHTML;
+
+    const existing = document.getElementById('printOverlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'printOverlay';
+    overlay.innerHTML = `
+        <div class="printer-body">
+            <div class="printer-slot"></div>
+            <div class="printer-label">PRINTING...</div>
+        </div>
+        <div class="paper-window">
+            <div class="receipt-paper">${receiptHtml}</div>
+        </div>
+        <div class="print-status">✅ Receipt printed</div>
+        <button class="print-close" onclick="document.getElementById('printOverlay').remove()">Close</button>
+    `;
+    document.body.appendChild(overlay);
+}
+
 // I-lock/unlock ang voucher input depende kung may Senior/PWD discount
 function syncVoucherInputState() {
     const input = document.getElementById('posVoucherInput');

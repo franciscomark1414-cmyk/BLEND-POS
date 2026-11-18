@@ -1474,6 +1474,7 @@ html.sidebar-collapsed .main-content {
     padding: 4px 8px;
 }
 
+
 /* ========== PRINT STYLES ========== */
 @@media print {
     /* Itago lahat ng elements */
@@ -2674,9 +2675,16 @@ html.sidebar-collapsed .main-content {
             </div>
             <div id="receiptsTab" class="tab-pane fade">
                 <div class="card shadow-sm">
-                    <div class="card-header bg-white">
-                        <h5 class="mb-0"><i class="fas fa-receipt text-primary me-2"></i> Receipt History</h5>
-                    </div>
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <h5 class="mb-0"><i class="fas fa-receipt text-primary me-2"></i> Receipt History</h5>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+        <input type="date" id="receiptFilterDate" class="form-control form-control-sm" style="width: 160px;" onchange="loadReceiptHistory()">
+        <button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('receiptFilterDate').value=''; loadReceiptHistory();">Show All</button>
+        <button class="btn btn-sm btn-dark" onclick="printAllReceipts()">
+            <i class="fas fa-print me-1"></i> Print All
+        </button>
+    </div>
+</div>
                     <div class="card-body">
                         <div class="table-responsive">
                             <table class="table table-bordered table-hover">
@@ -2749,26 +2757,22 @@ html.sidebar-collapsed .main-content {
 
     
        <div id="receiptModalForReports" class="modal-qty" style="display: none; z-index: 100000;">
-            <div class="modal-qty-content" style="width: 380px; max-width: 90%;">
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <h3 style="margin: 5px 0;">Andeng's Mango & More</h3>
-                    <small style="color: #666;">Official Receipt</small>
-                    <hr style="margin: 10px 0;">
-                </div>
+           <div class="modal-qty-content" style="width: 380px; max-width: 90%;">
+    <div style="text-align: center; margin-bottom: 20px;">
+        <h3 style="margin: 5px 0;">Andeng's Mango & More</h3>
+        <small style="color: #666;">Official Receipt</small>
+        <hr style="margin: 10px 0;">
+    </div>
 
-                <div id="receiptContentForReports" style="margin-bottom: 20px;">
-                   
-                </div>
+    <div id="receiptContentForReports" style="margin-bottom: 20px;">
+    </div>
 
-                <hr style="margin: 10px 0;">
-                <div style="text-align: center;">
-                    <small style="color: #999;">Thank you for your purchase!</small>
-                    <br>
-                    <button onclick="closeReceiptModalForReports()" style="margin-top: 15px; padding: 8px 30px; background: #ff6b35; color: white; border: none; border-radius: 8px; cursor: pointer;">
-                        Close
-                    </button>
-                </div>
-            </div>
+    <div style="text-align: center;">
+        <button onclick="closeReceiptModalForReports()" style="margin-top: 15px; padding: 8px 30px; background: #ff6b35; color: white; border: none; border-radius: 8px; cursor: pointer;">
+            Close
+        </button>
+    </div>
+</div>
 
         </div>
 
@@ -8026,50 +8030,40 @@ async function displayInPOS(productSizeId, productName, sizeName) {
         });
 }
 
-   function displayReceiptHistory(receipts) {
-    const tbody = document.getElementById('receiptHistoryBody');
+   let currentReceiptList = [];
 
-    if (!receipts || receipts.length === 0) {
+function displayReceiptHistory(receipts) {
+    const tbody = document.getElementById('receiptHistoryBody');
+    currentReceiptList = receipts || [];
+
+    if (currentReceiptList.length === 0) {
         tbody.innerHTML = `
             <tr>
                 <td colspan="10" class="text-center text-muted">
-                    📋 No receipts found yet.<br>
+                    📋 No receipts found.<br>
                     <small>Make a sale in POS to generate receipts.</small>
-                 </td>
-            </tr>
-        `;
+                </td>
+            </tr>`;
         return;
     }
 
-    let html = '';
-    receipts.forEach(receipt => {
-        // ✅ Determine status badge based on returnStatus
-        let statusBadge = '';
-        let isExchanged = false;
-        
+    tbody.innerHTML = currentReceiptList.map(receipt => {
+        let statusBadge = '<span class="badge bg-success">✅ ACTIVE</span>';
+        let exchangeIndicator = '';
+
         if (receipt.returnStatus === 'EXCHANGED') {
             statusBadge = '<span class="badge bg-warning text-dark">🔄 EXCHANGED</span>';
-            isExchanged = true;
+            if (receipt.originalOrderId) {
+                exchangeIndicator = `<small class="text-muted">(replaces #${receipt.originalOrderId})</small>`;
+            }
         } else if (receipt.returnStatus === 'RETURNED') {
             statusBadge = '<span class="badge bg-danger">↩️ RETURNED</span>';
         } else if (receipt.returnStatus === 'REFUNDED') {
             statusBadge = '<span class="badge bg-info">💰 REFUNDED</span>';
-        } else {
-            statusBadge = '<span class="badge bg-success">✅ ACTIVE</span>';
-        }
-        
-        // ✅ Get order number (use OrderId, not receipt number)
-        const orderDisplay = receipt.orderId ? `#${receipt.orderId}` : '#N/A';
-        
-        // ✅ Add exchange indicator if applicable
-        let exchangeIndicator = '';
-        if (isExchanged && receipt.originalOrderId) {
-            exchangeIndicator = `<small class="text-muted">(replaces #${receipt.originalOrderId})</small>`;
         } else if (receipt.originalOrderId) {
             exchangeIndicator = `<small class="text-muted">(exchange replacement)</small>`;
         }
-        
-        // ✅ Format discount display
+
         let discountDisplay = 'None';
         if (receipt.discountPercent > 0) {
             discountDisplay = `${receipt.discountType} (${receipt.discountPercent * 100}%)<br>-₱${receipt.discountAmount.toFixed(2)}`;
@@ -8077,11 +8071,11 @@ async function displayInPOS(productSizeId, productName, sizeName) {
         if (receipt.voucherCode) {
             discountDisplay += `<br><span class="text-success">Voucher (${escapeHtml(receipt.voucherCode)}) -₱${(receipt.voucherDiscountAmount || 0).toFixed(2)}</span>`;
         }
-        
-        html += `
+
+        return `
             <tr>
                 <td><code>${escapeHtml(receipt.receiptNumber)}</code></td>
-                <td class="fw-bold">${orderDisplay}<br>${exchangeIndicator}</td>
+                <td class="fw-bold">#${receipt.orderId}<br>${exchangeIndicator}</td>
                 <td>${receipt.date}</td>
                 <td>${receipt.itemCount} item(s)</td>
                 <td>₱${receipt.subtotal.toFixed(2)}</td>
@@ -8090,17 +8084,169 @@ async function displayInPOS(productSizeId, productName, sizeName) {
                 <td><span class="badge bg-success">${escapeHtml(receipt.paymentMethod)}</span></td>
                 <td>${statusBadge}</td>
                 <td>
-                    <button class="btn btn-sm btn-info" onclick="viewReceiptDetail(${receipt.orderId})">
-                        <i class="fas fa-eye"></i> View
-                    </button>
-                    <button class="btn btn-sm btn-secondary" onclick="printReceipt(${receipt.orderId})">
-                        <i class="fas fa-print"></i>
-                    </button>
-                 </td>
-            </tr>
-        `;
-    });
-    tbody.innerHTML = html;
+                    <div class="d-flex flex-column gap-1" style="width: 80px;">
+                        <button class="btn btn-sm btn-info w-100" onclick="viewReceiptDetail(${receipt.orderId})">View</button>
+                        <button class="btn btn-sm btn-secondary w-100" onclick="printReceipt(${receipt.orderId})">Print</button>
+                    </div>
+                </td>
+            </tr>`;
+    }).join('');
+}
+
+// ========== RECEIPT PRINTING ==========
+
+function buildReceiptPrintHtml(r) {
+    const d = new Date(r.date);
+    const dateStr = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    const timeStr = d.toLocaleTimeString('en-US');
+
+    const itemsHtml = (r.items || []).map(i => `
+        <div class="row">
+            <div>
+                <b>${escapeHtml(i.name)}</b><br>
+                <small>${escapeHtml(i.size)} x ${i.quantity}</small>
+            </div>
+            <div>₱${Number(i.subtotal).toFixed(2)}</div>
+        </div>`).join('');
+
+    let discountHtml = '';
+    if (r.discountPercent > 0) {
+        discountHtml += `
+            <div class="row">
+                <span>${escapeHtml(r.discountType)} (${r.discountPercent * 100}% OFF)</span>
+                <span>-₱${Number(r.discountAmount).toFixed(2)}</span>
+            </div>`;
+    }
+    if (r.voucherCode) {
+        discountHtml += `
+            <div class="row">
+                <span>Voucher (${escapeHtml(r.voucherCode)})</span>
+                <span>-₱${Number(r.voucherDiscountAmount || 0).toFixed(2)}</span>
+            </div>`;
+    }
+
+    return `
+        <div class="receipt">
+            ${r.isVoided ? '<div class="void">⚠ VOIDED ORDER ⚠</div>' : ''}
+            <div class="center">
+                <div style="font-size:16px;font-weight:bold;">Andeng's Mango &amp; More</div>
+                <div>Official Receipt</div>
+                <div class="line"></div>
+                <div>${dateStr}</div>
+                <div>${timeStr}</div>
+                <div>Receipt #: ${escapeHtml(r.receiptNumber)}</div>
+                <div><b>Order #: ${r.orderId}</b></div>
+            </div>
+            <div class="line"></div>
+            <div class="center"><b>Order Summary</b></div>
+            ${itemsHtml}
+            <div class="line"></div>
+            <div class="row"><span>Subtotal</span><span>₱${Number(r.subtotal).toFixed(2)}</span></div>
+            ${discountHtml}
+            <div class="row total"><span>TOTAL</span><span>₱${Number(r.total).toFixed(2)}</span></div>
+            <div class="line"></div>
+            <div class="center">
+                <div>Payment: <b>${escapeHtml(r.paymentMethod)}</b></div>
+                <div style="margin-top:6px;">Thank you for your purchase!</div>
+            </div>
+        </div>`;
+}
+
+function printHtmlDocument(bodyHtml) {
+    let frame = document.getElementById('receiptPrintFrame');
+    if (!frame) {
+        frame = document.createElement('iframe');
+        frame.id = 'receiptPrintFrame';
+        frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+        document.body.appendChild(frame);
+    }
+
+    const doc = frame.contentWindow.document;
+    doc.open();
+    doc.write(`<!DOCTYPE html>
+<html>
+<head>
+        <meta charset="utf-8">
+        <title>Receipt</title>
+        <style>
+            @@page { size: 80mm auto; margin: 4mm; }
+            body {
+                font-family: 'Courier New', monospace;
+                font-size: 12px;
+                color: #000;
+                width: 72mm;
+                margin: 0 auto;
+            }
+            .center { text-align: center; }
+            .row { display: flex; justify-content: space-between; gap: 8px; margin: 4px 0; }
+            .line { border-top: 1px dashed #000; margin: 6px 0; }
+            .total { font-weight: bold; font-size: 14px; border-top: 2px solid #000; padding-top: 4px; }
+            .void { background: #000; color: #fff; text-align: center; padding: 3px; font-weight: bold; margin-bottom: 6px; }
+            .receipt { page-break-after: always; }
+            .receipt:last-child { page-break-after: auto; }
+        </style>
+   </head>
+<body>${bodyHtml}<\/body>
+<\/html>`);
+    doc.close();
+
+    // Hintayin na ma-render bago mag-print
+    setTimeout(() => {
+        frame.contentWindow.focus();
+        frame.contentWindow.print();
+    }, 300);
+}
+
+async function printReceipt(orderId) {
+    try {
+        const res = await fetch(`/Owner/GetReceiptDetail?orderId=${orderId}`);
+        const data = await res.json();
+
+        if (!data.success || !data.receipt) {
+            await showAlert('Unable to load receipt for printing.', 'Error', '❌');
+            return;
+        }
+
+        printHtmlDocument(buildReceiptPrintHtml(data.receipt));
+    } catch (error) {
+        console.error('Print error:', error);
+        await showAlert('Error printing receipt: ' + error.message, 'Error', '❌');
+    }
+}
+
+async function printAllReceipts() {
+    if (!currentReceiptList || currentReceiptList.length === 0) {
+        await showAlert('No receipts to print.', 'Notice', 'ℹ️');
+        return;
+    }
+
+    showLoading(`Preparing ${currentReceiptList.length} receipt(s)...`);
+
+    try {
+        const results = await Promise.all(
+            currentReceiptList.map(r =>
+                fetch(`/Owner/GetReceiptDetail?orderId=${r.orderId}`).then(res => res.json())
+            )
+        );
+
+        const html = results
+            .filter(d => d.success && d.receipt)
+            .map(d => buildReceiptPrintHtml(d.receipt))
+            .join('');
+
+        hideLoading();
+
+        if (!html) {
+            await showAlert('No printable receipts found.', 'Notice', 'ℹ️');
+            return;
+        }
+
+        printHtmlDocument(html);
+    } catch (error) {
+        hideLoading();
+        console.error('Print all error:', error);
+        await showAlert('Error preparing receipts: ' + error.message, 'Error', '❌');
+    }
 }
 
 function viewReceiptDetail(orderId) {
@@ -12988,16 +13134,15 @@ function renderShiftReport(data) {
     const variance = data.cashVariance || 0;
     const gcashVar = data.gcashVariance || 0;
     const hasGcash = (data.gcashExpected || 0) > 0 || s.gcashCounted != null;
-    const hasDenoms = data.denominations && data.denominations.length > 0;
 
-    const denomRows = hasDenoms
+    const denomRows = (data.denominations && data.denominations.length)
         ? data.denominations.map(d => `
             <tr>
                 <td>${shiftPeso(d.denomination)}</td>
                 <td class="num">× ${d.quantity}</td>
                 <td class="num">${shiftPeso(d.subtotal)}</td>
             </tr>`).join('')
-        : `<tr><td colspan="3" class="sr-empty">No denomination breakdown recorded for this shift.</td></tr>`;
+        : `<tr><td colspan="3" class="sr-empty">No denomination breakdown recorded.</td></tr>`;
 
     const expenseRows = (data.expenses && data.expenses.length)
         ? data.expenses.map(e => `
@@ -13018,8 +13163,6 @@ function renderShiftReport(data) {
             <span class="num ${varianceTextClass(gcashVar)}">${s.gcashCounted == null ? '—' : shiftSigned(gcashVar)}</span></div>`
         : `<div class="sr-empty">No GCash transactions in this shift.</div>`;
 
-    const statusText = (s.status || '').replace('_', ' ');
-
     const html = `
     <div class="sr-overlay" id="shiftDetailsModal">
         <div class="sr-card">
@@ -13037,37 +13180,26 @@ function renderShiftReport(data) {
                     <div><span>Closed by</span><strong>${escapeHtml(s.closedByName || '—')}</strong></div>
                     <div><span>Time in</span><strong>${shiftDate(s.startTime)}</strong></div>
                     <div><span>Time out</span><strong>${shiftDate(s.endTime)}</strong></div>
-                    <div><span>Status</span><strong>${escapeHtml(statusText)}</strong></div>
+                    <div><span>Status</span><strong>${escapeHtml((s.status || '').replace('_', ' '))}</strong></div>
                 </div>
 
                 <div class="sr-section">
                     <h4>Physical Cash Count</h4>
                     <table class="sr-table">
-                        <thead>
-                            <tr><th>Denomination</th><th class="num">Qty</th><th class="num">Subtotal</th></tr>
-                        </thead>
+                        <thead><tr><th>Denomination</th><th class="num">Qty</th><th class="num">Subtotal</th></tr></thead>
                         <tbody>${denomRows}</tbody>
-                        <tfoot>
-                            <tr><td colspan="2">Total physical cash</td>
-                                <td class="num">${shiftPeso(physical)}</td></tr>
-                        </tfoot>
+                        <tfoot><tr><td colspan="2">Total physical cash</td><td class="num">${shiftPeso(physical)}</td></tr></tfoot>
                     </table>
                 </div>
 
                 <div class="sr-section">
                     <h4>Cash Reconciliation</h4>
-                    <div class="sr-row"><span>Opening float</span>
-                        <span class="num">${shiftPeso(data.openingFloat)}</span></div>
-                    <div class="sr-row"><span>Cash sales</span>
-                        <span class="num sr-ok-text">+${shiftPeso(data.cashSales)}</span></div>
-                    <div class="sr-row"><span>Cash expenses</span>
-                        <span class="num sr-short-text">−${shiftPeso(data.cashExpenses)}</span></div>
-                    <div class="sr-row sr-total"><span>Expected cash in drawer</span>
-                        <span class="num">${shiftPeso(data.expectedCash)}</span></div>
-                    <div class="sr-row"><span>Physical cash counted</span>
-                        <span class="num">${shiftPeso(physical)}</span></div>
-                    <div class="sr-row sr-total"><span>Cash variance ${varianceLabel(variance)}</span>
-                        <span class="num ${varianceTextClass(variance)}">${shiftSigned(variance)}</span></div>
+                    <div class="sr-row"><span>Opening float</span><span class="num">${shiftPeso(data.openingFloat)}</span></div>
+                    <div class="sr-row"><span>Cash sales</span><span class="num sr-ok-text">+${shiftPeso(data.cashSales)}</span></div>
+                    <div class="sr-row"><span>Cash expenses</span><span class="num sr-short-text">−${shiftPeso(data.cashExpenses)}</span></div>
+                    <div class="sr-row sr-total"><span>Expected cash in drawer</span><span class="num">${shiftPeso(data.expectedCash)}</span></div>
+                    <div class="sr-row"><span>Physical cash counted</span><span class="num">${shiftPeso(physical)}</span></div>
+                    <div class="sr-row sr-total"><span>Cash variance ${varianceLabel(variance)}</span><span class="num ${varianceTextClass(variance)}">${shiftSigned(variance)}</span></div>
                 </div>
 
                 <div class="sr-section">
@@ -13083,9 +13215,7 @@ function renderShiftReport(data) {
                 <div class="sr-section wide">
                     <h4>Expenses During Shift</h4>
                     <table class="sr-table">
-                        <thead>
-                            <tr><th>Date</th><th>Category</th><th>Description</th><th class="num">Amount</th></tr>
-                        </thead>
+                        <thead><tr><th>Date</th><th>Category</th><th>Description</th><th class="num">Amount</th></tr></thead>
                         <tbody>${expenseRows}</tbody>
                     </table>
                 </div>
@@ -13097,8 +13227,7 @@ function renderShiftReport(data) {
         </div>
     </div>`;
 
-    const existing = document.getElementById('shiftDetailsModal');
-    if (existing) existing.remove();
+    closeShiftDetailsModal();
     document.body.insertAdjacentHTML('beforeend', html);
 }
 

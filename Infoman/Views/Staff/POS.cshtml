@@ -3153,6 +3153,12 @@
         tempSelectedSize = null; 
         return;
     }
+    // Ilagay ito sa loob ng confirmAddToCart(), bago ang `const selectedAddOns = [];`
+const addOnCheck = await validateSelectedAddOnsStock();
+if (!addOnCheck.ok) {
+    await showAlert(addOnCheck.message, 'Add-on Not Available', '❌');
+    return;
+}
 
           const selectedAddOns = [];
     document.querySelectorAll('.addon-checkbox:checked').forEach(cb => {
@@ -3198,6 +3204,30 @@ document.getElementById('voucherFeedback').innerHTML = '';
     closeQuantityModal();
     tempSelectedSize = null;
         }
+
+            async function validateSelectedAddOnsStock() {
+                const checked = document.querySelectorAll('.addon-checkbox:checked');
+                if (checked.length === 0) return { ok: true };
+
+                const res = await fetch('/Staff/GetActiveAddOns');
+                const latest = await res.json();
+
+                for (const cb of checked) {
+                    const id = parseInt(cb.getAttribute('data-id'));
+                    const name = cb.getAttribute('data-name');
+                    const qty = parseInt(cb.closest('.addon-row').querySelector('.addon-qty').value) || 1;
+                    const needed = qty * modalQuantity;   // add-on qty x dami ng order
+
+                    const live = latest.find(x => x.addOnId === id);
+                    if (!live || live.stock <= 0) {
+                        return { ok: false, message: `"${name}" is out of stock.` };
+                    }
+                    if (needed > live.stock) {
+                        return { ok: false, message: `"${name}": need ${needed}, only ${live.stock} available.` };
+                    }
+                }
+                return { ok: true };
+            }
 
         // ============================================================
         // CART DISPLAY — redesigned
@@ -3599,7 +3629,8 @@ async function createNewOrder() {
                         finalTotalToPay = currentCartTotal;
                     }
 
-                    const discountSavings = currentCartTotal - finalTotalToPay;
+                    // ✅ Senior/PWD discount lang (hindi kasama ang voucher)
+                    const manualDiscountAmount = currentCartTotal * currentDiscountPercent;
 
                     // ✅ 1. I-SET MUNA ang voucher at cash
                     window.receiptVoucher = null;
@@ -3623,7 +3654,7 @@ async function createNewOrder() {
                         paymentMethod,
                         currentDiscountType,
                         currentDiscountPercent,
-                        discountSavings,
+                        manualDiscountAmount,   // ✅ pinalitan
                         finalTotalToPay,
                         lastOrderId,
                         'PENDING_BLENDING'
@@ -5250,15 +5281,35 @@ function showReviewModal() {
     const reviewDiv = document.getElementById('reviewOrderContent');
     const now = new Date();
     let itemsHtml = '';
-    
+
     cart.forEach(item => {
+        // add-ons per 1 piece ng product
+        let addOnsPerUnit = 0;
+        if (item.addOns) {
+            item.addOns.forEach(a => addOnsPerUnit += a.price * a.quantity);
+        }
+
+        const lineTotal = (item.price + addOnsPerUnit) * item.quantity;
+
+        let addOnsHtml = '';
+        if (item.addOns && item.addOns.length > 0) {
+            addOnsHtml = item.addOns.map(a => `
+                <div style="display:flex; justify-content:space-between; font-size:12px; color:#666; padding-left:10px;">
+                    <span>+ ${escapeHtml(a.name)} × ${a.quantity * item.quantity}</span>
+                    <span>₱${(a.price * a.quantity * item.quantity).toFixed(2)}</span>
+                </div>`).join('');
+        }
+
         itemsHtml += `
-            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;">
-                <div>
-                    <strong>${escapeHtml(item.productName)}</strong><br>
-                    <small>${item.sizeName} × ${item.quantity}</small>
+            <div style="padding: 8px 0; border-bottom: 1px solid #eee;">
+                <div style="display: flex; justify-content: space-between;">
+                    <div>
+                        <strong>${escapeHtml(item.productName)}</strong><br>
+                        <small>${item.sizeName} × ${item.quantity}</small>
+                    </div>
+                    <div>₱${(item.price * item.quantity).toFixed(2)}</div>
                 </div>
-                <div>₱${(item.price * item.quantity).toFixed(2)}</div>
+                ${addOnsHtml}
             </div>`;
     });
     
@@ -8698,21 +8749,57 @@ async function fetchAddOns() {
         }
 
         section.style.display = 'block';
-        container.innerHTML = addOns.map(a => `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; background: #f8f9fa; padding: 8px; border-radius: 6px;">
-                <label style="display: flex; align-items: center; gap: 8px; margin: 0; cursor: pointer;">
-                    <input type="checkbox" class="addon-checkbox" data-id="${a.addOnId}" data-price="${a.price}" data-name="${a.name}" onchange="updateAddOnQty(this)">
+        container.innerHTML = addOns.map(a => {
+            const outOfStock = a.stock <= 0;
+            // Pinakamataas na pwedeng piliin: min ng maxPerOrder at stock
+            const cap = Math.max(0, Math.min(a.maxPerOrder, a.stock));
+            const stockLabel = outOfStock
+                ? '<span style="color:#dc2626;font-weight:600;">❌ Out of Stock</span>'
+                : `<span style="color:#666;">Stock: ${a.stock}</span>`;
+
+            return `
+            <div class="addon-row ${outOfStock ? 'opacity-50' : ''}"
+                 style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;background:#f8f9fa;padding:8px;border-radius:6px;
+                        ${outOfStock ? 'opacity:0.5;pointer-events:none;' : ''}">
+                <label style="display:flex;align-items:center;gap:8px;margin:0;cursor:${outOfStock ? 'not-allowed' : 'pointer'};">
+                    <input type="checkbox" class="addon-checkbox"
+                           data-id="${a.addOnId}" data-price="${a.price}" data-name="${a.name}"
+                           data-cap="${cap}"
+                           ${outOfStock ? 'disabled' : ''}
+                           onchange="updateAddOnQty(this)">
                     <span>${a.name}</span>
+                    <small style="font-size:11px;">${stockLabel}</small>
                 </label>
-                <div style="display: flex; align-items: center; gap: 5px;">
-                    <span style="font-size: 12px; color: #666;">+₱${a.price.toFixed(2)}</span>
-                    <input type="number" class="addon-qty" data-id="${a.addOnId}" value="1" min="1" max="${a.maxPerOrder}" style="width: 50px; padding: 2px; display: none;" onchange="updateCartTotal()">
+                <div style="display:flex;align-items:center;gap:5px;">
+                    <span style="font-size:12px;color:#666;">+₱${a.price.toFixed(2)}</span>
+                    <input type="number" class="addon-qty" data-id="${a.addOnId}"
+                           value="1" min="1" max="${cap}"
+                           style="width:50px;padding:2px;display:none;"
+                           onchange="validateAddOnQty(this)">
                 </div>
-            </div>
-        `).join('');
+            </div>`;
+        }).join('');
     } catch (err) {
         console.error("Failed to load add-ons", err);
     }
+}
+
+function updateAddOnQty(checkbox) {
+    const row = checkbox.closest('.addon-row');
+    const qtyInput = row.querySelector('.addon-qty');
+    qtyInput.style.display = checkbox.checked ? 'block' : 'none';
+    if (!checkbox.checked) qtyInput.value = 1;
+}
+
+function validateAddOnQty(input) {
+    const max = parseInt(input.max, 10) || 1;
+    let val = parseInt(input.value, 10) || 1;
+    if (val < 1) val = 1;
+    if (val > max) {
+        val = max;
+        showAlert(`Maximum available add-on quantity is ${max}.`, 'Limit Reached', '⚠️');
+    }
+    input.value = val;
 }
 
 function updateAddOnQty(checkbox) {

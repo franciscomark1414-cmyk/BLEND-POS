@@ -205,8 +205,6 @@ namespace Infoman.Controllers
                 if (productSize == null)
                     return Json(new { success = false, message = "Product not found" });
 
-                // ✅ BAGONG VALIDATION PARA SA FOREIGN KEY ERROR
-                // Hanapin ang "Available" status dynamically imbes na hardcoded na 1
                 var availableStatus = await _db.ItemDispositionStatuses
                     .FirstOrDefaultAsync(s => s.StatusName == "Available");
 
@@ -235,6 +233,7 @@ namespace Infoman.Controllers
                     order = await _db.Orders
                         .FirstOrDefaultAsync(o => o.OrderNumber == request.OrderNumber);
                 }
+
                 // ✅ BAWAL ISABAY ANG VOUCHER SA SENIOR/PWD (MANUAL) DISCOUNT
                 if (!string.IsNullOrEmpty(request.VoucherCode) && request.DiscountPercent > 0)
                 {
@@ -258,6 +257,38 @@ namespace Infoman.Controllers
                     bool usedOnThisOrder = order != null && order.VoucherCode == voucherToApply.Code;
                     if (voucherToApply.IsUsed && !usedOnThisOrder)
                         return Json(new { success = false, message = "This voucher code has already been used." });
+                }
+
+                // ✅ ADD-ON STOCK CHECK: bago gumawa ng order, bago mag-save ng kahit ano
+                foreach (var addOnReq in request.AddOns ?? new List<AddOnSelection>())
+                {
+                    var recipes = await _db.AddOnRecipeItems
+                        .Where(r => r.AddOnId == addOnReq.AddOnId && !r.IsDeleted)
+                        .ToListAsync();
+
+                    if (recipes.Count == 0)
+                        return Json(new { success = false, message = "An add-on has no active recipe and cannot be sold." });
+
+                    foreach (var r in recipes)
+                    {
+                        decimal neededBase = r.Quantity * request.Quantity * addOnReq.Quantity;
+
+                        decimal availableBase = await _db.RawMaterialBatches
+                            .Where(b => b.RawMaterialId == r.RawMaterialId
+                                && b.QuantityRemaining > 0
+                                && (!b.ExpiryDate.HasValue || b.ExpiryDate.Value >= DateTime.Today))
+                            .SumAsync(b => b.QuantityRemaining);
+
+                        if (availableBase < neededBase)
+                        {
+                            var mat = await _db.RawMaterials.FindAsync(r.RawMaterialId);
+                            return Json(new
+                            {
+                                success = false,
+                                message = $"Insufficient stock for add-on ingredient '{mat?.Name}'. Need {neededBase} {mat?.BaseUnit}, only {availableBase} available."
+                            });
+                        }
+                    }
                 }
 
                 bool isNewOrder = (order == null);
@@ -285,7 +316,7 @@ namespace Infoman.Controllers
                         OriginalTotalAmount = 0,
                         CreatedAt = DateTime.Now,
                         StaffUserId = userId,
-                        ShiftId = activeShift?.ShiftId  // ✅ IDINAGDAG DITO SA TAMANG ORDER CREATION
+                        ShiftId = activeShift?.ShiftId
                     };
 
                     _db.Orders.Add(order);
@@ -295,7 +326,7 @@ namespace Infoman.Controllers
                         try
                         {
                             await _db.SaveChangesAsync();
-                            break; // ✅ Tagumpay
+                            break;
                         }
                         catch (DbUpdateException ex) when (IsUniqueViolation(ex) && attempt < maxRetries)
                         {
@@ -308,8 +339,7 @@ namespace Infoman.Controllers
                 }
                 orderId = order.OrderId;
 
-                // ✅ I-add ang item sa existing order (GINAMIT NA ANG DYNAMIC ID)
-                // ✅ I-add ang item sa existing order
+                // ✅ I-add ang item sa order
                 var orderItem = new OrderItem
                 {
                     OrderId = orderId,
@@ -323,7 +353,7 @@ namespace Infoman.Controllers
                 _db.OrderItems.Add(orderItem);
                 await _db.SaveChangesAsync(); // Save first to get OrderItemId
 
-                // ✅ BAGO: I-save ang mga Add-ons
+                // ✅ I-save ang mga Add-ons
                 decimal addOnsTotal = 0;
                 if (request.AddOns != null && request.AddOns.Any())
                 {
@@ -345,7 +375,7 @@ namespace Infoman.Controllers
                         }
                     }
                 }
-                await _db.SaveChangesAsync();  // ✅ I-save muna ang item
+                await _db.SaveChangesAsync();
 
                 // ✅ I-recompute ang order total
                 var allItems = await _db.OrderItems
@@ -1218,14 +1248,60 @@ namespace Infoman.Controllers
         [HttpGet]
         public async Task<IActionResult> GetActiveAddOns()
         {
+            await EnsureExpiredBatchesProcessed();
+
             var service = new AddOnService(_db);
             var list = await service.GetActiveForPosAsync();
-            return Json(list.Select(a => new {
-                addOnId = a.AddOnId,
-                name = a.Name,
-                price = a.Price,
-                maxPerOrder = a.MaxPerOrder
-            }));
+
+            // Kunin ang recipe ng lahat ng add-ons sa iisang query
+            var addOnIds = list.Select(a => a.AddOnId).ToList();
+            var recipes = await _db.AddOnRecipeItems   // palitan ng tamang DbSet name kung iba
+                .Where(r => addOnIds.Contains(r.AddOnId) && !r.IsDeleted)
+                .ToListAsync();
+
+            var today = DateTime.Today;
+            var result = new List<object>();
+
+            foreach (var a in list)
+            {
+                int maxOrders = int.MaxValue;
+                var myRecipes = recipes.Where(r => r.AddOnId == a.AddOnId).ToList();
+
+                // Walang recipe = hindi dapat ibenta
+                if (myRecipes.Count == 0)
+                {
+                    maxOrders = 0;
+                }
+                else
+                {
+                    foreach (var r in myRecipes)
+                    {
+                        if (r.Quantity <= 0) continue;
+
+                        decimal availableBase = await _db.RawMaterialBatches
+                            .Where(b => b.RawMaterialId == r.RawMaterialId
+                                && b.QuantityRemaining > 0
+                                && (!b.ExpiryDate.HasValue || b.ExpiryDate.Value >= today))
+                            .SumAsync(b => b.QuantityRemaining);
+
+                        int possible = (int)(availableBase / r.Quantity);
+                        if (possible < maxOrders) maxOrders = possible;
+                    }
+                }
+
+                if (maxOrders == int.MaxValue) maxOrders = 0;
+
+                result.Add(new
+                {
+                    addOnId = a.AddOnId,
+                    name = a.Name,
+                    price = a.Price,
+                    maxPerOrder = a.MaxPerOrder,
+                    stock = maxOrders   // ilang beses pwedeng i-order
+                });
+            }
+
+            return Json(result);
         }
 
         // GET: Staff/GetOnlineStatus

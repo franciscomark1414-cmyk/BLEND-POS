@@ -3313,7 +3313,9 @@ html.sidebar-collapsed .main-content {
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h5 class="section-title mb-0">Vouchers</h5>
         <div class="d-flex gap-2">
-            <input type="text" id="voucherSearchInput" class="form-control form-control-sm" style="width: 250px;" placeholder="Search code or event..." onkeyup="filterVouchers()">
+            <input type="text" id="voucherSearchInput" class="form-control form-control-sm"
+       style="width: 250px;" placeholder="Search code or event..."
+       oninput="filterVouchers()">
             <button class="btn btn-sm btn-outline-secondary" onclick="loadVouchers()">
                 <i class="fas fa-sort"></i> Sort By
             </button>
@@ -3360,14 +3362,14 @@ html.sidebar-collapsed .main-content {
                     <label class="form-label fw-bold">How Many Vouchers?</label>
                     <input type="number" id="voucherQty" class="form-control" min="1" value="1" required>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Event For?</label>
-                    <select id="voucherEvent" class="form-select" onchange="toggleVoucherEventOther()">
-                        <option value="Recorded Events">Recorded Events</option>
-                        <option value="Others">Others</option>
-                    </select>
-                    <input type="text" id="voucherEventOther" class="form-control mt-2" placeholder="Specify event..." style="display:none;">
-                </div>
+               <div class="mb-3">
+    <label class="form-label fw-bold">Event For?</label>
+    <select id="voucherEvent" class="form-select" onchange="toggleVoucherEventOther()">
+        <option value="">-- Select Event --</option>
+        <option value="Others">Others (specify)</option>
+    </select>
+    <input type="text" id="voucherEventOther" class="form-control mt-2" placeholder="Specify event..." style="display:none;">
+</div>
                 <div class="row mb-4">
                     <div class="col-6">
                         <label class="form-label fw-bold">Expiry Date</label>
@@ -13701,68 +13703,48 @@ async function loadVouchers() {
     try {
         const res = await fetch('/Voucher/GetAll');
         const data = await res.json();
-        if (data.success && data.vouchers.length > 0) {
-            let html = '';
-            data.vouchers.forEach(v => {
-                const expiry = v.expiryDate ? new Date(v.expiryDate).toLocaleDateString() : 'No Expiry';
-                
-                // ✅ BAGONG LOGIC PARA SA STATUS BADGE
-                let statusBadge = '';
-                if (v.isUsed) {
-                    statusBadge = '<span class="badge bg-danger">Used</span>';
-                } else if (!v.isActive) {
-                    statusBadge = '<span class="badge bg-secondary">Inactive</span>';
-                } else {
-                    statusBadge = '<span class="badge bg-success">Active</span>';
-                }
-
-                html += `
-                    <tr>
-                        <td class="fw-bold">${escapeHtml(v.code)}</td>
-                        <td>${v.discountPercent.toFixed(2)}% OFF</td>
-                        <td>${escapeHtml(v.eventName || '-')}</td>
-                        <td>${expiry}</td>
-                        <td>${statusBadge}</td>
-                        <td class="text-end">
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteVoucher(${v.voucherId})">Delete</button>
-                        </td>
-                    </tr>
-                `;
-            });
-            tbody.innerHTML = html;
-        } else {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No vouchers found. Generate one above.</td></tr>';
-        }
+        voucherCache = (data.success && data.vouchers) ? data.vouchers : [];
+        filterVouchers(); // i-apply ang search na nasa input kung meron
     } catch (err) {
         tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error loading vouchers</td></tr>';
     }
 }
 
+function getVoucherStatus(v) {
+    if (v.isUsed) return { text: 'Used', cls: 'bg-danger' };
+    if (!v.isActive) return { text: 'Inactive', cls: 'bg-secondary' };
+    return { text: 'Active', cls: 'bg-success' };
+}
+
 function renderVoucherTable(vouchers) {
     const tbody = document.getElementById('voucherTableBody');
+
     if (vouchers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No vouchers found. Generate one above.</td></tr>';
+        const isSearching = document.getElementById('voucherSearchInput').value.trim() !== '';
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center text-muted py-4">
+                    ${isSearching ? 'No vouchers match your search.' : 'No vouchers found. Generate one above.'}
+                </td>
+            </tr>`;
         return;
     }
-    
-    let html = '';
-    vouchers.forEach(v => {
+
+    tbody.innerHTML = vouchers.map(v => {
         const expiry = v.expiryDate ? new Date(v.expiryDate).toLocaleDateString() : 'No Expiry';
-        const statusBadge = v.isActive ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>';
-        html += `
+        const status = getVoucherStatus(v);
+        return `
             <tr>
                 <td class="fw-bold">${escapeHtml(v.code)}</td>
-                <td>${v.discountPercent.toFixed(2)}% OFF</td>
+                <td>${Number(v.discountPercent).toFixed(2)}% OFF</td>
                 <td>${escapeHtml(v.eventName || '-')}</td>
                 <td>${expiry}</td>
-                <td>${statusBadge}</td>
+                <td><span class="badge ${status.cls}">${status.text}</span></td>
                 <td class="text-end">
                     <button class="btn btn-sm btn-outline-danger" onclick="deleteVoucher(${v.voucherId})">Delete</button>
                 </td>
-            </tr>
-        `;
-    });
-    tbody.innerHTML = html;
+            </tr>`;
+    }).join('');
 }
 
 function openPrintPreview() {
@@ -13842,18 +13824,33 @@ function openPrintPreview() {
     window.print();
 }
 function filterVouchers() {
-    const term = document.getElementById('voucherSearchInput').value.toLowerCase();
-    const filtered = voucherCache.filter(v => 
-        v.code.toLowerCase().includes(term) || 
-        (v.eventName && v.eventName.toLowerCase().includes(term))
-    );
+    const term = document.getElementById('voucherSearchInput').value.trim().toLowerCase();
+
+    const filtered = term
+        ? voucherCache.filter(v =>
+            (v.code || '').toLowerCase().includes(term) ||
+            (v.eventName || '').toLowerCase().includes(term))
+        : voucherCache;
+
     renderVoucherTable(filtered);
 }
 
 // ✅ ITO ANG NAWALANG FUNCTION
 function openGenerateVoucherModal() {
-    document.getElementById('generateVoucherForm').reset();
-    document.getElementById('voucherEventOther').style.display = 'none';
+    // ✅ Refresh dynamic events every time modal opens
+    loadVoucherEventNames();
+
+    // ✅ Reset dropdown to placeholder
+    const select = document.getElementById('voucherEvent');
+    if (select) select.value = '';
+
+    // ✅ Reset the "Others" input
+    const otherInput = document.getElementById('voucherEventOther');
+    if (otherInput) {
+        otherInput.value = '';
+        otherInput.style.display = 'none';
+    }
+
     document.getElementById('generateVoucherModal').style.display = 'flex';
 }
 
@@ -13861,22 +13858,73 @@ function closeGenerateVoucherModal() {
     document.getElementById('generateVoucherModal').style.display = 'none';
 }
 
+async function loadVoucherEventNames() {
+    try {
+        const res = await fetch('/Voucher/GetEventNames');
+        const data = await res.json();
+        if (!data.success) return;
+
+        const select = document.getElementById('voucherEvent');
+        if (!select) return;
+
+        const othersOption = select.querySelector('option[value="Others"]');
+        if (!othersOption) return;
+
+        // Remove old dynamic options
+        select.querySelectorAll('option[data-dynamic="true"]').forEach(o => o.remove());
+
+        // Insert each saved event before "Others"
+        data.events.forEach(evt => {
+            const alreadyExists = Array.from(select.options).some(
+                o => o.value.toLowerCase() === evt.toLowerCase()
+            );
+            if (alreadyExists) return;
+
+            const opt = document.createElement('option');
+            opt.value = evt;
+            opt.textContent = evt;
+            opt.setAttribute('data-dynamic', 'true');
+            select.insertBefore(opt, othersOption);
+        });
+    } catch (err) {
+        console.error('Failed to load event names:', err);
+    }
+}
+
 function toggleVoucherEventOther() {
     const select = document.getElementById('voucherEvent');
     const otherInput = document.getElementById('voucherEventOther');
-    otherInput.style.display = select.value === 'Others' ? 'block' : 'none';
+    if (!select || !otherInput) return;
+
+    if (select.value === 'Others') {
+        otherInput.style.display = 'block';
+        otherInput.focus();
+    } else {
+        otherInput.style.display = 'none';
+        otherInput.value = '';
+    }
+}
+
+function getVoucherEventName() {
+    const select = document.getElementById('voucherEvent');
+    const otherInput = document.getElementById('voucherEventOther');
+    if (!select) return '';
+
+    if (select.value === 'Others') {
+        return (otherInput?.value || '').trim();
+    }
+    return select.value || '';
 }
 
 async function saveGeneratedVoucher(e) {
     e.preventDefault();
     const qty = parseInt(document.getElementById('voucherQty').value) || 1;
-    const eventSelect = document.getElementById('voucherEvent').value;
-    const eventOther = document.getElementById('voucherEventOther').value.trim();
     const expiry = document.getElementById('voucherExpiry').value || null;
     const discountPercent = parseFloat(document.getElementById('voucherDiscount').value);
 
-    let eventName = eventSelect === 'Others' ? eventOther : eventSelect;
-    if (eventSelect === 'Others' && !eventOther) {
+    // ✅ GAMITIN ANG getVoucherEventName()
+    const eventName = getVoucherEventName();
+    if (!eventName) {
         await showAlert('Please specify the event name.', 'Required', '⚠️');
         return;
     }
@@ -13894,7 +13942,7 @@ async function saveGeneratedVoucher(e) {
                 quantity: qty, 
                 eventName: eventName, 
                 expiryDate: expiry, 
-                discountPercent: discountPercent // ✅ Percent na
+                discountPercent: discountPercent
             })
         });
         const data = await res.json();
@@ -13902,6 +13950,7 @@ async function saveGeneratedVoucher(e) {
             closeGenerateVoucherModal();
             await showAlert(`${qty} voucher(s) generated successfully!`, 'Success', '✅');
             loadVouchers();
+            loadVoucherEventNames();   // ✅ Refresh dropdown para kasama na ang bagong event
         } else {
             await showAlert(data.message, 'Error', '❌');
         }

@@ -16,6 +16,45 @@ namespace Infoman.Controllers
             var vouchers = await _db.Vouchers.OrderByDescending(v => v.CreatedAt).ToListAsync();
             return Json(new { success = true, vouchers = vouchers });
         }
+        [HttpGet]
+        public async Task<IActionResult> GetEventNames()
+        {
+            var events = await _db.Vouchers
+                .Where(v => !string.IsNullOrEmpty(v.EventName))
+                .Select(v => v.EventName)
+                .Distinct()
+                .OrderBy(e => e)
+                .ToListAsync();
+
+            return Json(new { success = true, events = events });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SaveEventName([FromBody] SaveEventNameRequest req)
+        {
+            if (string.IsNullOrWhiteSpace(req?.EventName))
+                return Json(new { success = false, message = "Event name is required." });
+
+            // Check kung existing na (case-insensitive) para walang duplicate
+            var trimmed = req.EventName.Trim();
+            var existing = await _db.Vouchers
+                .Where(v => v.EventName != null && v.EventName.ToLower() == trimmed.ToLower())
+                .Select(v => v.EventName)
+                .FirstOrDefaultAsync();
+
+            if (existing != null)
+                return Json(new { success = true, eventName = existing, alreadyExists = true });
+
+            // Walang existing voucher pa — i-return lang ang cleaned name.
+            // Ang actual persistence ay mangyayari kapag nag-Generate na ng voucher.
+            return Json(new { success = true, eventName = trimmed, alreadyExists = false });
+        }
+
+        public class SaveEventNameRequest
+        {
+            public string EventName { get; set; }
+        }
 
         [HttpPost]
         [ValidateAntiForgeryToken]

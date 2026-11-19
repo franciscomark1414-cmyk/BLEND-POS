@@ -3010,6 +3010,7 @@
 }
 
       async function startBlendingFromQueue(orderId) {
+          window.currentOrderId = orderId;
     const receiptModal = document.getElementById('receiptModal');
     if (receiptModal && receiptModal.style.display === 'flex') {
         receiptModal.style.display = 'none';
@@ -3028,10 +3029,14 @@
     
     try {
         const response = await fetch('/Staff/StartBlending', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() },
-            body: JSON.stringify({ orderId: orderId })
-        });
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() },
+    // ✅ ISAMA ANG VOUCHER CODE SA REQUEST
+    body: JSON.stringify({ 
+        orderId: orderId,
+        voucherCode: currentVoucher ? currentVoucher.code : null
+    })
+});
         const data = await response.json();
         hideLoading();
         
@@ -3648,6 +3653,9 @@ async function createNewOrder() {
                         received: cashEl && cashEl.value ? parseFloat(cashEl.value) : 0
                     };
 
+                    window.currentOrderId = lastOrderId;  
+                    window.activeVoucherCode = currentVoucher ? currentVoucher.code : null;// ✅ ITO ANG KULANG
+
                     // ✅ 2. SAKA I-SHOW ANG RESIBO
                     showReceiptModal(
                         orderDetails,
@@ -3659,6 +3667,9 @@ async function createNewOrder() {
                         lastOrderId,
                         'PENDING_BLENDING'
                     );
+
+                    
+
 
                     window.lastClosedOrderId = lastOrderId;
 
@@ -3937,13 +3948,18 @@ async function payWithGCashFromReceipt(orderId) {
     }
 }
 
-     async function showReceiptPopup(orderId) {
-    if (!orderId) {
-        await showAlert('No order selected.', 'Error', '❌');
-        return;
-    }
-    
-    showLoading('Loading receipt...');
+            async function showReceiptPopup(orderId) {
+                if (!orderId) {
+                    await showAlert('No order selected.', 'Error', '❌');
+                    return;
+                }
+
+                // ✅ ITO ANG KULANG: I-set agad ang ID pagbukas ng receipt!
+                window.currentOrderId = orderId;
+                window.lastClosedOrderId = orderId;
+
+                showLoading('Loading receipt...');
+
     
     try {
         const response = await fetch(`/VoidRefund/GetOrderDetails?orderId=${orderId}`);
@@ -4234,66 +4250,73 @@ function showReceiptModalWithValues(orderDetails, paymentMethod, discountType, d
 
     document.getElementById('receiptModal').style.display = 'flex';
 }
-      async function startBlending(orderId) {
-    if (!orderId) {
-        await showAlert('No order found.', 'Error', '❌');
-        return;
-    }
-    
-    const receiptModal = document.getElementById('receiptModal');
-    if (receiptModal && receiptModal.style.display === 'flex') {
-        receiptModal.style.display = 'none';
-    }
-    
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    const confirmed = await showConfirm(
-        '⚠️ START BLENDING?\n\nOnce you click OK:\n• Ingredients will be DEDUCTED from inventory\n• This action cannot be undone without Owner approval\n\nContinue?',
-        'Start Blending Confirmation'
-    );
-    
-    if (!confirmed) return;
+            async function startBlending(orderId) {
+                if (!orderId) {
+                    await showAlert('No order found.', 'Error', '❌');
+                    return;
+                }
 
-    showLoading('Starting blending process...');
-    
-    try {
-        const response = await fetch('/Staff/StartBlending', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() },
-            body: JSON.stringify({ orderId: orderId })
-        });
-        const data = await response.json();
-        hideLoading();
+                const receiptModal = document.getElementById('receiptModal');
+                if (receiptModal && receiptModal.style.display === 'flex') {
+                    receiptModal.style.display = 'none';
+                }
 
-        if (data.success) {
-            await showAlert('✅ ' + data.message, 'Success', '✅');
-            
-            // ✅ Refresh order queue
-            await loadOrderQueue();
-            
-            // ✅ Close any open receipt modal
-            closeReceiptModal();
-            
-            // ✅ Clear edit mode if active
-            if (window.isEditingMode) {
-                const banner = document.getElementById('editModeBanner');
-                if (banner) banner.remove();
-                window.isEditingMode = false;
-                window.originalOrderId = null;
-                
-                const checkoutBtn = document.getElementById('checkoutBtn');
-                checkoutBtn.innerHTML = '💳 Confirm Order';
-                checkoutBtn.style.background = '#28a745';
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                const confirmed = await showConfirm(
+                    '⚠️ START BLENDING?\n\nOnce you click OK:\n• Ingredients will be DEDUCTED from inventory\n• This action cannot be undone without Owner approval\n\nContinue?',
+                    'Start Blending Confirmation'
+                );
+
+                if (!confirmed) return;
+
+                showLoading('Starting blending process...');
+
+                try {
+                   const response = await fetch('/Staff/StartBlending', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() },
+    // ✅ GAMITIN ANG ACTIVE VOUCHER CODE
+    body: JSON.stringify({ 
+        orderId: orderId,
+        voucherCode: window.activeVoucherCode || null
+    })
+});
+                    const data = await response.json();
+                    hideLoading();
+
+                    if (data.success) {
+                        await showAlert('✅ ' + data.message, 'Success', '✅');
+
+                        // ✅ I-clear ang voucher sa client-side pagkatapos mag-blend
+                        currentVoucher = null;
+
+                        // ✅ Refresh order queue
+                        await loadOrderQueue();
+
+                        // ✅ Close any open receipt modal
+                        closeReceiptModal();
+
+                        // ✅ Clear edit mode if active
+                        if (window.isEditingMode) {
+                            const banner = document.getElementById('editModeBanner');
+                            if (banner) banner.remove();
+                            window.isEditingMode = false;
+                            window.originalOrderId = null;
+
+                            const checkoutBtn = document.getElementById('checkoutBtn');
+                            checkoutBtn.innerHTML = '💳 Confirm Order';
+                            checkoutBtn.style.background = '#28a745';
+                        }
+
+                    } else {
+                        await showAlert('❌ Error: ' + data.message, 'Error', '❌');
+                    }
+                } catch (error) {
+                    hideLoading();
+                    await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+                }
             }
-            
-        } else {
-            await showAlert('❌ Error: ' + data.message, 'Error', '❌');
-        }
-    } catch (error) {
-        hideLoading();
-        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
-    }
-}
 
 
 
@@ -5119,155 +5142,155 @@ async function updateOrderTotals(orderId, paymentMethod, discountType, discountP
 // ============================================================
         // VOID FROM RECEIPT — quick void transaction before blending
         // ============================================================
-   async function voidFromReceipt() {
-    const orderId = window.currentOrderId;
-    if (!orderId) {
-        await showAlert('No order found.', 'Error', '❌');
-        return;
-    }
-    
-    // Get order details first to show amount
-    let orderTotal = 0;
-    try {
-        const orderResponse = await fetch(`/VoidRefund/GetOrderDetails?orderId=${orderId}`);
-        const orderData = await orderResponse.json();
-        if (orderData.success && orderData.order) {
-            orderTotal = orderData.order.totalAmount || 0;
-        }
-    } catch (e) {
-        console.error('Error getting order details:', e);
-    }
-    
-    // Show custom modal for reason
-    const modalHtml = `
-        <div id="voidTransactionModal" class="modal-qty" style="display: flex; z-index: 10050;">
-            <div class="modal-qty-content" style="width: 380px; max-width: 90%; border-radius: 16px; padding: 0;">
-                <div style="background: #dc3545; color: white; padding: 15px 20px; border-radius: 16px 16px 0 0;">
-                    <h3 style="margin: 0; font-size: 18px;">
-                        <i class="fas fa-trash-alt"></i> Void Entire Transaction
-                    </h3>
-                </div>
-                <div style="padding: 20px;">
-                    <p style="margin-bottom: 15px;">
-                        ⚠️ This will void the ENTIRE order and refund 
-                        <strong>₱${orderTotal.toFixed(2)}</strong> to customer.
-                    </p>
-                    
-                    <div style="margin-bottom: 15px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Reason for Void:</label>
-                        <select id="voidTransReason" class="form-control" style="width: 100%; padding: 8px; border-radius: 8px;">
-                            <option value="">-- Select Reason --</option>
-                            <option value="Customer changed mind">Customer changed mind</option>
-                            <option value="Wrong order entered">Wrong order entered</option>
-                            <option value="Duplicate order">Duplicate order</option>
-                            <option value="Price adjustment">Price adjustment</option>
-                            <option value="Other">Other</option>
-                        </select>
-                        <input type="text" id="voidTransOtherReason" class="form-control" style="margin-top: 8px; display: none; width: 100%; padding: 8px; border-radius: 8px;" placeholder="Please specify...">
+            async function voidFromReceipt() {
+                let orderId = window.currentOrderId;
+
+                // ✅ Fallback sa lastClosedOrderId kung walang currentOrderId
+                if (!orderId) {
+                    orderId = window.lastClosedOrderId;
+                }
+
+                if (!orderId) {
+                    await showAlert('No order found.', 'Error', '❌');
+                    return;
+                }
+
+                // Get order details first to show amount
+                let orderTotal = 0;
+                try {
+                    const orderResponse = await fetch(`/Staff/GetOrderDetailsForPos?orderId=${orderId}`);
+                    const orderData = await orderResponse.json();
+                    if (orderData.success && orderData.order) {
+                        orderTotal = orderData.order.totalAmount || 0;
+                    }
+                } catch (e) {
+                    console.error('Error getting order details:', e);
+                }
+
+                // Same modal UI as before
+                const modalHtml = `
+                    <div id="voidTransactionModal" class="modal-qty" style="display: flex; z-index: 10050;">
+                        <div class="modal-qty-content" style="width: 380px; max-width: 90%; border-radius: 16px; padding: 0;">
+                            <div style="background: #dc3545; color: white; padding: 15px 20px; border-radius: 16px 16px 0 0;">
+                                <h3 style="margin: 0; font-size: 18px;">
+                                    <i class="fas fa-trash-alt"></i> Void Entire Transaction
+                                </h3>
+                            </div>
+                            <div style="padding: 20px;">
+                                <p style="margin-bottom: 15px;">
+                                    ⚠️ This will void the ENTIRE order and refund
+                                    <strong>₱${orderTotal.toFixed(2)}</strong> to customer.
+                                </p>
+
+                                <div style="margin-bottom: 15px;">
+                                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Reason for Void:</label>
+                                    <select id="voidTransReason" class="form-control" style="width: 100%; padding: 8px; border-radius: 8px;">
+                                        <option value="">-- Select Reason --</option>
+                                        <option value="Customer changed mind">Customer changed mind</option>
+                                        <option value="Wrong order entered">Wrong order entered</option>
+                                        <option value="Duplicate order">Duplicate order</option>
+                                        <option value="Price adjustment">Price adjustment</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                    <input type="text" id="voidTransOtherReason" class="form-control" style="margin-top: 8px; display: none; width: 100%; padding: 8px; border-radius: 8px;" placeholder="Please specify...">
+                                </div>
+
+                                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                                    <button id="cancelVoidTransBtn" class="btn-cancel" style="flex: 1; padding: 10px; border-radius: 8px; cursor: pointer; background: #6c757d; color: white; border: none;">Cancel</button>
+                                    <button id="confirmVoidTransBtn" class="btn-confirm" style="flex: 1; padding: 10px; border-radius: 8px; cursor: pointer; background: #dc3545; color: white; border: none;">Confirm Void</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    
-                    <div style="display: flex; gap: 10px; margin-top: 20px;">
-                        <button id="cancelVoidTransBtn" class="btn-cancel" style="flex: 1; padding: 10px; border-radius: 8px; cursor: pointer; background: #6c757d; color: white; border: none;">Cancel</button>
-                        <button id="confirmVoidTransBtn" class="btn-confirm" style="flex: 1; padding: 10px; border-radius: 8px; cursor: pointer; background: #dc3545; color: white; border: none;">Confirm Void</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // Remove existing modal if any
-    const existingModal = document.getElementById('voidTransactionModal');
-    if (existingModal) existingModal.remove();
-    
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    
-    // Handle reason dropdown
-    const reasonSelect = document.getElementById('voidTransReason');
-    const otherReasonInput = document.getElementById('voidTransOtherReason');
-    
-    reasonSelect.addEventListener('change', function() {
-        otherReasonInput.style.display = this.value === 'Other' ? 'block' : 'none';
-    });
-    
-    // Cancel button
-    document.getElementById('cancelVoidTransBtn').onclick = () => {
-        document.getElementById('voidTransactionModal').remove();
-    };
-    
-    // Confirm button
-    document.getElementById('confirmVoidTransBtn').onclick = async () => {
-        let reason = reasonSelect.value;
-        if (reason === 'Other') {
-            reason = otherReasonInput.value;
-            if (!reason) {
-                await showAlert('Please specify the reason', 'Required', '⚠️');
-                return;
+                `;
+
+                const existingModal = document.getElementById('voidTransactionModal');
+                if (existingModal) existingModal.remove();
+
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+                const reasonSelect = document.getElementById('voidTransReason');
+                const otherReasonInput = document.getElementById('voidTransOtherReason');
+
+                reasonSelect.addEventListener('change', function() {
+                    otherReasonInput.style.display = this.value === 'Other' ? 'block' : 'none';
+                });
+
+                document.getElementById('cancelVoidTransBtn').onclick = () => {
+                    document.getElementById('voidTransactionModal').remove();
+                };
+
+                document.getElementById('confirmVoidTransBtn').onclick = async () => {
+                    let reason = reasonSelect.value;
+                    if (reason === 'Other') {
+                        reason = otherReasonInput.value;
+                        if (!reason) {
+                            await showAlert('Please specify the reason', 'Required', '⚠️');
+                            return;
+                        }
+                    }
+
+                    if (!reason) {
+                        await showAlert('Please select a reason', 'Required', '⚠️');
+                        return;
+                    }
+
+                    document.getElementById('voidTransactionModal').remove();
+
+                    showLoading('Processing void...');
+
+                    const token = getToken();
+
+// ✅ CHECK NATIN KUNG ANO ANG PINAPASA
+console.log("🛑 VOID REQUEST - Order ID:", orderId, "| Type:", typeof orderId);
+
+try {
+    // ✅ BAGO: direct void — walang owner approval
+    const response = await fetch('/Staff/VoidTransactionDirect', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'RequestVerificationToken': token
+                            },
+                            body: JSON.stringify({
+                                orderId: orderId,
+                                reason: reason
+                            })
+                        });
+
+                        const data = await response.json();
+                        hideLoading();
+
+                        // ⚠️ Tanggalin na ang requiresOwner check — wala na ito sa bagong endpoint
+                        // if (data.requiresOwner) { ... }  ← REMOVED
+
+                        if (data.success) {
+                            await showUpdatedReceiptAfterVoid(
+                                orderId,
+                                data.refundAmount || orderTotal,
+                                0,
+                                false,
+                                true
+                            );
+
+                            await showAlert(
+                                `✅ Transaction voided!\n\n💰 Full Refund: ₱${(data.refundAmount || orderTotal).toFixed(2)}`,
+                                'Void Successful',
+                                '✅'
+                            );
+
+                            await loadOrderQueue();
+                            closeVoidRefundModal();
+
+                        } else {
+                            await showAlert('Error: ' + data.message, 'Error', '❌');
+                        }
+                    } catch (error) {
+                        hideLoading();
+                        await showAlert('Error: ' + error.message, 'Error', '❌');
+                    }
+                };
             }
-        }
-        
-        if (!reason) {
-            await showAlert('Please select a reason', 'Required', '⚠️');
-            return;
-        }
-        
-        document.getElementById('voidTransactionModal').remove();
-        
-        showLoading('Processing void...');
-        
-        const token = getToken();
-        
-        try {
-            const response = await fetch('/VoidRefund/VoidTransaction', {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json', 
-                    'RequestVerificationToken': token 
-                },
-                body: JSON.stringify({ 
-                    orderId: orderId, 
-                    reason: reason 
-                })
-            });
-            
-            const data = await response.json();
-            hideLoading();
-            
-            if (data.requiresOwner) {
-                await showAlert(data.message, 'Owner Approval Required', '⚠️');
-                return;
-            }
-            
-            if (data.success) {
-                // ✅ Use the detailed receipt with refund display
-                await showUpdatedReceiptAfterVoid(
-                    orderId,
-                    data.refundAmount,
-                    0,
-                    false,
-                    true
-                );
-                
-                await showAlert(
-                    `✅ Transaction voided!\n\n💰 Full Refund: ₱${data.refundAmount.toFixed(2)}`,
-                    'Void Successful',
-                    '✅'
-                );
-                
-                // Refresh order queue
-                await loadOrderQueue();
-                
-                // Close the void/refund modal if open
-                closeVoidRefundModal();
-                
-            } else {
-                await showAlert('Error: ' + data.message, 'Error', '❌');
-            }
-        } catch (error) {
-            hideLoading();
-            await showAlert('Error: ' + error.message, 'Error', '❌');
-        }
-    };
-}
 
 
 
@@ -5703,34 +5726,86 @@ function toggleSelectAllVoid() {
     const checkboxes = document.querySelectorAll('.void-item-checkbox');
     checkboxes.forEach(cb => cb.checked = selectAll.checked);
 }
-        async function loadRefundOrderItems() {
-            const orderId = document.getElementById('refundOrderSelect').value;
-            if (!orderId) return;
-            currentRefundOrderId = parseInt(orderId);
-            try {
-                const response = await fetch(`/VoidRefund/GetOrderDetails?orderId=${orderId}`);
-                const data = await response.json();
-                if (!data.success) { 
-    await showAlert(data.message, 'Error');
-    return; 
+       function loadRefundOrderItems() {
+    const orderId = document.getElementById('refundOrderSelect').value;
+    if (!orderId) {
+        document.getElementById('refundOrderItems').innerHTML =
+            '<div class="text-muted text-center" style="padding:20px;">Select an order first</div>';
+        return;
+    }
+    window.currentRefundOrderId = parseInt(orderId);
+
+    fetch(`/Staff/GetOrderItemsForRefund?orderId=${orderId}`)
+        .then(r => r.json())
+        .then(items => {
+            if (!items || items.length === 0) {
+                document.getElementById('refundOrderItems').innerHTML =
+                    '<div class="text-muted text-center" style="padding:20px;">No refundable items</div>';
+                return;
+            }
+
+            let html = `
+                <table class="table" style="width:100%; border-collapse:collapse; font-size:13px;">
+                    <thead>
+                        <tr style="background:#f8f9fa;">
+                            <th style="padding:8px; text-align:left;">
+                                <input type="checkbox" id="selectAllRefund" onchange="toggleAllRefundItems(this)">
+                            </th>
+                            <th style="padding:8px; text-align:left;">PRODUCT</th>
+                            <th style="padding:8px; text-align:center;">QTY</th>
+                            <th style="padding:8px; text-align:right;">PRICE</th>
+                            <th style="padding:8px; text-align:right;">SUBTOTAL</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+            items.forEach(item => {
+                // ✅ Base + add-ons
+                const addOnsTotal = (item.addOns || [])
+                    .reduce((sum, a) => sum + (a.price * a.quantity), 0);
+                const unitPrice = item.price + addOnsTotal;
+                const subtotal = unitPrice * item.quantity;
+
+                // ✅ Add-on display lines
+                let addOnsHtml = '';
+                if (item.addOns && item.addOns.length > 0) {
+                    addOnsHtml = item.addOns.map(a =>
+                        `<div style="font-size:10.5px; color:var(--brand); margin-top:2px;">
+                            + ${a.addOnName} (₱${a.price.toFixed(2)} × ${a.quantity})
+                        </div>`
+                    ).join('');
+                }
+
+                html += `
+                    <tr>
+                        <td style="padding:8px;">
+                                       <input type="checkbox" class="refund-item-checkbox"
+                   value="${item.orderItemId}"
+                   data-price="${unitPrice}"
+                   data-qty="${item.quantity}"
+                   checked>
+                        </td>
+                        <td style="padding:8px;">
+                            <strong>${item.productName}</strong><br>
+                            <small style="color:var(--ink-500);">${item.sizeName}</small>
+                            ${addOnsHtml}
+                        </td>
+                        <td style="padding:8px; text-align:center;">${item.quantity}</td>
+                        <td style="padding:8px; text-align:right;">₱${unitPrice.toFixed(2)}</td>
+                        <td style="padding:8px; text-align:right;">₱${subtotal.toFixed(2)}</td>
+                    </tr>`;
+            });
+
+            html += `</tbody></table>`;
+            document.getElementById('refundOrderItems').innerHTML = html;
+            document.querySelectorAll('.refund-item-checkbox').forEach(cb => cb.checked = true);
+        })
+        .catch(err => {
+            console.error(err);
+            document.getElementById('refundOrderItems').innerHTML =
+                '<div class="text-danger text-center" style="padding:20px;">Error loading items</div>';
+        });
 }
-                const container = document.getElementById('refundOrderItems');
-                let html = '<table class="table table-sm table-bordered"><thead><tr><th>Select</th><th>Product</th><th>Qty</th><th>Price</th><th>Subtotal</th></tr></thead><tbody>';
-                data.order.items.forEach(item => {
-                    if (!item.isRefunded && !item.isVoided) {
-                        html += `<tr>
-                            <td class="text-center"><input type="checkbox" class="refund-item-checkbox" value="${item.orderItemId}"></td>
-                            <td><strong>${escapeHtml(item.productName)}</strong><br><small>${item.sizeName}</small></td>
-                            <td>${item.quantity}</td>
-                            <td>₱${item.price.toFixed(2)}</td>
-                            <td>₱${item.subtotal.toFixed(2)}</td>
-                        </tr>`;
-                    }
-                });
-                html += '</tbody></table>';
-                container.innerHTML = html;
-            } catch (error) { console.error('Error:', error); }
-        }
 
         function getSelectedVoidReason() {
             const select = document.getElementById('voidReason');
@@ -6218,100 +6293,84 @@ async function refreshRefundOrderItems(orderId) {
     }
 }
 
-async function processRefund() {
-    // ✅ PREVENT DUPLICATE SUBMISSION
-    if (window.isProcessingRefund) {
-        await showAlert('Please wait, still processing previous request...', 'Processing', '⏳');
-        return;
-    }
-    
-    const selectedItems = document.querySelectorAll('.refund-item-checkbox:checked');
-    if (selectedItems.length === 0) { 
-        await showAlert('Please select items to refund', 'No Selection', '⚠️');
-        return; 
-    }
-    
-    const reason = getSelectedRefundReason();
-    if (!reason) { 
-        await showAlert('Please select a reason', 'Required', '⚠️');
-        return; 
-    }
-    
-    // ✅ DISABLE BUTTON PARA IWAS DUPLICATE
-    const refundBtn = document.querySelector('#refundTabContent .btn-refund');
-    const originalText = refundBtn.innerHTML;
-    refundBtn.disabled = true;
-    refundBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
-    
-    // ✅ SET PROCESSING FLAG
-    window.isProcessingRefund = true;
-    
-    showLoading('Processing refund...');
-    
-    const itemIds = Array.from(selectedItems).map(cb => parseInt(cb.value));
-    
-    try {
-        const response = await fetch('/VoidRefund/RequestRefund', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json', 
-                'RequestVerificationToken': getToken() 
-            },
-            body: JSON.stringify({ 
-                orderId: currentRefundOrderId, 
-                itemIds: itemIds, 
-                reason: reason 
-            })
-        });
-        
-        const data = await response.json();
-        hideLoading();
-        
-        if (data.requiresOwner) { 
-            await showAlert(data.message, 'Owner Approval Required', '⚠️');
-            document.querySelectorAll('.refund-item-checkbox').forEach(cb => cb.checked = false);
-            document.getElementById('refundOrderSelect').value = '';
-            document.getElementById('refundOrderItems').innerHTML = '';
-        } else if (data.success) {
-            await showAlert(data.message, 'Success', '✅');
-            
-            // ✅✅✅ ITO ANG FIX ✅✅✅
-            // I-reload ang order items para mawala ang ni-refund na item
-            await refreshRefundOrderItems(currentRefundOrderId);
-            
-            // I-refresh ang orders list
-            await loadCompletedOrdersForRefund();
-            
-            // I-clear ang selection
-            document.getElementById('refundOrderSelect').value = '';
-            
-        } else {    
-            await showAlert('❌ ' + data.message, 'Error', '❌');
-        }
-    } catch (error) {
-        hideLoading();
-        console.error('Refund error:', error);
-        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
-    } finally {
-        // ✅ RE-ENABLE BUTTON
-        refundBtn.disabled = false;
-        refundBtn.innerHTML = originalText;
-        // ✅ RESET PROCESSING FLAG
-        window.isProcessingRefund = false;
-        
-        // ✅ REMOVE CHECKED ITEMS
-        document.querySelectorAll('.refund-item-checkbox:checked').forEach(cb => cb.checked = false);
-        
-        // ✅ RESET REASON SELECTORS
-        const reasonSelect = document.getElementById('refundReason');
-        if (reasonSelect) reasonSelect.value = '';
-        const otherReason = document.getElementById('refundOtherReason');
-        if (otherReason) {
-            otherReason.style.display = 'none';
-            otherReason.value = '';
-        }
-    }
-}
+            async function processRefund() {
+                // ✅ PREVENT DUPLICATE SUBMISSION
+                if (window.isProcessingRefund) {
+                    await showAlert('Please wait, still processing previous request...', 'Processing', '⏳');
+                    return;
+                }
+
+                const selectedItems = document.querySelectorAll('.refund-item-checkbox:checked');
+                if (selectedItems.length === 0) {
+                    await showAlert('Please select items to refund', 'No Selection', '⚠️');
+                    return;
+                }
+
+                const reason = getSelectedRefundReason();
+                if (!reason) {
+                    await showAlert('Please select a reason', 'Required', '⚠️');
+                    return;
+                }
+
+                const refundBtn = document.querySelector('#refundTabContent .btn-refund');
+                const originalText = refundBtn.innerHTML;
+                refundBtn.disabled = true;
+                refundBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+
+                window.isProcessingRefund = true;
+                showLoading('Processing refund...');
+
+                const itemIds = Array.from(selectedItems).map(cb => parseInt(cb.value));
+
+                try {
+                    const response = await fetch('/VoidRefund/RequestRefund', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': getToken()
+                        },
+                        body: JSON.stringify({
+                            orderId: window.currentRefundOrderId,
+                            itemIds: itemIds,
+                            reason: reason
+                        })
+                    });
+
+                    const data = await response.json();
+                    hideLoading();
+
+                    if (data.requiresOwner) {
+                        await showAlert(data.message, 'Owner Approval Required', '⚠️');
+                        document.querySelectorAll('.refund-item-checkbox').forEach(cb => cb.checked = false);
+                        document.getElementById('refundOrderSelect').value = '';
+                        document.getElementById('refundOrderItems').innerHTML = '';
+                    } else if (data.success) {
+                        await showAlert(data.message, 'Success', '✅');
+                        await loadRefundOrderItems();
+                        await loadCompletedOrdersForRefund();
+                        document.getElementById('refundOrderSelect').value = '';
+                    } else {
+                        await showAlert('❌ ' + data.message, 'Error', '❌');
+                    }
+                } catch (error) {
+                    hideLoading();
+                    console.error('Refund error:', error);
+                    await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+                } finally {
+                    refundBtn.disabled = false;
+                    refundBtn.innerHTML = originalText;
+                    window.isProcessingRefund = false;
+
+                    document.querySelectorAll('.refund-item-checkbox:checked').forEach(cb => cb.checked = false);
+                    const reasonSelect = document.getElementById('refundReason');
+                    if (reasonSelect) reasonSelect.value = '';
+                    const otherReason = document.getElementById('refundOtherReason');
+                    if (otherReason) {
+                        otherReason.style.display = 'none';
+                        otherReason.value = '';
+                    }
+                }
+            }
 
 // ✅ BAGONG FUNCTION: I-refresh ang order items pagkatapos ng refund
 async function refreshOrderItemsAfterRefund(orderId) {
@@ -6353,6 +6412,13 @@ async function refreshOrderItemsAfterRefund(orderId) {
         console.error('Error refreshing order items:', error);
     }
 }
+
+            function toggleAllRefundItems(source) {
+                const checkboxes = document.querySelectorAll('.refund-item-checkbox');
+                checkboxes.forEach(cb => {
+                    cb.checked = source.checked;
+                });
+            }
 
         // ============================================================
         // ATTENDANCE
@@ -8813,17 +8879,24 @@ function updateAddOnQty(checkbox) {
 async function applyVoucherToCart() {
     const code = document.getElementById('posVoucherInput').value.trim();
     const feedback = document.getElementById('voucherFeedback');
-     if (isManualDiscountActive()) {
+    
+    if (isManualDiscountActive()) {
         feedback.innerHTML = `<span class="text-danger">❌ Voucher cannot be combined with ${currentDiscountType} discount.</span>`;
         return;
     }
-    if (!code) { feedback.innerHTML = '<span class="text-danger">Please enter a code.</span>'; return; }
+    
+    if (!code) { 
+        feedback.innerHTML = '<span class="text-danger">Please enter a code.</span>'; 
+        return; 
+    }
 
     try {
+        // ✅ 1. I-VALIDATE LANG (CheckVoucher should NOT consume the voucher yet)
         const res = await fetch(`/Staff/CheckVoucher?code=${encodeURIComponent(code)}`);
         const data = await res.json();
 
         if (data.success) {
+            // ✅ 2. I-save sa client-side variable (hindi pa naka-save sa DB)
             currentVoucher = data.voucher;
             feedback.innerHTML = `<span class="text-success">✅ Applied: ${data.voucher.discountPercent}% OFF</span>`;
         } else {
@@ -8831,8 +8904,7 @@ async function applyVoucherToCart() {
             feedback.innerHTML = `<span class="text-danger">❌ ${data.message}</span>`;
         }
 
-
-        // Keep cart display in sync too (existing behavior)
+        // I-update ang cart para makita ang discount
         updateCartDisplay();
     } catch (err) {
         feedback.innerHTML = '<span class="text-danger">Error checking voucher.</span>';

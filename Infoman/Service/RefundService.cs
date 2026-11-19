@@ -29,9 +29,23 @@ namespace Infoman.Service
 
         private async Task<decimal> CalculateRefundAmount(int orderId, List<int> itemIds)
         {
-            return await _db.OrderItems
+            var items = await _db.OrderItems
+                .Include(oi => oi.AddOns) // ✅ ISAMA ANG ADD-ONS
                 .Where(oi => oi.OrderId == orderId && itemIds.Contains(oi.OrderItemId) && !oi.IsRefunded)
-                .SumAsync(oi => oi.Price * oi.Quantity);
+                .ToListAsync();
+
+            decimal totalRefund = 0;
+
+            foreach (var item in items)
+            {
+                // Base product price
+                totalRefund += item.Price * item.Quantity;
+
+                // ✅ Add-ons price
+                totalRefund += item.AddOns.Sum(a => a.Price * a.Quantity * item.Quantity);
+            }
+
+            return totalRefund;
         }
 
         private string GenerateRefundReference()
@@ -55,33 +69,74 @@ namespace Infoman.Service
         /// </summary>
         private async Task ReturnIngredientsToStock(OrderItem orderItem, int quantityToReturn, string referenceNumber)
         {
+            // ==========================================
+            // PART 1: BASE PRODUCT RETURN (Existing)
+            // ==========================================
             var productSize = await _db.ProductSizes
                 .Include(ps => ps.RecipeItems)
                 .ThenInclude(ri => ri.RawMaterial)
                 .FirstOrDefaultAsync(ps => ps.ProductSizeId == orderItem.ProductSizeId);
 
-            if (productSize?.RecipeItems == null) return;
-
-            foreach (var recipe in productSize.RecipeItems)
+            if (productSize != null && productSize.RecipeItems != null)
             {
-                decimal quantityToAdd = recipe.Quantity * quantityToReturn;
-
-                if (recipe.RawMaterial.BaseUnit == "g" || recipe.RawMaterial.BaseUnit == "mL")
+                foreach (var recipe in productSize.RecipeItems)
                 {
-                    quantityToAdd = quantityToAdd / 1000;
+                    decimal quantityToAdd = recipe.Quantity * quantityToReturn;
+
+                    if (recipe.RawMaterial.BaseUnit == "g" || recipe.RawMaterial.BaseUnit == "mL")
+                    {
+                        quantityToAdd = quantityToAdd / 1000;
+                    }
+
+                    var batch = await _db.RawMaterialBatches
+                        .Where(b => b.RawMaterialId == recipe.RawMaterialId)
+                        .OrderBy(b => b.ExpiryDate ?? DateTime.MaxValue)
+                        .FirstOrDefaultAsync();
+
+                    if (batch != null)
+                    {
+                        batch.QuantityRemaining += quantityToAdd;
+                    }
+
+                    await UpdateMainStock(recipe.RawMaterialId);
                 }
+            }
 
-                var batch = await _db.RawMaterialBatches
-                    .Where(b => b.RawMaterialId == recipe.RawMaterialId)
-                    .OrderBy(b => b.ExpiryDate ?? DateTime.MaxValue)
-                    .FirstOrDefaultAsync();
-
-                if (batch != null)
+            // ==========================================
+            // PART 2: ADD-ONS RETURN (Bago)
+            // ==========================================
+            if (orderItem.AddOns != null && orderItem.AddOns.Any())
+            {
+                foreach (var addOn in orderItem.AddOns)
                 {
-                    batch.QuantityRemaining += quantityToAdd;
-                }
+                    var addOnRecipe = await _db.AddOnRecipeItems
+                        .Include(ar => ar.RawMaterial)
+                        .Where(ar => ar.AddOnId == addOn.AddOnId && !ar.IsDeleted)
+                        .ToListAsync();
 
-                await UpdateMainStock(recipe.RawMaterialId);
+                    foreach (var recipe in addOnRecipe)
+                    {
+                        // Total quantity to return = recipe * order qty * add-on qty
+                        decimal quantityToAdd = recipe.Quantity * quantityToReturn * addOn.Quantity;
+
+                        if (recipe.RawMaterial.BaseUnit == "g" || recipe.RawMaterial.BaseUnit == "mL")
+                        {
+                            quantityToAdd = quantityToAdd / 1000;
+                        }
+
+                        var batch = await _db.RawMaterialBatches
+                            .Where(b => b.RawMaterialId == recipe.RawMaterialId)
+                            .OrderBy(b => b.ExpiryDate ?? DateTime.MaxValue)
+                            .FirstOrDefaultAsync();
+
+                        if (batch != null)
+                        {
+                            batch.QuantityRemaining += quantityToAdd;
+                        }
+
+                        await UpdateMainStock(recipe.RawMaterialId);
+                    }
+                }
             }
         }
 
@@ -90,49 +145,102 @@ namespace Infoman.Service
         /// </summary>
         private async Task LogWasteForPreparedItem(OrderItem orderItem, string reason, int userId)
         {
+            // ==========================================
+            // PART 1: BASE PRODUCT WASTE LOG (Existing)
+            // ==========================================
             var productSize = await _db.ProductSizes
                 .Include(ps => ps.RecipeItems)
                 .ThenInclude(ri => ri.RawMaterial)
                 .FirstOrDefaultAsync(ps => ps.ProductSizeId == orderItem.ProductSizeId);
 
-            if (productSize?.RecipeItems == null) return;
-
-            foreach (var recipe in productSize.RecipeItems)
+            if (productSize != null && productSize.RecipeItems != null)
             {
-                var rawMaterial = recipe.RawMaterial;
-                if (rawMaterial == null) continue;
-
-                // ✅ BASE UNIT ANG ITATAGO
-                decimal wasteQuantityInBaseUnit = recipe.Quantity * orderItem.Quantity;
-
-                // ✅ COMPUTE COST GAMIT ANG DISPLAY UNIT
-                decimal wasteQuantityInDisplayUnit = wasteQuantityInBaseUnit;
-                if (rawMaterial.BaseUnit == "g" || rawMaterial.BaseUnit == "mL")
+                foreach (var recipe in productSize.RecipeItems)
                 {
-                    wasteQuantityInDisplayUnit = wasteQuantityInBaseUnit / 1000;
+                    var rawMaterial = recipe.RawMaterial;
+                    if (rawMaterial == null) continue;
+
+                    decimal wasteQuantityInBaseUnit = recipe.Quantity * orderItem.Quantity;
+                    decimal wasteQuantityInDisplayUnit = wasteQuantityInBaseUnit;
+
+                    if (rawMaterial.BaseUnit == "g" || rawMaterial.BaseUnit == "mL")
+                    {
+                        wasteQuantityInDisplayUnit = wasteQuantityInBaseUnit / 1000;
+                    }
+
+                    var batch = await _db.RawMaterialBatches
+                        .Where(b => b.RawMaterialId == recipe.RawMaterialId && b.QuantityRemaining > 0)
+                        .OrderBy(b => b.ExpiryDate ?? DateTime.MaxValue)
+                        .FirstOrDefaultAsync();
+
+                    decimal unitPrice = batch?.UnitPrice ?? rawMaterial.Price;
+                    decimal totalCost = wasteQuantityInDisplayUnit * unitPrice;
+
+                    var wasteLog = new WasteLog
+                    {
+                        RawMaterialId = recipe.RawMaterialId,
+                        ProductId = orderItem.ProductId,
+                        Quantity = wasteQuantityInBaseUnit,
+                        Reason = WasteLog.WasteReason.CustomerCancel,
+                        Date = DateTime.Today,
+                        RecordedBy = userId.ToString(),
+                        Notes = $"REFUND from {orderItem.Order?.OrderNumber}: {reason}",
+                        TotalCost = totalCost,
+                        BatchId = batch?.BatchId
+                    };
+                    _db.WasteLogs.Add(wasteLog);
                 }
+            }
 
-                var batch = await _db.RawMaterialBatches
-                    .Where(b => b.RawMaterialId == recipe.RawMaterialId && b.QuantityRemaining > 0)
-                    .OrderBy(b => b.ExpiryDate ?? DateTime.MaxValue)
-                    .FirstOrDefaultAsync();
-
-                decimal unitPrice = batch?.UnitPrice ?? rawMaterial.Price;
-                decimal totalCost = wasteQuantityInDisplayUnit * unitPrice; // ✅ TAMANG COST
-
-                var wasteLog = new WasteLog
+            // ==========================================
+            // PART 2: ADD-ONS WASTE LOG (Bago)
+            // ==========================================
+            if (orderItem.AddOns != null && orderItem.AddOns.Any())
+            {
+                foreach (var addOn in orderItem.AddOns)
                 {
-                    RawMaterialId = recipe.RawMaterialId,
-                    ProductId = orderItem.ProductId,
-                    Quantity = wasteQuantityInBaseUnit, // ✅ BASE UNIT
-                    Reason = WasteLog.WasteReason.CustomerCancel,
-                    Date = DateTime.Today,
-                    RecordedBy = userId.ToString(),
-                    Notes = $"REFUND from {orderItem.Order?.OrderNumber}: {reason}",
-                    TotalCost = totalCost,              // ✅ MAY COST NA
-                    BatchId = batch?.BatchId            // ✅ MAY BATCH ID
-                };
-                _db.WasteLogs.Add(wasteLog);
+                    var addOnRecipe = await _db.AddOnRecipeItems
+                        .Include(ar => ar.RawMaterial)
+                        .Where(ar => ar.AddOnId == addOn.AddOnId && !ar.IsDeleted)
+                        .ToListAsync();
+
+                    foreach (var recipe in addOnRecipe)
+                    {
+                        var rawMaterial = recipe.RawMaterial;
+                        if (rawMaterial == null) continue;
+
+                        // Total quantity = recipe * order qty * add-on qty
+                        decimal wasteQtyBase = recipe.Quantity * orderItem.Quantity * addOn.Quantity;
+                        decimal wasteQtyDisplay = wasteQtyBase;
+
+                        if (rawMaterial.BaseUnit == "g" || rawMaterial.BaseUnit == "mL")
+                        {
+                            wasteQtyDisplay = wasteQtyBase / 1000;
+                        }
+
+                        var batch = await _db.RawMaterialBatches
+                            .Where(b => b.RawMaterialId == recipe.RawMaterialId && b.QuantityRemaining > 0)
+                            .OrderBy(b => b.ExpiryDate ?? DateTime.MaxValue)
+                            .FirstOrDefaultAsync();
+
+                        decimal unitPrice = batch?.UnitPrice ?? rawMaterial.Price;
+                        decimal totalCost = wasteQtyDisplay * unitPrice;
+
+                        var wasteLog = new WasteLog
+                        {
+                            RawMaterialId = recipe.RawMaterialId,
+                            ProductId = orderItem.ProductId,
+                            Quantity = wasteQtyBase,
+                            Reason = WasteLog.WasteReason.CustomerCancel,
+                            Date = DateTime.Today,
+                            RecordedBy = userId.ToString(),
+                            Notes = $"REFUND ADD-ON from {orderItem.Order?.OrderNumber}: {reason}",
+                            TotalCost = totalCost,
+                            BatchId = batch?.BatchId
+                        };
+                        _db.WasteLogs.Add(wasteLog);
+                    }
+                }
             }
         }
 
@@ -246,9 +354,11 @@ namespace Infoman.Service
                 foreach (var itemId in itemIds)
                 {
                     var orderItem = await _db.OrderItems
-                        .Include(oi => oi.ProductSize)
-                        .ThenInclude(ps => ps.RecipeItems)
-                        .FirstOrDefaultAsync(oi => oi.OrderItemId == itemId);
+        .Include(oi => oi.ProductSize)
+            .ThenInclude(ps => ps.RecipeItems)
+        .Include(oi => oi.AddOns) // ✅ IDAGDAG ITO PARA MAKITA ANG ADD-ONS
+        .Include(oi => oi.Order)  // ✅ IDAGDAG ITO PARA SA ORDER NUMBER SA NOTES
+        .FirstOrDefaultAsync(oi => oi.OrderItemId == itemId);
 
                     if (orderItem != null && !orderItem.IsRefunded)
                     {

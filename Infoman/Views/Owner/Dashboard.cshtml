@@ -1504,6 +1504,110 @@ html.sidebar-collapsed .main-content {
     }
 }
 
+/* ===== EMPLOYEE CARDS (CLEAN) ===== */
+.emp-card {
+    background: #fff;
+    border: 1px solid #EEF2EC;
+    border-left: 5px solid var(--primary); 
+    border-radius: 16px;
+    padding: 20px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 14px rgba(22, 75, 53, 0.06);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.emp-card.is-offline {
+    border-left-color: #cbd5e1;
+}
+.emp-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(22, 75, 53, 0.12);
+}
+
+.emp-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+}
+.emp-avatar {
+    background: rgba(212, 176, 0, 0.15);
+    color: #8a7000;
+}
+.emp-id { flex: 1; min-width: 0; }
+.emp-name {
+    font-weight: 700;
+    font-size: 1rem;
+    color: #292929;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.emp-user { font-size: 0.82rem; color: #777; }
+
+/* Status pill */
+.emp-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+.emp-status .dot { width: 7px; height: 7px; border-radius: 50%; }
+.emp-status.online  { background: #ecfdf3; color: #15803d; }
+.emp-status.online .dot { background: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,.2); }
+.emp-status.offline { background: #f1f5f9; color: #64748b; }
+.emp-status.offline .dot { background: #94a3b8; }
+
+/* Contact */
+.emp-contact { list-style: none; margin: 0 0 14px; padding: 0 0 14px; border-bottom: 1px solid #EEF2EC; }
+.emp-contact li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.85rem;
+    color: #555;
+    padding: 3px 0;
+    min-width: 0;
+}
+.emp-contact i { width: 16px; text-align: center; color: #94a3b8; font-size: 0.8rem; flex-shrink: 0; }
+.emp-contact span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Attendance rows */
+.emp-rows { margin-bottom: 16px; flex: 1; }
+.emp-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.82rem;
+    padding: 4px 0;
+}
+.emp-row span { color: #777; }
+.emp-row strong { color: #292929; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Buttons */
+.emp-actions { display: flex; gap: 8px; }
+.emp-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    color: #334155;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.emp-btn:hover { background: #f8fafc; border-color: #cbd5e1; }
+.emp-btn.danger { color: #dc2626; }
+.emp-btn.danger:hover { background: #fee2e2; border-color: #fecaca; }
+
     </style>
 
     <script>
@@ -3452,9 +3556,7 @@ html.sidebar-collapsed .main-content {
 
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h6 class="fw-bold mb-0 text-uppercase">Items to be Received</h6>
-            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetReceivingForm()">
-                <i class="fas fa-undo"></i> Reset
-            </button>
+            
         </div>
 
         <div class="alert alert-info py-2 mb-3" style="border-radius: 8px;">
@@ -8722,138 +8824,95 @@ function renderSalesChart(data) {
 // ========== EMPLOYEE MODULE FUNCTIONS ==========
 
 function loadEmployees() {
-    // Load both employees and their online status
     Promise.all([
         fetch('/Employee/GetAllEmployees').then(res => res.json()),
         fetch('/Owner/GetEmployeeOnlineStatus').then(res => res.json())
     ])
-    .then(function([employees, statusData]) {
+    .then(function ([employees, statusData]) {
         var container = document.getElementById('employeesContainer');
-        
+
         if (!employees || employees.length === 0) {
-            container.innerHTML = '<div class="text-center py-5"><i class="fas fa-users fa-4x text-muted mb-3"></i><h5>No Employees Yet</h5><p class="text-muted">Click "Add Employee" to get started.</p></div>';
+            container.innerHTML = '<div class="text-center py-5"><i class="fas fa-users fa-3x text-muted mb-3"></i><h5>No Employees Yet</h5><p class="text-muted">Click "Add Employee" to get started.</p></div>';
             return;
         }
-        
-        // Create maps for quick status lookup
-        var onlineMap = {};
-        var offlineMap = {};
-        
-        if (statusData.online) {
-            for (var i = 0; i < statusData.online.length; i++) {
-                var emp = statusData.online[i];
-                onlineMap[emp.employeeId] = emp;
-            }
+
+        var statusMap = {};
+        (statusData.online || []).forEach(function (e) { statusMap[e.employeeId] = e; });
+        (statusData.offline || []).forEach(function (e) { if (!statusMap[e.employeeId]) statusMap[e.employeeId] = e; });
+
+        // safe para sa data-attribute (may quotes)
+        function attr(s) { return escapeHtml(s || '').replace(/"/g, '&quot;'); }
+
+        function initials(name) {
+            var parts = (name || '?').trim().split(/\s+/);
+            var first = parts[0] ? parts[0][0] : '';
+            var last = parts.length > 1 ? parts[parts.length - 1][0] : '';
+            return (first + last).toUpperCase();
         }
-        
-        if (statusData.offline) {
-            for (var i = 0; i < statusData.offline.length; i++) {
-                var emp = statusData.offline[i];
-                offlineMap[emp.employeeId] = emp;
-            }
+
+        function row(label, value) {
+            return '<div class="emp-row"><span>' + label + '</span><strong>' + value + '</strong></div>';
         }
-        
+
         var html = '';
-        for (var i = 0; i < employees.length; i++) {
-            var emp = employees[i];
-            var statusInfo = onlineMap[emp.id] || offlineMap[emp.id];
-            
-            var statusBadge = '';
-            var statusText = '';
-            var statusIcon = '';
-            var extraInfo = '';
-            
-            if (statusInfo && statusInfo.status === 'Online') {
-                statusBadge = 'bg-success';
-                statusIcon = '<i class="fas fa-circle" style="font-size: 10px; color: #10b981;"></i>';
-                statusText = 'ONLINE 🟢';
-                extraInfo = `
-                    <div class="mt-2 pt-2 border-top">
-                        <small><i class="fas fa-clock"></i> Time in: ${statusInfo.checkInTime || '--:--'}</small><br>
-                        <small><i class="fas fa-hourglass-half"></i> Hours: ${(statusInfo.hoursWorked || 0).toFixed(1)} hrs</small>
-                        <small class="d-block"><i class="fas fa-sign-in-alt"></i> Last login: ${statusInfo.lastLoginTime || '--:--'}</small>
-                    </div>
-                `;
+        employees.forEach(function (emp) {
+            var info = statusMap[emp.id] || {};
+            var isOnline = info.status === 'Online';
+            var rows = '';
+
+            if (isOnline) {
+                rows += row('Time in', info.checkInTime || '--:--');
+                rows += row('Hours worked', (info.hoursWorked || 0).toFixed(1) + ' hrs');
+                if (info.lastLoginTime) rows += row('Last login', info.lastLoginTime);
             } else {
-                statusBadge = 'bg-secondary';
-                statusIcon = '<i class="fas fa-circle" style="font-size: 10px; color: #6b7280;"></i>';
-                statusText = 'OFFLINE 🔴';
-                
-                if (statusInfo && (statusInfo.checkInTime || statusInfo.checkOutTime)) {
-                    extraInfo = `
-                        <div class="mt-2 pt-2 border-top">
-                            <small><i class="fas fa-clock"></i> Time in: ${statusInfo.checkInTime || '--:--'}</small><br>
-                            <small><i class="fas fa-sign-out-alt"></i> Time out: ${statusInfo.checkOutTime || '--:--'}</small><br>
-                            <small><i class="fas fa-hourglass-half"></i> Hours: ${(statusInfo.hoursWorked || 0).toFixed(1)} hrs</small>
-                        </div>
-                    `;
+                if (info.checkInTime || info.checkOutTime) {
+                    rows += row('Time in', info.checkInTime || '--:--');
+                    rows += row('Time out', info.checkOutTime || '--:--');
+                    rows += row('Hours worked', (info.hoursWorked || 0).toFixed(1) + ' hrs');
                 } else {
-                    extraInfo = `
-                        <div class="mt-2 pt-2 border-top">
-                            <small class="text-muted"><i class="fas fa-clock"></i> No attendance today</small>
+                    rows += row('Attendance', 'None today');
+                }
+                if (info.lastLoginTime)  rows += row('Last login', info.lastLoginTime);
+                if (info.lastLogoutTime) rows += row('Last logout', info.lastLogoutTime);
+            }
+
+            html += `
+            <div class="col-md-6 col-xl-4">
+                <div class="emp-card">
+                    <div class="emp-head">
+                        <div class="emp-avatar">${escapeHtml(initials(emp.fullName))}</div>
+                        <div class="emp-id">
+                            <div class="emp-name" title="${attr(emp.fullName)}">${escapeHtml(emp.fullName)}</div>
+                            <div class="emp-user">@@${escapeHtml(emp.username)}</div>
                         </div>
-                    `;
-                }
-            }
-            
-            // Add last login info for offline employees
-            if (!statusInfo || statusInfo.status !== 'Online') {
-                if (statusInfo && statusInfo.lastLoginTime) {
-                    extraInfo += `<small class="d-block mt-1"><i class="fas fa-sign-in-alt"></i> Last login: ${statusInfo.lastLoginTime}</small>`;
-                }
-                if (statusInfo && statusInfo.lastLogoutTime) {
-                    extraInfo += `<small class="d-block"><i class="fas fa-sign-out-alt"></i> Last logout: ${statusInfo.lastLogoutTime}</small>`;
-                }
-            }
-            
-            html += '<div class="col-md-6 col-lg-4 mb-3">' +
-                '<div class="employee-card">' +
-                '<div class="d-flex align-items-start">' +
-                '<div class="employee-avatar">' +
-                '<i class="fas fa-user"></i>' +
-                '</div>' +
-                '<div class="flex-grow-1 ms-3">' +
-                '<div class="d-flex justify-content-between align-items-start">' +
-                '<div>' +
-                '<div class="employee-name">' + escapeHtml(emp.fullName) + '</div>' +
-                '<div class="employee-username">@@' + escapeHtml(emp.username) + '</div>' +
-                '</div>' +
-                '<div>' +
-                '<span class="badge ' + statusBadge + ' px-2 py-1">' + statusIcon + ' ' + statusText + '</span>' +
-                '</div>' +
-                '</div>' +
-                '<div class="row mt-2">' +
-                '<div class="col-12">' +
-                '<div class="employee-detail">' +
-                '<i class="fas fa-envelope"></i> ' + escapeHtml(emp.email || 'No email') +
-                '</div>' +
-                '<div class="employee-detail">' +
-                '<i class="fas fa-phone"></i> ' + escapeHtml(emp.phone || 'No phone') +
-                '</div>' +
-                '<div class="employee-detail">' +
-                '<i class="fas fa-calendar-alt"></i> Joined: ' + escapeHtml(emp.dateJoined) +
-                '</div>' +
-                extraInfo +
-                '</div>' +
-                '</div>' +
-                '<div class="mt-2">' +
-                '<button class="btn btn-sm btn-outline-warning me-1" onclick="editEmployee(' + emp.id + ')">' +
-                '<i class="fas fa-edit"></i> Edit' +
-                '</button>' +
-                '<button class="btn btn-sm btn-outline-danger" onclick="deleteEmployee(' + emp.id + ', \'' + escapeHtml(emp.fullName) + '\')">' +
-                '<i class="fas fa-trash"></i> Delete' +
-                '</button>' +
-                '</div>' +
-                '</div>' +
-                '</div>' +
-                '</div>' +
-                '</div>';
-        }
+                        <span class="emp-status ${isOnline ? 'online' : 'offline'}">
+                            <span class="dot"></span>${isOnline ? 'Online' : 'Offline'}
+                        </span>
+                    </div>
+
+                    <ul class="emp-contact">
+                        <li><i class="fas fa-envelope"></i><span>${escapeHtml(emp.email || 'No email')}</span></li>
+                        <li><i class="fas fa-phone"></i><span>${escapeHtml(emp.phone || 'No phone')}</span></li>
+                        <li><i class="fas fa-calendar"></i><span>Joined ${escapeHtml(emp.dateJoined)}</span></li>
+                    </ul>
+
+                    <div class="emp-rows">${rows}</div>
+
+                    <div class="emp-actions">
+                        <button class="emp-btn" onclick="editEmployee(${emp.id})">Edit</button>
+                        <button class="emp-btn danger" data-name="${attr(emp.fullName)}"
+                                onclick="deleteEmployee(${emp.id}, this.dataset.name)">Delete</button>
+                    </div>
+                </div>
+            </div>`;
+        });
+
         container.innerHTML = html;
     })
-    .catch(function(err) {
+    .catch(function (err) {
         console.error('Error loading employees:', err);
-        document.getElementById('employeesContainer').innerHTML = '<div class="alert alert-danger">Error loading employees: ' + err.message + '</div>';
+        document.getElementById('employeesContainer').innerHTML =
+            '<div class="alert alert-danger">Error loading employees: ' + err.message + '</div>';
     });
 }
 
@@ -11091,7 +11150,7 @@ const formattedDate = isNaN(date.getTime()) ? req.requestedAt :
                     <td><strong>${escapeHtml(req.orderNumber)}</strong><br>${typeBadge}</td>
                     <td>${escapeHtml(req.reason)}</td>
                     <td>${escapeHtml(req.requesterName)}</td>
-                    <td class="text-danger fw-bold text-end">₱${(req.orderTotal || 0).toFixed(2)}</td>
+                                                                    <td class="text-danger fw-bold">₱${(req.amount || 0).toFixed(2)}</td>
                     <td class="text-center" style="white-space: nowrap;">
                         <button class="btn btn-sm btn-success me-1" onclick="approveRequest(${req.id})">
                             <i class="fas fa-check"></i> Approve
@@ -13207,10 +13266,17 @@ function renderShiftReport(data) {
                     ${gcashBlock}
                 </div>
 
-                <div class="sr-section">
-                    <h4>Closing Remarks</h4>
-                    <div>${s.closingNotes ? escapeHtml(s.closingNotes) : '<span class="sr-empty">No remarks.</span>'}</div>
-                </div>
+               <div class="sr-section">
+    <h4>Shift Remarks</h4>
+    <div style="margin-bottom:10px;">
+        <span style="display:block;font-size:11px;text-transform:uppercase;color:#64748b;letter-spacing:.05em;">Opening notes</span>
+        <div>${s.openingNotes ? escapeHtml(s.openingNotes) : '<span class="sr-empty">No opening notes.</span>'}</div>
+    </div>
+    <div>
+        <span style="display:block;font-size:11px;text-transform:uppercase;color:#64748b;letter-spacing:.05em;">Closing remarks</span>
+        <div>${s.closingNotes ? escapeHtml(s.closingNotes) : '<span class="sr-empty">No remarks.</span>'}</div>
+    </div>
+</div>
 
                 <div class="sr-section wide">
                     <h4>Expenses During Shift</h4>

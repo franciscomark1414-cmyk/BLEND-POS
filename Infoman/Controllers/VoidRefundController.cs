@@ -312,8 +312,6 @@ namespace Infoman.Controllers
         }
 
 
-        // STEP 1: Create Refund Request (Pending muna)
-        // STEP 1: Create Refund Request (Laging PENDING - lahat need approval)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RequestRefund([FromBody] ProcessRefundRequest request)
@@ -325,20 +323,30 @@ namespace Infoman.Controllers
                     return Json(new { success = false, message = "No items selected for refund" });
                 }
 
-                var userId = GetCurrentUserId();
+                if (request.OrderId <= 0)
+                {
+                    return Json(new { success = false, message = "Invalid Order ID. Please select an order again." });
+                }
 
-                // Compute total refund amount for display
+                var userId = GetCurrentUserId();
+                if (userId == 0) return Json(new { success = false, message = "User not logged in." });
+
+                // ✅ Compute total amount para sa display
                 decimal totalAmount = 0;
                 foreach (var itemId in request.ItemIds)
                 {
-                    var orderItem = await _db.OrderItems.FindAsync(itemId);
+                    var orderItem = await _db.OrderItems
+                        .Include(oi => oi.AddOns) // ISAMA ANG ADD-ONS SA COMPUTATION
+                        .FirstOrDefaultAsync(oi => oi.OrderItemId == itemId);
+
                     if (orderItem != null)
                     {
                         totalAmount += orderItem.Price * orderItem.Quantity;
+                        totalAmount += orderItem.AddOns.Sum(a => a.Price * a.Quantity * orderItem.Quantity);
                     }
                 }
 
-                // Create pending request (LAGING PENDING - kahit Owner pa, dadaan sa approval)
+                // ✅ Create Pending Request (HINDI AUTO-APPROVE)
                 var pendingRequest = new PendingRequest
                 {
                     OrderId = request.OrderId,
@@ -353,9 +361,11 @@ namespace Infoman.Controllers
                 _db.PendingRequests.Add(pendingRequest);
                 await _db.SaveChangesAsync();
 
+                // ✅ Return requiresOwner = true para mag-hintay ang staff
                 return Json(new
                 {
-                    success = true,
+                    requiresOwner = true,
+                    success = false,
                     message = $"Refund request of ₱{totalAmount:F2} submitted for owner approval",
                     requestId = pendingRequest.Id
                 });
@@ -366,7 +376,6 @@ namespace Infoman.Controllers
             }
         }
 
-       
 
         // Request model
         public class ProcessRefundRequest

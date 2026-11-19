@@ -295,11 +295,9 @@ namespace Infoman.Controllers
 
                 if (isNewOrder)
                 {
-                    // ✅ HANAPIN ANG ACTIVE SHIFT NG STAFF (BAGO GUMAWA NG ORDER)
                     var activeShift = await _db.Shifts
                         .FirstOrDefaultAsync(s => s.Status == "OPEN" && s.StaffUserId == userId);
 
-                    // Gumawa ng bagong order
                     string finalStatus = request.PaymentMethod == "Cash" ? "PENDING_BLENDING" : "PENDING_PAYMENT";
 
                     order = new Order
@@ -320,21 +318,20 @@ namespace Infoman.Controllers
                     };
 
                     _db.Orders.Add(order);
-                    const int maxRetries = 3;
-                    for (int attempt = 1; attempt <= maxRetries; attempt++)
+
+                    // ✅ I-try isang beses lang, huwag nang i-retry para hindi magulo ang OrderId
+                    try
                     {
-                        try
-                        {
-                            await _db.SaveChangesAsync();
-                            break;
-                        }
-                        catch (DbUpdateException ex) when (IsUniqueViolation(ex) && attempt < maxRetries)
-                        {
-                            // Race condition — may nag-save ng parehong ReceiptNumber
-                            _db.Entry(order).State = EntityState.Detached;
-                            order.ReceiptNumber = await GenerateUniqueReceiptNumberAsync();
-                            _db.Orders.Add(order);
-                        }
+                        await _db.SaveChangesAsync();
+                    }
+                    catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+                    {
+                        // Kung may unique violation, ibig sabihin may katulad na order number
+                        // Mag-generate ng bago at i-try ulit (once lang)
+                        _db.Entry(order).State = EntityState.Detached;
+                        order.ReceiptNumber = await GenerateUniqueReceiptNumberAsync();
+                        _db.Orders.Add(order);
+                        await _db.SaveChangesAsync();
                     }
                 }
                 orderId = order.OrderId;
@@ -408,7 +405,7 @@ namespace Infoman.Controllers
                     order.VoucherDiscountPercent = voucherToApply.DiscountPercent;
                     order.VoucherDiscountAmount = voucherDiscountAmount;
 
-                    voucherToApply.IsUsed = true; // ✅ MARK AS USED
+                    //voucherToApply.IsUsed = true; // ✅ MARK AS USED
                 }
                 else
                 {
@@ -937,6 +934,10 @@ namespace Infoman.Controllers
         [HttpPost]
         public async Task<IActionResult> StartBlending([FromBody] StartBlendingRequest request)
         {
+
+            int orderId = request.OrderId;
+            string voucherCode = request.VoucherCode;
+
             if (request == null || request.OrderId <= 0)
                 return Json(new { success = false, message = "Invalid order." });
 
@@ -958,7 +959,7 @@ namespace Infoman.Controllers
                 var orderNumber = await _db.Orders
                     .Where(o => o.OrderId == request.OrderId)
                     .Select(o => o.OrderNumber)
-                    .FirstAsync();
+                    .FirstOrDefaultAsync();
 
                 // 2. Kunin ang available items at ang kanilang recipe (hindi kasama ang deleted recipe)
                 var items = await _db.OrderItems
@@ -1058,6 +1059,15 @@ namespace Infoman.Controllers
 
                         orderAddOn.ActualCost = Math.Round(addOnCost, 2);
                         totalActualCost += orderAddOn.ActualCost;
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(voucherCode))
+                {
+                    var voucher = await _db.Vouchers.FirstOrDefaultAsync(v => v.Code == voucherCode);
+                    if (voucher != null)
+                    {
+                        voucher.IsUsed = true;
                     }
                 }
 
@@ -1462,6 +1472,140 @@ namespace Infoman.Controllers
             public decimal DiscountPercent { get; set; }
         }
 
+        // ✅ ITO ANG KULANG: DTO para sa JSON Body
+        public class VoidRequest
+        {
+            public int OrderId { get; set; }
+            public string Reason { get; set; }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> VoidTransactionDirect([FromBody] VoidRequest request)
+        {
+            int orderId = request.OrderId;
+            string reason = request.Reason;
+
+            // ... yung natitirang code mo sa baba (yung may Console.WriteLine at try-catch) ...
+            // ✅ CHECK NATIN KUNG ANO ANG NATANGGAP NG BACKEND
+            Console.WriteLine($"==========================================");
+            Console.WriteLine($"🛑 VOID TRANSACTION BACKEND HIT");
+            Console.WriteLine($"Received Order ID: {orderId}");
+            Console.WriteLine($"Received Reason: {reason}");
+            Console.WriteLine($"==========================================");
+
+            if (orderId <= 0)
+            {
+                return Json(new { success = false, message = "Invalid Order ID received. OrderId is 0 or negative." });
+            }
+
+            using var tx = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                // ✅ TRY 1: Hanapin gamit ang OrderId (Int)
+                var order = await _db.Orders
+                    .Include(o => o.Items)
+                    .Include(o => o.Adjustments)
+                    .FirstOrDefaultAsync(o => o.OrderId == orderId);
+
+                // ✅ TRY 2: Kung wala, hanapin gamit ang OrderNumber (kung sakaling string ang pinasa mo)
+                if (order == null)
+                {
+                    var orderNumberStr = orderId.ToString();
+                    order = await _db.Orders
+                        .Include(o => o.Items)
+                        .Include(o => o.Adjustments)
+                        .FirstOrDefaultAsync(o => o.OrderNumber.Contains(orderNumberStr));
+                }
+
+                if (order == null)
+                {
+                    Console.WriteLine($"❌ ERROR: Order with ID {orderId} not found in database.");
+                    return Json(new { success = false, message = $"Order not found. The ID '{orderId}' is not in the database." });
+                }
+
+                var status = (order.Status ?? "").Trim().ToUpperInvariant();
+                if (status == "BLENDING" || status == "BLENDED" || status == "COMPLETED")
+                    return Json(new { success = false, message = "Cannot void: blending already started." });
+                if (status == "VOIDED" || status == "CANCELLED")
+                    return Json(new { success = false, message = "Order is already voided." });
+
+                // ✅ Kunin ang Username mula sa Session (base sa login logic mo)
+                // ✅ Kunin ang UserId mula sa tamang Session key (Staff_UserId)
+                int? currentUserId = HttpContext.Session.GetInt32("Staff_UserId");
+
+                if (!currentUserId.HasValue || currentUserId.Value == 0)
+                    return Json(new { success = false, message = "Cannot identify current user. Please re-login." });
+
+                int finalUserId = currentUserId.Value;
+                // 👆 Ito na ang gagamitin mo sa VoidLog at Order.VoidedBy
+
+                // Mark order voided
+                order.Status = "VOIDED";
+                order.VoidedAt = DateTime.Now;
+                order.VoidedBy = finalUserId;
+                order.VoidReason = reason;
+
+                // Record sa VoidLog
+                _db.VoidLogs.Add(new VoidLog
+                {
+                    TransactionId = order.OrderId,
+                    ItemId = null,
+                    VoidType = "transaction",
+                    Reason = reason,
+                    PreparedFlag = false,
+                    PreparedStatus = "NOT_PREPARED",
+                    UserId = finalUserId,
+                    ApprovedBy = null,
+                    Timestamp = DateTime.Now,
+                    RefundAmount = order.TotalAmount,
+                    IsRefundProcessed = true
+                });
+
+                // Revert Payment
+                var payment = await _db.Payments
+                    .FirstOrDefaultAsync(p => p.OrderId == order.OrderId && p.Status == "PAID");
+
+                if (payment != null)
+                {
+                    payment.Status = "CANCELLED";
+                }
+
+                await _db.SaveChangesAsync();
+                await tx.CommitAsync();
+
+                return Json(new { success = true, refundAmount = order.TotalAmount });
+            }
+            catch (Exception ex)
+            {
+                await tx.RollbackAsync();
+                return Json(new { success = false, message = "Server Error: " + ex.Message });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetOrderDetailsForPos(int orderId)
+        {
+            var order = await _db.Orders
+                .Include(o => o.Items)
+                .FirstOrDefaultAsync(o => o.OrderId == orderId);
+
+            if (order == null)
+                return Json(new { success = false, message = "Order not found." });
+
+            return Json(new
+            {
+                success = true,
+                order = new
+                {
+                    orderId = order.OrderId,
+                    totalAmount = order.TotalAmount,
+                    status = order.Status,
+                    paymentMethod = order.PaymentMethod
+                }
+            });
+        }
+
         public class UpdateOrderTotalsRequest
         {
             public int OrderId { get; set; }
@@ -1473,6 +1617,7 @@ namespace Infoman.Controllers
         public class StartBlendingRequest
         {
             public int OrderId { get; set; }
+            public string VoucherCode { get; set; }
         }
 
         private static bool IsUniqueViolation(DbUpdateException ex)
@@ -1480,6 +1625,7 @@ namespace Infoman.Controllers
             return ex.InnerException is Microsoft.Data.SqlClient.SqlException sql
                 && (sql.Number == 2601 || sql.Number == 2627);
         }
+
         [HttpGet]
         public async Task<IActionResult> CheckVoucher(string code)
         {
@@ -1507,6 +1653,37 @@ namespace Infoman.Controllers
             public List<AddOnSelection> AddOns { get; set; } = new();
             public string? VoucherCode { get; set; }
             public decimal VoucherDiscountPercent { get; set; }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetOrderItemsForRefund(int orderId)
+        {
+            var items = await _db.OrderItems
+                .Include(oi => oi.Product)
+                .Include(oi => oi.ProductSize)
+                .Include(oi => oi.AddOns)  // ✅ ISAMA ANG ADD-ONS
+                .Where(oi => oi.OrderId == orderId
+                          && !oi.IsRefunded
+                          && !oi.IsVoided
+                          && oi.DispositionStatusId == 1)  // AVAILABLE lang
+                .Select(oi => new
+                {
+                    orderItemId = oi.OrderItemId,
+                    productName = oi.Product.Name,
+                    sizeName = oi.ProductSize.SizeName,
+                    quantity = oi.Quantity,
+                    price = oi.Price,  // Base price lang
+                    addOns = oi.AddOns.Select(a => new
+                    {
+                        addOnId = a.AddOnId,
+                        addOnName = a.AddOnName,
+                        price = a.Price,
+                        quantity = a.Quantity
+                    }).ToList()
+                })
+                .ToListAsync();
+
+            return Json(items);
         }
         public class AddOnSelection { public int AddOnId { get; set; } public int Quantity { get; set; } }
 

@@ -685,7 +685,12 @@ namespace Infoman.Service
                     return (false, "Request not found or already processed.");
                 }
 
-                var req = await _db.PendingRequests.FirstAsync(r => r.Id == requestId);
+                var req = await _db.PendingRequests.FirstOrDefaultAsync(r => r.Id == requestId);
+                if (req == null)
+                {
+                    await tx.RollbackAsync();
+                    return (false, "Request not found.");
+                }
                 var applied = await ApplyTransactionVoidCoreAsync(req, ownerId);
 
                 if (!applied.success)
@@ -839,7 +844,12 @@ namespace Infoman.Service
                     return (false, "Request not found or already processed.");
                 }
 
-                var req = await _db.PendingRequests.FirstAsync(r => r.Id == requestId);
+                var req = await _db.PendingRequests.FirstOrDefaultAsync(r => r.Id == requestId);
+                if (req == null)
+                {
+                    await tx.RollbackAsync();
+                    return (false, "Request not found.");
+                }
 
                 var itemIds = (req.ItemIds ?? "")
                     .Split(',', StringSplitOptions.RemoveEmptyEntries)
@@ -854,8 +864,15 @@ namespace Infoman.Service
                 }
 
                 var order = await _db.Orders
-                    .Include(o => o.Items)
-                    .FirstAsync(o => o.OrderId == req.OrderId);
+     .Include(o => o.Items)
+         .ThenInclude(oi => oi.AddOns) // ✅ MAHALAGA ITO
+     .FirstOrDefaultAsync(o => o.OrderId == req.OrderId);
+
+                if (order == null)
+                {
+                    await tx.RollbackAsync();
+                    return (false, "Order not found.");
+                }
 
                 if (order.Status != OrderStatus.PENDING_BLENDING
                     && order.Status != OrderStatus.COMPLETED
@@ -878,7 +895,15 @@ namespace Infoman.Service
                 decimal pct = order.DiscountPercent;
                 decimal refund = 0;
                 foreach (var item in targets)
-                    refund += Money(item.Price * item.Quantity * (1 - pct));
+                {
+                    decimal basePrice = item.Price * item.Quantity;
+                    decimal addOnsPrice = 0;
+                    if (item.AddOns != null)
+                    {
+                        addOnsPrice = item.AddOns.Sum(a => a.Price * a.Quantity * item.Quantity);
+                    }
+                    refund += Money((basePrice + addOnsPrice) * (1 - pct));
+                }
                 refund = Money(refund);
 
                 decimal netPaid = await GetNetPaidAsync(order.OrderId);

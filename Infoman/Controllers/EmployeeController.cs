@@ -170,7 +170,9 @@ namespace Infoman.Controllers
 
                 // Check if username already exists
                 var existingUser = await _db.Users
-                    .FirstOrDefaultAsync(u => u.Username.ToLower() == model.Username.ToLower());
+    .FirstOrDefaultAsync(u => u.Username.ToLower() == model.Username.ToLower()
+                              && !u.IsDeleted
+                              && u.Status != "Inactive");
 
                 if (existingUser != null)
                 {
@@ -289,6 +291,7 @@ namespace Infoman.Controllers
 
                 // 1. I-deactivate ang user
                 employee.Status = "Inactive";
+                employee.IsDeleted = true;
 
                 // 2. I-force close ang active shift
                 var openShifts = await _db.Shifts

@@ -58,6 +58,7 @@ namespace Infoman.Services
                 StaffUserId = staffUserId,
                 StartTime = DateTime.Now,
                 OpeningFloat = openingFloat,
+                OpeningNotes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim(),
                 Status = "OPEN",
                 CreatedAt = DateTime.Now
             };

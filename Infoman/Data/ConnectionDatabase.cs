@@ -290,6 +290,12 @@ namespace Infoman.Data
     .Property(c => c.Type)
     .HasConversion<string>(); // ✅ Ito ang mag-fo-force na maging "AddOn" (string) ang isave
 
+
+            modelBuilder.Entity<User>()
+    .HasIndex(u => u.Username)
+    .IsUnique()
+    .HasFilter("[IsDeleted] = 0");
+
         }
 
     }

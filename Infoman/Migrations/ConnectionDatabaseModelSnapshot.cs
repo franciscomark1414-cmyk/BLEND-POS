@@ -1352,6 +1352,9 @@ namespace Infoman.Migrations
                     b.Property<decimal>("OpeningFloat")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("OpeningNotes")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<decimal?>("PhysicalCashCounted")
                         .HasColumnType("decimal(18,2)");
 
@@ -1665,6 +1668,10 @@ namespace Infoman.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Username")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
 
                     b.ToTable("Users");
                 });

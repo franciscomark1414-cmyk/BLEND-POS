@@ -874,6 +874,9 @@ namespace Infoman.Controllers
                 discountType = order.DiscountType,
                 discountPercent = order.DiscountPercent,
                 discountAmount = order.DiscountAmount,
+                voucherCode = order.VoucherCode,
+                voucherDiscountPercent = order.VoucherDiscountPercent,
+                voucherDiscountAmount = order.VoucherDiscountAmount,
                 total = order.TotalAmount,
                 paymentMethod = order.PaymentMethod,
                 returnStatus = order.ReturnStatus ?? "ACTIVE",              // ✅ ADD THIS
@@ -2599,32 +2602,76 @@ namespace Infoman.Controllers
         [HttpGet]
         public async Task<IActionResult> GetPendingRequests()
         {
+            // 1. Kunin lahat ng PENDING requests
             var pendingRequests = await _db.PendingRequests
                 .Include(r => r.Order)
                 .Include(r => r.Requester)
                 .Where(r => r.Status == "PENDING")
                 .OrderByDescending(r => r.RequestedAt)
-                .Select(r => new
-                {
-                    r.Id,
-                    r.OrderId,
-                    OrderNumber = r.Order.OrderNumber,
-                    OrderTotal = r.Order.TotalAmount,  // ← Amount column
-                    r.RequestType,
-                    r.Reason,
-                    RequesterName = r.Requester.Username,  // ← Requested By column
-                    RequestedAt = r.RequestedAt.ToString("yyyy-MM-ddTHH:mm:ss") // ✅ ISO 8601 FORMAT // ← Date column
-                                                                                // ✅ ALISIN ANG ItemCount - hindi ginagamit sa table
-                })
                 .ToListAsync();
 
-            // ✅ GROUP BY OrderId para iwas duplicate
-            var uniqueRequests = pendingRequests
-                .GroupBy(r => r.OrderId)
-                .Select(g => g.OrderByDescending(r => r.RequestedAt).First())
-                .ToList();
+            var result = new List<object>();
 
-            return Json(uniqueRequests);
+            foreach (var req in pendingRequests)
+            {
+                decimal amount = 0;
+
+                if (req.RequestType == "REFUND")
+                {
+                    // ✅ MANUAL PARSE (Safe sa EF Core)
+                    if (!string.IsNullOrEmpty(req.ItemIds))
+                    {
+                        var itemIds = new List<int>();
+                        foreach (var idStr in req.ItemIds.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                        {
+                            if (int.TryParse(idStr.Trim(), out int parsedId))
+                            {
+                                itemIds.Add(parsedId);
+                            }
+                        }
+
+                        if (itemIds.Count > 0)
+                        {
+                            // Kunin ang items at add-ons
+                            var items = await _db.OrderItems
+                                .Include(oi => oi.AddOns)
+                                .Where(oi => itemIds.Contains(oi.OrderItemId))
+                                .ToListAsync();
+
+                            foreach (var item in items)
+                            {
+                                decimal basePrice = item.Price * item.Quantity;
+                                decimal addOnPrice = 0;
+
+                                if (item.AddOns != null && item.AddOns.Any())
+                                {
+                                    addOnPrice = item.AddOns.Sum(a => a.Price * a.Quantity * item.Quantity);
+                                }
+
+                                amount += basePrice + addOnPrice;
+                            }
+                        }
+                    }
+                }
+                else // VOID
+                {
+                    amount = req.Order?.TotalAmount ?? 0;
+                }
+
+                result.Add(new
+                {
+                    req.Id,
+                    req.OrderId,
+                    OrderNumber = req.Order?.OrderNumber ?? "N/A",
+                    Amount = amount,
+                    req.RequestType,
+                    req.Reason,
+                    RequesterName = req.Requester?.Username ?? "Unknown",
+                    RequestedAt = req.RequestedAt.ToString("yyyy-MM-ddTHH:mm:ss")
+                });
+            }
+
+            return Json(result);
         }
 
         [HttpPost]
@@ -4236,6 +4283,7 @@ namespace Infoman.Controllers
                         closedByName = shift.ClosedByUser?.FullName,
                         startTime = shift.StartTime,
                         endTime = shift.EndTime,
+                        openingNotes = shift.OpeningNotes,
                         closingNotes = shift.ClosingNotes,
                         gcashCounted = shift.GcashCounted
                     },

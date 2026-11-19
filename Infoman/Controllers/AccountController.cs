@@ -53,7 +53,7 @@ namespace Infoman.Controllers
 
             if (roleLower != "owner")
             {
-                if (user.Status != null && user.Status != "Active")
+                if (user.Status != null && user.Status.Trim() != "Active")
                 {
                     ViewBag.Error = "Your account is inactive. Please contact the owner.";
                     return View(model);

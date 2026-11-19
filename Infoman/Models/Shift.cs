@@ -26,6 +26,8 @@ namespace Infoman.Models
 
         // Notes kapag nag-close (optional pero maganda kung may notes)
         public string? ClosingNotes { get; set; }
+        // Notes na tinype ng cashier sa Start Day
+        public string? OpeningNotes { get; set; }
 
         // Kung sino ang nag-close (null kung same staff na nag-open, may value kung ibang staff)
         public int? ClosedByUserId { get; set; }

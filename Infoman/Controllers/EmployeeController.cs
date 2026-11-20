@@ -78,6 +78,7 @@ namespace Infoman.Controllers
             }
         }
 
+        // GET: Employee/GetEmployeeDailyOrders
         [HttpGet]
         public async Task<IActionResult> GetEmployeeDailyOrders(int employeeId, int days = 30)
         {
@@ -87,16 +88,35 @@ namespace Infoman.Controllers
             var employee = await _db.Users.FindAsync(employeeId);
             var employeeName = employee?.FullName ?? "Unknown";
 
-            // Get orders grouped by date (using StaffUserId)
-            var dailyOrders = await _db.Orders
-                .Where(o => o.StaffUserId == employeeId
-                            && o.Date >= startDate)
+            // ✅ KUNIN LAHAT NG ORDERS (Para may history sa View Orders modal)
+            var allOrders = await _db.Orders
+                .Where(o => o.StaffUserId == employeeId && o.Date >= startDate)
+                .OrderByDescending(o => o.Date)
+                .ToListAsync();
+
+            // ✅ IHIWALAY PARA SA COMPUTATION NG CARDS (Net Sales lang)
+            var validOrders = allOrders.Where(o => o.Status != "VOIDED" && o.Status != "REFUNDED").ToList();
+            var voidedOrders = allOrders.Where(o => o.Status == "VOIDED").ToList();
+            var refundedOrders = allOrders.Where(o => o.Status == "REFUNDED").ToList();
+
+            // ✅ I-GROUP ANG VALID ORDERS PARA SA TABLE (Net Sales lang ito)
+            var netDailyOrders = validOrders
                 .GroupBy(o => o.Date.Date)
                 .Select(g => new
                 {
                     Date = g.Key,
                     OrderCount = g.Count(),
-                    TotalSales = g.Sum(o => o.TotalAmount),
+                    TotalSales = g.Sum(o => o.TotalAmount)
+                })
+                .OrderByDescending(d => d.Date)
+                .ToList();
+
+            // ✅ I-GROUP ANG LAHAT NG ORDERS PARA SA "VIEW ORDERS" MODAL (Kasama void/refund)
+            var allDailyOrders = allOrders
+                .GroupBy(o => o.Date.Date)
+                .Select(g => new
+                {
+                    Date = g.Key,
                     Orders = g.Select(o => new
                     {
                         o.OrderId,
@@ -104,19 +124,23 @@ namespace Infoman.Controllers
                         o.TotalAmount,
                         o.Status,
                         o.Date,
-                        o.ReturnStatus,
                         o.DiscountType,
                         o.DiscountAmount
                     }).ToList()
                 })
                 .OrderByDescending(d => d.Date)
-                .ToListAsync();
+                .ToList();
 
             return Json(new
             {
                 success = true,
-                dailyOrders = dailyOrders,
-                employeeName = employeeName
+                employeeName = employeeName,
+                netDailyOrders = netDailyOrders, // Para sa Table at Total Sales
+                allDailyOrders = allDailyOrders, // Para sa View Orders Modal
+                totalVoidedAmount = voidedOrders.Sum(o => o.TotalAmount),
+                voidedCount = voidedOrders.Count,
+                totalRefundedAmount = refundedOrders.Sum(o => o.TotalAmount),
+                refundedCount = refundedOrders.Count
             });
         }
 
@@ -222,6 +246,11 @@ namespace Infoman.Controllers
 
                 return Json(new { success = true, message = "Employee added successfully!" });
             }
+            catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("duplicate") == true ||
+                                        ex.InnerException?.Message.Contains("UNIQUE") == true)
+            {
+                return Json(new { success = false, message = "This username already exists (possibly a deleted employee). Please use a different username." });
+            }
             catch (Exception ex)
             {
                 return Json(new { success = false, message = ex.Message });
@@ -277,6 +306,7 @@ namespace Infoman.Controllers
         }
 
         // POST: Employee/Delete
+        // POST: Employee/Delete
         [HttpPost]
         [AllowAnonymous]
         public async Task<IActionResult> Delete(int id)
@@ -292,6 +322,9 @@ namespace Infoman.Controllers
                 // 1. I-deactivate ang user
                 employee.Status = "Inactive";
                 employee.IsDeleted = true;
+
+                // ✅ IDAGDAG ITO: Palitan ang username para ma-free ang unique value
+                employee.Username = employee.Username + "_deleted_" + DateTime.Now.ToString("yyyyMMddHHmmss");
 
                 // 2. I-force close ang active shift
                 var openShifts = await _db.Shifts
@@ -335,22 +368,39 @@ namespace Infoman.Controllers
         // ========== PERFORMANCE METHODS ==========
 
         // GET: Employee/GetPerformance/{userId}
-        // GET: Employee/GetPerformance/{userId}
         [HttpGet]
         public async Task<IActionResult> GetPerformance(int userId, DateTime? startDate, DateTime? endDate)
         {
             var end = endDate ?? DateTime.Today;
             var start = startDate ?? end.AddDays(-30);
 
+            var employee = await _db.Users.FindAsync(userId);
+
+            // 1. Kunin lahat ng orders ng employee sa date range
+            var allOrders = await _db.Orders
+                .Where(o => o.StaffUserId == userId && o.Date.Date >= start.Date && o.Date.Date <= end.Date)
+                .ToListAsync();
+
+            // 2. I-compute ang TOTAL SALES (EXCLUDING VOIDED AND REFUNDED)
+            var validOrders = allOrders.Where(o => o.Status != "VOIDED" && o.Status != "REFUNDED").ToList();
+            var totalSales = validOrders.Sum(o => o.TotalAmount);
+            var totalOrders = validOrders.Count;
+
+            // 3. I-compute ang VOID (Kapabayaan/Error)
+            var voidedOrders = allOrders.Where(o => o.Status == "VOIDED").ToList();
+            var totalVoidedAmount = voidedOrders.Sum(o => o.TotalAmount);
+            var voidedCount = voidedOrders.Count;
+
+            // 4. I-compute ang REFUND (Pwedeng valid reason, pero need i-track)
+            var refundedOrders = allOrders.Where(o => o.Status == "REFUNDED").ToList();
+            var totalRefundedAmount = refundedOrders.Sum(o => o.TotalAmount);
+            var refundedCount = refundedOrders.Count;
+
+            // 5. Performance History para sa table (Existing logic, hindi ginagalaw)
             var performances = await _db.EmployeePerformances
                 .Where(p => p.UserId == userId && p.Date >= start && p.Date <= end)
                 .OrderByDescending(p => p.Date)
                 .ToListAsync();
-
-            var employee = await _db.Users.FindAsync(userId);
-            var totalSales = performances.Sum(p => p.TotalSales);
-            var totalOrders = performances.Sum(p => p.OrdersProcessed);
-            // var avgRating = performances.Any() ? performances.Average(p => p.Rating) : 0; // ← TANGGALIN
 
             return Json(new
             {
@@ -361,14 +411,16 @@ namespace Infoman.Controllers
                     p.Date,
                     p.TotalSales,
                     p.OrdersProcessed,
-                    // p.Rating,  // ← TANGGALIN
                     p.Notes
                 }),
                 summary = new
                 {
-                    totalSales,
-                    totalOrders,
-                    // averageRating = Math.Round(avgRating, 1),  // ← TANGGALIN
+                    totalSales,        // ✅ Net Sales (Walang void/refund)
+                    totalOrders,       // ✅ Valid Orders lang
+                    totalVoidedAmount, // ✅ Void Amount
+                    voidedCount,       // ✅ Void Count
+                    totalRefundedAmount, // ✅ Refund Amount
+                    refundedCount,     // ✅ Refund Count
                     periodStart = start,
                     periodEnd = end
                 }

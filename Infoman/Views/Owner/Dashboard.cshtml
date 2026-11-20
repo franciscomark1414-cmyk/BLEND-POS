@@ -2917,39 +2917,74 @@ html.sidebar-collapsed .main-content {
 
          
 <div id="employeePerformanceTab" style="display:none;">
-    <div class="row mb-4 g-3">
+    
+    <!-- ✅ 1. ITO YUNG NAAWALANG SELECT EMPLOYEE DROPDOWN -->
+    <div class="row mb-4">
         <div class="col-md-4">
-            <div class="card bg-primary text-white border-0 shadow-sm">
+            <div class="card border-0 shadow-sm rounded-4" style="background-color: var(--forest);">
                 <div class="card-body">
-                    <h6 class="card-title fw-semibold">Select Employee</h6>
-                    <select id="perfEmployeeSelect" class="form-select mt-2 bg-light border-0 rounded-pill" onchange="loadPerformanceData()">
+                    <h6 class="card-title fw-semibold text-white mb-2">Select Employee</h6>
+                    <select id="perfEmployeeSelect" class="form-select border-0 rounded-pill" onchange="loadEmployeeDailyOrders()">
                         <option value="">-- Select Employee --</option>
                     </select>
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- ✅ 2. MGA CARDS (PARE-PAREHONG PROFESSIONAL NA KULAY) -->
+    <div class="row g-3 mb-4">
+        <!-- Total Sales -->
         <div class="col-md-3">
-            <div class="card bg-success text-white border-0 shadow-sm">
+            <div class="card border-0 shadow-sm h-100" style="background-color: #ffffff; border-left: 5px solid var(--forest) !important;">
                 <div class="card-body">
-                    <h6 class="card-title fw-semibold">Total Sales (30 days)</h6>
-                    <h2 class="mb-0 fw-bold" id="perfTotalSales">₱0.00</h2>
+                    <h6 class="card-title mb-1 text-muted" style="font-size: 0.85rem;">Total Sales (30 days)</h6>
+                    <h3 class="mb-0 fw-bold" id="perfTotalSales" style="font-size: 1.5rem; color: var(--forest);">₱0.00</h3>
                 </div>
             </div>
         </div>
+
+        <!-- Orders Processed -->
         <div class="col-md-3">
-            <div class="card bg-info text-white border-0 shadow-sm">
+            <div class="card border-0 shadow-sm h-100" style="background-color: #ffffff; border-left: 5px solid var(--mango) !important;">
                 <div class="card-body">
-                    <h6 class="card-title fw-semibold">Orders Processed</h6>
-                    <h2 class="mb-0 fw-bold" id="perfTotalOrders">0</h2>
+                    <h6 class="card-title mb-1 text-muted" style="font-size: 0.85rem;">Orders Processed</h6>
+                    <h3 class="mb-0 fw-bold" id="perfTotalOrders" style="font-size: 1.5rem; color: var(--mango-dark);">0</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- Voided Amount -->
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100" style="background-color: #ffffff; border-left: 5px solid #dc3545 !important;">
+                <div class="card-body">
+                    <h6 class="card-title mb-1 text-muted" style="font-size: 0.85rem;">
+                        <i class="fas fa-ban me-1 text-danger"></i> Voided Amount
+                    </h6>
+                    <h3 class="mb-0 fw-bold" id="perfVoidedAmount" style="font-size: 1.5rem; color: #dc3545;">₱0.00</h3>
+                    <small id="perfVoidedCount" class="text-muted" style="font-size: 0.75rem;">0 orders</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Refunded Amount -->
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100" style="background-color: #ffffff; border-left: 5px solid #6c757d !important;">
+                <div class="card-body">
+                    <h6 class="card-title mb-1 text-muted" style="font-size: 0.85rem;">
+                        <i class="fas fa-undo-alt me-1 text-secondary"></i> Refunded Amount
+                    </h6>
+                    <h3 class="mb-0 fw-bold" id="perfRefundedAmount" style="font-size: 1.5rem; color: #6c757d;">₱0.00</h3>
+                    <small id="perfRefundedCount" class="text-muted" style="font-size: 0.75rem;">0 orders</small>
                 </div>
             </div>
         </div>
     </div>
 
-
+    <!-- ✅ 3. PERFORMANCE HISTORY TABLE (Binalik) -->
     <div class="card border-0 shadow-sm rounded-4">
         <div class="card-header bg-white fw-semibold border-0 pt-3 pb-2">
-            <i class="fas fa-chart-line me-2" style="color:#f59e0b;"></i> Performance History
+            <i class="fas fa-chart-line me-2" style="color:var(--mango);"></i> Performance History
         </div>
         <div class="card-body">
             <div class="table-responsive">
@@ -8351,7 +8386,7 @@ async function printAllReceipts() {
     }
 }
 
-function viewReceiptDetail(orderId) {
+function viewReceiptDetail(orderId, isVoided = false) {
     console.log("Viewing receipt for orderId:", orderId);
 
     fetch(`/Owner/GetReceiptDetail?orderId=${orderId}`)
@@ -8359,7 +8394,12 @@ function viewReceiptDetail(orderId) {
         .then(async (data) => {
             console.log("Receipt data received:", data);
             if (data.success) {
-                showReceiptModalFromData(data.receipt);
+                // ✅ Ipakita ang void banner kung voided ang order
+                if (isVoided && data.receipt) {
+                    data.receipt.isVoided = true;
+                    data.receipt.voidNotice = "⚠️ THIS ORDER HAS BEEN VOIDED ⚠️";
+                }
+                               showReceiptModalFromData(data.receipt);
             } else {
                 showAlert('Error loading receipt details: ' + (data.message || 'Unknown error'), 'Error');
             }
@@ -8370,7 +8410,7 @@ function viewReceiptDetail(orderId) {
         });
 }
 
-    function showReceiptModalFromData(receipt) {
+function showReceiptModalFromData(receipt) {
     const receiptDiv = document.getElementById('receiptContentForReports');
     if (!receiptDiv) {
         console.error("receiptContentForReports not found");
@@ -9060,8 +9100,13 @@ async function loadEmployeeDailyOrders() {
     if (!employeeId) {
         document.getElementById('perfTotalSales').innerHTML = '₱0.00';
         document.getElementById('perfTotalOrders').innerHTML = '0';
-        document.getElementById('dailyOrdersBody').innerHTML = `
-            <tr><td colspan="4" class="text-center text-muted">Select an employee to view orders</td></tr>
+        document.getElementById('perfVoidedAmount').innerHTML = '₱0.00';
+        document.getElementById('perfVoidedCount').innerHTML = '0 orders';
+        document.getElementById('perfRefundedAmount').innerHTML = '₱0.00';
+        document.getElementById('perfRefundedCount').innerHTML = '0 orders';
+
+        document.getElementById('performanceTableBody').innerHTML = `
+            <tr><td colspan="5" class="text-center text-muted">Select an employee to view performance</td></tr>
         `;
         return;
     }
@@ -9077,50 +9122,61 @@ async function loadEmployeeDailyOrders() {
             let totalOrders = 0;
             let html = '';
             
-            data.dailyOrders.forEach(day => {
+            // ✅ ITO ANG PARA SA TABLE (NET SALES LANG)
+            data.netDailyOrders.forEach(day => {
                 totalSales += day.totalSales;
                 totalOrders += day.orderCount;
                 
-                // ✅ TIMEZONE-SAFE DATE PARSING
-                // Kung string format "2026-10-20T00:00:00", i-parse as LOCAL date
                 let formattedDate;
                 if (typeof day.date === 'string') {
-                    // Kunin lang ang date part (YYYY-MM-DD) at i-parse as local
-                    const datePart = day.date.split('T')[0]; // "2026-10-20"
+                    const datePart = day.date.split('T')[0];
                     const [year, month, dayNum] = datePart.split('-').map(Number);
-                    const localDate = new Date(year, month - 1, dayNum); // Local timezone
-                    
-                    formattedDate = localDate.toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                    });
+                    const localDate = new Date(year, month - 1, dayNum);
+                    formattedDate = localDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
                 } else {
                     const dateObj = new Date(day.date);
-                    formattedDate = dateObj.toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                    });
+                    formattedDate = dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
                 }
+
+                // ✅ HANAPIN ANG LAHAT NG ORDERS PARA SA ARAW NA ITO (PARA SA MODAL)
+                const allOrdersForDate = data.allDailyOrders.find(d => {
+                    const dDate = new Date(d.date).setHours(0,0,0,0);
+                    const dayDate = new Date(day.date).setHours(0,0,0,0);
+                    return dDate === dayDate;
+                });
+                const ordersToPass = allOrdersForDate ? allOrdersForDate.orders : [];
                 
                 html += `
                     <tr>
                         <td class="fw-bold">${formattedDate}</td>
-                        <td>${day.orderCount} order(s)</td>
                         <td class="text-primary fw-bold">₱${day.totalSales.toFixed(2)}</td>
+                      <td>${ordersToPass.length > 0 ? ordersToPass.length : day.orderCount}</td>
+                        <td>-</td>
                         <td>
-                            <button class="btn btn-sm btn-info" onclick='showDailyOrdersModal(${JSON.stringify(day.orders)}, "${formattedDate}")'>
-                                <i class="fas fa-eye me-1"></i> View All (${day.orderCount})
+                            <button class="btn btn-sm btn-info" onclick='showDailyOrdersModal(${JSON.stringify(ordersToPass)}, "${formattedDate}")'>
+                                <i class="fas fa-eye me-1"></i> View Orders
                             </button>
                         </td>
                     </tr>
                 `;
             });
             
+            // I-update ang cards
             document.getElementById('perfTotalSales').innerHTML = `₱${totalSales.toFixed(2)}`;
             document.getElementById('perfTotalOrders').innerHTML = totalOrders;
-            document.getElementById('dailyOrdersBody').innerHTML = html;
+            
+            const voidAmount = data.totalVoidedAmount || 0;
+            const voidCount = data.voidedCount || 0;
+            const refundAmount = data.totalRefundedAmount || 0;
+            const refundCount = data.refundedCount || 0;
+
+            document.getElementById('perfVoidedAmount').innerHTML = `₱${voidAmount.toFixed(2)}`;
+            document.getElementById('perfVoidedCount').innerHTML = `${voidCount} order(s)`;
+
+            document.getElementById('perfRefundedAmount').innerHTML = `₱${refundAmount.toFixed(2)}`;
+            document.getElementById('perfRefundedCount').innerHTML = `${refundCount} order(s)`;
+
+            document.getElementById('performanceTableBody').innerHTML = html || `<tr><td colspan="5" class="text-center text-muted">No valid orders found for the last 30 days.</td></tr>`;
         }
     } catch (error) {
         console.error('Error:', error);
@@ -9206,7 +9262,7 @@ function showDailyOrdersModal(orders, dateString) {
                 </div>
                 <div class="text-end">
                     <div class="fw-bold text-primary fs-5">₱${order.totalAmount.toFixed(2)}</div>
-                    <button class="btn btn-sm btn-outline-info mt-2" onclick="viewReceiptDetail(${order.orderId})">
+                    <button class="btn btn-sm btn-outline-info mt-2" onclick="viewReceiptDetail(${order.orderId}, ${order.status === 'VOIDED'})">
                         <i class="fas fa-receipt"></i> View Receipt
                     </button>
                 </div>
@@ -9593,142 +9649,6 @@ const endDateStr = getLocalDateString(endDate);
             console.error('Error loading performance:', error);
             document.getElementById('performanceTableBody').innerHTML = `<tr><td colspan="5" class="text-center text-danger">Error loading performance data<\/td><\/tr>`;
         });
-}
-
-// 1. Function para i-load ang expenses mula sa database
-async function loadExpenses() {
-    const tbody = document.getElementById('expenseTableBody');
-    if (!tbody) return; 
-
-    try {
-        const response = await fetch('/Finance/GetExpenses');
-        if (!response.ok) throw new Error('Failed to fetch');
-        
-        const expenses = await response.json();
-        
-        tbody.innerHTML = ''; 
-        
-        if (expenses.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No expenses found.</td></tr>';
-            return;
-        }
-
-        expenses.forEach(exp => {
-            const dateStr = new Date(exp.expenseDate).toLocaleDateString('en-PH');
-            const amountStr = '₱' + exp.amount.toLocaleString(undefined, {minimumFractionDigits: 2});
-            
-            tbody.innerHTML += `
-                <tr>
-                    <td>${dateStr}</td>
-                    <td>${exp.category}</td>
-                    <td>${exp.description || '-'}</td>
-                    <td class="text-danger fw-bold">${amountStr}</td>
-                    <td>${exp.recordedBy}</td>
-                    <td>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deleteExpense(${exp.expenseId})">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            `;
-        });
-    } catch (error) {
-        console.error('Error loading expenses:', error);
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-3">Error loading data.</td></tr>';
-    }
-}
-
-// 2. Function para mag-save ng expense
-async function saveExpense(event) {
-    event.preventDefault(); 
-    
-    // Kunin ang values
-    const amount = parseFloat(document.getElementById('expenseAmount').value);
-    const category = document.getElementById('expenseCategory').value;
-    const date = document.getElementById('expenseDate').value;
-    const description = document.getElementById('expenseDescription').value;
-    
-    // Validation
-    if (!amount || amount <= 0 || !category || !date) {
-        alert('Please fill in all required fields properly.');
-        return;
-    }
-
-    // Ito ang format na inaasahan ng C# controller mo (ExpenseViewModel)
-    const payload = {
-        amount: amount,
-        category: category,
-        expenseDate: date,
-        description: description,
-        recordedBy: 'Owner'
-    };
-
-    try {
-        const response = await fetch('/Finance/AddExpense', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json'
-                // Kung naka-[ValidateAntiForgeryToken] ka, kailangan mo rin i-pass ang token dito
-            },
-            body: JSON.stringify(payload)
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            // Isara ang modal
-            const modalEl = document.getElementById('addExpenseModal');
-            const modal = bootstrap.Modal.getInstance(modalEl);
-            if (modal) modal.hide();
-            
-            // I-reset ang form
-            document.getElementById('expenseForm').reset();
-            
-            // I-reload ang table at yung cards sa taas (Total Expenses)
-            loadExpenses();
-            loadFinancials(); 
-            
-            alert('Expense added successfully!');
-        } else {
-            alert('Error: ' + (result.message || 'Unknown error occurred.'));
-        }
-    } catch (error) {
-        console.error('Error saving expense:', error);
-        alert('Failed to save expense. Check browser console.');
-    }
-}
-
-// 3. Function para mag-delete ng expense
-async function deleteExpense(id) {
-    if (!confirm('Are you sure you want to delete this expense?')) return;
-    
-    try {
-        const response = await fetch('/Finance/DeleteExpense?id=' + id, { method: 'POST' });
-        const result = await response.json();
-        
-        if (result.success) {
-            loadExpenses();
-            loadFinancials();
-        } else {
-            alert('Error: ' + result.message);
-        }
-    } catch (error) {
-        console.error('Error deleting expense:', error);
-    }
-}
-
-// 4. Function para buksan ang Add Expense Modal (kung wala pa)
-function openAddExpenseModal() {
-    const dateInput = document.getElementById('expenseDate');
-    if (dateInput) {
-        dateInput.valueAsDate = new Date(); // Safe na ngayon
-    }
-    
-    const form = document.getElementById('expenseForm');
-    if (form) form.reset(); // Clear previous inputs
-    
-    var myModal = new bootstrap.Modal(document.getElementById('addExpenseModal'));
-    myModal.show();
 }
   async function toggleRawMaterialForm() {
     var box = document.getElementById('addRawMaterialBox');

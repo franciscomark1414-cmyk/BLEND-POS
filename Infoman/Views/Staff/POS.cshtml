@@ -5737,14 +5737,37 @@ function toggleSelectAllVoid() {
 
     fetch(`/Staff/GetOrderItemsForRefund?orderId=${orderId}`)
         .then(r => r.json())
-        .then(items => {
-            if (!items || items.length === 0) {
+        .then(response => {
+            const items = response.items || [];
+            
+            if (!response.success || items.length === 0) {
                 document.getElementById('refundOrderItems').innerHTML =
                     '<div class="text-muted text-center" style="padding:20px;">No refundable items</div>';
                 return;
             }
 
-            let html = `
+            // ✅ Breakdown sa itaas
+            let breakdownHtml = '';
+            if (response.order) {
+                let discountText = '';
+                if (response.order.discountAmount > 0) {
+                    discountText += `<span style="color:#dc3545; font-weight:bold;">Discount: -₱${response.order.discountAmount.toFixed(2)}</span> `;
+                }
+                if (response.order.voucherDiscountAmount > 0) {
+                    discountText += `<span style="color:#28a745; font-weight:bold;">Voucher: -₱${response.order.voucherDiscountAmount.toFixed(2)}</span>`;
+                }
+                
+                if (discountText) {
+                    breakdownHtml = `
+                        <div style="margin-bottom: 10px; font-size: 12px; background: #f8f9fa; padding: 8px; border-radius: 6px; border: 1px solid #ddd; text-align: center;">
+                            <div style="color: #6c757d; margin-bottom: 4px;">Order Subtotal: ₱${response.order.subtotal.toFixed(2)}</div>
+                            ${discountText}
+                        </div>
+                    `;
+                }
+            }
+
+            let html = breakdownHtml + `
                 <table class="table" style="width:100%; border-collapse:collapse; font-size:13px;">
                     <thead>
                         <tr style="background:#f8f9fa;">
@@ -5753,20 +5776,17 @@ function toggleSelectAllVoid() {
                             </th>
                             <th style="padding:8px; text-align:left;">PRODUCT</th>
                             <th style="padding:8px; text-align:center;">QTY</th>
-                            <th style="padding:8px; text-align:right;">PRICE</th>
+                            <th style="padding:8px; text-align:right;">REFUND AMT</th>
                             <th style="padding:8px; text-align:right;">SUBTOTAL</th>
                         </tr>
                     </thead>
                     <tbody>`;
 
             items.forEach(item => {
-                // ✅ Base + add-ons
-                const addOnsTotal = (item.addOns || [])
-                    .reduce((sum, a) => sum + (a.price * a.quantity), 0);
-                const unitPrice = item.price + addOnsTotal;
-                const subtotal = unitPrice * item.quantity;
+                const itemRefundAmount = item.itemRefundAmount !== undefined 
+                    ? item.itemRefundAmount 
+                    : (item.price * item.quantity);
 
-                // ✅ Add-on display lines
                 let addOnsHtml = '';
                 if (item.addOns && item.addOns.length > 0) {
                     addOnsHtml = item.addOns.map(a =>
@@ -5779,11 +5799,10 @@ function toggleSelectAllVoid() {
                 html += `
                     <tr>
                         <td style="padding:8px;">
-                                       <input type="checkbox" class="refund-item-checkbox"
-                   value="${item.orderItemId}"
-                   data-price="${unitPrice}"
-                   data-qty="${item.quantity}"
-                   checked>
+                            <input type="checkbox" class="refund-item-checkbox"
+                                   value="${item.orderItemId}"
+                                   data-price="${itemRefundAmount}"
+                                   checked>
                         </td>
                         <td style="padding:8px;">
                             <strong>${item.productName}</strong><br>
@@ -5791,8 +5810,12 @@ function toggleSelectAllVoid() {
                             ${addOnsHtml}
                         </td>
                         <td style="padding:8px; text-align:center;">${item.quantity}</td>
-                        <td style="padding:8px; text-align:right;">₱${unitPrice.toFixed(2)}</td>
-                        <td style="padding:8px; text-align:right;">₱${subtotal.toFixed(2)}</td>
+                        <td style="padding:8px; text-align:right; font-weight:bold; color:#28a745;">
+                            ₱${itemRefundAmount.toFixed(2)}
+                        </td>
+                        <td style="padding:8px; text-align:right; font-weight:bold; color:#28a745;">
+                            ₱${itemRefundAmount.toFixed(2)}
+                        </td>
                     </tr>`;
             });
 
@@ -5805,6 +5828,29 @@ function toggleSelectAllVoid() {
             document.getElementById('refundOrderItems').innerHTML =
                 '<div class="text-danger text-center" style="padding:20px;">Error loading items</div>';
         });
+}
+
+// ✅ FUNCTION PARA I-UPDATE ANG TOTAL
+function updateRefundTotal() {
+    let total = 0;
+    const checkboxes = document.querySelectorAll('.refund-item-checkbox:checked');
+    
+    checkboxes.forEach(cb => {
+        const price = parseFloat(cb.getAttribute('data-price')) || 0;
+        total += price;
+    });
+
+    const display = document.getElementById('totalRefundDisplay');
+    if (display) {
+        display.innerText = `₱${total.toFixed(2)}`;
+    }
+}
+
+// ✅ FUNCTION PARA SA "SELECT ALL" CHECKBOX
+function toggleAllRefundItems(selectAll) {
+    const checkboxes = document.querySelectorAll('.refund-item-checkbox');
+    checkboxes.forEach(cb => cb.checked = selectAll.checked);
+    updateRefundTotal();
 }
 
         function getSelectedVoidReason() {
@@ -6294,83 +6340,95 @@ async function refreshRefundOrderItems(orderId) {
 }
 
             async function processRefund() {
-                // ✅ PREVENT DUPLICATE SUBMISSION
-                if (window.isProcessingRefund) {
-                    await showAlert('Please wait, still processing previous request...', 'Processing', '⏳');
-                    return;
-                }
+     if (window.isProcessingRefund) {
+         await showAlert('Please wait, still processing previous request...', 'Processing', '⏳');
+         return;
+     }
 
-                const selectedItems = document.querySelectorAll('.refund-item-checkbox:checked');
-                if (selectedItems.length === 0) {
-                    await showAlert('Please select items to refund', 'No Selection', '⚠️');
-                    return;
-                }
+     const selectedItems = document.querySelectorAll('.refund-item-checkbox:checked');
+     if (selectedItems.length === 0) {
+         await showAlert('Please select items to refund', 'No Selection', '⚠️');
+         return;
+     }
 
-                const reason = getSelectedRefundReason();
-                if (!reason) {
-                    await showAlert('Please select a reason', 'Required', '⚠️');
-                    return;
-                }
+     const reason = getSelectedRefundReason();
+     if (!reason) {
+         await showAlert('Please select a reason', 'Required', '⚠️');
+         return;
+     }
 
-                const refundBtn = document.querySelector('#refundTabContent .btn-refund');
-                const originalText = refundBtn.innerHTML;
-                refundBtn.disabled = true;
-                refundBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+     // ✅ Compute exact total galing sa discounted amount
+     const itemIds = Array.from(selectedItems).map(cb => parseInt(cb.value));
+     let totalRefundAmount = 0;
+     selectedItems.forEach(cb => {
+         totalRefundAmount += parseFloat(cb.getAttribute('data-price')) || 0;
+     });
 
-                window.isProcessingRefund = true;
-                showLoading('Processing refund...');
+     // ✅ Gumamit ng standard showConfirm na meron ka
+     const confirmed = await showConfirm(
+         `Process Refund?\n\nTotal Amount: ₱${totalRefundAmount.toFixed(2)}`, 
+         'Confirm Refund'
+     );
+     if (!confirmed) return;
 
-                const itemIds = Array.from(selectedItems).map(cb => parseInt(cb.value));
+     const refundBtn = document.querySelector('#refundTabContent .btn-refund');
+     const originalText = refundBtn.innerHTML;
+     refundBtn.disabled = true;
+     refundBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
 
-                try {
-                    const response = await fetch('/VoidRefund/RequestRefund', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'RequestVerificationToken': getToken()
-                        },
-                        body: JSON.stringify({
-                            orderId: window.currentRefundOrderId,
-                            itemIds: itemIds,
-                            reason: reason
-                        })
-                    });
+     window.isProcessingRefund = true;
+     showLoading('Processing refund...');
 
-                    const data = await response.json();
-                    hideLoading();
+     try {
+         const response = await fetch('/VoidRefund/RequestRefund', {
+             method: 'POST',
+             headers: {
+                 'Content-Type': 'application/json',
+                 'RequestVerificationToken': getToken()
+             },
+             body: JSON.stringify({
+                 orderId: window.currentRefundOrderId,
+                 itemIds: itemIds,
+                 reason: reason
+             })
+         });
 
-                    if (data.requiresOwner) {
-                        await showAlert(data.message, 'Owner Approval Required', '⚠️');
-                        document.querySelectorAll('.refund-item-checkbox').forEach(cb => cb.checked = false);
-                        document.getElementById('refundOrderSelect').value = '';
-                        document.getElementById('refundOrderItems').innerHTML = '';
-                    } else if (data.success) {
-                        await showAlert(data.message, 'Success', '✅');
-                        await loadRefundOrderItems();
-                        await loadCompletedOrdersForRefund();
-                        document.getElementById('refundOrderSelect').value = '';
-                    } else {
-                        await showAlert('❌ ' + data.message, 'Error', '❌');
-                    }
-                } catch (error) {
-                    hideLoading();
-                    console.error('Refund error:', error);
-                    await showAlert('❌ Error: ' + error.message, 'Error', '❌');
-                } finally {
-                    refundBtn.disabled = false;
-                    refundBtn.innerHTML = originalText;
-                    window.isProcessingRefund = false;
+         const data = await response.json();
+         hideLoading();
 
-                    document.querySelectorAll('.refund-item-checkbox:checked').forEach(cb => cb.checked = false);
-                    const reasonSelect = document.getElementById('refundReason');
-                    if (reasonSelect) reasonSelect.value = '';
-                    const otherReason = document.getElementById('refundOtherReason');
-                    if (otherReason) {
-                        otherReason.style.display = 'none';
-                        otherReason.value = '';
-                    }
-                }
-            }
+         // ✅ Gagamitin na ang standard alert mo
+         if (data.requiresOwner) {
+             await showAlert(data.message, 'Owner Approval Required', '⚠️');
+             document.querySelectorAll('.refund-item-checkbox').forEach(cb => cb.checked = false);
+             document.getElementById('refundOrderSelect').value = '';
+             document.getElementById('refundOrderItems').innerHTML = '';
+         } else if (data.success) {
+             await showAlert(data.message, 'Success', '✅');
+             await loadRefundOrderItems();
+             await loadCompletedOrdersForRefund();
+             document.getElementById('refundOrderSelect').value = '';
+         } else {
+             await showAlert('❌ ' + data.message, 'Error', '❌');
+         }
+     } catch (error) {
+         hideLoading();
+         console.error('Refund error:', error);
+         await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+     } finally {
+         refundBtn.disabled = false;
+         refundBtn.innerHTML = originalText;
+         window.isProcessingRefund = false;
+
+         document.querySelectorAll('.refund-item-checkbox:checked').forEach(cb => cb.checked = false);
+         const reasonSelect = document.getElementById('refundReason');
+         if (reasonSelect) reasonSelect.value = '';
+         const otherReason = document.getElementById('refundOtherReason');
+         if (otherReason) {
+             otherReason.style.display = 'none';
+             otherReason.value = '';
+         }
+     }
+}
 
 // ✅ BAGONG FUNCTION: I-refresh ang order items pagkatapos ng refund
 async function refreshOrderItemsAfterRefund(orderId) {

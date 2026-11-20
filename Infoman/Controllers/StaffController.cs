@@ -1658,33 +1658,79 @@ namespace Infoman.Controllers
         [HttpGet]
         public async Task<IActionResult> GetOrderItemsForRefund(int orderId)
         {
-            var items = await _db.OrderItems
-                .Include(oi => oi.Product)
-                .Include(oi => oi.ProductSize)
-                .Include(oi => oi.AddOns)  // ✅ ISAMA ANG ADD-ONS
-                .Where(oi => oi.OrderId == orderId
-                          && !oi.IsRefunded
-                          && !oi.IsVoided
-                          && oi.DispositionStatusId == 1)  // AVAILABLE lang
-                .Select(oi => new
+            var order = await _db.Orders
+                .Include(o => o.Items)
+                    .ThenInclude(oi => oi.Product)
+                .Include(o => o.Items)
+                    .ThenInclude(oi => oi.ProductSize)
+                .Include(o => o.Items)
+                    .ThenInclude(oi => oi.AddOns)
+                .FirstOrDefaultAsync(o => o.OrderId == orderId);
+
+            if (order == null)
+                return Json(new { success = false, message = "Order not found." });
+
+            // Kunin lang ang mga active items
+            var activeItems = order.Items
+                .Where(oi => oi.DispositionStatusId == 1)
+                .ToList();
+
+            // Compute ang gross total (base + addons)
+            decimal grossTotal = activeItems.Sum(i =>
+                (i.Price * i.Quantity) +
+                (i.AddOns?.Sum(a => a.Price * a.Quantity * i.Quantity) ?? 0));
+
+            // Compute ang effective ratio (para sumalo ng PWD/Senior at Voucher)
+            decimal totalPaid = order.TotalAmount;
+            decimal effectiveRatio = grossTotal > 0 ? totalPaid / grossTotal : 1m;
+
+            var result = activeItems.Select(oi =>
+            {
+                decimal itemGross = (oi.Price * oi.Quantity) +
+                    (oi.AddOns?.Sum(a => a.Price * a.Quantity * oi.Quantity) ?? 0);
+
+                // ✅ ITO ANG TAMANG REFUND AMOUNT
+                decimal itemRefundAmount = Math.Round(itemGross * effectiveRatio, 2);
+
+                return new
                 {
                     orderItemId = oi.OrderItemId,
                     productName = oi.Product.Name,
                     sizeName = oi.ProductSize.SizeName,
                     quantity = oi.Quantity,
-                    price = oi.Price,  // Base price lang
+                    price = oi.Price,
                     addOns = oi.AddOns.Select(a => new
                     {
                         addOnId = a.AddOnId,
                         addOnName = a.AddOnName,
                         price = a.Price,
                         quantity = a.Quantity
-                    }).ToList()
-                })
-                .ToListAsync();
+                    }).ToList(),
 
-            return Json(items);
+                    // ✅ IPASA NATIN ITO SA JS PARA GAMITIN SA DISPLAY
+                    itemGrossAmount = itemGross,
+                    itemRefundAmount = itemRefundAmount
+                };
+            }).ToList();
+
+            return Json(new
+            {
+                success = true,
+                order = new
+                {
+                    orderId = order.OrderId,
+                    orderNumber = order.OrderNumber,
+                    subtotal = grossTotal,
+                    discountAmount = order.DiscountAmount,
+                    voucherCode = order.VoucherCode,
+                    voucherDiscountAmount = order.VoucherDiscountAmount,
+                    totalPaid = totalPaid,
+                    effectiveRatio = effectiveRatio
+                },
+                items = result
+            });
         }
+
         public class AddOnSelection { public int AddOnId { get; set; } public int Quantity { get; set; } }
 
         public class TimeOutRequest

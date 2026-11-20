@@ -785,11 +785,10 @@ namespace Infoman.Controllers
                 .ThenInclude(oi => oi.Product)
                 .Include(o => o.Items)
                 .ThenInclude(oi => oi.ProductSize)
-                .Where(o => o.Status != "PENDING_PAYMENT" && o.Status != "VOIDED");
+                .Where(o => o.Status != "PENDING_PAYMENT"); // ✅ TINANGGAL ANG VOIDED PARA MAKITA PA RIN SA LISTAHAN
 
             if (!string.IsNullOrEmpty(date))
             {
-                // ✅ GAMITIN ANG TryParse PARA HINDI MAG-CRASH
                 if (DateTime.TryParse(date, out var filterDate))
                 {
                     query = query.Where(o => o.Date.Date == filterDate.Date);
@@ -804,7 +803,7 @@ namespace Infoman.Controllers
                 .OrderByDescending(o => o.OrderId)
                 .Select(o => new
                 {
-                    orderId = o.OrderId,                                    // ✅ ADD THIS
+                    orderId = o.OrderId,
                     receiptNumber = o.ReceiptNumber,
                     date = o.Date.ToString("yyyy-MM-dd HH:mm:ss"),
                     itemCount = o.Items.Count(i => !i.IsVoided),
@@ -814,11 +813,16 @@ namespace Infoman.Controllers
                     discountAmount = o.DiscountAmount,
                     total = o.TotalAmount,
                     paymentMethod = o.PaymentMethod,
-                    returnStatus = o.ReturnStatus ?? "ACTIVE",              // ✅ ADD THIS
-                    adjustmentAmount = o.AdjustmentAmount,                  // ✅ ADD THIS
+
+                    // ✅ ITO ANG PINAKAMAHALAGA: IPASA ANG TOTOONG STATUS AT ORIGINAL TOTAL
+                    status = o.Status,
+                    originalTotalAmount = o.OriginalTotalAmount,
+
+                    returnStatus = o.ReturnStatus ?? "ACTIVE",
+                    adjustmentAmount = o.AdjustmentAmount,
                     voucherCode = o.VoucherCode,
                     voucherDiscountAmount = o.VoucherDiscountAmount,
-                    originalOrderId = o.OriginalOrderId                     // ✅ ADD THIS
+                    originalOrderId = o.OriginalOrderId
                 })
                 .ToListAsync();
 
@@ -2317,19 +2321,19 @@ namespace Infoman.Controllers
                     // 6. Rejected
                     if (rejectedInBaseUnit > 0)
                     {
-                        if (item.Disposition == "Waste")
+                        // ✅ BINAGO: Ang lahat ng na-reject ay mapupunta sa Returns table, hindi na sa WasteLogs.
+                        // Kasi may sarili nang record sa Delivery History, doble ang record kung nasa Waste pa.
+                        if (rejectedInBaseUnit > 0)
                         {
-                            _db.WasteLogs.Add(new WasteLog
+                            // Lahat ng rejected (whether "Waste" or "Return" ang pinili) ay nasa RejectedForReturns
+                            _db.RejectedForReturns.Add(new RejectedForReturn
                             {
+                                ReceivingId = receiving.ReceivingId,
                                 RawMaterialId = item.RawMaterialId,
                                 Quantity = rejectedInBaseUnit,
-                                Reason = WasteLog.WasteReason.QualityIssue,
-                                Date = DateTime.Now,
-                                RecordedBy = "Receiving",
-                                Notes = $"Rejected from DR#{model.DRNumber}: {item.RejectionReason}",
-                                TotalCost = rejectedCostQty * unitPricePerCostUnit,
-                                ExpiryDate = item.ExpiryDate,
-                                BatchId = null
+                                Reason = item.RejectionReason,
+                                UnitPrice = unitPricePerCostUnit,
+                                Status = item.Disposition == "Waste" ? "Wasted" : "Pending Return"
                             });
                         }
                         else if (item.Disposition == "Return")
@@ -2602,9 +2606,11 @@ namespace Infoman.Controllers
         [HttpGet]
         public async Task<IActionResult> GetPendingRequests()
         {
-            // 1. Kunin lahat ng PENDING requests
+            // ✅ SIGURADUHIN NA KASAMA ANG ITEMS AT ADD-ONS SA INCLUDE
             var pendingRequests = await _db.PendingRequests
                 .Include(r => r.Order)
+                    .ThenInclude(o => o.Items)
+                        .ThenInclude(i => i.AddOns)
                 .Include(r => r.Requester)
                 .Where(r => r.Status == "PENDING")
                 .OrderByDescending(r => r.RequestedAt)
@@ -2618,37 +2624,34 @@ namespace Infoman.Controllers
 
                 if (req.RequestType == "REFUND")
                 {
-                    // ✅ MANUAL PARSE (Safe sa EF Core)
-                    if (!string.IsNullOrEmpty(req.ItemIds))
+                    if (!string.IsNullOrEmpty(req.ItemIds) && req.Order != null)
                     {
-                        var itemIds = new List<int>();
-                        foreach (var idStr in req.ItemIds.Split(',', StringSplitOptions.RemoveEmptyEntries))
-                        {
-                            if (int.TryParse(idStr.Trim(), out int parsedId))
-                            {
-                                itemIds.Add(parsedId);
-                            }
-                        }
+                        var itemIds = req.ItemIds.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                            .Select(s => int.TryParse(s.Trim(), out var n) ? n : 0)
+                            .Where(n => n > 0)
+                            .ToList();
 
                         if (itemIds.Count > 0)
                         {
-                            // Kunin ang items at add-ons
-                            var items = await _db.OrderItems
-                                .Include(oi => oi.AddOns)
-                                .Where(oi => itemIds.Contains(oi.OrderItemId))
-                                .ToListAsync();
+                            var allActiveItems = req.Order.Items
+                                .Where(i => i.DispositionStatusId == 1)
+                                .ToList();
 
-                            foreach (var item in items)
+                            decimal grossTotal = allActiveItems.Sum(i =>
+                                (i.Price * i.Quantity) +
+                                (i.AddOns?.Sum(a => a.Price * a.Quantity * i.Quantity) ?? 0));
+
+                            decimal totalPaid = req.Order.TotalAmount;
+                            decimal effectiveRatio = grossTotal > 0 ? totalPaid / grossTotal : 1m;
+
+                            // ✅ PROPORTIONAL COMPUTATION
+                            foreach (var item in allActiveItems.Where(i => itemIds.Contains(i.OrderItemId)))
                             {
-                                decimal basePrice = item.Price * item.Quantity;
-                                decimal addOnPrice = 0;
+                                decimal itemGross =
+                                    (item.Price * item.Quantity) +
+                                    (item.AddOns?.Sum(a => a.Price * a.Quantity * item.Quantity) ?? 0);
 
-                                if (item.AddOns != null && item.AddOns.Any())
-                                {
-                                    addOnPrice = item.AddOns.Sum(a => a.Price * a.Quantity * item.Quantity);
-                                }
-
-                                amount += basePrice + addOnPrice;
+                                amount += Math.Round(itemGross * effectiveRatio, 2);
                             }
                         }
                     }

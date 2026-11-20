@@ -892,17 +892,27 @@ namespace Infoman.Service
                     return (false, "Selected items are no longer active.");
                 }
 
-                decimal pct = order.DiscountPercent;
+                var allActiveItems = order.Items
+     .Where(i => i.DispositionStatusId == ItemDispositionConstants.AVAILABLE)
+     .ToList();
+
+                decimal grossTotal = allActiveItems.Sum(i =>
+                    (i.Price * i.Quantity) +
+                    (i.AddOns?.Sum(a => a.Price * a.Quantity * i.Quantity) ?? 0));
+
+                // Ito ang sasalo sa PWD/Senior at Voucher
+                decimal effectiveRatio = grossTotal > 0
+                    ? order.TotalAmount / grossTotal
+                    : 1m;
+
                 decimal refund = 0;
                 foreach (var item in targets)
                 {
-                    decimal basePrice = item.Price * item.Quantity;
-                    decimal addOnsPrice = 0;
-                    if (item.AddOns != null)
-                    {
-                        addOnsPrice = item.AddOns.Sum(a => a.Price * a.Quantity * item.Quantity);
-                    }
-                    refund += Money((basePrice + addOnsPrice) * (1 - pct));
+                    decimal itemGross =
+                        (item.Price * item.Quantity) +
+                        (item.AddOns?.Sum(a => a.Price * a.Quantity * item.Quantity) ?? 0);
+
+                    refund += Money(itemGross * effectiveRatio);
                 }
                 refund = Money(refund);
 

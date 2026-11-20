@@ -8167,7 +8167,7 @@ async function displayInPOS(productSizeId, productName, sizeName) {
         });
 }
 
-   let currentReceiptList = [];
+let currentReceiptList = [];
 
 function displayReceiptHistory(receipts) {
     const tbody = document.getElementById('receiptHistoryBody');
@@ -8185,22 +8185,33 @@ function displayReceiptHistory(receipts) {
     }
 
     tbody.innerHTML = currentReceiptList.map(receipt => {
+        // ✅ 1. I-DETERMINE ANG STATUS BASE SA ORDER STATUS
         let statusBadge = '<span class="badge bg-success">✅ ACTIVE</span>';
         let exchangeIndicator = '';
+        let displayTotal = receipt.total; // Default total
 
-        if (receipt.returnStatus === 'EXCHANGED') {
+        // Check order status (REFUNDED, VOIDED, etc.)
+        if (receipt.status === 'REFUNDED') {
+            statusBadge = '<span class="badge bg-danger">💰 REFUNDED</span>';
+            // Ipakita ang original total kung 0 na ang total
+            displayTotal = receipt.originalTotalAmount > 0 ? receipt.originalTotalAmount : receipt.total;
+        } else if (receipt.status === 'PARTIALLY_REFUNDED') {
+            statusBadge = '<span class="badge bg-warning text-dark">⚠️ PARTIAL REFUND</span>';
+        } else if (receipt.status === 'VOIDED') {
+            statusBadge = '<span class="badge bg-dark">🚫 VOIDED</span>';
+            displayTotal = 0; // Void = 0 talaga
+        } 
+        // Check returnStatus for exchanges/returns
+        else if (receipt.returnStatus === 'EXCHANGED') {
             statusBadge = '<span class="badge bg-warning text-dark">🔄 EXCHANGED</span>';
             if (receipt.originalOrderId) {
                 exchangeIndicator = `<small class="text-muted">(replaces #${receipt.originalOrderId})</small>`;
             }
         } else if (receipt.returnStatus === 'RETURNED') {
             statusBadge = '<span class="badge bg-danger">↩️ RETURNED</span>';
-        } else if (receipt.returnStatus === 'REFUNDED') {
-            statusBadge = '<span class="badge bg-info">💰 REFUNDED</span>';
-        } else if (receipt.originalOrderId) {
-            exchangeIndicator = `<small class="text-muted">(exchange replacement)</small>`;
         }
 
+        // ✅ 2. DISCOUNT DISPLAY
         let discountDisplay = 'None';
         if (receipt.discountPercent > 0) {
             discountDisplay = `${receipt.discountType} (${receipt.discountPercent * 100}%)<br>-₱${receipt.discountAmount.toFixed(2)}`;
@@ -8217,7 +8228,7 @@ function displayReceiptHistory(receipts) {
                 <td>${receipt.itemCount} item(s)</td>
                 <td>₱${receipt.subtotal.toFixed(2)}</td>
                 <td>${discountDisplay}</td>
-                <td class="fw-bold text-primary">₱${receipt.total.toFixed(2)}</td>
+                <td class="fw-bold text-primary">₱${displayTotal.toFixed(2)}</td>
                 <td><span class="badge bg-success">${escapeHtml(receipt.paymentMethod)}</span></td>
                 <td>${statusBadge}</td>
                 <td>

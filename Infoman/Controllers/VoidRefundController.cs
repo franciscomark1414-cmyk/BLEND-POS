@@ -311,7 +311,6 @@ namespace Infoman.Controllers
             }
         }
 
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RequestRefund([FromBody] ProcessRefundRequest request)
@@ -331,22 +330,44 @@ namespace Infoman.Controllers
                 var userId = GetCurrentUserId();
                 if (userId == 0) return Json(new { success = false, message = "User not logged in." });
 
-                // ✅ Compute total amount para sa display
-                decimal totalAmount = 0;
-                foreach (var itemId in request.ItemIds)
-                {
-                    var orderItem = await _db.OrderItems
-                        .Include(oi => oi.AddOns) // ISAMA ANG ADD-ONS SA COMPUTATION
-                        .FirstOrDefaultAsync(oi => oi.OrderItemId == itemId);
+                // ✅ 1. KUNIN ANG ORDER AT MGA ITEMS (ITO YUNG NAWALA)
+                var order = await _db.Orders
+                    .Include(o => o.Items)
+                        .ThenInclude(i => i.AddOns)
+                    .FirstOrDefaultAsync(o => o.OrderId == request.OrderId);
 
-                    if (orderItem != null)
+                if (order == null)
+                {
+                    return Json(new { success = false, message = "Order not found." });
+                }
+
+                // ✅ 2. I-SETUP ANG MGA VARIABLES
+                var itemIds = request.ItemIds;
+
+                // ✅ 3. COMPUTE TAMANG TOTAL (PROPORTIONAL)
+                decimal grossTotal = order.Items
+                    .Where(i => i.DispositionStatusId == 1) // 1 = AVAILABLE
+                    .Sum(i => (i.Price * i.Quantity) +
+                              (i.AddOns != null ? i.AddOns.Sum(a => a.Price * a.Quantity * i.Quantity) : 0));
+
+                decimal totalPaid = order.TotalAmount;
+                decimal effectiveRatio = grossTotal > 0 ? totalPaid / grossTotal : 1m;
+
+                decimal totalAmount = 0;
+                foreach (var itemId in itemIds)
+                {
+                    var item = order.Items.FirstOrDefault(i => i.OrderItemId == itemId);
+                    if (item != null)
                     {
-                        totalAmount += orderItem.Price * orderItem.Quantity;
-                        totalAmount += orderItem.AddOns.Sum(a => a.Price * a.Quantity * orderItem.Quantity);
+                        decimal itemGross = (item.Price * item.Quantity) +
+                                            (item.AddOns != null ? item.AddOns.Sum(a => a.Price * a.Quantity * item.Quantity) : 0);
+
+                        // ✅ Ito yung proportional discounted amount (₱180 x 0.8 = ₱144)
+                        totalAmount += Math.Round(itemGross * effectiveRatio, 2);
                     }
                 }
 
-                // ✅ Create Pending Request (HINDI AUTO-APPROVE)
+                // ✅ 4. CREATE PENDING REQUEST (HINDI AUTO-APPROVE)
                 var pendingRequest = new PendingRequest
                 {
                     OrderId = request.OrderId,
@@ -361,7 +382,7 @@ namespace Infoman.Controllers
                 _db.PendingRequests.Add(pendingRequest);
                 await _db.SaveChangesAsync();
 
-                // ✅ Return requiresOwner = true para mag-hintay ang staff
+                // ✅ 5. RETURN requiresOwner = true
                 return Json(new
                 {
                     requiresOwner = true,

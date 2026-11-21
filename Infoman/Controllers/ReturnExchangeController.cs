@@ -50,6 +50,8 @@ namespace Infoman.Controllers
                     .ThenInclude(oi => oi.Product)
                 .Include(o => o.Items)
                     .ThenInclude(oi => oi.ProductSize)
+                .Include(o => o.Items) // ✅ IDAGDAG ITO
+                    .ThenInclude(oi => oi.AddOns)
                                .FirstOrDefaultAsync(o => o.OrderId == orderId &&
                     (o.Status == "COMPLETED" ||
                      o.Status == "EXCHANGED" ||
@@ -78,7 +80,14 @@ namespace Infoman.Controllers
                         i.Quantity,
                         OriginalPrice = i.Price,
                         Price = discountPercent > 0 ? i.Price * (1 - discountPercent) : i.Price,  // ✅ ACTUAL PRICE
-                        Subtotal = (discountPercent > 0 ? i.Price * (1 - discountPercent) : i.Price) * i.Quantity
+                        Subtotal = (discountPercent > 0 ? i.Price * (1 - discountPercent) : i.Price) * i.Quantity,
+                        AddOns = i.AddOns.Select(a => new
+                        {
+                            a.AddOnId,
+                            a.AddOnName,
+                            a.Price,
+                            a.Quantity
+                        }).ToList()
                     })
                 }
             });
@@ -136,7 +145,8 @@ namespace Infoman.Controllers
             {
                 OrderItemId = i.OrderItemId,
                 ProductSizeId = i.ProductSizeId,
-                Quantity = i.Quantity
+                Quantity = i.Quantity,
+                AddOns = i.AddOns // ✅ ISAMA ANG ADD-ONS DITO
             }).ToList();
 
             // Call ExchangeService
@@ -182,6 +192,7 @@ namespace Infoman.Controllers
             public int OrderItemId { get; set; }
             public int ProductSizeId { get; set; }
             public int Quantity { get; set; }
+            public List<ExchangeAddOnDto> AddOns { get; set; }
         }
     }
 }

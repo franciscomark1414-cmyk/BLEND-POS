@@ -6948,6 +6948,8 @@ async function loadExchangeOrderItems() {
         
         // Render return items
         renderReturnItems(data.order.items);
+
+         window.currentExchangeDiscountPercent = data.order.discountPercent || 0;
         
         // Reset replacement items display
         renderReplacementItems();
@@ -6996,74 +6998,158 @@ async function loadAvailableProductsForExchange() {
 }
 
 
-function showProductSearchForExchange() {
-    if (!exchangeProductsList || exchangeProductsList.length === 0) {
-        showAlert('No products available for exchange', 'Error', '❌');
-        return;
-    }
-
-    // ✅ REMOVED the filter — allow same product/size for replacement
-    const filteredProducts = exchangeProductsList;
-
-    // Remove existing modal if any
-    const existingModal = document.getElementById('productSearchModal');
-    if (existingModal) existingModal.remove();
-
-    const productsHtml = filteredProducts.map(p => {
-        if (!p) return '';
-        const productName = (p.ProductName || '').replace(/'/g, "\\'");
-        const sizeName = (p.SizeName || '').replace(/'/g, "\\'");
-        const sku = (p.SKU || '');
-
-        return `
-            <div class="product-search-item" 
-                 data-id="${p.productSizeId}" 
-                 data-name="${productName}" 
-                 data-size="${sizeName}" 
-                 data-price="${p.Price || 0}" 
-                 onclick="selectProductForExchange(${p.productSizeId}, '${productName}', '${sizeName}', ${p.Price || 0})" 
-                 style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 10px; padding: 12px; cursor: pointer; transition: all 0.2s;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <strong style="font-size: 14px;">${escapeHtml(productName)}</strong>
-                        <span style="color: #666; font-size: 12px;">(${escapeHtml(sizeName)})</span>
-                        <br><small class="text-muted">SKU: ${escapeHtml(sku)}</small>
+async function showProductSearchForExchange() {
+    try {
+        // ✅ 1. Kunin ang active add-ons at ang stock nila
+        const addOnsResponse = await fetch('/Staff/GetActiveAddOns');
+        const activeAddOns = await addOnsResponse.json();
+        
+        // Kunin ang mga produkto
+        const response = await fetch('/ReturnExchange/GetProductsForExchange');
+        const products = await response.json();
+        
+        let html = `
+            <div id="productSearchForExchangeModal" class="modal-qty" style="display: flex; z-index: 100000;">
+                <div class="modal-qty-content" style="width: 500px; max-width: 95%; text-align: left; padding: 20px;">
+                    <h4 style="margin-bottom: 15px; text-align: center;">Add Replacement Item</h4>
+                    
+                    <!-- Product Selection -->
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-weight: 600; font-size: 13px; margin-bottom: 5px; display: block;">Select Product:</label>
+                        <select id="exchangeProductSelect" class="form-control" style="width: 100%; padding: 8px;">
+                            <option value="">-- Select Product --</option>
+        `;
+        
+        products.forEach(p => {
+            html += `<option value="${p.productSizeId}" data-price="${p.price}" data-name="${escapeHtml(p.productName)}" data-size="${escapeHtml(p.sizeName)}">
+                ${escapeHtml(p.productName)} (${escapeHtml(p.sizeName)}) - ₱${p.price.toFixed(2)}
+            </option>`;
+        });
+        
+        html += `
+                        </select>
                     </div>
-                    <div class="text-end">
-                        <span class="text-success fw-bold" style="font-size: 16px;">₱${(p.Price || 0).toFixed(2)}</span>
+
+                    <!-- Quantity -->
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-weight: 600; font-size: 13px; margin-bottom: 5px; display: block;">Quantity:</label>
+                        <input type="number" id="exchangeProductQty" class="form-control" value="1" min="1" style="width: 100%; padding: 8px;">
+                    </div>
+
+                    <!-- Add-ons Section -->
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-weight: 600; font-size: 13px; margin-bottom: 5px; display: block;">Add-ons (Optional):</label>
+                        <div id="exchangeAddOnsList" style="max-height: 150px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px; padding: 10px; background: #f9f9f9;">
+        `;
+        
+        if (activeAddOns.length === 0) {
+            html += '<div class="text-muted small">No add-ons available</div>';
+        } else {
+            activeAddOns.forEach(addOn => {
+                // ✅ CHECK KUNG OUT OF STOCK
+                const isOutOfStock = addOn.stock <= 0;
+                const disabledAttr = isOutOfStock ? 'disabled' : '';
+                const cursorStyle = isOutOfStock ? 'cursor: not-allowed; opacity: 0.5;' : '';
+                const stockLabel = isOutOfStock ? '<span style="color:#dc3545; font-weight:bold; font-size:11px;">❌ Out of Stock</span>' : `<span style="color:#666; font-size:11px;">Stock: ${addOn.stock}</span>`;
+
+                html += `
+                    <div class="addon-row" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed #ddd; ${cursorStyle}">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" class="exchange-addon-checkbox" 
+                                   data-id="${addOn.addOnId}" 
+                                   data-name="${addOn.name}" 
+                                   data-price="${addOn.price}" 
+                                   ${disabledAttr}>
+                            <div>
+                                <div style="font-size: 13px; font-weight: 600;">${addOn.name} (+₱${addOn.price.toFixed(2)})</div>
+                                ${stockLabel}
+                            </div>
+                        </div>
+                        <input type="number" class="exchange-addon-qty form-control" value="1" min="1" max="${addOn.stock}" style="width: 60px; padding: 4px; font-size: 12px; display: none;" ${disabledAttr}>
+                    </div>
+                `;
+            });
+        }
+        
+        html += `
+                        </div>
+                    </div>
+
+                    <!-- Buttons -->
+                    <div style="display: flex; gap: 10px; margin-top: 20px;">
+                        <button class="btn-cancel" onclick="closeExchangeProductModal()" style="flex: 1; padding: 10px; border-radius: 8px; border: none; background: #6c757d; color: white;">Cancel</button>
+                        <button class="btn-confirm" onclick="addSelectedExchangeProduct()" style="flex: 1; padding: 10px; border-radius: 8px; border: none; background: #28a745; color: white; font-weight: bold;">Add to Replacement</button>
                     </div>
                 </div>
             </div>
         `;
-    }).filter(html => html !== '').join('');
+        
+        const existingModal = document.getElementById('productSearchForExchangeModal');
+        if (existingModal) existingModal.remove();
+        
+        document.body.insertAdjacentHTML('beforeend', html);
+        
+        document.querySelectorAll('.exchange-addon-checkbox').forEach(cb => {
+            cb.addEventListener('change', function() {
+                const qtyInput = this.closest('.addon-row').querySelector('.exchange-addon-qty');
+                if(!this.disabled) {
+                    qtyInput.style.display = this.checked ? 'block' : 'none';
+                }
+            });
+        });
+        
+    } catch (error) {
+        console.error('Error loading products for exchange:', error);
+        await showAlert('Error loading products', 'Error', '❌');
+    }
+}
 
-    const modalHtml = `
-        <div id="productSearchModal" class="modal-qty" style="display: flex; z-index: 10002;">
-            <div class="modal-qty-content" style="width: 550px; max-width: 90%; border-radius: 16px; overflow: hidden;">
-                <div style="background: linear-gradient(135deg, #17a2b8, #0d6efd); color: white; padding: 15px 20px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <h4 class="mb-0" style="font-size: 18px;">
-                            <i class="fas fa-search"></i> Select Replacement Product
-                        </h4>
-                        <button onclick="closeModal('productSearchModal')" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer;">&times;</button>
-                    </div>
-                </div>
-                <div style="padding: 20px;">
-                    <input type="text" id="productSearchInput" class="form-control" placeholder="🔍 Search product by name..." onkeyup="filterProductSearch()" style="border-radius: 10px; padding: 12px;">
-                    <div id="productSearchResults" style="max-height: 400px; overflow-y: auto; margin-top: 15px;">
-                        <div style="display: flex; flex-direction: column; gap: 8px;">
-                            ${productsHtml}
-                        </div>
-                    </div>
-                    <div class="text-end mt-3">
-                        <button class="btn btn-secondary" onclick="closeModal('productSearchModal')" style="border-radius: 8px; padding: 8px 20px;">Cancel</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
+function closeExchangeProductModal() {
+    const modal = document.getElementById('productSearchForExchangeModal');
+    if (modal) modal.remove();
+}
 
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
+function addSelectedExchangeProduct() {
+    const select = document.getElementById('exchangeProductSelect');
+    const selectedOption = select.options[select.selectedIndex];
+    
+    if (!selectedOption || !selectedOption.value) {
+        showAlert('Please select a product', 'Required', '⚠️');
+        return;
+    }
+    
+    const productSizeId = parseInt(selectedOption.value);
+    const price = parseFloat(selectedOption.getAttribute('data-price'));
+    const productName = selectedOption.getAttribute('data-name');
+    const sizeName = selectedOption.getAttribute('data-size');
+    const quantity = parseInt(document.getElementById('exchangeProductQty').value) || 1;
+    
+    // ✅ Kunin ang mga napiling Add-ons
+    const selectedAddOns = [];
+    document.querySelectorAll('.exchange-addon-checkbox:checked').forEach(cb => {
+        const qtyInput = cb.closest('.addon-row').querySelector('.exchange-addon-qty');
+        selectedAddOns.push({
+            addOnId: parseInt(cb.getAttribute('data-id')),
+            addOnName: cb.getAttribute('data-name'),
+            price: parseFloat(cb.getAttribute('data-price')),
+            quantity: parseInt(qtyInput.value) || 1
+        });
+    });
+    
+    // ✅ I-add sa exchangeReplaceItemsData
+    exchangeReplaceItemsData.push({
+        productSizeId: productSizeId,
+        productName: productName,
+        sizeName: sizeName,
+        price: price,
+        quantity: quantity,
+        addOns: selectedAddOns // ✅ Isama ang add-ons
+    });
+    
+    // Re-render
+    renderReplacementItems();
+    updateExchangeSummary();
+    closeExchangeProductModal();
 }
 
 
@@ -7109,7 +7195,29 @@ function renderReplacementItems() {
     }
     
     let html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
+    let discountPercent = window.currentExchangeDiscountPercent || 0;
+
     exchangeReplaceItemsData.forEach((item, index) => {
+        // ✅ I-DISPLAY ANG ADD-ONS SA REPLACEMENT
+        let addOnsHtml = '';
+        if (item.addOns && item.addOns.length > 0) {
+            addOnsHtml = item.addOns.map(a => 
+                `<div style="font-size:11px; color:#28a745; margin-top:2px;">
+                    + ${a.addOnName} (₱${a.price.toFixed(2)})
+                </div>`
+            ).join('');
+        }
+
+        // ✅ COMPUTE DISCOUNTED SUBTOTAL
+        let discountedPrice = item.price * (1 - discountPercent);
+        let addOnsSubtotal = 0;
+        if (item.addOns) {
+            item.addOns.forEach(a => {
+                addOnsSubtotal += (a.price * a.quantity * (1 - discountPercent));
+            });
+        }
+        let subtotal = (discountedPrice + addOnsSubtotal) * item.quantity;
+
         html += `
             <div style="background: white; border: 1px solid #28a745; border-radius: 8px; padding: 8px 10px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
@@ -7118,8 +7226,9 @@ function renderReplacementItems() {
                             ${escapeHtml(item.productName)}
                         </div>
                         <div style="font-size: 11px; color: #28a745;">
-                            ${escapeHtml(item.sizeName)} · ₱${item.price.toFixed(2)}
+                            ${escapeHtml(item.sizeName)} · ₱${discountedPrice.toFixed(2)}
                         </div>
+                        ${addOnsHtml}
                     </div>
                     <div style="display: flex; align-items: center; gap: 4px;">
                         <button class="btn btn-sm btn-outline-secondary" onclick="updateReplaceQty(${index}, ${item.quantity - 1})" 
@@ -7134,7 +7243,7 @@ function renderReplacementItems() {
                     </div>
                 </div>
                 <div style="font-size: 11px; color: #666; margin-top: 4px; text-align: right;">
-                    Subtotal: <strong style="color: #28a745;">₱${(item.price * item.quantity).toFixed(2)}</strong>
+                    Subtotal: <strong style="color: #28a745;">₱${subtotal.toFixed(2)}</strong>
                 </div>
             </div>
         `;
@@ -7152,15 +7261,40 @@ function renderReturnItems(items) {
     }
     
     let html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
+    let discountPercent = window.currentExchangeDiscountPercent || 0;
     
     items.forEach((item) => {
+        // ✅ 1. COMPUTE ADD-ONS TOTAL
+        let addOnsHtml = '';
+        let addOnsTotal = 0;
+
+        // ✅ SIGURADUHING ARRAY ANG addOns
+        let addOnsArray = item.addOns || [];
+        if (Array.isArray(addOnsArray) && addOnsArray.length > 0) {
+            addOnsHtml = addOnsArray.map(a => {
+                let discountedAddOnPrice = a.price * (1 - discountPercent);
+                // ✅ I-MULTIPLY SA QUANTITY NG ADD-ON AT QUANTITY NG ITEM
+                let totalAddOnForThisLine = discountedAddOnPrice * a.quantity * item.quantity;
+                addOnsTotal += totalAddOnForThisLine; 
+                
+                return `<div style="font-size:11px; color:#666; margin-top:2px;">
+                            + ${a.addOnName} (₱${discountedAddOnPrice.toFixed(2)})
+                        </div>`;
+            }).join('');
+        }
+
+        // ✅ 2. ISAMA SA TOTAL UNIT PRICE
+        // item.price ay discounted na (galing sa GetCompletedOrderDetails)
+        // addOnsTotal ay per item na ang computation
+        let totalUnitPrice = item.price + (addOnsTotal / item.quantity); 
+
         html += `
-            <div class="return-item-div" data-order-item-id="${item.orderItemId}" data-price="${item.price}" data-max-qty="${item.quantity}" 
+            <div class="return-item-div" data-order-item-id="${item.orderItemId}" data-price="${totalUnitPrice}" data-max-qty="${item.quantity}" 
                  style="background: white; border: 1px solid #ffc107; border-radius: 8px; padding: 8px 10px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <input type="checkbox" class="return-item-checkbox" 
                            data-id="${item.orderItemId}" 
-                           data-price="${item.price}" 
+                           data-price="${totalUnitPrice}" 
                            data-name="${escapeHtml(item.productName)}" 
                            data-size="${escapeHtml(item.sizeName)}" 
                            onchange="toggleReturnItem(this)">
@@ -7170,12 +7304,13 @@ function renderReturnItems(items) {
                         </div>
                         <div style="font-size: 11px; color: #666;">
                             ${escapeHtml(item.sizeName)} · ₱${item.price.toFixed(2)}
+                            ${addOnsHtml}
                         </div>
                     </div>
                     <input type="number" class="form-control return-qty" 
                            data-id="${item.orderItemId}" 
                            style="width: 60px; padding: 4px 6px; font-size: 12px; text-align: center;" 
-                           min="0" max="${item.quantity}" value="0" disabled 
+                           min="0" max="${item.quantity}" value="1" disabled 
                            onchange="updateExchangeSummary()" onkeyup="updateExchangeSummary()">
                 </div>
             </div>
@@ -7184,7 +7319,6 @@ function renderReturnItems(items) {
     
     html += '</div>';
     container.innerHTML = html;
-    
     updateExchangeSummary();
 }
 
@@ -7228,53 +7362,65 @@ function selectExchangePayment(method) {
     console.log('Exchange payment selected:', method);
 }
 
-// Update function to show/hide payment section based on difference
-function updateExchangeSummary() {
-    let returnTotal = 0;
-    const returnItems = document.querySelectorAll('#exchangeReturnItems .return-item-checkbox:checked');
-    
-    returnItems.forEach(cb => {
-        const itemDiv = cb.closest('.return-item-div');
-        const qtyInput = itemDiv ? itemDiv.querySelector('.return-qty') : null;
-        if (qtyInput) {
-            let quantity = parseInt(qtyInput.value) || 0;
-            const price = parseFloat(cb.getAttribute('data-price')) || 0;
-            returnTotal += price * quantity;
-        }
-    });
-    
-    let replaceTotal = 0;
-    if (typeof exchangeReplaceItemsData !== 'undefined') {
-        exchangeReplaceItemsData.forEach(item => {
-            replaceTotal += item.price * item.quantity;
-        });
-    }
-    
-    const priceDiff = replaceTotal - returnTotal;
-    
-    const returnEl = document.getElementById('exchangeTotalReturn');
-    const replaceEl = document.getElementById('exchangeTotalReplace');
-    const diffEl = document.getElementById('exchangePriceDiff');
-    const diffTypeEl = document.getElementById('exchangeDiffType');
-    const paymentSection = document.getElementById('exchangePaymentSection');
-    
-    if (returnEl) returnEl.innerHTML = `₱${returnTotal.toFixed(2)}`;
-    if (replaceEl) replaceEl.innerHTML = `₱${replaceTotal.toFixed(2)}`;
-    if (diffEl) diffEl.innerHTML = `₱${Math.abs(priceDiff).toFixed(2)}`;
-    
-    if (diffTypeEl) {
-        if (priceDiff > 0) {
-            diffTypeEl.innerHTML = '<span style="color: #dc3545;">(Customer needs to pay ₱' + priceDiff.toFixed(2) + ')</span>';
-            if (paymentSection) paymentSection.style.display = 'block';
-        } else if (priceDiff < 0) {
-            diffTypeEl.innerHTML = '<span style="color: #28a745;">(Customer gets ₱' + Math.abs(priceDiff).toFixed(2) + ' back)</span>';
-            if (paymentSection) paymentSection.style.display = 'none';
-        } else {
-            diffTypeEl.innerHTML = '<span style="color: #6c757d;">(No price difference)</span>';
-            if (paymentSection) paymentSection.style.display = 'none';
-        }
-    }
-}
+            function updateExchangeSummary() {
+                let returnTotal = 0;
+                const returnItems = document.querySelectorAll('#exchangeReturnItems .return-item-checkbox:checked');
+
+                returnItems.forEach(cb => {
+                    const itemDiv = cb.closest('.return-item-div');
+                    const qtyInput = itemDiv ? itemDiv.querySelector('.return-qty') : null;
+                    if (qtyInput) {
+                        let quantity = parseInt(qtyInput.value) || 0;
+                        const price = parseFloat(cb.getAttribute('data-price')) || 0;
+                        returnTotal += price * quantity;
+                    }
+                });
+
+                let replaceTotal = 0;
+                let discountPercent = window.currentExchangeDiscountPercent || 0;
+
+                if (typeof exchangeReplaceItemsData !== 'undefined') {
+                    exchangeReplaceItemsData.forEach(item => {
+                        // ✅ Base price (discounted)
+                        let basePrice = item.price * (1 - discountPercent);
+
+                        // ✅ Add-ons (discounted)
+                        let addOnsTotal = 0;
+                        if (item.addOns && Array.isArray(item.addOns)) {
+                            item.addOns.forEach(a => {
+                                addOnsTotal += (a.price * a.quantity * (1 - discountPercent));
+                            });
+                        }
+
+                        replaceTotal += (basePrice + addOnsTotal) * item.quantity;
+                    });
+                }
+
+                const priceDiff = replaceTotal - returnTotal;
+
+                const returnEl = document.getElementById('exchangeTotalReturn');
+                const replaceEl = document.getElementById('exchangeTotalReplace');
+                const diffEl = document.getElementById('exchangePriceDiff');
+                const diffTypeEl = document.getElementById('exchangeDiffType');
+                const paymentSection = document.getElementById('exchangePaymentSection');
+
+                if (returnEl) returnEl.innerHTML = `₱${returnTotal.toFixed(2)}`;
+                if (replaceEl) replaceEl.innerHTML = `₱${replaceTotal.toFixed(2)}`;
+                if (diffEl) diffEl.innerHTML = `₱${Math.abs(priceDiff).toFixed(2)}`;
+
+                if (diffTypeEl) {
+                    if (priceDiff > 0) {
+                        diffTypeEl.innerHTML = '<span style="color: #dc3545;">(Customer needs to pay ₱' + priceDiff.toFixed(2) + ')</span>';
+                        if (paymentSection) paymentSection.style.display = 'block';
+                    } else if (priceDiff < 0) {
+                        diffTypeEl.innerHTML = '<span style="color: #28a745;">(Customer gets ₱' + Math.abs(priceDiff).toFixed(2) + ' back)</span>';
+                        if (paymentSection) paymentSection.style.display = 'none';
+                    } else {
+                        diffTypeEl.innerHTML = '<span style="color: #6c757d;">(No price difference)</span>';
+                        if (paymentSection) paymentSection.style.display = 'none';
+                    }
+                }
+            }
 
 function removeReplaceItem(index) {
     exchangeReplaceItemsData.splice(index, 1);
@@ -7335,86 +7481,106 @@ function updateExchangeTotals() {
     }
 }
 
-async function processExchange() {
-    // Collect items to return
-    const itemsToReturn = [];
-    const returnCheckboxes = document.querySelectorAll('#exchangeReturnItems .return-item-checkbox:checked');
-    
-    returnCheckboxes.forEach(cb => {
-        const itemDiv = cb.closest('.return-item-div');
-        const qtyInput = itemDiv ? itemDiv.querySelector('.return-qty') : null;
-        const quantity = qtyInput ? parseInt(qtyInput.value) || 0 : 0;
-        
-        if (quantity > 0) {
-            itemsToReturn.push({
-                orderItemId: parseInt(cb.getAttribute('data-id')),
-                productSizeId: 0,
-                quantity: quantity,
-                productName: cb.getAttribute('data-name'),
-                sizeName: cb.getAttribute('data-size'),
-                price: parseFloat(cb.getAttribute('data-price'))
-            });
-        }
-    });
-    
-    if (itemsToReturn.length === 0) {
-        await showAlert('Please select at least one item to return', 'No Selection', '⚠️');
-        return;
-    }
-    
-    if (exchangeReplaceItemsData.length === 0) {
-        await showAlert('Please add at least one replacement item', 'No Replacement', '⚠️');
-        return;
-    }
-    
-    // Get reason
-    let reason = document.getElementById('exchangeReason').value;
-    if (reason === 'Other') {
-        reason = document.getElementById('exchangeOtherReason').value;
-        if (!reason) {
-            await showAlert('Please specify the reason', 'Required', '⚠️');
-            return;
-        }
-    }
-    
-    if (!reason) {
-        await showAlert('Please select a reason', 'Required', '⚠️');
-        return;
-    }
-    
-    // Compute price difference
-    let returnTotal = itemsToReturn.reduce((sum, i) => sum + (i.price * i.quantity), 0);
-    let replaceTotal = exchangeReplaceItemsData.reduce((sum, i) => sum + (i.price * i.quantity), 0);
-    const priceDiff = replaceTotal - returnTotal;
-    
-    // Validate payment if positive difference
-    if (priceDiff > 0 && !selectedExchangePayment) {
-        await showAlert('Please select a payment method for the price difference (Cash or GCash)', 'Payment Required', '⚠️');
-        return;
-    }
-    
-    const exchangePaymentMethod = (priceDiff > 0) ? selectedExchangePayment : null;
-    
-    // Prepare request data
-    const itemsToReplace = exchangeReplaceItemsData.map(item => ({
-        orderItemId: 0,
-        productSizeId: item.productSizeId,
-        quantity: item.quantity
-    }));
-    
-    const requestData = {
-        orderId: currentExchangeOrderId,
-        itemsToReturn: itemsToReturn.map(i => ({ orderItemId: i.orderItemId, productSizeId: 0, quantity: i.quantity })),
-        itemsToReplace: itemsToReplace,
-        reason: reason,
-        useStoreCredit: false,
-        paymentForDifference: exchangePaymentMethod  // ✅ ADD PAYMENT METHOD
-    };
-    
-    showLoading('Processing exchange...');
-    
-    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
-          try {
+            async function processExchange() {
+                // Collect items to return
+                const itemsToReturn = [];
+                const returnCheckboxes = document.querySelectorAll('#exchangeReturnItems .return-item-checkbox:checked');
+
+                returnCheckboxes.forEach(cb => {
+                    const itemDiv = cb.closest('.return-item-div');
+                    const qtyInput = itemDiv ? itemDiv.querySelector('.return-qty') : null;
+                    const quantity = qtyInput ? parseInt(qtyInput.value) || 0 : 0;
+
+                    if (quantity > 0) {
+                        itemsToReturn.push({
+                            orderItemId: parseInt(cb.getAttribute('data-id')),
+                            productSizeId: 0,
+                            quantity: quantity,
+                            productName: cb.getAttribute('data-name'),
+                            sizeName: cb.getAttribute('data-size'),
+                            price: parseFloat(cb.getAttribute('data-price'))
+                        });
+                    }
+                });
+
+                if (itemsToReturn.length === 0) {
+                    await showAlert('Please select at least one item to return', 'No Selection', '⚠️');
+                    return;
+                }
+
+                if (exchangeReplaceItemsData.length === 0) {
+                    await showAlert('Please add at least one replacement item', 'No Replacement', '⚠️');
+                    return;
+                }
+
+                // Get reason
+                let reason = document.getElementById('exchangeReason').value;
+                if (reason === 'Other') {
+                    reason = document.getElementById('exchangeOtherReason').value;
+                    if (!reason) {
+                        await showAlert('Please specify the reason', 'Required', '⚠️');
+                        return;
+                    }
+                }
+
+                if (!reason) {
+                    await showAlert('Please select a reason', 'Required', '⚠️');
+                    return;
+                }
+
+                let discountPercent = window.currentExchangeDiscountPercent || 0;
+
+                // ✅ COMPUTE RETURN TOTAL (Kasama na ang add-ons)
+                let returnTotal = itemsToReturn.reduce((sum, item) => {
+                    // item.price ay discounted na galing sa data-price (naka-compute na sa renderReturnItems)
+                    return sum + (item.price * item.quantity);
+                }, 0);
+
+                // ✅ COMPUTE REPLACEMENT TOTAL (Kasama na ang add-ons at discount)
+                let replaceTotal = exchangeReplaceItemsData.reduce((sum, item) => {
+                    let basePrice = item.price * (1 - discountPercent);
+                    let addOnsTotal = 0;
+
+                    if (item.addOns && Array.isArray(item.addOns)) {
+                        item.addOns.forEach(a => {
+                            addOnsTotal += (a.price * a.quantity * (1 - discountPercent));
+                        });
+                    }
+
+                    return sum + ((basePrice + addOnsTotal) * item.quantity);
+                }, 0);
+
+                const priceDiff = replaceTotal - returnTotal;
+
+                // Validate payment if positive difference
+                if (priceDiff > 0 && !selectedExchangePayment) {
+                    await showAlert('Please select a payment method for the price difference (Cash or GCash)', 'Payment Required', '⚠️');
+                    return;
+                }
+
+                const exchangePaymentMethod = (priceDiff > 0) ? selectedExchangePayment : null;
+
+                // Prepare request data
+                const itemsToReplace = exchangeReplaceItemsData.map(item => ({
+                    orderItemId: 0,
+                    productSizeId: item.productSizeId,
+                    quantity: item.quantity,
+                    addOns: item.addOns || []
+                }));
+
+                const requestData = {
+                    orderId: currentExchangeOrderId,
+                    itemsToReturn: itemsToReturn.map(i => ({ orderItemId: i.orderItemId, productSizeId: 0, quantity: i.quantity })),
+                    itemsToReplace: itemsToReplace,
+                    reason: reason,
+                    useStoreCredit: false,
+                    paymentForDifference: exchangePaymentMethod
+                };
+
+                showLoading('Processing exchange...');
+
+                const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+                try {
                     const response = await fetch('/ReturnExchange/ProcessExchange', {
                         method: 'POST',
                         headers: {
@@ -7427,7 +7593,7 @@ async function processExchange() {
                     const data = await response.json();
                     hideLoading();
 
-                                       if (data.success) {
+                    if (data.success) {
                         // ✅ SET FLAGS FOR EXCHANGE INFO IN RECEIPT
                         window.isExchangeReplacement = true;
                         window.exchangeOriginalOrderId = currentExchangeOrderId;
@@ -7450,23 +7616,16 @@ async function processExchange() {
                         });
 
                         // ✅ BEFORE showing the receipt, store exchange metadata
-window.isExchangeReplacement = true;
-window.exchangeOriginalOrderId = currentExchangeOrderId;
-window.exchangeReturnedItems = itemsToReturn.map(i => ({
-    productName: i.productName,
-    sizeName: i.sizeName,
-    quantity: i.quantity
-}));
-window.exchangeReplacedItems = exchangeReplaceItemsData.map(i => ({
-    productName: i.productName,
-    sizeName: i.sizeName,
-    quantity: i.quantity
-}));
-window.exchangeAdjustmentAmount = priceDiff;
-
-                       
-
-                       
+                        window.exchangeReturnedItems = itemsToReturn.map(i => ({
+                            productName: i.productName,
+                            sizeName: i.sizeName,
+                            quantity: i.quantity
+                        }));
+                        window.exchangeReplacedItems = exchangeReplaceItemsData.map(i => ({
+                            productName: i.productName,
+                            sizeName: i.sizeName,
+                            quantity: i.quantity
+                        }));
 
                         // ✅ RESET CART
                         cart = [];
@@ -7495,8 +7654,6 @@ window.exchangeAdjustmentAmount = priceDiff;
                         await loadOrderQueue();
 
                     } else {
-                        // ✅ GAMITIN ANG CUSTOM MODAL IMBES NA alert()
-                        // Ito ang magpapakita ng magandang error modal kapag kulang ang stock
                         await showAlert('❌ ' + data.message, 'Exchange Failed', '❌');
                     }
                 } catch (error) {
@@ -7504,7 +7661,7 @@ window.exchangeAdjustmentAmount = priceDiff;
                     console.error('Exchange error:', error);
                     await showAlert('❌ Error: ' + error.message, 'Error', '❌');
                 }
-}
+            }
 async function showExchangeSummaryModal(data) {
     return new Promise(async (resolve) => {
         // Compute totals
@@ -7525,13 +7682,31 @@ async function showExchangeSummaryModal(data) {
             </div>`;
         });
         
-        let replacedItemsHtml = '';
-        data.itemsReplaced.forEach(item => {
-            replacedItemsHtml += `<div style="display: flex; justify-content: space-between; padding: 5px 0;">
-                <span>${item.quantity}x ${escapeHtml(item.productName)} (${escapeHtml(item.sizeName)})</span>
-                <span style="color: #28a745;">+₱${(item.price * item.quantity).toFixed(2)}</span>
-            </div>`;
-        });
+       let replacedItemsHtml = '';
+data.itemsReplaced.forEach(item => {
+    let discountPercent = window.currentExchangeDiscountPercent || 0;
+    let basePrice = item.price * (1 - discountPercent);
+    
+    let addOnsTotal = 0;
+    let addOnsHtml = '';
+    if (item.addOns && Array.isArray(item.addOns)) {
+        addOnsHtml = item.addOns.map(a => {
+            let addOnPrice = a.price * (1 - discountPercent);
+            addOnsTotal += (addOnPrice * a.quantity);
+            return `<div style="font-size: 11px; color: #666; padding-left: 15px;">+ ${a.addOnName} (₱${addOnPrice.toFixed(2)})</div>`;
+        }).join('');
+    }
+
+    let totalItemPrice = (basePrice + addOnsTotal) * item.quantity;
+    
+    replacedItemsHtml += `<div style="display: flex; justify-content: space-between; padding: 5px 0;">
+        <div>
+            <span>${item.quantity}x ${escapeHtml(item.productName)} (${escapeHtml(item.sizeName)})</span>
+            ${addOnsHtml}
+        </div>
+        <span style="color: #28a745;">+₱${totalItemPrice.toFixed(2)}</span>
+    </div>`;
+});
         
         const modalHtml = `
             <div id="exchangeSummaryModal" class="modal-qty" style="display: flex; z-index: 10050;">

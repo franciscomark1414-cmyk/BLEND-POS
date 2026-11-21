@@ -93,34 +93,24 @@ namespace Infoman.Service
 
                     originalAmount += actualPricePerUnit * returnItem.Quantity;
 
+                    // 1. Waste the main product recipe
                     foreach (var recipe in orderItem.ProductSize.RecipeItems)
                     {
                         decimal quantityWastedInBaseUnit = recipe.Quantity * returnItem.Quantity;
                         decimal quantityWastedInDisplayUnit = quantityWastedInBaseUnit;
 
                         if (recipe.RawMaterial.BaseUnit == "g" && recipe.RawMaterial.Unit == "kg")
-                        {
                             quantityWastedInDisplayUnit = quantityWastedInBaseUnit / 1000;
-                        }
                         else if (recipe.RawMaterial.BaseUnit == "mL" && recipe.RawMaterial.Unit == "L")
-                        {
                             quantityWastedInDisplayUnit = quantityWastedInBaseUnit / 1000;
-                        }
 
-                        // ✅ KUNIN ANG ACTIVE BATCH PRICE (FIFO/FEFO)
                         decimal activePrice = await _fifoService.GetActiveBatchPrice(recipe.RawMaterialId);
+                        if (activePrice <= 0) activePrice = recipe.RawMaterial.Price;
 
-                        // ✅ FALLBACK SA DEFAULT PRICE KUNG WALANG ACTIVE BATCH
-                        if (activePrice <= 0)
-                        {
-                            activePrice = recipe.RawMaterial.Price;
-                        }
-
-                        // ✅ COMPUTE GAMIT ANG ACTIVE PRICE
                         decimal costWasted = quantityWastedInDisplayUnit * activePrice;
                         totalWasteCost += costWasted;
 
-                        var waste = new WasteLog
+                        _db.WasteLogs.Add(new WasteLog
                         {
                             RawMaterialId = recipe.RawMaterialId,
                             Quantity = quantityWastedInBaseUnit,
@@ -129,16 +119,58 @@ namespace Infoman.Service
                             RecordedBy = userId.ToString(),
                             Notes = $"Exchange from Order #{originalOrder.OrderNumber}: {reason}",
                             TotalCost = costWasted
-                        };
-                        _db.WasteLogs.Add(waste);
+                        });
 
                         var material = await _db.RawMaterials.FindAsync(recipe.RawMaterialId);
-                        if (material != null)
+                        if (material != null) material.Stock -= quantityWastedInBaseUnit;
+                    }
+
+                    // 2. Waste the Add-ons (kung meron)
+                    var returnedAddOns = await _db.OrderItemAddOns
+                        .Include(a => a.AddOn)
+                        .Where(a => a.OrderItemId == orderItem.OrderItemId)
+                        .ToListAsync();
+
+                    foreach (var oldAddOn in returnedAddOns)
+                    {
+                        var addOnRecipe = await _db.AddOnRecipeItems
+                            .Where(r => r.AddOnId == oldAddOn.AddOnId && !r.IsDeleted)
+                            .Include(r => r.RawMaterial)
+                            .ToListAsync();
+
+                        foreach (var r in addOnRecipe)
                         {
-                            material.Stock -= quantityWastedInBaseUnit;
+                            decimal qtyToWaste = r.Quantity * oldAddOn.Quantity * returnItem.Quantity;
+                            decimal qtyToWasteDisplay = qtyToWaste;
+
+                            if (r.RawMaterial.BaseUnit == "g" && r.RawMaterial.Unit == "kg")
+                                qtyToWasteDisplay = qtyToWaste / 1000;
+                            else if (r.RawMaterial.BaseUnit == "mL" && r.RawMaterial.Unit == "L")
+                                qtyToWasteDisplay = qtyToWaste / 1000;
+
+                            decimal activePrice = await _fifoService.GetActiveBatchPrice(r.RawMaterialId);
+                            if (activePrice <= 0) activePrice = r.RawMaterial.Price;
+
+                            decimal costWasted = qtyToWasteDisplay * activePrice;
+                            totalWasteCost += costWasted;
+
+                            _db.WasteLogs.Add(new WasteLog
+                            {
+                                RawMaterialId = r.RawMaterialId,
+                                Quantity = qtyToWaste,
+                                Reason = WasteLog.WasteReason.CustomerCancel,
+                                Date = DateTime.Now,
+                                RecordedBy = userId.ToString(),
+                                Notes = $"Exchange Add-on Waste from Order #{originalOrder.OrderNumber}: {reason}",
+                                TotalCost = costWasted
+                            });
+
+                            var material = await _db.RawMaterials.FindAsync(r.RawMaterialId);
+                            if (material != null) material.Stock -= qtyToWaste;
                         }
                     }
 
+                    // ✅ ITO ANG NAWALA: Dapat nasa LOOB ng loop ito para tama ang item na mababago
                     orderItem.IsExchanged = true;
                     orderItem.QuantityExchanged = returnItem.Quantity;
                 }
@@ -180,7 +212,7 @@ namespace Infoman.Service
                     originalOrder.OriginalTotalAmount -= returnedValue;
                 }
 
-                // STEP 3: Compute replacement amount
+                // STEP 3: Compute replacement amount (✅ APPLY ORIGINAL DISCOUNT)
                 foreach (var replaceItem in itemsToReplace)
                 {
                     var productSize = await _db.ProductSizes
@@ -189,7 +221,15 @@ namespace Infoman.Service
 
                     if (productSize != null)
                     {
-                        replacementAmount += productSize.Price * replaceItem.Quantity;
+                        decimal actualPrice = productSize.Price;
+
+                        // ✅ Apply the original order's discount to replacement
+                        if (originalOrder.DiscountPercent > 0)
+                        {
+                            actualPrice = actualPrice * (1 - originalOrder.DiscountPercent);
+                        }
+
+                        replacementAmount += actualPrice * replaceItem.Quantity;
                     }
                 }
 
@@ -266,6 +306,21 @@ namespace Infoman.Service
                             DispositionStatusId = 1
                         };
                         _db.OrderItems.Add(orderItem);
+                        if (replaceItem.AddOns != null && replaceItem.AddOns.Any())
+                        {
+                            foreach (var addOn in replaceItem.AddOns)
+                            {
+                                _db.OrderItemAddOns.Add(new OrderItemAddOn
+                                {
+                                    OrderItem = orderItem,
+                                    AddOnId = addOn.AddOnId,
+                                    AddOnName = addOn.AddOnName,
+                                    Price = addOn.Price,
+                                    Quantity = addOn.Quantity,
+                                    ActualCost = 0
+                                });
+                            }
+                        }
                     }
                 }
                 await _db.SaveChangesAsync();
@@ -280,6 +335,7 @@ namespace Infoman.Service
 
                     if (productSize != null)
                     {
+                        // 1. Ibawas ang recipe ng mismong product
                         foreach (var recipe in productSize.RecipeItems)
                         {
                             decimal quantityNeeded = recipe.Quantity * replaceItem.Quantity;
@@ -293,9 +349,37 @@ namespace Infoman.Service
 
                             if (!success)
                             {
-                                // 🔴 PAG NAG-FAIL ANG STOCK, I-ROLLBACK LAHAT NG NA-SAVE SA STEP 1, 5, 6
                                 await transaction.RollbackAsync();
                                 return (false, $"Failed to deduct {recipe.RawMaterial.Name}. Insufficient stock.", 0);
+                            }
+                        }
+
+                        // ✅ 2. IDAGDAG ITO: Ibawas ang recipe ng Add-ons (kung meron)
+                        if (replaceItem.AddOns != null && replaceItem.AddOns.Any())
+                        {
+                            foreach (var addOn in replaceItem.AddOns)
+                            {
+                                var addOnRecipe = await _db.AddOnRecipeItems
+                                    .Where(r => r.AddOnId == addOn.AddOnId && !r.IsDeleted)
+                                    .ToListAsync();
+
+                                foreach (var r in addOnRecipe)
+                                {
+                                    decimal neededForAddOn = r.Quantity * replaceItem.Quantity * addOn.Quantity;
+
+                                    var (success, _, _) = await _fifoService.DeductStockWithCostAsync(
+                                        r.RawMaterialId,
+                                        neededForAddOn,
+                                        productSize.ProductId,
+                                        $"EXCHANGE-ADDON-{newOrder.OrderNumber}"
+                                    );
+
+                                    if (!success)
+                                    {
+                                        await transaction.RollbackAsync();
+                                        return (false, $"Failed to deduct add-on {addOn.AddOnName}. Insufficient stock.", 0);
+                                    }
+                                }
                             }
                         }
                     }
@@ -458,6 +542,18 @@ namespace Infoman.Service
     {
         public int OrderItemId { get; set; }
         public int ProductSizeId { get; set; }
+        public int Quantity { get; set; }
+
+        // ✅ IDAGDAG ITO PARA SA ADD-ONS
+        public List<ExchangeAddOnDto> AddOns { get; set; }
+    }
+
+    // ✅ IDAGDAG DIN ITO PARA SA DTO
+    public class ExchangeAddOnDto
+    {
+        public int AddOnId { get; set; }
+        public string AddOnName { get; set; }
+        public decimal Price { get; set; }
         public int Quantity { get; set; }
     }
 }

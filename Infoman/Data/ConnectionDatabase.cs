@@ -46,6 +46,7 @@ namespace Infoman.Data
         public DbSet<AddOnRecipeItem> AddOnRecipeItems { get; set; }
         public DbSet<OrderItemAddOn> OrderItemAddOns { get; set; }
         public DbSet<Voucher> Vouchers { get; set; }
+        public DbSet<PasswordResetOtp> PasswordResetOtps { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

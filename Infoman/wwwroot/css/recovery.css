@@ -1,0 +1,136 @@
+﻿:root {
+    --mango: #FF8C1A;
+    --mango-light: #FFB347;
+    --green: #5BA55B;
+    --text: #3B2F24;
+    --muted: #7A6A5A
+}
+
+* {
+    box-sizing: border-box
+}
+
+html, body {
+    height: 100%;
+    margin: 0
+}
+
+body {
+    font-family: 'Segoe UI',system-ui,sans-serif;
+    color: var(--text);
+    background: linear-gradient(to bottom,#f5f1e6,#e8dcc7)
+}
+
+.wrap {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px
+}
+
+.card {
+    width: 100%;
+    max-width: 380px;
+    padding: 36px 32px;
+    background: rgba(255,255,255,.85);
+    border: 1px solid rgba(255,255,255,.7);
+    border-radius: 18px;
+    box-shadow: 0 20px 45px rgba(120,70,20,.18)
+}
+
+    .card h3 {
+        margin: 0 0 8px;
+        text-align: center;
+        font-size: 22px;
+        color: #2e2116
+    }
+
+    .card .sub {
+        margin: 0 0 20px;
+        text-align: center;
+        font-size: 13px;
+        color: var(--muted)
+    }
+
+.fg {
+    margin-bottom: 16px
+}
+
+    .fg label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 13px;
+        font-weight: 600
+    }
+
+    .fg input {
+        width: 100%;
+        padding: 12px 14px;
+        font-size: 15px;
+        border: 1px solid #e3d5bf;
+        border-radius: 10px;
+        outline: none
+    }
+
+        .fg input:focus {
+            border-color: var(--mango);
+            box-shadow: 0 0 0 3px rgba(255,140,26,.18)
+        }
+
+.otp {
+    text-align: center;
+    letter-spacing: 10px;
+    font-size: 24px !important
+}
+
+.btn {
+    width: 100%;
+    padding: 13px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(90deg,var(--mango),var(--mango-light));
+    border: none;
+    border-radius: 10px;
+    cursor: pointer
+}
+
+    .btn:disabled {
+        opacity: .55;
+        cursor: not-allowed
+    }
+
+    .btn.link {
+        background: none;
+        color: var(--mango);
+        box-shadow: none;
+        margin-top: 8px
+    }
+
+.err {
+    margin: 0 0 12px;
+    padding: 8px 10px;
+    font-size: 13px;
+    color: #c0392b;
+    background: rgba(192,57,43,.08);
+    border-radius: 8px
+}
+
+.info {
+    margin: 0 0 12px;
+    padding: 8px 10px;
+    font-size: 13px;
+    color: #2e7d32;
+    background: rgba(91,165,91,.12);
+    border-radius: 8px
+}
+
+.back {
+    display: block;
+    margin-top: 16px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--muted);
+    text-decoration: none
+}

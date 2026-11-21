@@ -193,6 +193,28 @@ input::-ms-clear {
                 border-radius: 8px;
             }
 
+            .forgot-link {
+    margin-top: 14px;
+    text-align: center;
+    font-size: 13px;
+}
+
+.forgot-link a {
+    color: var(--mango);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.success {
+    margin: 14px 0 0;
+    padding: 8px 10px;
+    font-size: 13px;
+    text-align: center;
+    color: #2e7d32;
+    background: rgba(91,165,91,.12);
+    border-radius: 8px;
+}
+
             @@media (max-width: 480px) {
                 .login-card {
                     padding: 28px 22px;
@@ -247,12 +269,18 @@ input::-ms-clear {
                 </div>
 
                 <button type="submit" class="login-btn">LogIn</button>
+                <div class="forgot-link"><a asp-controller="PasswordReset" asp-action="ForgotPassword">Forgot password? (Owner only)</a></div>
             </form>
 
             @if (ViewBag.Error != null)
-            {
-                <p class="error">@ViewBag.Error</p>
-            }
+{
+    <p class="error">@ViewBag.Error</p>
+}
+
+@if (TempData["ResetSuccess"] != null)
+{
+    <p class="success">@TempData["ResetSuccess"]</p>
+}
         </div>
     </div>
 

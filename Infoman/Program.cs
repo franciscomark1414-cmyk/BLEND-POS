@@ -44,6 +44,16 @@ builder.Services.AddScoped<ExchangeService>();
 builder.Services.AddScoped<AddOnService>();
 builder.Services.AddScoped<Infoman.Services.ShiftService>();
 
+// ========== GMAIL SMTP & PASSWORD RESET ==========
+builder.Services.Configure<Infoman.Services.EmailSettings>(
+    builder.Configuration.GetSection("Email"));
+
+builder.Services.AddScoped<Infoman.Services.IEmailSender,
+    Infoman.Services.SmtpEmailSender>();
+
+builder.Services.AddScoped<Infoman.Services.PasswordResetService>();
+// ================================================
+
 // PHASE 1: Payment feature flags (GCash/QRPh naka-OFF hangga't hindi naaayos ang PayMongo)
 builder.Services.Configure<PaymentOptions>(builder.Configuration.GetSection(PaymentOptions.SectionName));
 // ==============================================

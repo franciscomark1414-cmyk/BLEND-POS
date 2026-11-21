@@ -742,6 +742,40 @@ namespace Infoman.Migrations
                     b.ToTable("OrderItemAddOns");
                 });
 
+            modelBuilder.Entity("Infoman.Models.PasswordResetOtp", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("FailedAttempts")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsUsed")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("OtpHash")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("PasswordResetOtps");
+                });
+
             modelBuilder.Entity("Infoman.Models.Payment", b =>
                 {
                     b.Property<int>("PaymentId")
@@ -2160,6 +2194,17 @@ namespace Infoman.Migrations
                     b.Navigation("AddOn");
 
                     b.Navigation("OrderItem");
+                });
+
+            modelBuilder.Entity("Infoman.Models.PasswordResetOtp", b =>
+                {
+                    b.HasOne("Infoman.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Infoman.Models.Payment", b =>

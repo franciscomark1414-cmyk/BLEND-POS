@@ -1,0 +1,24 @@
+﻿@model Infoman.Controllers.VerifyOtpVM
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Verify Code</title><link rel="stylesheet" href="~/css/recovery.css" /></head>
+<body><div class="wrap"><div class="card">
+  <h3>Enter Verification Code</h3>
+  <p class="sub">The 6-digit code expires in 5 minutes.</p>
+  @if (TempData["Info"] != null) { <p class="info">@TempData["Info"]</p> }
+  <form asp-action="VerifyOtp" method="post">
+    @if (!ViewData.ModelState.IsValid) { <div class="err" asp-validation-summary="All"></div> }
+    <div class="fg"><input asp-for="Code" class="otp" maxlength="6" inputmode="numeric"
+         autocomplete="one-time-code" placeholder="000000" /></div>
+    <button type="submit" class="btn">Verify</button>
+  </form>
+  <form asp-action="ResendOtp" method="post">
+    <button type="submit" id="resendBtn" class="btn link" disabled>Resend code (<span id="sec">60</span>s)</button>
+  </form>
+  <a class="back" asp-controller="Account" asp-action="Login">← Back to Login</a>
+</div></div>
+<script>
+  let s = 60; const b = document.getElementById('resendBtn'), t = document.getElementById('sec');
+  const i = setInterval(() => { s--; if (s <= 0) { clearInterval(i); b.disabled = false; b.textContent = 'Resend code'; } else t.textContent = s; }, 1000);
+</script></body></html>

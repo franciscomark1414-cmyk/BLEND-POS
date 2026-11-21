@@ -1,6 +1,7 @@
 ﻿using Infoman.Data;
 using Infoman.Models;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
 
@@ -43,7 +44,7 @@ namespace Infoman.Controllers
             var user = _context.Users
     .FirstOrDefault(u => u.Username.Trim().ToLower() == username.ToLower());
 
-            if (user == null || user.Password.Trim() != password)
+            if (user == null || !PasswordMatches(user, password))
             {
                 ViewBag.Error = "Invalid Username or Password";
                 return View(model);
@@ -153,6 +154,17 @@ namespace Infoman.Controllers
             // Kung umabot dito, meaning valid pa ang session
             // (Naka-intercept na ng filter kung invalid)
             return Json(new { success = true });
+        }
+
+        private static bool PasswordMatches(User user, string input)
+        {
+            var stored = user.Password.Trim();
+            // Hashed (Owner after reset)
+            if (stored.StartsWith("AQAAAA") && stored.Length >= 80)
+                return new PasswordHasher<User>().VerifyHashedPassword(user, stored, input)
+                       != PasswordVerificationResult.Failed;
+            // Legacy plain text (Staff / not yet reset)
+            return stored == input;
         }
     }
 }

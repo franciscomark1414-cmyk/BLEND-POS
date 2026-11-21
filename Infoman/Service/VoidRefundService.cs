@@ -109,57 +109,132 @@ namespace Infoman.Service
                     .ThenInclude(ri => ri.RawMaterial)
                 .FirstOrDefaultAsync(ps => ps.ProductSizeId == orderItem.ProductSizeId);
 
-            if (productSize?.RecipeItems == null) return;
+            // ✅ 1. I-MAP ANG REASON SA TAMANG ENUM (Isang beses lang natin ide-declare dito)
+            WasteLog.WasteReason wasteReason;
+            string reasonLower = reason.ToLower().Trim();
 
-            foreach (var recipe in productSize.RecipeItems)
+            if (reasonLower == "wrong item served")
+                wasteReason = WasteLog.WasteReason.Damaged;
+            else if (reasonLower == "quality issue")
+                wasteReason = WasteLog.WasteReason.QualityIssue;
+            else if (reasonLower == "customer complaint")
+                wasteReason = WasteLog.WasteReason.CustomerCancel;
+            else if (reasonLower == "missing item")
+                wasteReason = WasteLog.WasteReason.CustomerCancel;
+            else if (reasonLower.Contains("void"))
+                wasteReason = WasteLog.WasteReason.BlendedButCancelled;
+            else
+                wasteReason = WasteLog.WasteReason.CustomerCancel; // Fallback for "Other"
+
+            // ==========================================
+            // PART 1: BASE PRODUCT WASTE LOG
+            // ==========================================
+            if (productSize?.RecipeItems != null)
             {
-                var rawMaterial = recipe.RawMaterial;
-                if (rawMaterial == null) continue;
-
-                // ✅ BASE UNIT ANG ITATAGO
-                decimal wasteQuantityInBaseUnit = recipe.Quantity * orderItem.Quantity;
-
-                // ✅ COMPUTE COST GAMIT ANG DISPLAY UNIT
-                decimal wasteQuantityInDisplayUnit = wasteQuantityInBaseUnit;
-                if (rawMaterial.BaseUnit == "g" || rawMaterial.BaseUnit == "mL")
+                foreach (var recipe in productSize.RecipeItems)
                 {
-                    wasteQuantityInDisplayUnit = wasteQuantityInBaseUnit / 1000;
+                    var rawMaterial = recipe.RawMaterial;
+                    if (rawMaterial == null) continue;
+
+                    decimal wasteQuantityInBaseUnit = recipe.Quantity * orderItem.Quantity;
+                    decimal wasteQuantityInDisplayUnit = wasteQuantityInBaseUnit;
+
+                    if (rawMaterial.BaseUnit == "g" || rawMaterial.BaseUnit == "mL")
+                        wasteQuantityInDisplayUnit = wasteQuantityInBaseUnit / 1000;
+
+                    var batch = await _db.RawMaterialBatches
+                        .Where(b => b.RawMaterialId == recipe.RawMaterialId && b.QuantityRemaining > 0)
+                        .OrderBy(b => b.ExpiryDate ?? DateTime.MaxValue)
+                        .FirstOrDefaultAsync();
+
+                    decimal unitPrice = batch?.UnitPrice ?? rawMaterial.Price;
+                    decimal totalCost = wasteQuantityInDisplayUnit * unitPrice;
+
+                    var wasteLog = new WasteLog
+                    {
+                        RawMaterialId = recipe.RawMaterialId,
+                        ProductId = orderItem.ProductId,
+                        Quantity = wasteQuantityInBaseUnit,
+                        Reason = wasteReason, // ✅ Gamit na natin ang dynamic variable
+                        Date = DateTime.Today,
+                        RecordedBy = userId.ToString(),
+                        Notes = $"From {orderItem.Order?.OrderNumber}: {reason}",
+                        TotalCost = totalCost,
+                        BatchId = batch?.BatchId
+                    };
+                    _db.WasteLogs.Add(wasteLog);
+
+                    await LogInventoryMovement(
+                        rawMaterialId: recipe.RawMaterialId,
+                        productId: orderItem.ProductId,
+                        quantity: wasteQuantityInBaseUnit,
+                        movementType: "WASTE",
+                        referenceId: orderItem.Order?.OrderNumber,
+                        details: $"Waste from {reason} - {orderItem.Product?.Name} (Already prepared/blended)",
+                        userId: userId,
+                        unitPrice: unitPrice
+                    );
                 }
+            }
 
-                var batch = await _db.RawMaterialBatches
-                    .Where(b => b.RawMaterialId == recipe.RawMaterialId && b.QuantityRemaining > 0)
-                    .OrderBy(b => b.ExpiryDate ?? DateTime.MaxValue)
-                    .FirstOrDefaultAsync();
-
-                decimal unitPrice = batch?.UnitPrice ?? rawMaterial.Price;
-                decimal totalCost = wasteQuantityInDisplayUnit * unitPrice; // ✅ TAMANG COST
-
-                var wasteReason = reason.Contains("void") ? WasteLog.WasteReason.BlendedButCancelled : WasteLog.WasteReason.CustomerCancel;
-
-                var wasteLog = new WasteLog
+            // ==========================================
+            // PART 2: ADD-ONS WASTE LOG
+            // ==========================================
+            if (orderItem.AddOns != null && orderItem.AddOns.Any())
+            {
+                foreach (var addOn in orderItem.AddOns)
                 {
-                    RawMaterialId = recipe.RawMaterialId,
-                    ProductId = orderItem.ProductId,
-                    Quantity = wasteQuantityInBaseUnit, // ✅ BASE UNIT
-                    Reason = wasteReason,
-                    Date = DateTime.Today,
-                    RecordedBy = userId.ToString(),
-                    Notes = $"From {orderItem.Order?.OrderNumber}: {reason}",
-                    TotalCost = totalCost,              // ✅ MAY COST NA
-                    BatchId = batch?.BatchId            // ✅ MAY BATCH ID
-                };
-                _db.WasteLogs.Add(wasteLog);
+                    var addOnRecipe = await _db.AddOnRecipeItems
+                        .Include(ar => ar.RawMaterial)
+                        .Where(ar => ar.AddOnId == addOn.AddOnId && !ar.IsDeleted)
+                        .ToListAsync();
 
-                await LogInventoryMovement(
-                    rawMaterialId: recipe.RawMaterialId,
-                    productId: orderItem.ProductId,
-                    quantity: wasteQuantityInBaseUnit, // ✅ BASE UNIT DIN
-                    movementType: "WASTE",
-                    referenceId: orderItem.Order?.OrderNumber,
-                    details: $"Waste from {reason} - {orderItem.Product?.Name} (Already prepared/blended)",
-                    userId: userId,
-                    unitPrice: unitPrice
-                );
+                    foreach (var recipe in addOnRecipe)
+                    {
+                        var rawMaterial = recipe.RawMaterial;
+                        if (rawMaterial == null) continue;
+
+                        // Total quantity = recipe * order qty * add-on qty
+                        decimal wasteQtyBase = recipe.Quantity * orderItem.Quantity * addOn.Quantity;
+                        decimal wasteQtyDisplay = wasteQtyBase;
+
+                        if (rawMaterial.BaseUnit == "g" || rawMaterial.BaseUnit == "mL")
+                            wasteQtyDisplay = wasteQtyBase / 1000;
+
+                        var batch = await _db.RawMaterialBatches
+                            .Where(b => b.RawMaterialId == recipe.RawMaterialId && b.QuantityRemaining > 0)
+                            .OrderBy(b => b.ExpiryDate ?? DateTime.MaxValue)
+                            .FirstOrDefaultAsync();
+
+                        decimal unitPrice = batch?.UnitPrice ?? rawMaterial.Price;
+                        decimal totalCost = wasteQtyDisplay * unitPrice;
+
+                        var wasteLog = new WasteLog
+                        {
+                            RawMaterialId = recipe.RawMaterialId,
+                            ProductId = orderItem.ProductId,
+                            Quantity = wasteQtyBase,
+                            Reason = wasteReason, // ✅ Dito rin, gagamitin natin yung dynamic variable
+                            Date = DateTime.Today,
+                            RecordedBy = userId.ToString(),
+                            Notes = $"REFUND ADD-ON from {orderItem.Order?.OrderNumber}: {reason}",
+                            TotalCost = totalCost,
+                            BatchId = batch?.BatchId
+                        };
+                        _db.WasteLogs.Add(wasteLog);
+
+                        await LogInventoryMovement(
+                            rawMaterialId: recipe.RawMaterialId,
+                            productId: orderItem.ProductId,
+                            quantity: wasteQtyBase,
+                            movementType: "WASTE",
+                            referenceId: orderItem.Order?.OrderNumber,
+                            details: $"Waste from {reason} - {orderItem.Product?.Name} Add-on: {addOn.AddOnName}",
+                            userId: userId,
+                            unitPrice: unitPrice
+                        );
+                    }
+                }
             }
         }
 

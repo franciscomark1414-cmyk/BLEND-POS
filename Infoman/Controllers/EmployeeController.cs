@@ -125,21 +125,30 @@ namespace Infoman.Controllers
                         o.Status,
                         o.Date,
                         o.DiscountType,
-                        o.DiscountAmount
+                        o.DiscountAmount,
+                        o.OriginalTotalAmount, // ✅ IDAGDAG ITO PARA MAY REFERENCE
+                        o.VoucherDiscountAmount // ✅ IDAGDAG ITO PARA MAY REFERENCE
                     }).ToList()
                 })
                 .OrderByDescending(d => d.Date)
                 .ToList();
 
+            // ✅ TAMANG COMPUTATION NG REFUND
+            var totalRefundedAmount = refundedOrders.Sum(o =>
+                o.OriginalTotalAmount > 0
+                    ? o.OriginalTotalAmount - o.DiscountAmount - o.VoucherDiscountAmount
+                    : 0m
+            );
+
             return Json(new
             {
                 success = true,
                 employeeName = employeeName,
-                netDailyOrders = netDailyOrders, // Para sa Table at Total Sales
-                allDailyOrders = allDailyOrders, // Para sa View Orders Modal
+                netDailyOrders = netDailyOrders,
+                allDailyOrders = allDailyOrders,
                 totalVoidedAmount = voidedOrders.Sum(o => o.TotalAmount),
                 voidedCount = voidedOrders.Count,
-                totalRefundedAmount = refundedOrders.Sum(o => o.TotalAmount),
+                totalRefundedAmount = totalRefundedAmount, // ✅ GAMITIN ANG BAGONG VALUE
                 refundedCount = refundedOrders.Count
             });
         }
@@ -378,8 +387,9 @@ namespace Infoman.Controllers
 
             // 1. Kunin lahat ng orders ng employee sa date range
             var allOrders = await _db.Orders
-                .Where(o => o.StaffUserId == userId && o.Date.Date >= start.Date && o.Date.Date <= end.Date)
-                .ToListAsync();
+     .Include(o => o.Payments) // ✅ IDAGDAG ITO
+     .Where(o => o.StaffUserId == userId && o.Date.Date >= start.Date && o.Date.Date <= end.Date)
+     .ToListAsync();
 
             // 2. I-compute ang TOTAL SALES (EXCLUDING VOIDED AND REFUNDED)
             var validOrders = allOrders.Where(o => o.Status != "VOIDED" && o.Status != "REFUNDED").ToList();
@@ -391,9 +401,13 @@ namespace Infoman.Controllers
             var totalVoidedAmount = voidedOrders.Sum(o => o.TotalAmount);
             var voidedCount = voidedOrders.Count;
 
-            // 4. I-compute ang REFUND (Pwedeng valid reason, pero need i-track)
+            // 4. I-compute ang REFUND (Dapat naka-base sa OriginalTotalAmount para lumabas ang totoong halaga)
             var refundedOrders = allOrders.Where(o => o.Status == "REFUNDED").ToList();
-            var totalRefundedAmount = refundedOrders.Sum(o => o.TotalAmount);
+            // ✅ KUNIN SA PAYMENTS TABLE (TOTOONG PERA NA BINALIK)
+            var totalRefundedAmount = refundedOrders
+                .SelectMany(o => o.Payments) // Ngayon, gumagana na ito
+                .Where(p => p.Status == "REFUNDED")
+                .Sum(p => Math.Abs(p.Amount));
             var refundedCount = refundedOrders.Count;
 
             // 5. Performance History para sa table (Existing logic, hindi ginagalaw)

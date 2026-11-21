@@ -92,26 +92,34 @@ namespace Infoman.Controllers
             DateTime today = DateTime.Today;
 
             // ========== TODAY'S NET REVENUE ==========
-            // ✅ TotalAmount ay NET NA dahil nababawasan ito sa ApproveRequest
-            var todaysOrders = await _db.Orders
-                .Where(o => o.Date.Date == today && (o.Status == "COMPLETED" || o.Status == "PENDING_BLENDING"))
+            // ✅ 1. KUNIN LAHAT NG ORDERS NA NANGYARI NGAYONG ARAW (Para sa COUNT)
+            var allTodaysOrders = await _db.Orders
+                .Where(o => o.Date.Date == today && o.Status != "CANCELLED")
                 .ToListAsync();
 
-            decimal todaysNetRevenue = todaysOrders.Sum(o => o.TotalAmount);
+            ViewBag.TotalOrdersToday = allTodaysOrders.Count;
+
+            // ✅ 2. KUNIN ANG MGA BAYAD PARA SA REVENUE
+            var todaysRevenueOrders = allTodaysOrders
+                .Where(o => o.Status == "COMPLETED" ||
+                            o.Status == "PENDING_BLENDING" ||
+                            o.Status == "REFUNDED" ||
+                            o.Status == "PARTIALLY_REFUNDED" ||
+                            o.Status == "VOIDED")
+                .ToList();
+
+            decimal todaysNetRevenue = todaysRevenueOrders.Sum(o => o.TotalAmount);
 
             // ✅ Safeguard
             if (todaysNetRevenue < 0) todaysNetRevenue = 0;
 
+            // ✅ Isang beses lang ise-set
             ViewBag.TodaysSales = todaysNetRevenue;
-            ViewBag.TotalOrdersToday = todaysOrders.Count;
 
             // ========== ALL-TIME NET REVENUE ==========
             var allOrders = await _db.Orders
-    .Where(o => o.Status == "COMPLETED" ||
-                o.Status == "PENDING_BLENDING" ||
-                o.Status == "EXCHANGED" ||      // ✅ ISAMA ITO
-                o.ReturnStatus == "PARTIALLY_EXCHANGED") // ✅ AT ITO
-    .ToListAsync();
+                .Where(o => o.Status != "CANCELLED" && o.Status != "PENDING_PAYMENT") // Isama lahat
+                .ToListAsync();
 
             decimal allTimeNetRevenue = allOrders.Sum(o => o.TotalAmount);
 
@@ -172,19 +180,15 @@ namespace Infoman.Controllers
 
             foreach (var day in last7Days)
             {
+                // ✅ Isama lahat ng status maliban sa Cancelled at Pending Payment
                 var dayOrders = await _db.Orders
-        .Include(o => o.Adjustments)
-        .Where(o => o.Date.Date == day.Date &&
-                   (o.Status == "COMPLETED" ||
-                    o.Status == "PENDING_BLENDING" ||
-                    o.Status == "EXCHANGED")) // ✅ Isama lahat
-        .ToListAsync();
+                    .Include(o => o.Adjustments)
+                    .Where(o => o.Date.Date == day.Date &&
+                               o.Status != "CANCELLED" && o.Status != "PENDING_PAYMENT")
+                    .ToListAsync();
 
-                decimal dayNetRevenue = 0;
-                foreach (var order in dayOrders)
-                {
-                    dayNetRevenue += order.NetRevenue;
-                }
+                // ✅ Para sa chart, gamitin ang NetRevenue (TotalAmount minus Refunds)
+                decimal dayNetRevenue = dayOrders.Sum(o => o.NetRevenue);
                 salesValues.Add(dayNetRevenue);
             }
 
@@ -197,11 +201,13 @@ namespace Infoman.Controllers
             try
             {
                 var orderItems = await _db.OrderItems
-                    .Include(oi => oi.Order)
-                    .Include(oi => oi.Product)
-                    .Include(oi => oi.ProductSize)
-                    .Where(oi => oi.Order.Status == "COMPLETED" && !oi.IsRefunded && !oi.IsVoided)
-                    .ToListAsync();
+     .Include(oi => oi.Order)
+     .Include(oi => oi.Product)
+     .Include(oi => oi.ProductSize)
+     .Where(oi => oi.Order.Status != "CANCELLED" &&
+                  oi.Order.Status != "PENDING_PAYMENT" &&
+                  oi.DispositionStatusId == 1) // AVAILABLE items lang ang bibilangin
+     .ToListAsync();
 
                 // ✅ GROUP BY PRODUCT AT KUNIN ANG ImagePath
                 bestSelling = orderItems
@@ -782,10 +788,10 @@ namespace Infoman.Controllers
         {
             var query = _db.Orders
                 .Include(o => o.Items)
-                .ThenInclude(oi => oi.Product)
+                    .ThenInclude(oi => oi.Product)
                 .Include(o => o.Items)
-                .ThenInclude(oi => oi.ProductSize)
-                .Where(o => o.Status != "PENDING_PAYMENT"); // ✅ TINANGGAL ANG VOIDED PARA MAKITA PA RIN SA LISTAHAN
+                    .ThenInclude(oi => oi.ProductSize)
+                .Where(o => o.Status != "PENDING_PAYMENT");
 
             if (!string.IsNullOrEmpty(date))
             {
@@ -795,36 +801,37 @@ namespace Infoman.Controllers
                 }
                 else
                 {
-                    return Json(new { success = false, message = "Invalid date format. Please use 'yyyy-MM-dd'." });
+                    return Json(new { success = false, message = "Invalid date format." });
                 }
             }
 
-            var receipts = await query
+            // ✅ KUNIN MUNA SA MEMORY (ToListAsync)
+            var rawOrders = await query
                 .OrderByDescending(o => o.OrderId)
-                .Select(o => new
-                {
-                    orderId = o.OrderId,
-                    receiptNumber = o.ReceiptNumber,
-                    date = o.Date.ToString("yyyy-MM-dd HH:mm:ss"),
-                    itemCount = o.Items.Count(i => !i.IsVoided),
-                    subtotal = o.OriginalTotalAmount,
-                    discountType = o.DiscountType,
-                    discountPercent = o.DiscountPercent,
-                    discountAmount = o.DiscountAmount,
-                    total = o.TotalAmount,
-                    paymentMethod = o.PaymentMethod,
-
-                    // ✅ ITO ANG PINAKAMAHALAGA: IPASA ANG TOTOONG STATUS AT ORIGINAL TOTAL
-                    status = o.Status,
-                    originalTotalAmount = o.OriginalTotalAmount,
-
-                    returnStatus = o.ReturnStatus ?? "ACTIVE",
-                    adjustmentAmount = o.AdjustmentAmount,
-                    voucherCode = o.VoucherCode,
-                    voucherDiscountAmount = o.VoucherDiscountAmount,
-                    originalOrderId = o.OriginalOrderId
-                })
                 .ToListAsync();
+
+            // ✅ COMPUTE SA MEMORY (Walang EF Core translation issues)
+            var receipts = rawOrders.Select(o => new
+            {
+                orderId = o.OrderId,
+                receiptNumber = o.ReceiptNumber,
+                date = o.Date.ToString("yyyy-MM-dd HH:mm:ss"),
+                itemCount = o.Items.Count(i => i.DispositionStatusId == 1),
+                subtotal = o.OriginalTotalAmount,
+                discountType = o.DiscountType,
+                discountPercent = o.DiscountPercent,
+                discountAmount = o.DiscountAmount,
+                total = o.TotalAmount,
+                paymentMethod = o.PaymentMethod,
+                status = o.Status,
+                originalTotalAmount = o.OriginalTotalAmount,
+                returnStatus = o.ReturnStatus ?? "ACTIVE",
+                adjustmentAmount = o.AdjustmentAmount,
+                voucherCode = o.VoucherCode,
+                voucherDiscountAmount = o.VoucherDiscountAmount,
+                originalOrderId = o.OriginalOrderId
+            })
+                .ToList();
 
             return Json(new { success = true, receipts = receipts });
         }
@@ -870,7 +877,7 @@ namespace Infoman.Controllers
 
             var receipt = new
             {
-                orderId = order.OrderId,                                    // ✅ ADD THIS
+                orderId = order.OrderId,
                 receiptNumber = order.ReceiptNumber,
                 date = order.Date,
                 items = items,
@@ -883,10 +890,17 @@ namespace Infoman.Controllers
                 voucherDiscountAmount = order.VoucherDiscountAmount,
                 total = order.TotalAmount,
                 paymentMethod = order.PaymentMethod,
-                returnStatus = order.ReturnStatus ?? "ACTIVE",              // ✅ ADD THIS
-                adjustmentAmount = order.AdjustmentAmount,                  // ✅ ADD THIS
-                storeCreditApplied = order.StoreCreditApplied,              // ✅ ADD THIS
-                originalOrderId = order.OriginalOrderId                     // ✅ ADD THIS
+
+                // ✅ ITO YUNG MGA KULANG:
+                status = order.Status,
+                originalTotalAmount = order.OriginalTotalAmount, // Para sa "Original Amount" display
+                totalRefundAmount = order.TotalRefundAmount,     // Para sa "Refunded Amount" display
+
+                // Existing na nandiyan na:
+                returnStatus = order.ReturnStatus ?? "ACTIVE",
+                adjustmentAmount = order.AdjustmentAmount,
+                storeCreditApplied = order.StoreCreditApplied,
+                originalOrderId = order.OriginalOrderId
             };
 
             return Json(new { success = true, receipt = receipt });
@@ -3800,9 +3814,11 @@ namespace Infoman.Controllers
                     OrderNumber = v.Transaction.OrderNumber,
                     Reason = v.Reason,
                     // ✅ Use OriginalTotalAmount instead of TotalAmount (which becomes 0 after void)
-                    Amount = v.Transaction.OriginalTotalAmount > 0
-                        ? v.Transaction.OriginalTotalAmount
-                        : v.Transaction.TotalAmount,
+                    // ✅ Kung > 0 ang TotalAmount (ibig sabihin, ito ang totoong binayaran), yun ang gamitin.
+                    // Kung 0 na (na-void na), hanapin ang OriginalTotalAmount minus ang discount.
+                    Amount = v.Transaction.TotalAmount > 0
+    ? v.Transaction.TotalAmount
+    : (v.Transaction.OriginalTotalAmount - v.Transaction.DiscountAmount),
                     RecordedAt = v.Timestamp,
                     RequesterName = v.User.Username,
                     OrderId = v.Transaction.OrderId  // ✅ ADD THIS for View Receipt button

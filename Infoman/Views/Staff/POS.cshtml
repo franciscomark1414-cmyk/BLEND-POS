@@ -3134,22 +3134,38 @@
         function decrementModalQty() {
             if (modalQuantity > 1) { modalQuantity--; document.getElementById('modalQty').innerHTML = modalQuantity; }
         }
-        function incrementModalQty() {
-    if (modalQuantity < currentMaxOrders) { 
+       async function incrementModalQty() {
+    // ✅ Kunin kung ilan na ang nasa cart para sa item na ito
+    let existingCartQty = 0;
+    if (tempSelectedSize) {
+        cart.forEach(item => {
+            if (item.productSizeId === tempSelectedSize.productSizeId) {
+                existingCartQty += item.quantity;
+            }
+        });
+    }
+
+    // ✅ Ang pwedeng i-add ngayon ay (MaxOrders - Nasa Cart Na)
+    let remainingLimit = currentMaxOrders - existingCartQty;
+
+    if (modalQuantity < remainingLimit) { 
         modalQuantity++; 
         document.getElementById('modalQty').innerHTML = modalQuantity; 
-    } else if (currentMaxOrders > 0) {
-        showAlert(`Maximum available is ${currentMaxOrders} order(s).`, 'Limit Reached', '⚠️');
+    } else if (remainingLimit > 0) {
+        await showAlert(`You already have ${existingCartQty} in your cart. You can only add ${remainingLimit} more.`, 'Limit Reached', '⚠️');
+    } else {
+        await showAlert(`Limit reached! You already have the maximum ${currentMaxOrders} in your cart.`, 'Limit Reached', '⚠️');
     }
 }
         function closeQuantityModal() { document.getElementById('quantityModal').style.display = 'none'; tempSelectedSize = null; }
 
         async function confirmAddToCart() {
-           if (!tempSelectedSize) return;
+    if (!tempSelectedSize) return;
 
-            const timeInCheck = await checkTimeInBeforeOrder();
+    const timeInCheck = await checkTimeInBeforeOrder();
     if (!timeInCheck) return;
 
+    // 1. Check kung may stock pa sa bodega
     const response = await fetch(`/Staff/CheckAvailability?productSizeId=${tempSelectedSize.productSizeId}&quantity=${modalQuantity}`);
     const data = await response.json();
     if (!data.available) { 
@@ -3158,14 +3174,16 @@
         tempSelectedSize = null; 
         return;
     }
-    // Ilagay ito sa loob ng confirmAddToCart(), bago ang `const selectedAddOns = [];`
-const addOnCheck = await validateSelectedAddOnsStock();
-if (!addOnCheck.ok) {
-    await showAlert(addOnCheck.message, 'Add-on Not Available', '❌');
-    return;
-}
 
-          const selectedAddOns = [];
+    // 2. Check kung may stock pa ang mga napiling add-ons
+    const addOnCheck = await validateSelectedAddOnsStock();
+    if (!addOnCheck.ok) {
+        await showAlert(addOnCheck.message, 'Add-on Not Available', '❌');
+        return;
+    }
+
+    // 3. Kunin ang mga napiling add-ons
+    const selectedAddOns = [];
     document.querySelectorAll('.addon-checkbox:checked').forEach(cb => {
         const qtyInput = cb.closest('div').querySelector('.addon-qty');
         selectedAddOns.push({
@@ -3176,6 +3194,20 @@ if (!addOnCheck.ok) {
         });
     });
 
+    // ✅ 4. BAGONG DAGDAG: Check kung lalampas ba sa limit kapag isasama na sa cart
+    let existingCartQty = 0;
+    cart.forEach(item => {
+        if (item.productSizeId === tempSelectedSize.productSizeId) {
+            existingCartQty += item.quantity;
+        }
+    });
+
+    if (existingCartQty + modalQuantity > currentMaxOrders) {
+        await showAlert(`Cannot add! You already have ${existingCartQty} in cart. Maximum available limit is ${currentMaxOrders}.`, 'Limit Reached', '⚠️');
+        return; // Pipigilan ang pag-add
+    }
+
+    // 5. Isama na sa cart
     const existingIndex = cart.findIndex(item => 
         item.productSizeId === tempSelectedSize.productSizeId && 
         JSON.stringify(item.addOns) === JSON.stringify(selectedAddOns)
@@ -3190,25 +3222,29 @@ if (!addOnCheck.ok) {
             sizeName: tempSelectedSize.sizeName,
             price: tempSelectedSize.price,
             quantity: modalQuantity,
-            addOns: selectedAddOns // ✅ ISAMA SA CART
+            addOns: selectedAddOns
         });
     } 
+
+    // 6. I-reset ang voucher at cash
     currentVoucher = null;
-document.getElementById('posVoucherInput').value = '';
-document.getElementById('voucherFeedback').innerHTML = '';
+    document.getElementById('posVoucherInput').value = '';
+    document.getElementById('voucherFeedback').innerHTML = '';
 
-                const cashInput = document.getElementById('cashReceivedInput');
-                if (cashInput) cashInput.value = '';
+    const cashInput = document.getElementById('cashReceivedInput');
+    if (cashInput) cashInput.value = '';
 
-                const changeDisplay = document.getElementById('changeDisplay');
-                if (changeDisplay) {
-                    changeDisplay.innerText = '₱0.00';
-                    changeDisplay.className = 'fw-bold fs-5 text-success'; // Ibalik sa default na kulay
-                }
+    const changeDisplay = document.getElementById('changeDisplay');
+    if (changeDisplay) {
+        changeDisplay.innerText = '₱0.00';
+        changeDisplay.className = 'fw-bold fs-5 text-success';
+    }
+
+    // 7. I-update ang cart display at isara ang modal
     updateCartDisplay();
     closeQuantityModal();
     tempSelectedSize = null;
-        }
+}
 
             async function validateSelectedAddOnsStock() {
                 const checked = document.querySelectorAll('.addon-checkbox:checked');
@@ -3425,8 +3461,6 @@ document.getElementById('voucherFeedback').innerHTML = '';
 
 async function confirmOrder() {
     console.log('=== confirmOrder called ===');
-    console.log('cart.length:', cart.length);
-    console.log('window.pendingPaymentMethod:', window.pendingPaymentMethod);
     
     if (cart.length === 0) { 
         await showAlert('Cart is empty!', 'Cannot Confirm');
@@ -3444,7 +3478,7 @@ async function confirmOrder() {
     if (window.isEditingMode === true) {
         await updateExistingOrder();
     } else {
-        showReviewModal();
+        showReviewModal(); // ✅ Papasok na siya dito nang walang harang
     }
 }
 
@@ -3513,7 +3547,7 @@ async function processFinalOrder() {
     
     console.log('processFinalOrder called with paymentMethod:', paymentMethod);
 
-        // PHASE 1: Payment gate sa client (server ang totoong proteksyon)
+    // PHASE 1: Payment gate sa client (server ang totoong proteksyon)
     if (!ENABLED_PAYMENT_METHODS.includes(paymentMethod)) {
         await showAlert('GCash at QRPh ay pansamantalang hindi available. Gamitin ang Cash.', 'Hindi Available', '⚠️');
         return;
@@ -3524,6 +3558,29 @@ async function processFinalOrder() {
         return;
     }
     
+    // ✅ VALIDATION DITO (Pagkatapos ng payment method checks, BAGO mag-close ng modal)
+    if (paymentMethod === 'Cash') {
+        const cashInput = document.getElementById('cashReceivedInput');
+        let cashReceived = cashInput ? parseFloat(cashInput.value) || 0 : 0;
+        let totalAmount = currentDiscountedTotal || 0;
+
+        // 1. Check kung may ininput ba (Required)
+        if (cashReceived <= 0) {
+            await showAlert('Please enter the cash received amount.', 'Required', '⚠️');
+            if (cashInput) cashInput.focus();
+            return; // Pipigilan ang pag-proceed, pero bukas pa rin ang modal
+        }
+
+        // 2. Check kung sapat ang pera
+        if (cashReceived < totalAmount) {
+            let kulang = totalAmount - cashReceived;
+            await showAlert(`Insufficient cash! Kulang ng ₱${kulang.toFixed(2)}.`, 'Insufficient Amount', '❌');
+            if (cashInput) cashInput.focus();
+            return; // Pipigilan ang pag-proceed, pero bukas pa rin ang modal
+        }
+    }
+    
+    // ✅ Kung nakapasa sa lahat ng checks, saka pa lang isasara ang modal at itutuloy ang order
     closeReviewModal();
 
     const checkoutBtn = document.getElementById('checkoutBtn');
@@ -9214,7 +9271,6 @@ function calculateChange() {
     const changeEl = document.getElementById('changeDisplay');
     if (!cashInput || !changeEl) return;
 
-    // Kung walang inilagay na cash, huwag magpakita ng change
     if (cashInput.value === '' || cashInput.value === null) {
         changeEl.innerText = '₱0.00';
         changeEl.className = 'fw-bold fs-5 text-success';
@@ -9225,8 +9281,15 @@ function calculateChange() {
     const total = currentDiscountedTotal || 0;
     const change = cash - total;
 
-    changeEl.innerText = `₱${change.toFixed(2)}`;
-    changeEl.className = change >= 0 ? 'fw-bold fs-5 text-success' : 'fw-bold fs-5 text-danger';
+    // ✅ KAPAG KULANG ANG PERA (Negative ang sukli)
+    if (change < 0) {
+        changeEl.innerText = `Short by ₱${Math.abs(change).toFixed(2)}`;
+        changeEl.className = 'fw-bold fs-5 text-danger'; // Gawing pula
+    } else {
+        // ✅ KAPAG SAPAT O SOBRA
+        changeEl.innerText = `₱${change.toFixed(2)}`;
+        changeEl.className = 'fw-bold fs-5 text-success'; // Gawing berde
+    }
 }
 
             // I-reset ang voucher at cash kapag nag-clear ng cart

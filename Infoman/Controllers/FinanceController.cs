@@ -98,21 +98,18 @@ namespace Infoman.Controllers
                     .Where(w => w.WithdrawalDate >= start && w.WithdrawalDate <= end)
                     .SumAsync(w => (decimal?)w.Amount) ?? 0;
 
-                // 5. COGS
-                // 5. COGS (produkto + add-ons)
+                // 5. COGS (TAMA NA: Kasama lahat ng items na naubos ang sangkap, kahit na-refund o na-void)
                 var productCogs = await _context.OrderItems
                     .Include(oi => oi.Order)
-                    .Where(oi => oi.Order.Status == "COMPLETED" &&
-                                 oi.Order.Date >= start && oi.Order.Date <= end &&
-                                 oi.DispositionStatusId == 1)
+                    .Where(oi => oi.Order.Date >= start && oi.Order.Date <= end &&
+                                 oi.ActualCost > 0) // ✅ Dito natin ibabase: may ActualCost ba?
                     .SumAsync(oi => (decimal?)oi.ActualCost) ?? 0;
 
                 var addOnCogs = await _context.OrderItemAddOns
                     .Include(a => a.OrderItem)
                         .ThenInclude(oi => oi.Order)
-                    .Where(a => a.OrderItem.Order.Status == "COMPLETED" &&
-                                a.OrderItem.Order.Date >= start && a.OrderItem.Order.Date <= end &&
-                                a.OrderItem.DispositionStatusId == 1)
+                    .Where(a => a.OrderItem.Order.Date >= start && a.OrderItem.Order.Date <= end &&
+                                a.ActualCost > 0) // ✅ Dito rin
                     .SumAsync(a => (decimal?)a.ActualCost) ?? 0;
 
                 var cogs = productCogs + addOnCogs;

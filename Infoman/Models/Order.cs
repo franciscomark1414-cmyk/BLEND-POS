@@ -84,6 +84,8 @@ public class Order
     public virtual User? Staff { get; set; }
     [Column(TypeName = "decimal(18,2)")]
     public decimal TotalRefundAmount { get; set; } = 0;
+    // ✅ IDAGDAG ITO
+    public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
 
     [NotMapped]
     public decimal NetRevenue

@@ -5796,7 +5796,7 @@ async function refreshDeliveryMaterialDropdown() {
         var parts = stockWithUnit.trim().split(' ');
         return parts.length > 1 ? parts[1] : '';
     }
-             async function editMaterial(id) {
+async function editMaterial(id) {
     var row = document.querySelector('tr[data-id="' + id + '"]');
     if (!row) {
         await showAlert('Material not found', 'Error');
@@ -5809,6 +5809,7 @@ async function refreshDeliveryMaterialDropdown() {
     var minQtyWithUnit = row.children[4]?.innerText || '';
 
     var unit = extractUnit(stockWithUnit);
+    var stockValue = parseFloat(stockWithUnit.split(' ')[0]) || 0; // ✅ Kunin ang stock value
     var minQty = parseFloat(minQtyWithUnit.split(' ')[0]);
 
     document.getElementById('RawMaterialId').value = id;
@@ -5818,9 +5819,6 @@ async function refreshDeliveryMaterialDropdown() {
         selected: categoryInt, 
         selectedLabel: row.children[2]?.innerText || '' 
     });
-
-    // ✅ IDAGDAG ITO: Load units BAGO i-set ang value
-   // await loadUnitOptions('Unit');
 
     // ✅ IMPORTANT: Set the dropdown value for Unit
     var unitDropdown = document.getElementById('Unit');
@@ -5835,7 +5833,6 @@ async function refreshDeliveryMaterialDropdown() {
         if (optionExists) {
             unitDropdown.value = unit;
         } else {
-            // Kung sakaling hindi na-active ang unit sa Settings, i-add pa rin natin para hindi mawala
             var opt = document.createElement('option');
             opt.value = unit;
             opt.textContent = unit + ' (inactive)';
@@ -5844,11 +5841,35 @@ async function refreshDeliveryMaterialDropdown() {
         }
     }
 
+    // ✅ ANG FIX NATIN: I-disable ang Unit kung may stock
+    if (stockValue > 0) {
+        unitDropdown.disabled = true;
+        unitDropdown.style.backgroundColor = '#e9ecef';
+        unitDropdown.style.cursor = 'not-allowed';
+        
+        // Maglagay ng warning kung wala pa
+        if (!document.getElementById('unitWarning')) {
+            let warning = document.createElement('small');
+            warning.id = 'unitWarning';
+            warning.className = 'text-danger fw-bold mt-1 d-block';
+            warning.innerHTML = '⚠️ Cannot change unit: This material already has stock.';
+            unitDropdown.parentElement.appendChild(warning);
+        }
+    } else {
+        // I-enable kung 0 stock
+        unitDropdown.disabled = false;
+        unitDropdown.style.backgroundColor = '#fff';
+        unitDropdown.style.cursor = 'pointer';
+        
+        let warning = document.getElementById('unitWarning');
+        if (warning) warning.remove();
+    }
+
     document.getElementById('MinQty').value = isNaN(minQty) ? 0 : minQty;
 
     document.getElementById('formHeader').innerHTML = '<i class="fas fa-edit"></i> Edit Raw Material';
     document.getElementById('addRawMaterialBox').style.display = 'block';
-}      
+}
     
    async function deleteMaterial(id, clickEvent) {
     const deleteButton = clickEvent ? clickEvent.target : event.target;
@@ -8192,10 +8213,16 @@ function displayReceiptHistory(receipts) {
 
         // Check order status (REFUNDED, VOIDED, etc.)
         if (receipt.status === 'REFUNDED') {
-            statusBadge = '<span class="badge bg-danger">💰 REFUNDED</span>';
-            // Ipakita ang original total kung 0 na ang total
-            displayTotal = receipt.originalTotalAmount > 0 ? receipt.originalTotalAmount : receipt.total;
-        } else if (receipt.status === 'PARTIALLY_REFUNDED') {
+    statusBadge = '<span class="badge bg-danger">💰 REFUNDED</span>';
+    
+    // ✅ KUNG REFUNDED, GAMITIN ANG COMPUTED VALUE IMBES NA TOTAL
+    // Kasi ang 'receipt.total' ay nagiging 0 kapag na-refund sa backend.
+    // Ang Subtotal (OriginalAmount) iminus ang Discounts ang tamang binayaran.
+    let computedTotal = receipt.subtotal - (receipt.discountAmount || 0) - (receipt.voucherDiscountAmount || 0);
+    
+    // Kung ang computedTotal ay 0 (kung talagang 0 binayad), gamitin ang total
+    displayTotal = computedTotal > 0 ? computedTotal : receipt.total;
+} else if (receipt.status === 'PARTIALLY_REFUNDED') {
             statusBadge = '<span class="badge bg-warning text-dark">⚠️ PARTIAL REFUND</span>';
         } else if (receipt.status === 'VOIDED') {
             statusBadge = '<span class="badge bg-dark">🚫 VOIDED</span>';
@@ -8405,12 +8432,13 @@ function viewReceiptDetail(orderId, isVoided = false) {
         .then(async (data) => {
             console.log("Receipt data received:", data);
             if (data.success) {
-                // ✅ Ipakita ang void banner kung voided ang order
+                // ✅ Kung voided, i-override ang status
                 if (isVoided && data.receipt) {
                     data.receipt.isVoided = true;
                     data.receipt.voidNotice = "⚠️ THIS ORDER HAS BEEN VOIDED ⚠️";
+                    data.receipt.status = "VOIDED"; // ✅ I-set ang status
                 }
-                               showReceiptModalFromData(data.receipt);
+                showReceiptModalFromData(data.receipt);
             } else {
                 showAlert('Error loading receipt details: ' + (data.message || 'Unknown error'), 'Error');
             }
@@ -8420,7 +8448,6 @@ function viewReceiptDetail(orderId, isVoided = false) {
             showAlert('Error loading receipt details: ' + error.message, 'Error');
         });
 }
-
 function showReceiptModalFromData(receipt) {
     const receiptDiv = document.getElementById('receiptContentForReports');
     if (!receiptDiv) {
@@ -8465,7 +8492,7 @@ function showReceiptModalFromData(receipt) {
             </div>
         `;
     }
-   if (receipt.voucherCode) {
+    if (receipt.voucherCode) {
         discountHtml += `
             <div style="display: flex; justify-content: space-between; font-size: 12px; color: #28a745; margin-top: 5px;">
                 <span>Voucher (${escapeHtml(receipt.voucherCode)})</span>
@@ -8498,8 +8525,78 @@ function showReceiptModalFromData(receipt) {
             </div>
         `;
     }
+
+    // ✅ DETERMINE STATUS DISPLAY
+    let displayStatus = 'Order Completed';
+    let displayColor = '#28a745'; // Green
+    let statusIcon = '✅';
+
+    if (receipt.isVoided || receipt.status === 'VOIDED') {
+        displayStatus = 'Order Voided';
+        displayColor = '#6c757d'; // Gray
+        statusIcon = '🚫';
+    } 
+    else if (receipt.status === 'REFUNDED') {
+        displayStatus = 'Fully Refunded';
+        displayColor = '#dc3545'; // Red
+        statusIcon = '💰';
+    } 
+    else if (receipt.status === 'PARTIALLY_REFUNDED') {
+        displayStatus = 'Partially Refunded';
+        displayColor = '#f59e0b'; // Yellow
+        statusIcon = '⚠️';
+    }
+    else if (receipt.returnStatus === 'EXCHANGED') {
+        displayStatus = 'Order Exchanged';
+        displayColor = '#0ea5e9'; // Blue
+        statusIcon = '🔄';
+    }
     
-    // ✅ SINGLE TITLE LANG
+    // ✅ COMPUTE ORIGINAL AMOUNT (Ang Subtotal na galing backend ay OriginalTotalAmount na)
+let originalAmt = receipt.subtotal;
+    
+    // ✅ BUILD TOTAL SUMMARY (Dynamic base sa status)
+    let totalSummaryHtml = '';
+    
+    if (receipt.status === 'REFUNDED') {
+        let refundedAmount = originalAmt - (receipt.discountAmount || 0) - (receipt.voucherDiscountAmount || 0);
+        totalSummaryHtml = `
+            <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; border-top: 2px solid #333; margin-top: 10px; padding-top: 10px;">
+                <span>Original Amount</span>
+                <span>₱${originalAmt.toFixed(2)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; color: #dc3545; font-size: 14px; margin-top: 5px;">
+                <span>Refunded Amount</span>
+                <span>₱${refundedAmount.toFixed(2)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; color: #6c757d; margin-top: 5px; border-top: 1px dashed #ccc; padding-top: 5px;">
+                <span>Net Total</span>
+                <span>₱${receipt.total.toFixed(2)}</span>
+            </div>
+        `;
+    } 
+    else if (receipt.returnStatus === 'EXCHANGED') {
+        totalSummaryHtml = `
+            <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; border-top: 2px solid #333; margin-top: 10px; padding-top: 10px;">
+                <span>Total</span>
+                <span>₱${receipt.total.toFixed(2)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; color: #0ea5e9; font-size: 13px; margin-top: 5px;">
+                <span>Store Credit / Adjustment</span>
+                <span>₱${(receipt.adjustmentAmount || 0).toFixed(2)}</span>
+            </div>
+        `;
+    }
+    else {
+        totalSummaryHtml = `
+            <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; border-top: 2px solid #333; margin-top: 10px; padding-top: 10px;">
+                <span>TOTAL</span>
+                <span>₱${receipt.total.toFixed(2)}</span>
+            </div>
+        `;
+    }
+    
+    // ✅ MAIN RECEIPT HTML
     receiptDiv.innerHTML = `
         <div style="text-align: center; margin-bottom: 15px;">
             <div><strong>${now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</strong></div>
@@ -8520,13 +8617,15 @@ function showReceiptModalFromData(receipt) {
             <span>₱${receipt.subtotal.toFixed(2)}</span>
         </div>
         ${discountHtml}
-        <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; border-top: 2px solid #333; margin-top: 10px; padding-top: 10px;">
-            <span>TOTAL</span>
-            <span>₱${receipt.total.toFixed(2)}</span>
-        </div>
+        
+        <!-- ✅ BAGONG TOTAL SUMMARY -->
+        ${totalSummaryHtml}
+        
         <div style="margin-top: 15px; text-align: center; padding-top: 10px; border-top: 1px dashed #ccc;">
             <div>Payment: <strong>${escapeHtml(receipt.paymentMethod)}</strong></div>
-            <div style="margin-top: 5px;">✅ Order ${receipt.returnStatus === 'EXCHANGED' ? 'Exchanged' : 'Completed'}</div>
+            <div style="margin-top: 5px; color: ${displayColor}; font-weight: bold;">
+                ${statusIcon} ${displayStatus}
+            </div>
         </div>
         <hr>
         <div style="text-align: center; font-size: 11px; color: #aaa;">
@@ -9661,7 +9760,7 @@ const endDateStr = getLocalDateString(endDate);
             document.getElementById('performanceTableBody').innerHTML = `<tr><td colspan="5" class="text-center text-danger">Error loading performance data<\/td><\/tr>`;
         });
 }
-  async function toggleRawMaterialForm() {
+ async function toggleRawMaterialForm() {
     var box = document.getElementById('addRawMaterialBox');
     if (box) {
         if (box.style.display === 'none' || box.style.display === '') {
@@ -9670,11 +9769,17 @@ const endDateStr = getLocalDateString(endDate);
             document.getElementById('addRawMaterialForm').reset();
             document.getElementById('RawMaterialId').value = '';
             
-            // ✅ Load categories sa dropdown
-            await loadCategoryDropdown('CategoryId', 'RawMaterial');
+            // ✅ I-reset ang Unit dropdown at warning
+            var unitDropdown = document.getElementById('Unit');
+            if (unitDropdown) {
+                unitDropdown.disabled = false;
+                unitDropdown.style.backgroundColor = '#fff';
+                unitDropdown.style.cursor = 'pointer';
+            }
+            let warning = document.getElementById('unitWarning');
+            if (warning) warning.remove();
             
-            // ✅ IDAGDAG ITO: Load units sa dropdown
-           // await loadUnitOptions('Unit');
+            await loadCategoryDropdown('CategoryId', 'RawMaterial');
         } else {
             box.style.display = 'none';
         }
@@ -10641,7 +10746,7 @@ function viewDeliveryDetails(receivingId) {
                     </div>
                     <div class="col-md-6 text-end">
                         <p class="mb-1 text-muted">Total Billed Price: <strong>₱${delivery.grandTotalPrice.toFixed(2)}</strong></p>
-                        <p class="mb-1 text-danger">Total Rejected Value: <strong>-₱${totalDiscountLoss.toFixed(2)}</strong></p>
+                        <p class="mb-1 text-danger">Total Rejected Value: <strong>₱${totalDiscountLoss.toFixed(2)}</strong></p>
                         <h5 class="mb-0 text-success fw-bold">Total Accepted Price: ₱${delivery.grandAcceptedPrice.toFixed(2)}</h5>
                     </div>
                 </div>
@@ -13837,8 +13942,24 @@ async function loadVouchers() {
 }
 
 function getVoucherStatus(v) {
+    // 1. Check kung Used na
     if (v.isUsed) return { text: 'Used', cls: 'bg-danger' };
+    
+    // 2. Check kung Inactive (pinasadya)
     if (!v.isActive) return { text: 'Inactive', cls: 'bg-secondary' };
+
+    // 3. ✅ Check kung Expired na (Nalampasan na ang ExpiryDate)
+    if (v.expiryDate) {
+        const expiry = new Date(v.expiryDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // I-reset ang oras para fair ang comparison
+        
+        if (expiry < today) {
+            return { text: 'Expired', cls: 'bg-dark' }; // Kulay itim o gray
+        }
+    }
+
+    // 4. Kung pasado sa lahat, Active
     return { text: 'Active', cls: 'bg-success' };
 }
 

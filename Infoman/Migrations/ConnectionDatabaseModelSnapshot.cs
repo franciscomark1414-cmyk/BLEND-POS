@@ -2210,7 +2210,7 @@ namespace Infoman.Migrations
             modelBuilder.Entity("Infoman.Models.Payment", b =>
                 {
                     b.HasOne("Order", "Order")
-                        .WithMany()
+                        .WithMany("Payments")
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -2615,6 +2615,8 @@ namespace Infoman.Migrations
                     b.Navigation("Adjustments");
 
                     b.Navigation("Items");
+
+                    b.Navigation("Payments");
 
                     b.Navigation("ReplacementOrders");
                 });

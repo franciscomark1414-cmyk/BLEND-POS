@@ -1754,7 +1754,6 @@ input[type="password"]::-webkit-textfield-decoration-container {
                 @if (ViewBag.TotalOtherAlerts > 0)
                 {
                     <div class="kpi-badges">
-                        <span class="badge bg-warning text-dark me-1">+@ViewBag.TotalOtherAlerts</span>
                         @if (ViewBag.ExpiringCount > 0)
                         {
                             <span class="badge bg-info me-1">⏰ @ViewBag.ExpiringCount</span>
@@ -9242,52 +9241,51 @@ async function loadEmployeeDailyOrders() {
             let totalSales = 0;
             let totalOrders = 0;
             let html = '';
-            
-            // ✅ ITO ANG TAMANG LOOP PARA SA TABLE (KASAMA ANG VOIDED/REFUNDED)
-data.allDailyOrders.forEach(day => {
-    // I-compute ang valid sales lang (para sa Total Sales card)
-    let daySales = 0;
-    let validOrderCount = 0;
-    
-    day.orders.forEach(order => {
-        if (order.status !== "VOIDED" && order.status !== "REFUNDED") {
-            daySales += order.totalAmount;
-            validOrderCount++;
-        }
-    });
-    
-    totalSales += daySales;
-    totalOrders += validOrderCount;
+                                             // ✅ ITO ANG TAMANG LOOP PARA SA TABLE (KASAMA ANG VOIDED/REFUNDED)
+                                                            data.allDailyOrders.forEach(day => {
+                                                                // I-compute ang valid sales lang (para sa Total Sales card)
+                                                                let daySales = 0;
+                                                                let validOrderCount = 0;
 
-    // Format date
-    let formattedDate;
-    if (typeof day.date === 'string') {
-        const datePart = day.date.split('T')[0];
-        const [year, month, dayNum] = datePart.split('-').map(Number);
-        const localDate = new Date(year, month - 1, dayNum);
-        formattedDate = localDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    } else {
-        const dateObj = new Date(day.date);
-        formattedDate = dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    }
+                                                                day.orders.forEach(order => {
+                                                                    if (order.status !== "VOIDED" && order.status !== "REFUNDED") {
+                                                                        daySales += order.totalAmount;
+                                                                        validOrderCount++;
+                                                                    }
+                                                                });
 
-    const ordersToPass = day.orders || [];
-    
-    // ✅ IPAPAKITA ANG ROW KAHIT VOIDED LANG (Para may ma-click na View Orders)
-    html += `
-        <tr>
-            <td class="fw-bold">${formattedDate}</td>
-            <td class="text-primary fw-bold">₱${daySales.toFixed(2)}</td>
-            <td>${day.orders.length}</td>
-            <td>-</td>
-            <td>
-                <button class="btn btn-sm btn-info" onclick='showDailyOrdersModal(${JSON.stringify(ordersToPass)}, "${formattedDate}")'>
-                    <i class="fas fa-eye me-1"></i> View Orders
-                </button>
-            </td>
-        </tr>
-    `;
-});
+                                                                totalSales += daySales;
+                                                                totalOrders += validOrderCount;
+
+                                                                // Format date
+                                                                let formattedDate;
+                                                                if (typeof day.date === 'string') {
+                                                                    const datePart = day.date.split('T')[0];
+                                                                    const [year, month, dayNum] = datePart.split('-').map(Number);
+                                                                    const localDate = new Date(year, month - 1, dayNum);
+                                                                    formattedDate = localDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+                                                                } else {
+                                                                    const dateObj = new Date(day.date);
+                                                                    formattedDate = dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+                                                                }
+
+                                                                const ordersToPass = day.orders || [];
+
+                                                                // ✅ IPAPAKITA ANG ROW KAHIT VOIDED LANG (Para may ma-click na View Orders)
+                                                                html += `
+                                                        <tr>
+                                                            <td class="fw-bold">${formattedDate}</td>
+                                                            <td class="text-primary fw-bold">₱${daySales.toFixed(2)}</td>
+                                                            <td>${day.orders.length}</td>
+                                                            <td>-</td>
+                                                            <td>
+                                                                <button class="btn btn-sm btn-info" onclick='showDailyOrdersModal(${JSON.stringify(ordersToPass)}, "${formattedDate}")'>
+                                                                    <i class="fas fa-eye me-1"></i> View Orders
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    `;
+                                                            });
             
             // I-update ang cards
             document.getElementById('perfTotalSales').innerHTML = `₱${totalSales.toFixed(2)}`;

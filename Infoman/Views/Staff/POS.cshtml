@@ -7416,7 +7416,7 @@ function renderReturnItems(items) {
                 addOnsTotal += totalAddOnForThisLine; 
                 
                 return `<div style="font-size:11px; color:#666; margin-top:2px;">
-                            + ${a.addOnName} (₱${discountedAddOnPrice.toFixed(2)})
+                                        + ${a.addOnName} (₱${a.price.toFixed(2)})
                         </div>`;
             }).join('');
         }

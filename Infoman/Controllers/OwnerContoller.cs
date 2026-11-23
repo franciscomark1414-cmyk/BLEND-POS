@@ -138,21 +138,22 @@ namespace Infoman.Controllers
             // ========== CRITICAL STOCK ALERT ==========
             // ✅ GAMITIN ANG MinQtyInBaseUnit PARA TUGMA SA STOCK (BASE UNIT)
             int criticalStockCount = await _db.RawMaterials
-                .Where(r => !r.IsDeleted && r.Stock <= r.MinQtyInBaseUnit)
-                .CountAsync();
+     .Where(r => !r.IsDeleted)
+     .Where(r => (_db.RawMaterialBatches
+         .Where(b => b.RawMaterialId == r.RawMaterialId)
+         .Sum(b => (decimal?)b.QuantityRemaining) ?? 0) <= r.MinQtyInBaseUnit)
+     .CountAsync();
             ViewBag.CriticalStockCount = criticalStockCount;
 
             // ========== EXPIRING SOON (from BATCHES) ==========
             var todayBatch = DateTime.Today;
             var expiringCount = await _db.RawMaterialBatches
-                .Where(b => b.ExpiryDate.HasValue &&
-                            b.ExpiryDate.Value >= todayBatch &&
-                            b.ExpiryDate.Value <= todayBatch.AddDays(7) &&
-                            b.QuantityRemaining > 0 &&
-                            !b.RawMaterial.IsDeleted)
-                .Select(b => b.RawMaterialId)
-                .Distinct()
-                .CountAsync();
+     .Where(b => b.ExpiryDate.HasValue &&
+                 b.ExpiryDate.Value >= todayBatch &&
+                 b.ExpiryDate.Value <= todayBatch.AddDays(7) &&
+                 b.QuantityRemaining > 0 &&
+                 !b.RawMaterial.IsDeleted)
+     .CountAsync(); // ✅ Walang Distinct, per batch ang bilang
             ViewBag.ExpiringCount = expiringCount;
 
             // ========== EXPIRED (from BATCHES) ==========

@@ -1608,6 +1608,17 @@ html.sidebar-collapsed .main-content {
 .emp-btn.danger { color: #dc2626; }
 .emp-btn.danger:hover { background: #fee2e2; border-color: #fecaca; }
 
+/* ✅ Itago ang default eye icon ng browser */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+    display: none !important;
+}
+
+/* ✅ Para sa Chrome/Safari */
+input[type="password"]::-webkit-textfield-decoration-container {
+    display: none !important;
+}
+
     </style>
 
     <script>
@@ -8211,32 +8222,32 @@ function displayReceiptHistory(receipts) {
         let exchangeIndicator = '';
         let displayTotal = receipt.total; // Default total
 
-        // Check order status (REFUNDED, VOIDED, etc.)
-        if (receipt.status === 'REFUNDED') {
+// Check order status (REFUNDED, VOIDED, etc.)
+if (receipt.status === 'REFUNDED') {
     statusBadge = '<span class="badge bg-danger">💰 REFUNDED</span>';
     
-    // ✅ KUNG REFUNDED, GAMITIN ANG COMPUTED VALUE IMBES NA TOTAL
-    // Kasi ang 'receipt.total' ay nagiging 0 kapag na-refund sa backend.
-    // Ang Subtotal (OriginalAmount) iminus ang Discounts ang tamang binayaran.
+    // ✅ UNANG COMPUTATION (Para sa REFUNDED)
     let computedTotal = receipt.subtotal - (receipt.discountAmount || 0) - (receipt.voucherDiscountAmount || 0);
-    
-    // Kung ang computedTotal ay 0 (kung talagang 0 binayad), gamitin ang total
-    displayTotal = computedTotal > 0 ? computedTotal : receipt.total;
+    displayTotal = computedTotal > 0 ? computedTotal : 0;
+
 } else if (receipt.status === 'PARTIALLY_REFUNDED') {
-            statusBadge = '<span class="badge bg-warning text-dark">⚠️ PARTIAL REFUND</span>';
-        } else if (receipt.status === 'VOIDED') {
-            statusBadge = '<span class="badge bg-dark">🚫 VOIDED</span>';
-            displayTotal = 0; // Void = 0 talaga
-        } 
-        // Check returnStatus for exchanges/returns
-        else if (receipt.returnStatus === 'EXCHANGED') {
-            statusBadge = '<span class="badge bg-warning text-dark">🔄 EXCHANGED</span>';
-            if (receipt.originalOrderId) {
-                exchangeIndicator = `<small class="text-muted">(replaces #${receipt.originalOrderId})</small>`;
-            }
-        } else if (receipt.returnStatus === 'RETURNED') {
-            statusBadge = '<span class="badge bg-danger">↩️ RETURNED</span>';
-        }
+    statusBadge = '<span class="badge bg-warning text-dark">⚠️ PARTIAL REFUND</span>';
+} else if (receipt.status === 'VOIDED') {
+    statusBadge = '<span class="badge bg-dark">🚫 VOIDED</span>';
+    
+    // ✅ PANGALAWANG COMPUTATION (Walang 'let' para hindi mag-error)
+    computedTotal = receipt.subtotal - (receipt.discountAmount || 0) - (receipt.voucherDiscountAmount || 0);
+    displayTotal = computedTotal > 0 ? computedTotal : 0;
+}
+// ✅ ITO YUNG NAWALA, IBINALIK KO
+else if (receipt.returnStatus === 'EXCHANGED') {
+    statusBadge = '<span class="badge bg-warning text-dark">🔄 EXCHANGED</span>';
+    if (receipt.originalOrderId) {
+        exchangeIndicator = `<small class="text-muted">(replaces #${receipt.originalOrderId})</small>`;
+    }
+} else if (receipt.returnStatus === 'RETURNED') {
+    statusBadge = '<span class="badge bg-danger">↩️ RETURNED</span>';
+}
 
         // ✅ 2. DISCOUNT DISPLAY
         let discountDisplay = 'None';

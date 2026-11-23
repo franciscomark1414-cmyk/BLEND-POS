@@ -90,25 +90,26 @@ namespace Infoman.Controllers
 
             await RefreshProductPricesInternal();
             DateTime today = DateTime.Today;
-
             // ========== TODAY'S NET REVENUE ==========
-            // ✅ 1. KUNIN LAHAT NG ORDERS NA NANGYARI NGAYONG ARAW (Para sa COUNT)
-            var allTodaysOrders = await _db.Orders
-                .Where(o => o.Date.Date == today && o.Status != "CANCELLED")
+            // ✅ KUNIN LANG ANG MGA VALID ORDERS (I-EXCLUDE ANG VOIDED/REFUNDED)
+            var todaysOrders = await _db.Orders
+                .Where(o => o.Date.Date == today &&
+                            o.Status != "CANCELLED" &&
+                            o.Status != "VOIDED" &&
+                            o.Status != "REFUNDED")
                 .ToListAsync();
 
-            ViewBag.TotalOrdersToday = allTodaysOrders.Count;
+            ViewBag.TotalOrdersToday = todaysOrders.Count;
 
-            // ✅ 2. KUNIN ANG MGA BAYAD PARA SA REVENUE
-            var todaysRevenueOrders = allTodaysOrders
-                .Where(o => o.Status == "COMPLETED" ||
-                            o.Status == "PENDING_BLENDING" ||
-                            o.Status == "REFUNDED" ||
-                            o.Status == "PARTIALLY_REFUNDED" ||
-                            o.Status == "VOIDED")
-                .ToList();
+            // ✅ COMPUTE REVENUE (Galing sa valid orders na lang din)
+            decimal todaysNetRevenue = todaysOrders
+                .Where(o => o.Status == "COMPLETED" || o.Status == "PENDING_BLENDING")
+                .Sum(o => o.TotalAmount);
 
-            decimal todaysNetRevenue = todaysRevenueOrders.Sum(o => o.TotalAmount);
+            // ✅ Safeguard
+            if (todaysNetRevenue < 0) todaysNetRevenue = 0;
+
+            ViewBag.TodaysSales = todaysNetRevenue;
 
             // ✅ Safeguard
             if (todaysNetRevenue < 0) todaysNetRevenue = 0;
@@ -118,7 +119,10 @@ namespace Infoman.Controllers
 
             // ========== ALL-TIME NET REVENUE ==========
             var allOrders = await _db.Orders
-                .Where(o => o.Status != "CANCELLED" && o.Status != "PENDING_PAYMENT") // Isama lahat
+                .Where(o => o.Status != "CANCELLED" &&
+                            o.Status != "PENDING_PAYMENT" &&
+                            o.Status != "VOIDED" &&
+                            o.Status != "REFUNDED") // ✅ I-EXCLUDE ITO
                 .ToListAsync();
 
             decimal allTimeNetRevenue = allOrders.Sum(o => o.TotalAmount);
@@ -204,9 +208,10 @@ namespace Infoman.Controllers
      .Include(oi => oi.Order)
      .Include(oi => oi.Product)
      .Include(oi => oi.ProductSize)
-     .Where(oi => oi.Order.Status != "CANCELLED" &&
-                  oi.Order.Status != "PENDING_PAYMENT" &&
-                  oi.DispositionStatusId == 1) // AVAILABLE items lang ang bibilangin
+     .Where(oi => oi.Order.Status == "COMPLETED" && // ✅ COMPLETED LANG (Na-blend na)
+                  oi.Order.Status != "VOIDED" &&
+                  oi.Order.Status != "REFUNDED" &&
+                  oi.DispositionStatusId == 1) // ✅ Available items lang
      .ToListAsync();
 
                 // ✅ GROUP BY PRODUCT AT KUNIN ANG ImagePath

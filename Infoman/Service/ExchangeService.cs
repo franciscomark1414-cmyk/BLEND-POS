@@ -33,12 +33,12 @@ namespace Infoman.Service
             try
             {
                 var originalOrder = await _db.Orders
-                    .Include(o => o.Items)
-                    .FirstOrDefaultAsync(o => o.OrderId == originalOrderId);
+    .Include(o => o.Items)
+    .FirstOrDefaultAsync(o => o.OrderId == originalOrderId);
 
                 if (originalOrder == null)
                 {
-                    await transaction.RollbackAsync(); // Safe rollback kahit walang na-save
+                    await transaction.RollbackAsync();
                     return (false, "Original order not found", 0);
                 }
 
@@ -48,7 +48,6 @@ namespace Infoman.Service
                     return (false, "Only completed orders can be exchanged", 0);
                 }
 
-                // ✅ ISSUE 4: Validate all return items belong to this order
                 var returnedItemIds = itemsToReturn.Select(i => i.OrderItemId).ToList();
                 var validItems = await _db.OrderItems
                     .Where(oi => oi.OrderId == originalOrderId && returnedItemIds.Contains(oi.OrderItemId))
@@ -60,7 +59,6 @@ namespace Infoman.Service
                     return (false, "One or more items do not belong to the original order.", 0);
                 }
 
-                // ✅ ISSUE 2: Get active item IDs BEFORE marking them as exchanged
                 var allActiveItemIds = await _db.OrderItems
                     .Where(oi => oi.OrderId == originalOrderId && !oi.IsVoided && !oi.IsRefunded)
                     .Select(oi => oi.OrderItemId)
@@ -68,12 +66,16 @@ namespace Infoman.Service
 
                 bool isFullExchange = allActiveItemIds.All(id => returnedItemIds.Contains(id));
 
-                // Compute amounts
-                decimal originalAmount = 0;
-                decimal replacementAmount = 0;
+                // ✅ Senior/PWD + Voucher combined factor
+                decimal factor = (1 - originalOrder.DiscountPercent) * (1 - originalOrder.VoucherDiscountPercent / 100m);
+
+                decimal originalAmount = 0;      // discounted value ng ibabalik
+                decimal grossReturned = 0;       // gross value ng ibabalik
+                decimal replacementAmount = 0;   // discounted value ng replacement
+                decimal grossReplacement = 0;    // gross value ng replacement
                 decimal totalWasteCost = 0;
 
-                // STEP 1: Waste raw materials from original order
+                // STEP 1: Waste raw materials + compute return value (kasama add-ons)
                 foreach (var returnItem in itemsToReturn)
                 {
                     var orderItem = await _db.OrderItems
@@ -85,13 +87,15 @@ namespace Infoman.Service
 
                     if (orderItem == null) continue;
 
-                    decimal actualPricePerUnit = orderItem.Price;
-                    if (orderItem.Order != null && orderItem.Order.DiscountPercent > 0)
-                    {
-                        actualPricePerUnit = orderItem.Price * (1 - orderItem.Order.DiscountPercent);
-                    }
+                    var returnedAddOns = await _db.OrderItemAddOns
+                        .Include(a => a.AddOn)
+                        .Where(a => a.OrderItemId == orderItem.OrderItemId)
+                        .ToListAsync();
 
-                    originalAmount += actualPricePerUnit * returnItem.Quantity;
+                    decimal addOnsPerUnit = returnedAddOns.Sum(a => a.Price * a.Quantity);
+                    decimal itemGross = (orderItem.Price + addOnsPerUnit) * returnItem.Quantity;
+                    grossReturned += itemGross;
+                    originalAmount += Math.Round(itemGross * factor, 2);
 
                     // 1. Waste the main product recipe
                     foreach (var recipe in orderItem.ProductSize.RecipeItems)
@@ -121,16 +125,10 @@ namespace Infoman.Service
                             TotalCost = costWasted
                         });
 
-                        var material = await _db.RawMaterials.FindAsync(recipe.RawMaterialId);
-                        if (material != null) material.Stock -= quantityWastedInBaseUnit;
+                        
                     }
 
-                    // 2. Waste the Add-ons (kung meron)
-                    var returnedAddOns = await _db.OrderItemAddOns
-                        .Include(a => a.AddOn)
-                        .Where(a => a.OrderItemId == orderItem.OrderItemId)
-                        .ToListAsync();
-
+                    // 2. Waste the Add-ons
                     foreach (var oldAddOn in returnedAddOns)
                     {
                         var addOnRecipe = await _db.AddOnRecipeItems
@@ -165,115 +163,111 @@ namespace Infoman.Service
                                 TotalCost = costWasted
                             });
 
-                            var material = await _db.RawMaterials.FindAsync(r.RawMaterialId);
-                            if (material != null) material.Stock -= qtyToWaste;
                         }
                     }
 
-                    // ✅ ITO ANG NAWALA: Dapat nasa LOOB ng loop ito para tama ang item na mababago
                     orderItem.IsExchanged = true;
                     orderItem.QuantityExchanged = returnItem.Quantity;
                 }
 
-                // STEP 2: Mark original order as PARTIALLY EXCHANGED or EXCHANGED
-                // (isFullExchange was computed earlier, before IsExchanged flags were set)
+                // STEP 2: Mark original order
                 if (isFullExchange)
                 {
                     originalOrder.ReturnStatus = "EXCHANGED";
                     originalOrder.Status = "EXCHANGED";
-                    originalOrder.TotalAmount = 0;// ✅ TAMA ITO, hindi na counted
+                    originalOrder.TotalAmount = 0;
                 }
                 else
                 {
                     originalOrder.ReturnStatus = "PARTIALLY_EXCHANGED";
-                    originalOrder.Status = "COMPLETED"; // ✅ Tama, partial lang
+                    originalOrder.Status = "COMPLETED";
+
+                    originalOrder.TotalAmount -= originalAmount;
+                    originalOrder.OriginalTotalAmount -= grossReturned; // gross dapat
                 }
                 originalOrder.ExchangeDate = DateTime.Now;
                 originalOrder.ExchangeReason = reason;
 
-                // ✅ If partial exchange, adjust original order totals
-                if (!isFullExchange)
+                // STEP 3: Replacement amount (kasama add-ons + discount/voucher)
+                // ✅ Add-on price at name galing sa DB, hindi sa browser
+                var replaceAddOnIds = itemsToReplace
+                    .Where(i => i.AddOns != null)
+                    .SelectMany(i => i.AddOns)
+                    .Select(a => a.AddOnId)
+                    .Distinct()
+                    .ToList();
+
+                var dbAddOns = await _db.AddOns
+                    .Where(a => replaceAddOnIds.Contains(a.AddOnId) && a.IsActive && !a.IsDeleted)
+                    .ToDictionaryAsync(a => a.AddOnId);
+
+                foreach (var replaceItem in itemsToReplace)
                 {
-                    decimal returnedValue = 0;
-                    foreach (var returnItem in itemsToReturn)
+                    if (replaceItem.AddOns == null) continue;
+
+                    foreach (var a in replaceItem.AddOns)
                     {
-                        var oi = await _db.OrderItems.FindAsync(returnItem.OrderItemId);
-                        if (oi != null)
+                        if (!dbAddOns.TryGetValue(a.AddOnId, out var dbAddOn))
                         {
-                            decimal actualPrice = oi.Price;
-                            if (originalOrder.DiscountPercent > 0)
-                                actualPrice = oi.Price * (1 - originalOrder.DiscountPercent);
-
-                            returnedValue += actualPrice * returnItem.Quantity;
+                            await transaction.RollbackAsync();
+                            return (false, "An add-on is no longer available.", 0);
                         }
+                        a.Price = dbAddOn.Price;
+                        a.AddOnName = dbAddOn.Name;
                     }
-
-                    originalOrder.TotalAmount -= returnedValue;
-                    originalOrder.OriginalTotalAmount -= returnedValue;
                 }
 
-                // STEP 3: Compute replacement amount (✅ APPLY ORIGINAL DISCOUNT)
                 foreach (var replaceItem in itemsToReplace)
                 {
                     var productSize = await _db.ProductSizes
-                        .Include(ps => ps.Product)
                         .FirstOrDefaultAsync(ps => ps.ProductSizeId == replaceItem.ProductSizeId);
 
                     if (productSize != null)
                     {
-                        decimal actualPrice = productSize.Price;
-
-                        // ✅ Apply the original order's discount to replacement
-                        if (originalOrder.DiscountPercent > 0)
-                        {
-                            actualPrice = actualPrice * (1 - originalOrder.DiscountPercent);
-                        }
-
-                        replacementAmount += actualPrice * replaceItem.Quantity;
+                        decimal addOnsPerUnit = replaceItem.AddOns?.Sum(a => a.Price * a.Quantity) ?? 0;
+                        decimal gross = (productSize.Price + addOnsPerUnit) * replaceItem.Quantity;
+                        grossReplacement += gross;
+                        replacementAmount += Math.Round(gross * factor, 2);
                     }
                 }
 
-                // STEP 4: Compute adjustment
+                // STEP 4: Adjustment
                 decimal adjustmentAmount = replacementAmount - originalAmount;
                 string adjustmentType = adjustmentAmount >= 0 ? "ADDITIONAL_PAYMENT" : "CHANGE";
                 decimal absoluteAdjustment = Math.Abs(adjustmentAmount);
-                decimal customerPayable = adjustmentAmount > 0 ? adjustmentAmount : 0;
 
                 // STEP 5: Create new order
-                // STEP 5: Create new order
-                // ✅ Kung may additional payment na Cash, PENDING_BLENDING na agad
-                // ✅ Kung walang bayad (Store Credit o Change), PENDING_BLENDING na rin
-                // ✅ PENDING_PAYMENT lang kung GCash ang difference (hindi pa enabled ngayon)
                 string newOrderStatus;
                 if (adjustmentAmount <= 0)
-                {
-                    // Store credit o change — bayad na, ready to blend
                     newOrderStatus = "PENDING_BLENDING";
-                }
                 else if (paymentMethodForDifference == "Cash")
-                {
-                    // Cash additional payment — bayad na agad
                     newOrderStatus = "PENDING_BLENDING";
-                }
                 else
-                {
-                    // GCash / QRPh (kung future) — hindi pa bayad
                     newOrderStatus = "PENDING_PAYMENT";
-                }
+
+                decimal manualDiscountAmount = Math.Round(grossReplacement * originalOrder.DiscountPercent, 2);
+                decimal voucherDiscountAmount = Math.Round(
+                    grossReplacement * (1 - originalOrder.DiscountPercent) * (originalOrder.VoucherDiscountPercent / 100m), 2);
 
                 var newOrder = new Order
                 {
                     OrderNumber = $"EX-{DateTime.Now:yyyyMMddHHmmss}",
                     Date = DateTime.Now,
-                    TotalAmount = replacementAmount, // ✅ ₱87 (buong halaga ng replacement)
-                    OriginalTotalAmount = replacementAmount,
+                    TotalAmount = replacementAmount,
+                    OriginalTotalAmount = grossReplacement,
                     Status = newOrderStatus,
                     PaymentMethod = (adjustmentAmount > 0 && !string.IsNullOrEmpty(paymentMethodForDifference))
                         ? paymentMethodForDifference
                         : "Store Credit",
-                    DiscountType = "None",
-                    DiscountPercent = 0,
-                    DiscountAmount = 0,
+
+                    // ✅ Ilipat ang discount at voucher ng original order
+                    DiscountType = originalOrder.DiscountType,
+                    DiscountPercent = originalOrder.DiscountPercent,
+                    DiscountAmount = manualDiscountAmount,
+                    VoucherCode = originalOrder.VoucherCode,
+                    VoucherDiscountPercent = originalOrder.VoucherDiscountPercent,
+                    VoucherDiscountAmount = voucherDiscountAmount,
+
                     ReceiptNumber = $"RC-{DateTime.Now:yyyyMMdd}-{new Random().Next(1000, 9999)}",
                     OriginalOrderId = originalOrderId,
                     StoreCreditApplied = originalAmount,
@@ -325,7 +319,7 @@ namespace Infoman.Service
                 }
                 await _db.SaveChangesAsync();
 
-                // STEP 7: Deduct raw materials for new order (FIFO)
+                // STEP 7: Stock check lang (walang deduction; sa Start Blending mag-de-deduct)
                 foreach (var replaceItem in itemsToReplace)
                 {
                     var productSize = await _db.ProductSizes
@@ -333,53 +327,44 @@ namespace Infoman.Service
                             .ThenInclude(ri => ri.RawMaterial)
                         .FirstOrDefaultAsync(ps => ps.ProductSizeId == replaceItem.ProductSizeId);
 
-                    if (productSize != null)
+                    if (productSize == null) continue;
+
+                    foreach (var recipe in productSize.RecipeItems.Where(r => !r.IsDeleted))
                     {
-                        // 1. Ibawas ang recipe ng mismong product
-                        foreach (var recipe in productSize.RecipeItems)
+                        decimal needed = recipe.Quantity * replaceItem.Quantity;
+                        decimal available = await _db.RawMaterialBatches
+                            .Where(b => b.RawMaterialId == recipe.RawMaterialId
+                                     && b.QuantityRemaining > 0
+                                     && (!b.ExpiryDate.HasValue || b.ExpiryDate.Value >= DateTime.Today))
+                            .SumAsync(b => b.QuantityRemaining);
+
+                        if (available < needed)
                         {
-                            decimal quantityNeeded = recipe.Quantity * replaceItem.Quantity;
+                            await transaction.RollbackAsync();
+                            return (false, $"Insufficient stock for {recipe.RawMaterial.Name}.", 0);
+                        }
+                    }
 
-                            var (success, _, _) = await _fifoService.DeductStockWithCostAsync(
-                                recipe.RawMaterialId,
-                                quantityNeeded,
-                                productSize.ProductId,
-                                $"EXCHANGE-{newOrder.OrderNumber}"
-                            );
+                    foreach (var addOn in replaceItem.AddOns ?? new List<ExchangeAddOnDto>())
+                    {
+                        var addOnRecipes = await _db.AddOnRecipeItems
+                            .Include(r => r.RawMaterial)
+                            .Where(r => r.AddOnId == addOn.AddOnId && !r.IsDeleted)
+                            .ToListAsync();
 
-                            if (!success)
+                        foreach (var r in addOnRecipes)
+                        {
+                            decimal needed = r.Quantity * replaceItem.Quantity * addOn.Quantity;
+                            decimal available = await _db.RawMaterialBatches
+                                .Where(b => b.RawMaterialId == r.RawMaterialId
+                                         && b.QuantityRemaining > 0
+                                         && (!b.ExpiryDate.HasValue || b.ExpiryDate.Value >= DateTime.Today))
+                                .SumAsync(b => b.QuantityRemaining);
+
+                            if (available < needed)
                             {
                                 await transaction.RollbackAsync();
-                                return (false, $"Failed to deduct {recipe.RawMaterial.Name}. Insufficient stock.", 0);
-                            }
-                        }
-
-                        // ✅ 2. IDAGDAG ITO: Ibawas ang recipe ng Add-ons (kung meron)
-                        if (replaceItem.AddOns != null && replaceItem.AddOns.Any())
-                        {
-                            foreach (var addOn in replaceItem.AddOns)
-                            {
-                                var addOnRecipe = await _db.AddOnRecipeItems
-                                    .Where(r => r.AddOnId == addOn.AddOnId && !r.IsDeleted)
-                                    .ToListAsync();
-
-                                foreach (var r in addOnRecipe)
-                                {
-                                    decimal neededForAddOn = r.Quantity * replaceItem.Quantity * addOn.Quantity;
-
-                                    var (success, _, _) = await _fifoService.DeductStockWithCostAsync(
-                                        r.RawMaterialId,
-                                        neededForAddOn,
-                                        productSize.ProductId,
-                                        $"EXCHANGE-ADDON-{newOrder.OrderNumber}"
-                                    );
-
-                                    if (!success)
-                                    {
-                                        await transaction.RollbackAsync();
-                                        return (false, $"Failed to deduct add-on {addOn.AddOnName}. Insufficient stock.", 0);
-                                    }
-                                }
+                                return (false, $"Insufficient stock for add-on {addOn.AddOnName}.", 0);
                             }
                         }
                     }
@@ -438,9 +423,10 @@ namespace Infoman.Service
             }
             catch (Exception ex)
             {
-                // ✅ KAPAG MAY BIGLANG CRASH O ERROR, I-ROLLBACK LAHAT PARA WALANG KALAT
                 await transaction.RollbackAsync();
-                return (false, $"System error during exchange: {ex.Message}", 0);
+                var root = ex;
+                while (root.InnerException != null) root = root.InnerException;
+                return (false, $"System error during exchange: {root.Message}", 0);
             }
         }
 

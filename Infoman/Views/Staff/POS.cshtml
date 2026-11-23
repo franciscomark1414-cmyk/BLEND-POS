@@ -2968,14 +2968,36 @@
         
         let html = '';
         for (const order of activeOrders) {
-            let itemsHtml = '';
-            let totalAmount = 0;
-            
-            order.items.forEach(item => {
-                const itemTotal = item.price * item.quantity;
-                totalAmount += itemTotal;
-                itemsHtml += `<div>• ${item.quantity}x ${item.productName} (${item.sizeName}) - ₱${itemTotal.toFixed(2)}</div>`;
-            });
+                        let itemsHtml = '';
+                        // ✅ 1. I-DISPLAY ANG TOTOONG TOTAL NG ORDER (Galing sa backend)
+                        // Ang order.totalAmount ay naglalaman na ng discount at add-ons
+                        let totalAmount = order.totalAmount;
+
+                        // ✅ 2. I-LOOP ANG MGA ITEMS PARA SA DETALYE (Pero hindi na natin ito gagamitin sa total)
+                        order.items.forEach(item => {
+                            // ✅ 3. KUNAIN ANG MGA ADD-ONS (Kung meron)
+                            let addOnsTotal = 0;
+                            let addOnsHtml = '';
+
+                            if (item.addOns && item.addOns.length > 0) {
+                                item.addOns.forEach(a => {
+                                    addOnsTotal += (a.price * a.quantity);
+                                    addOnsHtml += `<div style="font-size: 10px; color: #666; margin-left: 10px;">+ ${a.name} (₱${(a.price * a.quantity).toFixed(2)})</div>`;
+                                });
+                            }
+
+                            // ✅ 4. COMPUTE ITEM TOTAL (Base + Add-ons)
+                            let baseTotal = item.price * item.quantity;
+                            let itemTotalWithAddOns = baseTotal + (addOnsTotal * item.quantity);
+
+                            // I-display ang item at ang add-ons sa ilalim nito
+                            itemsHtml += `
+                    <div>
+                        • ${item.quantity}x ${item.productName} (${item.sizeName})
+                        ${addOnsHtml}
+                    </div>`;
+                        });
+
             
             const shortOrderNum = order.orderNumber ? order.orderNumber.substring(order.orderNumber.length - 6) : `#${order.orderId}`;
             
@@ -3777,21 +3799,18 @@ if (window.isExchangeReplacement && window.exchangeOriginalOrderId) {
     const replacedHtml = (window.exchangeReplacedItems || []).map(i => 
         `<div style="font-size:12px;color:#28a745;">+ ${i.quantity}x ${escapeHtml(i.productName)} (${i.sizeName})</div>`
     ).join('');
-    
-    exchangeSummaryHtml = `
-        <div style="margin: 10px 0; padding: 10px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px;">
-            <div style="font-weight:700;font-size:12px;margin-bottom:6px;">🔄 EXCHANGE (from Order #${window.exchangeOriginalOrderId})</div>
-            <div style="font-weight:600;font-size:11px;color:#dc3545;">Returned:</div>
-            ${returnedHtml || '<div style="font-size:12px;color:#999;">None</div>'}
-            <div style="font-weight:600;font-size:11px;color:#28a745;margin-top:6px;">Replaced With:</div>
-            ${replacedHtml || '<div style="font-size:12px;color:#999;">None</div>'}
-            ${window.exchangeAdjustmentAmount > 0 
-                ? `<div style="margin-top:6px;font-size:12px;"><strong>Additional Payment:</strong> ₱${window.exchangeAdjustmentAmount.toFixed(2)}</div>` 
-                : (window.exchangeAdjustmentAmount < 0 
-                    ? `<div style="margin-top:6px;font-size:12px;"><strong>Store Credit / Change:</strong> ₱${Math.abs(window.exchangeAdjustmentAmount).toFixed(2)}</div>` 
-                    : '')}
-        </div>
-    `;
+                   exchangeSummaryHtml = `
+                <div style="margin: 10px 0; padding: 10px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px;">
+                    <div style="font-weight:700;font-size:12px;margin-bottom:6px;">🔄 EXCHANGE (from Order #${window.exchangeOriginalOrderId})</div>
+                    ${returnedHtml ? `<div style="font-weight:600;font-size:11px;color:#dc3545;">Returned:</div>${returnedHtml}` : ''}
+                    ${replacedHtml ? `<div style="font-weight:600;font-size:11px;color:#28a745;margin-top:6px;">Replaced With:</div>${replacedHtml}` : ''}
+                    ${window.exchangeAdjustmentAmount > 0
+                            ? `<div style="margin-top:6px;font-size:12px;"><strong>Additional Payment:</strong> ₱${window.exchangeAdjustmentAmount.toFixed(2)}</div>`
+                            : (window.exchangeAdjustmentAmount < 0
+                                ? `<div style="margin-top:6px;font-size:12px;"><strong>Store Credit / Change:</strong> ₱${Math.abs(window.exchangeAdjustmentAmount).toFixed(2)}</div>`
+                                : '')}
+                </div>
+            `;
 }
     let computedSubtotal = 0;
     orderDetails.forEach(item => {
@@ -3800,7 +3819,7 @@ if (window.isExchangeReplacement && window.exchangeOriginalOrderId) {
             <div class="receipt-item">
                 <div>
                     <strong>${escapeHtml(item.name)}</strong><br>
-                    <small>${item.size} × ${item.quantity}</small>
+                    <small>${item.size} × ${item.quantity}</small>${item.note || ''}
                 </div>
                 <div>₱${item.subtotal.toFixed(2)}</div>
             </div>`;
@@ -4005,92 +4024,119 @@ async function payWithGCashFromReceipt(orderId) {
     }
 }
 
-            async function showReceiptPopup(orderId) {
-                if (!orderId) {
-                    await showAlert('No order selected.', 'Error', '❌');
-                    return;
-                }
+           async function showReceiptPopup(orderId) {
+    if (!orderId) {
+        await showAlert('No order selected.', 'Error', '❌');
+        return;
+    }
 
-                // ✅ ITO ANG KULANG: I-set agad ang ID pagbukas ng receipt!
-                window.currentOrderId = orderId;
-                window.lastClosedOrderId = orderId;
+    window.currentOrderId = orderId;
+    window.lastClosedOrderId = orderId;
 
-                showLoading('Loading receipt...');
+    showLoading('Loading receipt...');
 
-    
     try {
         const response = await fetch(`/VoidRefund/GetOrderDetails?orderId=${orderId}`);
         const data = await response.json();
         hideLoading();
-        
+
         if (!data.success || !data.order) {
             await showAlert('Unable to load receipt', 'Error', '❌');
             return;
         }
-        
-        const activeItems = data.order.items.filter(item => !item.isVoided && !item.isRefunded);
-        
+
+        const o = data.order;
+        const activeItems = o.items.filter(item => !item.isVoided && !item.isRefunded);
+
         if (activeItems.length === 0) {
             await showAlert('This order has no active items left.', 'Notice', '⚠️');
             closeReceiptModal();
             await loadOrderQueue();
             return;
         }
-        
+
+        const dp = o.discountPercent || 0;
+        const vp = o.voucherDiscountPercent || 0;
+        const hasVoucher = vp > 0 && o.voucherCode;
+
         const orderDetails = [];
         let subtotal = 0;
-                  activeItems.forEach(item => {
-                        const itemSubtotal = item.price * item.quantity;
-                        orderDetails.push({
-                            name: item.productName,
-                            size: item.sizeName,
-                            quantity: item.quantity,
-                            price: item.price,
-                            subtotal: itemSubtotal
-                        });
-                        subtotal += itemSubtotal;
 
-                        (item.addOns || []).forEach(a => {
-                            const addOnSubtotal = a.price * a.quantity * item.quantity;
-                            orderDetails.push({
-                                name: '+ ' + a.name,
-                                size: 'Add-on',
-                                quantity: a.quantity * item.quantity,
-                                price: a.price,
-                                subtotal: addOnSubtotal
-                            });
-                            subtotal += addOnSubtotal;
-                        });
-                    });
+        activeItems.forEach(item => {
+            // ✅ GROSS (original) price, hindi yung discounted na
+            const unitPrice = (item.originalPrice !== undefined) ? item.originalPrice : item.price;
+            const addOns = item.addOns || [];
+            const addOnsPerUnit = addOns.reduce((s, a) => s + a.price * a.quantity, 0);
 
-        
-        const discountPercent = data.order.discountPercent || 0;
-        const discountedTotal = subtotal * (1 - discountPercent);
-        const discountSavings = subtotal - discountedTotal;
-        
-        window.currentOrderId = orderId;
-        
-        // ✅ CHECK KUNG ITO AY EXCHANGE REPLACEMENT
-        const isExchangeReplacement = data.order.isExchangeReplacement || 
-                                       (data.order.originalOrderId && data.order.originalOrderId > 0);
-        
-        if (isExchangeReplacement) {
-            // I-load ang exchange details
-            await loadExchangeInfoForReceipt(orderId);
-        } else {
-            // Normal receipt
-            showReceiptModal(
-                orderDetails, 
-                data.order.paymentMethod || 'Cash', 
-                data.order.discountType || 'None', 
-                discountPercent, 
-                discountSavings, 
-                discountedTotal, 
-                orderId, 
-                data.order.status
-            );
+            const lineGross = (unitPrice + addOnsPerUnit) * item.quantity;
+            const lineManual = lineGross * dp;
+            const lineVoucher = (lineGross - lineManual) * (vp / 100);
+
+            // Breakdown sa ilalim ng product name
+            let note = '';
+            if (dp > 0) {
+                note += `<br><small style="color:#dc3545;">${escapeHtml(o.discountType || 'Discount')} ${dp * 100}% (-₱${lineManual.toFixed(2)})</small>`;
+            }
+            if (hasVoucher) {
+                note += `<br><small style="color:#28a745;">Voucher ${escapeHtml(o.voucherCode)} ${vp}% (-₱${lineVoucher.toFixed(2)})</small>`;
+            }
+
+            orderDetails.push({
+                name: item.productName,
+                size: item.sizeName,
+                quantity: item.quantity,
+                price: unitPrice,
+                subtotal: unitPrice * item.quantity,
+                note: note
+            });
+            subtotal += unitPrice * item.quantity;
+
+            addOns.forEach(a => {
+                const addOnSubtotal = a.price * a.quantity * item.quantity;
+                orderDetails.push({
+                    name: '+ ' + a.name,
+                    size: 'Add-on',
+                    quantity: a.quantity * item.quantity,
+                    price: a.price,
+                    subtotal: addOnSubtotal
+                });
+                subtotal += addOnSubtotal;
+            });
+        });
+
+        const manualTotal = subtotal * dp;
+        const voucherTotal = (subtotal - manualTotal) * (vp / 100);
+        const finalTotal = Math.max(0, subtotal - manualTotal - voucherTotal);
+
+        // Exchange flags (laging i-set para hindi dumikit sa susunod na receipt)
+        const isExchangeReplacement = !!(o.originalOrderId && o.originalOrderId > 0);
+        window.isExchangeReplacement = isExchangeReplacement;
+        window.exchangeOriginalOrderId = isExchangeReplacement ? o.originalOrderId : null;
+
+        // Kung hindi galing sa fresh exchange, walang listahan ng returned/replaced
+        if (!isExchangeReplacement || window.exchangeNewOrderId !== orderId) {
+            window.exchangeReturnedItems = [];
+            window.exchangeReplacedItems = [];
+            window.exchangeAdjustmentAmount = 0;
         }
-        
+
+        window.receiptVoucher = hasVoucher
+            ? { code: o.voucherCode, percent: vp, amount: voucherTotal }
+            : null;
+
+        showReceiptModal(
+            orderDetails,
+            o.paymentMethod || 'Cash',
+            o.discountType || 'None',
+            dp,
+            manualTotal,
+            finalTotal,
+            orderId,
+            o.status
+        );
+
+        window.receiptVoucher = null;
+
     } catch (error) {
         hideLoading();
         console.error('Error loading receipt:', error);
@@ -7000,13 +7046,21 @@ async function loadExchangeOrderItems() {
             return;
         }
         
-        // Load available products for replacement
+                // Load available products for replacement
         await loadAvailableProductsForExchange();
-        
-        // Render return items
-        renderReturnItems(data.order.items);
 
-         window.currentExchangeDiscountPercent = data.order.discountPercent || 0;
+        // ✅ I-set MUNA ang discount info bago mag-render
+        window.currentExchangeDiscountPercent = data.order.discountPercent || 0;
+        window.currentExchangeDiscountInfo = {
+            manualPercent: data.order.manualDiscountPercent || 0,
+            discountType: data.order.discountType || 'None',
+            voucherCode: data.order.voucherCode || null,
+            voucherPercent: data.order.voucherDiscountPercent || 0
+        };
+
+        // Tapos saka mag-render
+        renderReturnItems(data.order.items);
+        
         
         // Reset replacement items display
         renderReplacementItems();
@@ -7023,6 +7077,28 @@ async function loadExchangeOrderItems() {
         console.error('Error:', error);
         await showAlert('Error loading order details', 'Error', '❌');
     }
+}
+
+function buildExchangeDiscountNote(grossLine) {
+    const info = window.currentExchangeDiscountInfo || {};
+    const mp = info.manualPercent || 0;
+    const vp = info.voucherPercent || 0;
+    let note = '';
+
+    const manualAmt = grossLine * mp;
+    const voucherAmt = (grossLine - manualAmt) * (vp / 100);
+
+    if (mp > 0) {
+        note += `<div style="font-size:11px; color:#dc3545; margin-top:2px;">
+                    ${escapeHtml(info.discountType)} ${(mp * 100).toFixed(0)}% (-₱${manualAmt.toFixed(2)})
+                 </div>`;
+    }
+    if (vp > 0 && info.voucherCode) {
+        note += `<div style="font-size:11px; color:#28a745; margin-top:2px;">
+                    Voucher ${escapeHtml(info.voucherCode)} ${vp}% (-₱${voucherAmt.toFixed(2)})
+                 </div>`;
+    }
+    return note;
 }
 
 async function loadAvailableProductsForExchange() {
@@ -7275,6 +7351,10 @@ function renderReplacementItems() {
         }
         let subtotal = (discountedPrice + addOnsSubtotal) * item.quantity;
 
+        let grossAddOns = (item.addOns || []).reduce((s, a) => s + a.price * a.quantity, 0);
+let grossLine = (item.price + grossAddOns) * item.quantity;
+let discountNoteHtml = buildExchangeDiscountNote(grossLine);
+
         html += `
             <div style="background: white; border: 1px solid #28a745; border-radius: 8px; padding: 8px 10px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
@@ -7282,10 +7362,11 @@ function renderReplacementItems() {
                         <div style="font-weight: 600; font-size: 12.5px; color: var(--ink-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                             ${escapeHtml(item.productName)}
                         </div>
-                        <div style="font-size: 11px; color: #28a745;">
-                            ${escapeHtml(item.sizeName)} · ₱${discountedPrice.toFixed(2)}
-                        </div>
-                        ${addOnsHtml}
+                                   <div style="font-size: 11px; color: #28a745;">
+                ${escapeHtml(item.sizeName)} · ₱${item.price.toFixed(2)}
+            </div>
+            ${addOnsHtml}
+            ${discountNoteHtml}
                     </div>
                     <div style="display: flex; align-items: center; gap: 4px;">
                         <button class="btn btn-sm btn-outline-secondary" onclick="updateReplaceQty(${index}, ${item.quantity - 1})" 
@@ -7345,6 +7426,11 @@ function renderReturnItems(items) {
         // addOnsTotal ay per item na ang computation
         let totalUnitPrice = item.price + (addOnsTotal / item.quantity); 
 
+        // Breakdown (gross = original price + add-ons, bago ang discount)
+let grossAddOns = (item.addOns || []).reduce((s, a) => s + a.price * a.quantity, 0);
+let grossLine = ((item.originalPrice !== undefined ? item.originalPrice : item.price) + grossAddOns) * item.quantity;
+let discountNoteHtml = buildExchangeDiscountNote(grossLine);
+
         html += `
             <div class="return-item-div" data-order-item-id="${item.orderItemId}" data-price="${totalUnitPrice}" data-max-qty="${item.quantity}" 
                  style="background: white; border: 1px solid #ffc107; border-radius: 8px; padding: 8px 10px;">
@@ -7360,9 +7446,10 @@ function renderReturnItems(items) {
                             ${escapeHtml(item.productName)}
                         </div>
                         <div style="font-size: 11px; color: #666;">
-                            ${escapeHtml(item.sizeName)} · ₱${item.price.toFixed(2)}
-                            ${addOnsHtml}
-                        </div>
+    ${escapeHtml(item.sizeName)} · ₱${(item.originalPrice !== undefined ? item.originalPrice : item.price).toFixed(2)}
+    ${addOnsHtml}
+</div>
+${discountNoteHtml}
                     </div>
                     <input type="number" class="form-control return-qty" 
                            data-id="${item.orderItemId}" 
@@ -7658,6 +7745,13 @@ function updateExchangeTotals() {
                         window.exchangeAdjustmentAmount = priceDiff;
                         window.exchangeNewOrderId = data.newOrderId;
 
+                         window.exchangeReturnedItems = itemsToReturn.map(i => ({
+        productName: i.productName, sizeName: i.sizeName, quantity: i.quantity
+    }));
+    window.exchangeReplacedItems = exchangeReplaceItemsData.map(i => ({
+        productName: i.productName, sizeName: i.sizeName, quantity: i.quantity
+    }));
+
                         // ✅ SHOW EXCHANGE SUMMARY MODAL
                         await showExchangeSummaryModal({
                             originalOrderId: currentExchangeOrderId,
@@ -7671,18 +7765,6 @@ function updateExchangeTotals() {
                             reason: reason,
                             exchangeMessage: data.message
                         });
-
-                        // ✅ BEFORE showing the receipt, store exchange metadata
-                        window.exchangeReturnedItems = itemsToReturn.map(i => ({
-                            productName: i.productName,
-                            sizeName: i.sizeName,
-                            quantity: i.quantity
-                        }));
-                        window.exchangeReplacedItems = exchangeReplaceItemsData.map(i => ({
-                            productName: i.productName,
-                            sizeName: i.sizeName,
-                            quantity: i.quantity
-                        }));
 
                         // ✅ RESET CART
                         cart = [];

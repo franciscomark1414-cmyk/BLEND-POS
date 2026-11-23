@@ -60,7 +60,9 @@ namespace Infoman.Controllers
             if (order == null)
                 return Json(new { success = false, message = "Order not found or not completed" });
 
-            decimal discountPercent = order.DiscountPercent;
+            // Senior/PWD + Voucher combined
+            decimal factor = (1 - order.DiscountPercent) * (1 - order.VoucherDiscountPercent / 100m);
+            decimal discountPercent = 1 - factor; // combined effective percent
 
             return Json(new
             {
@@ -71,7 +73,11 @@ namespace Infoman.Controllers
                     order.OrderNumber,
                     order.TotalAmount,
                     order.Date,
-                    discountPercent = discountPercent,  // ✅ ISAMA ANG DISCOUNT PERCENT
+                    discountPercent = discountPercent,
+                    manualDiscountPercent = order.DiscountPercent,
+                    discountType = order.DiscountType,
+                    voucherCode = order.VoucherCode,
+                    voucherDiscountPercent = order.VoucherDiscountPercent,
                     Items = order.Items.Where(i => !i.IsRefunded && !i.IsVoided).Select(i => new
                     {
                         i.OrderItemId,
@@ -79,8 +85,8 @@ namespace Infoman.Controllers
                         SizeName = i.ProductSize.SizeName,
                         i.Quantity,
                         OriginalPrice = i.Price,
-                        Price = discountPercent > 0 ? i.Price * (1 - discountPercent) : i.Price,  // ✅ ACTUAL PRICE
-                        Subtotal = (discountPercent > 0 ? i.Price * (1 - discountPercent) : i.Price) * i.Quantity,
+                        Price = Math.Round(i.Price * factor, 2),
+                        Subtotal = Math.Round(i.Price * factor, 2) * i.Quantity,
                         AddOns = i.AddOns.Select(a => new
                         {
                             a.AddOnId,

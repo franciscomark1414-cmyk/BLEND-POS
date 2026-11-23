@@ -371,6 +371,18 @@ namespace Infoman.Controllers
                     }
                 }
 
+                string joinedItemIds = string.Join(",", request.ItemIds);
+                bool hasDuplicate = await _db.PendingRequests.AnyAsync(r =>
+                    r.OrderId == request.OrderId &&
+                    r.RequestType == "REFUND" &&
+                    r.Status == "PENDING" &&
+                    r.ItemIds == joinedItemIds);
+
+                if (hasDuplicate)
+                {
+                    return Json(new { success = false, message = "There is already a pending refund request for this item.Please wait for the owner's approval." });
+                }
+
                 // ✅ 4. CREATE PENDING REQUEST (HINDI AUTO-APPROVE)
                 var pendingRequest = new PendingRequest
                 {

@@ -617,15 +617,35 @@ namespace Infoman.Service
         // Net na aktuwal na nabayad ng customer: PAID minus lahat ng dating REFUNDED (negative ang refund rows).
         private async Task<decimal> GetNetPaidAsync(int orderId)
         {
+            // ✅ 1. Kunin ang LAHAT ng payments (PAID, COMPLETED, atbp.) maliban sa refunds
             decimal paid = await _db.Payments
-                .Where(p => p.OrderId == orderId && p.Status == "PAID")
+                .Where(p => p.OrderId == orderId &&
+                           (p.Status == "PAID" || p.Status == "COMPLETED" || p.Status == "SUCCESS"))
                 .SumAsync(p => (decimal?)p.Amount) ?? 0;
 
             decimal refunded = await _db.Payments
                 .Where(p => p.OrderId == orderId && p.Status == "REFUNDED")
                 .SumAsync(p => (decimal?)p.Amount) ?? 0;
 
-            return Money(paid + refunded);
+            // ✅ 2. Kunin ang Store Credit mula sa Exchange (kung meron)
+            var exchangeInfo = await _db.ExchangeTransactions
+                .FirstOrDefaultAsync(e => e.OriginalOrderId == orderId);
+
+            decimal storeCredit = exchangeInfo?.TotalReturnedValue ?? 0;
+
+            // ✅ 3. Kung talagang 0 pa rin, gamitin ang OriginalTotalAmount ng order
+            decimal netPaid = paid + refunded + storeCredit;
+
+            if (netPaid <= 0)
+            {
+                var order = await _db.Orders.FindAsync(orderId);
+                if (order != null && order.OriginalTotalAmount > 0)
+                {
+                    netPaid = order.OriginalTotalAmount;
+                }
+            }
+
+            return Money(netPaid);
         }
 
         // Blended na ang order kapag may ProductionUsages rows na galing sa StartBlending.
@@ -909,6 +929,28 @@ namespace Infoman.Service
             await using var tx = await _db.Database.BeginTransactionAsync();
             try
             {
+                // ✅ 1. Kunin muna info ng request para may reference tayo
+                var reqInfo = await _db.PendingRequests.AsNoTracking()
+                    .FirstOrDefaultAsync(r => r.Id == requestId && r.RequestType == "REFUND" && r.Status == "PENDING");
+
+                if (reqInfo == null)
+                {
+                    await tx.RollbackAsync();
+                    return (false, "Request not found or already processed.");
+                }
+
+                // ✅ 2. AUTO-REJECT ANG MGA KAPAREHONG PENDING PARA HINDI MAGDOBLE
+                await _db.PendingRequests
+                    .Where(r => r.OrderId == reqInfo.OrderId &&
+                                r.ItemIds == reqInfo.ItemIds &&
+                                r.Id != requestId &&
+                                r.Status == "PENDING")
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(r => r.Status, "REJECTED")
+                        .SetProperty(r => r.RejectionReason, "Auto-rejected: Duplicate request approved.")
+                        .SetProperty(r => r.ApprovedAt, DateTime.Now));
+
+                // ✅ 3. I-CLAIM NA YUNG REQUEST
                 int claimed = await _db.PendingRequests
                     .Where(r => r.Id == requestId && r.RequestType == "REFUND" && r.Status == "PENDING")
                     .ExecuteUpdateAsync(s => s.SetProperty(r => r.Status, "APPROVED"));
@@ -972,12 +1014,25 @@ namespace Infoman.Service
      .ToList();
 
                 decimal grossTotal = allActiveItems.Sum(i =>
-                    (i.Price * i.Quantity) +
-                    (i.AddOns?.Sum(a => a.Price * a.Quantity * i.Quantity) ?? 0));
+     (i.Price * i.Quantity) +
+     (i.AddOns?.Sum(a => a.Price * a.Quantity * i.Quantity) ?? 0));
 
-                // Ito ang sasalo sa PWD/Senior at Voucher
+                // ✅ FIX: Kung 0 na ang TotalAmount dahil sa Exchange, 
+                // gamitin ang OriginalTotalAmount o yung StoreCreditApplied bilang basehan
+                decimal baseAmountForRefund = order.TotalAmount;
+                if (baseAmountForRefund == 0 && order.OriginalTotalAmount > 0)
+                {
+                    baseAmountForRefund = order.OriginalTotalAmount;
+                }
+                // Kung 0 pa rin, check kung may exchange transaction
+                if (baseAmountForRefund == 0)
+                {
+                    var ex = await _db.ExchangeTransactions.FirstOrDefaultAsync(e => e.OriginalOrderId == order.OrderId);
+                    if (ex != null) baseAmountForRefund = ex.TotalReturnedValue;
+                }
+
                 decimal effectiveRatio = grossTotal > 0
-                    ? order.TotalAmount / grossTotal
+                    ? baseAmountForRefund / grossTotal
                     : 1m;
 
                 decimal refund = 0;

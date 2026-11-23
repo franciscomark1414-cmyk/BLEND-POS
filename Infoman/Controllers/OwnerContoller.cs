@@ -2925,6 +2925,7 @@ namespace Infoman.Controllers
             pendingRequest.Status = "REJECTED";
             pendingRequest.ApprovedBy = userId;
             pendingRequest.ApprovedAt = DateTime.Now;
+            pendingRequest.RejectionReason = request.Reason ?? "Rejected by Owner"; // ✅ Idinagdag para may rason
 
             await _db.SaveChangesAsync();
 
@@ -4618,6 +4619,7 @@ namespace Infoman.Controllers
         public class RejectRequestRequest
         {
             public int RequestId { get; set; }
+            public string? Reason { get; set; }
         }
 
         // Request Models for Returns

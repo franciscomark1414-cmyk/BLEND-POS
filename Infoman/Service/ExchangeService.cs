@@ -421,6 +421,7 @@ namespace Infoman.Service
 
                 _db.ExchangeTransactions.Add(exchange);
                 // ✅ ISSUE 7: Create Payment record for additional payment
+                // ✅ I-handle ang Additional Payment (Kung mas mahal ang replacement)
                 if (adjustmentAmount > 0 && !string.IsNullOrEmpty(paymentMethodForDifference))
                 {
                     _db.Payments.Add(new Payment
@@ -430,6 +431,20 @@ namespace Infoman.Service
                         PaymentMethod = paymentMethodForDifference,
                         PaymentReference = $"EXPAY-{DateTime.Now:yyyyMMddHHmmss}-{newOrder.OrderId}",
                         Status = "PAID",
+                        PaymentDate = DateTime.Now,
+                        CreatedAt = DateTime.Now
+                    });
+                }
+                // ✅ IDAGDAG ITO: I-handle ang Change/Refund (Kung mas mura ang replacement)
+                else if (adjustmentAmount < 0)
+                {
+                    _db.Payments.Add(new Payment
+                    {
+                        OrderId = originalOrderId, // I-record sa ORIGINAL order kasi doon galing ang refund
+                        Amount = Math.Abs(adjustmentAmount), // Positive amount pero irerecord natin as REFUNDED
+                        PaymentMethod = "Store Credit", // O Cash kung binigay mo
+                        PaymentReference = $"EXCHANGE-REFUND-{DateTime.Now:yyyyMMddHHmmss}",
+                        Status = "REFUNDED",
                         PaymentDate = DateTime.Now,
                         CreatedAt = DateTime.Now
                     });

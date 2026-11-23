@@ -13659,31 +13659,43 @@ async function addAddOnIngredientRow(selectedData = null) {
 /* ===== AUTO-REFRESH PENDING RETURNS BADGE ===== */
 async function refreshReturnsBadge() {
     try {
+        // --- PART 1: Update Badge ---
         const res = await fetch('/Owner/GetPendingReturnsCount');
-        if (!res.ok) return;
-        const data = await res.json();
-        
-        const navItem = document.querySelector('.nav-item[data-tooltip="Returns"]');
-        if (!navItem) return;
-        
-        let badge = navItem.querySelector('.nav-badge');
-        const count = data.count || 0;
-        
-        if (count > 0) {
-            if (!badge) {
-                badge = document.createElement('span');
-                badge.className = 'nav-badge';
-                badge.id = 'returnsNavBadge';
-                navItem.appendChild(badge);
+        if (res.ok) {
+            const data = await res.json();
+            const navItem = document.querySelector('.nav-item[data-tooltip="Returns"]');
+            
+            if (navItem) {
+                let badge = navItem.querySelector('.nav-badge');
+                const count = data.count || 0;
+                
+                if (count > 0) {
+                    if (!badge) {
+                        badge = document.createElement('span');
+                        badge.className = 'nav-badge';
+                        badge.id = 'returnsNavBadge';
+                        navItem.appendChild(badge);
+                    }
+                    badge.textContent = count;
+                    document.title = `(${count}) Owner Dashboard`;
+                } else {
+                    if (badge) badge.remove();
+                    document.title = "Andeng's Mango & More - Owner Dashboard";
+                }
             }
-            badge.textContent = count;
-            document.title = `(${count}) Owner Dashboard`;
-        } else {
-            if (badge) badge.remove();
-            document.title = "Andeng's Mango & More - Owner Dashboard";
         }
+
+        // --- PART 2: Update Tables (Kung bukas ang Returns module) ---
+        const returnsModule = document.getElementById('returnsModule');
+        if (returnsModule && returnsModule.classList.contains('active')) {
+            // Siguraduhin na existing ang mga function bago tawagin para walang error
+            if (typeof loadPendingRequests === 'function') loadPendingRequests();
+            if (typeof loadRefundHistory === 'function') loadRefundHistory();
+            if (typeof loadVoidHistory === 'function') loadVoidHistory();
+        }
+
     } catch (e) {
-        // silent fail
+        console.error("Auto-refresh failed:", e);
     }
 }
 

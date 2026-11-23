@@ -365,6 +365,12 @@ namespace Infoman.Controllers
             if (ViewBag.SalesLabels == null) ViewBag.SalesLabels = new List<string>();
             if (ViewBag.SalesValues == null) ViewBag.SalesValues = new List<decimal>();
 
+            // ========== PENDING RETURNS COUNT (for sidebar badge) ==========
+            int pendingReturnsCount = await _db.PendingRequests
+                .CountAsync(r => r.Status == "PENDING");
+
+            ViewBag.PendingReturnsCount = pendingReturnsCount;
+
             return View(dashboardViewModel);
         }
 
@@ -4526,6 +4532,18 @@ namespace Infoman.Controllers
             {
                 return Json(new { success = false, message = ex.Message });
             }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetPendingReturnsCount()
+        {
+            if (!IsOwnerLoggedIn())
+                return Unauthorized();
+
+            int count = await _db.PendingRequests
+                .CountAsync(r => r.Status == "PENDING");
+
+            return Json(new { count });
         }
 
         // Request models

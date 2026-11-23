@@ -1619,6 +1619,38 @@ input[type="password"]::-webkit-textfield-decoration-container {
     display: none !important;
 }
 
+/* ========== SIDEBAR NAV BADGE (Pending Returns) ========== */
+.sidebar .nav-item .nav-badge {
+    margin-left: auto;
+    background: #dc3545;
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 999px;
+    line-height: 1.4;
+    min-width: 20px;
+    text-align: center;
+    box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.25);
+    animation: badgePulse 2s infinite;
+    flex-shrink: 0;
+}
+
+/* Position adjust kapag collapsed ang sidebar */
+html.sidebar-collapsed .sidebar .nav-item .nav-badge {
+    position: absolute;
+    top: 4px;
+    right: 8px;
+    font-size: 0.6rem;
+    padding: 1px 5px;
+    min-width: 16px;
+}
+
+@@keyframes badgePulse {
+    0%, 100% { box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.25); }
+    50%      { box-shadow: 0 0 0 5px rgba(220, 53, 69, 0.10); }
+}
+
     </style>
 
     <script>
@@ -1677,9 +1709,14 @@ input[type="password"]::-webkit-textfield-decoration-container {
         <div class="nav-item" data-tooltip="Delivery History" onclick="showModule('receivingHistory')">
             <i class="fas fa-history"></i><span class="nav-label">Delivery History</span>
         </div>
-        <div class="nav-item" data-tooltip="Returns" onclick="showModule('returns')">
-            <i class="fas fa-undo-alt"></i><span class="nav-label">Returns</span>
-        </div>
+       <div class="nav-item" data-tooltip="Returns" onclick="showModule('returns')">
+    <i class="fas fa-undo-alt"></i>
+    <span class="nav-label">Returns</span>
+    @if (ViewBag.PendingReturnsCount != null && ViewBag.PendingReturnsCount > 0)
+    {
+        <span class="nav-badge" id="returnsNavBadge">@ViewBag.PendingReturnsCount</span>
+    }
+</div>
         <div class="nav-item" data-tooltip="Alerts" onclick="showModule('inventoryAlerts')">
             <i class="fas fa-bell"></i><span class="nav-label">Alerts</span>
         </div>
@@ -13618,6 +13655,40 @@ async function addAddOnIngredientRow(selectedData = null) {
 
     recalcAddOnRecipeCost();
 }
+
+/* ===== AUTO-REFRESH PENDING RETURNS BADGE ===== */
+async function refreshReturnsBadge() {
+    try {
+        const res = await fetch('/Owner/GetPendingReturnsCount');
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        const navItem = document.querySelector('.nav-item[data-tooltip="Returns"]');
+        if (!navItem) return;
+        
+        let badge = navItem.querySelector('.nav-badge');
+        const count = data.count || 0;
+        
+        if (count > 0) {
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'nav-badge';
+                badge.id = 'returnsNavBadge';
+                navItem.appendChild(badge);
+            }
+            badge.textContent = count;
+            document.title = `(${count}) Owner Dashboard`;
+        } else {
+            if (badge) badge.remove();
+            document.title = "Andeng's Mango & More - Owner Dashboard";
+        }
+    } catch (e) {
+        // silent fail
+    }
+}
+
+// I-run every 30s (only if module is loaded)
+setInterval(refreshReturnsBadge, 30000);
 
 function onAddOnMaterialChange(selectEl) {
     const row = selectEl.closest('.ingredient-row');

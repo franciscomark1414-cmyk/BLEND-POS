@@ -78,23 +78,25 @@ namespace Infoman.Controllers
                     discountType = order.DiscountType,
                     voucherCode = order.VoucherCode,
                     voucherDiscountPercent = order.VoucherDiscountPercent,
-                    Items = order.Items.Where(i => !i.IsRefunded && !i.IsVoided).Select(i => new
-                    {
-                        i.OrderItemId,
-                        ProductName = i.Product.Name,
-                        SizeName = i.ProductSize.SizeName,
-                        i.Quantity,
-                        OriginalPrice = i.Price,
-                        Price = Math.Round(i.Price * factor, 2),
-                        Subtotal = Math.Round(i.Price * factor, 2) * i.Quantity,
-                        AddOns = i.AddOns.Select(a => new
-                        {
-                            a.AddOnId,
-                            a.AddOnName,
-                            a.Price,
-                            a.Quantity
-                        }).ToList()
-                    })
+                    Items = order.Items
+    .Where(i => !i.IsRefunded && !i.IsVoided && (i.Quantity - (i.QuantityExchanged ?? 0)) > 0)
+    .Select(i => new
+    {
+        i.OrderItemId,
+        ProductName = i.Product.Name,
+        SizeName = i.ProductSize.SizeName,
+        Quantity = i.Quantity - (i.QuantityExchanged ?? 0),
+        OriginalPrice = i.Price,
+        Price = Math.Round(i.Price * factor, 2),
+        Subtotal = Math.Round(i.Price * factor, 2) * (i.Quantity - (i.QuantityExchanged ?? 0)),
+        AddOns = i.AddOns.Select(a => new
+        {
+            a.AddOnId,
+            a.AddOnName,
+            a.Price,
+            a.Quantity
+        }).ToList()
+    })
                 }
             });
         }

@@ -3860,7 +3860,25 @@ if (window.receiptVoucher) {
 }
 
 let cashReceivedHtml = '';
-if (window.receiptCash && window.receiptCash.received > 0) {
+if (window.receiptExchangeCash && window.receiptExchangeCash.received > 0) {
+    // ✅ EXCHANGE: ang binayaran lang ay ang difference
+    const cash = window.receiptExchangeCash.received;
+    const due = window.receiptExchangeCash.amountDue;
+    const change = Math.round((cash - due) * 100) / 100;
+    cashReceivedHtml = `
+        <div class="receipt-subtotal" style="margin-top:8px; border-top:1px dashed #ccc; padding-top:8px;">
+            <span>Additional Payment Due:</span>
+            <span>₱${due.toFixed(2)}</span>
+        </div>
+        <div class="receipt-subtotal">
+            <span>Cash Received:</span>
+            <span>₱${cash.toFixed(2)}</span>
+        </div>
+        <div class="receipt-subtotal" style="font-weight:bold; color:#28a745;">
+            <span>Change:</span>
+            <span>₱${change.toFixed(2)}</span>
+        </div>`;
+} else if (window.receiptCash && window.receiptCash.received > 0) {
     const cash = window.receiptCash.received;
     const change = cash - total;
     cashReceivedHtml = `
@@ -7445,17 +7463,24 @@ let discountNoteHtml = buildExchangeDiscountNote(grossLine);
                         <div style="font-weight: 600; font-size: 12.5px; color: var(--ink-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                             ${escapeHtml(item.productName)}
                         </div>
-                        <div style="font-size: 11px; color: #666;">
+                      <div style="font-size: 11px; color: #666;">
     ${escapeHtml(item.sizeName)} · ₱${(item.originalPrice !== undefined ? item.originalPrice : item.price).toFixed(2)}
     ${addOnsHtml}
 </div>
+<div style="font-size: 11px; font-weight: 700; color: #0369a1; margin-top: 2px;">
+    Purchased: ${item.quantity} pc${item.quantity > 1 ? 's' : ''}
+</div>
 ${discountNoteHtml}
                     </div>
-                    <input type="number" class="form-control return-qty" 
-                           data-id="${item.orderItemId}" 
-                           style="width: 60px; padding: 4px 6px; font-size: 12px; text-align: center;" 
-                           min="0" max="${item.quantity}" value="1" disabled 
-                           onchange="updateExchangeSummary()" onkeyup="updateExchangeSummary()">
+                    <div style="display:flex; align-items:center; gap:4px; flex-shrink:0;">
+    <input type="number" class="form-control return-qty"
+           data-id="${item.orderItemId}"
+           style="width: 56px; padding: 4px 6px; font-size: 12px; text-align: center;"
+           min="0" max="${item.quantity}" value="1" disabled
+           oninput="clampReturnQty(this)"
+           onchange="clampReturnQty(this)">
+    <span style="font-size:11px; color:#64748b; font-weight:600;">/ ${item.quantity}</span>
+</div>
                 </div>
             </div>
         `;
@@ -7465,6 +7490,26 @@ ${discountNoteHtml}
     container.innerHTML = html;
     updateExchangeSummary();
 }
+
+
+            function clampReturnQty(input) {
+                const max = parseInt(input.max, 10) || 1;
+                let val = parseInt(input.value, 10);
+
+                if (input.value === '') {
+                    // Hayaang mag-type, pero huwag munang i-compute
+                    updateExchangeSummary();
+                    return;
+                }
+
+                if (isNaN(val) || val < 1) val = 1;
+                if (val > max) {
+                    val = max;
+                    showAlert(`Maximum is ${max}. Only ${max} was purchased in this order.`, 'Limit Reached', '⚠️');
+                }
+                input.value = val;
+                updateExchangeSummary();
+            }
 
 function toggleReturnItem(checkbox) {
     const itemDiv = checkbox.closest('.return-item-div');
@@ -7720,6 +7765,19 @@ function updateExchangeTotals() {
                     useStoreCredit: false,
                     paymentForDifference: exchangePaymentMethod
                 };
+                // ✅ SUMMARY + CASH MUNA, BAGO MAG-PROCESS
+                const summary = await showExchangeSummaryModal({
+                    originalOrderId: currentExchangeOrderId,
+                    itemsReturned: itemsToReturn,
+                    itemsReplaced: exchangeReplaceItemsData,
+                    returnTotal: returnTotal,
+                    replaceTotal: replaceTotal,
+                    priceDiff: priceDiff,
+                    paymentMethod: exchangePaymentMethod,
+                    reason: reason
+                });
+
+                if (!summary.confirmed) return; // Cancel = walang nangyari
 
                 showLoading('Processing exchange...');
 
@@ -7738,60 +7796,56 @@ function updateExchangeTotals() {
                     hideLoading();
 
                     if (data.success) {
-                        // ✅ SET FLAGS FOR EXCHANGE INFO IN RECEIPT
+                        // Flags para sa receipt
                         window.isExchangeReplacement = true;
                         window.exchangeOriginalOrderId = currentExchangeOrderId;
                         window.exchangeStoreCreditApplied = returnTotal;
                         window.exchangeAdjustmentAmount = priceDiff;
                         window.exchangeNewOrderId = data.newOrderId;
+                        window.exchangeReturnedItems = itemsToReturn.map(i => ({
+                            productName: i.productName, sizeName: i.sizeName, quantity: i.quantity
+                        }));
+                        window.exchangeReplacedItems = exchangeReplaceItemsData.map(i => ({
+                            productName: i.productName, sizeName: i.sizeName, quantity: i.quantity
+                        }));
 
-                         window.exchangeReturnedItems = itemsToReturn.map(i => ({
-        productName: i.productName, sizeName: i.sizeName, quantity: i.quantity
-    }));
-    window.exchangeReplacedItems = exchangeReplaceItemsData.map(i => ({
-        productName: i.productName, sizeName: i.sizeName, quantity: i.quantity
-    }));
+                        // ✅ I-set ang cash para sa exchange receipt (kung may binayaran)
+                        window.receiptExchangeCash = (priceDiff > 0 && summary.cashReceived > 0)
+                            ? { received: summary.cashReceived, amountDue: priceDiff }
+                            : null;
 
-                        // ✅ SHOW EXCHANGE SUMMARY MODAL
-                        await showExchangeSummaryModal({
-                            originalOrderId: currentExchangeOrderId,
-                            newOrderId: data.newOrderId,
-                            itemsReturned: itemsToReturn,
-                            itemsReplaced: exchangeReplaceItemsData,
-                            returnTotal: returnTotal,
-                            replaceTotal: replaceTotal,
-                            priceDiff: priceDiff,
-                            paymentMethod: exchangePaymentMethod,
-                            reason: reason,
-                            exchangeMessage: data.message
-                        });
-
-                        // ✅ RESET CART
-                        cart = [];
-                        currentCartTotal = 0;
-                        currentDiscountedTotal = 0;
-                        updateCartDisplay();
-
-                        // Close the exchange modal
                         closeVoidRefundModal();
 
-                        // Reset exchange data
+                        // Reset exchange form
                         exchangeReplaceItemsData = [];
                         selectedExchangePayment = null;
                         document.getElementById('exchangeOrderSelect').value = '';
                         document.getElementById('exchangeReturnItems').innerHTML = '<div class="text-muted text-center" style="padding: 20px;">Select an order first</div>';
                         renderReplacementItems();
                         updateExchangeSummary();
-
-                        // Reset payment button highlights
                         document.querySelectorAll('#exchangeTabContent .exchange-payment-btn').forEach(btn => {
                             btn.style.background = 'white';
                             btn.style.color = '#333';
                         });
 
-                        // Refresh orders queue
-                        await loadOrderQueue();
+                        // ✅ Ibinalik: reset ng cart
+                        cart = [];
+                        currentCartTotal = 0;
+                        currentDiscountedTotal = 0;
+                        updateCartDisplay();
 
+                        // Show receipt ng bagong order
+                        await showReceiptPopup(data.newOrderId);
+
+                        // Linisin ang flags pagkatapos mag-render ng receipt
+                        window.receiptExchangeCash = null;
+                        window.isExchangeReplacement = false;
+                        window.exchangeOriginalOrderId = null;
+                        window.exchangeStoreCreditApplied = null;
+                        window.exchangeAdjustmentAmount = null;
+                        window.exchangeNewOrderId = null;
+
+                        await loadOrderQueue();
                     } else {
                         await showAlert('❌ ' + data.message, 'Exchange Failed', '❌');
                     }
@@ -7802,164 +7856,151 @@ function updateExchangeTotals() {
                 }
             }
 async function showExchangeSummaryModal(data) {
-    return new Promise(async (resolve) => {
-        // Compute totals
+    return new Promise((resolve) => {
         const returnTotal = data.returnTotal || 0;
         const replaceTotal = data.replaceTotal || 0;
-        const priceDiff = data.priceDiff || (replaceTotal - returnTotal);
-        
-        // Determine if customer pays or gets money back
+        const priceDiff = Math.round((data.priceDiff ?? (replaceTotal - returnTotal)) * 100) / 100;
         const isCustomerPays = priceDiff > 0;
         const amountToSettle = Math.abs(priceDiff);
-        
-        // Simple items display
+        const discountPercent = window.currentExchangeDiscountPercent || 0;
+
         let returnedItemsHtml = '';
         data.itemsReturned.forEach(item => {
-            returnedItemsHtml += `<div style="display: flex; justify-content: space-between; padding: 5px 0;">
+            returnedItemsHtml += `<div style="display:flex; justify-content:space-between; padding:5px 0;">
                 <span>${item.quantity}x ${escapeHtml(item.productName)} (${escapeHtml(item.sizeName)})</span>
-                <span style="color: #dc3545;">-₱${(item.price * item.quantity).toFixed(2)}</span>
+                <span style="color:#dc3545;">-₱${(item.price * item.quantity).toFixed(2)}</span>
             </div>`;
         });
-        
-       let replacedItemsHtml = '';
-data.itemsReplaced.forEach(item => {
-    let discountPercent = window.currentExchangeDiscountPercent || 0;
-    let basePrice = item.price * (1 - discountPercent);
-    
-    let addOnsTotal = 0;
-    let addOnsHtml = '';
-    if (item.addOns && Array.isArray(item.addOns)) {
-        addOnsHtml = item.addOns.map(a => {
-            let addOnPrice = a.price * (1 - discountPercent);
-            addOnsTotal += (addOnPrice * a.quantity);
-            return `<div style="font-size: 11px; color: #666; padding-left: 15px;">+ ${a.addOnName} (₱${addOnPrice.toFixed(2)})</div>`;
-        }).join('');
-    }
 
-    let totalItemPrice = (basePrice + addOnsTotal) * item.quantity;
-    
-    replacedItemsHtml += `<div style="display: flex; justify-content: space-between; padding: 5px 0;">
-        <div>
-            <span>${item.quantity}x ${escapeHtml(item.productName)} (${escapeHtml(item.sizeName)})</span>
-            ${addOnsHtml}
-        </div>
-        <span style="color: #28a745;">+₱${totalItemPrice.toFixed(2)}</span>
-    </div>`;
-});
-        
+        let replacedItemsHtml = '';
+        data.itemsReplaced.forEach(item => {
+            let basePrice = item.price * (1 - discountPercent);
+            let addOnsTotal = 0;
+            let addOnsHtml = '';
+            if (item.addOns && Array.isArray(item.addOns)) {
+                addOnsHtml = item.addOns.map(a => {
+                    let addOnPrice = a.price * (1 - discountPercent);
+                    addOnsTotal += addOnPrice * a.quantity;
+                    return `<div style="font-size:11px; color:#666; padding-left:15px;">+ ${escapeHtml(a.addOnName)} (₱${addOnPrice.toFixed(2)})</div>`;
+                }).join('');
+            }
+            let totalItemPrice = (basePrice + addOnsTotal) * item.quantity;
+            replacedItemsHtml += `<div style="display:flex; justify-content:space-between; padding:5px 0;">
+                <div>
+                    <span>${item.quantity}x ${escapeHtml(item.productName)} (${escapeHtml(item.sizeName)})</span>
+                    ${addOnsHtml}
+                </div>
+                <span style="color:#28a745;">+₱${totalItemPrice.toFixed(2)}</span>
+            </div>`;
+        });
+
+        // ✅ CASH SECTION: lalabas lang kapag may babayaran
+        const cashSectionHtml = isCustomerPays ? `
+            <div style="margin-bottom:15px;">
+                <label style="font-weight:700; font-size:12px; text-transform:uppercase; color:#64748b; display:block; margin-bottom:6px;">Cash Received</label>
+                <input type="number" id="exchangeCashReceived" step="0.01" min="0" placeholder="₱0.00"
+                       style="width:100%; padding:12px; font-size:18px; font-weight:700; text-align:right; border:1.5px solid #e2e8f0; border-radius:10px;">
+                <div style="display:flex; justify-content:space-between; margin-top:8px; padding:8px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px;">
+                    <span style="font-size:12px; font-weight:700; color:#64748b;">Change:</span>
+                    <span id="exchangeChangeDisplay" style="font-weight:800; font-size:18px; color:#16a34a;">₱0.00</span>
+                </div>
+            </div>` : '';
+
         const modalHtml = `
-            <div id="exchangeSummaryModal" class="modal-qty" style="display: flex; z-index: 10050;">
-                <div class="modal-qty-content" style="width: 400px; max-width: 90%; border-radius: 16px; padding: 0;">
-                    <!-- Header -->
-                    <div style="background: #17a2b8; color: white; padding: 15px 20px; border-radius: 16px 16px 0 0;">
-                        <h3 style="margin: 0; font-size: 18px; display: flex; align-items: center; gap: 10px;">
-                            <i class="fas fa-exchange-alt"></i> Exchange Summary
-                        </h3>
+            <div id="exchangeSummaryModal" class="modal-qty" style="display:flex; z-index:10050;">
+                <div class="modal-qty-content" style="width:400px; max-width:90%; border-radius:16px; padding:0;">
+                    <div style="background:#17a2b8; color:white; padding:15px 20px; border-radius:16px 16px 0 0;">
+                        <h3 style="margin:0; font-size:18px;"><i class="fas fa-exchange-alt"></i> Exchange Summary</h3>
                     </div>
-                    
-                    <!-- Body -->
-                    <div style="padding: 20px;">
-                        <!-- Items Returned -->
-                        <div style="margin-bottom: 15px;">
-                            <div style="font-weight: bold; color: #dc3545; margin-bottom: 8px;">
-                                📦 Items Returned <span style="font-size: 12px;">(Refund)</span>
-                            </div>
-                            <div style="background: #fff5f5; border-radius: 8px; padding: 8px;">
+                    <div style="padding:20px; max-height:75vh; overflow-y:auto;">
+                        <div style="margin-bottom:15px;">
+                            <div style="font-weight:bold; color:#dc3545; margin-bottom:8px;">📦 Items Returned <span style="font-size:12px;">(Refund)</span></div>
+                            <div style="background:#fff5f5; border-radius:8px; padding:8px;">
                                 ${returnedItemsHtml}
-                                <div style="border-top: 1px solid #f0c0c0; margin-top: 5px; padding-top: 5px; font-weight: bold; display: flex; justify-content: space-between;">
-                                    <span>Total Refund:</span>
-                                    <span style="color: #dc3545;">-₱${returnTotal.toFixed(2)}</span>
+                                <div style="border-top:1px solid #f0c0c0; margin-top:5px; padding-top:5px; font-weight:bold; display:flex; justify-content:space-between;">
+                                    <span>Total Refund:</span><span style="color:#dc3545;">-₱${returnTotal.toFixed(2)}</span>
                                 </div>
                             </div>
                         </div>
-                        
-                        <!-- Replacement Items -->
-                        <div style="margin-bottom: 15px;">
-                            <div style="font-weight: bold; color: #28a745; margin-bottom: 8px;">
-                                🆕 Replacement Items
-                            </div>
-                            <div style="background: #f0fff4; border-radius: 8px; padding: 8px;">
+                        <div style="margin-bottom:15px;">
+                            <div style="font-weight:bold; color:#28a745; margin-bottom:8px;">🆕 Replacement Items</div>
+                            <div style="background:#f0fff4; border-radius:8px; padding:8px;">
                                 ${replacedItemsHtml}
-                                <div style="border-top: 1px solid #c0e0c0; margin-top: 5px; padding-top: 5px; font-weight: bold; display: flex; justify-content: space-between;">
-                                    <span>Total Amount:</span>
-                                    <span style="color: #28a745;">+₱${replaceTotal.toFixed(2)}</span>
+                                <div style="border-top:1px solid #c0e0c0; margin-top:5px; padding-top:5px; font-weight:bold; display:flex; justify-content:space-between;">
+                                    <span>Total Amount:</span><span style="color:#28a745;">+₱${replaceTotal.toFixed(2)}</span>
                                 </div>
                             </div>
                         </div>
-                        
-                        <!-- Difference / Settlement -->
-                        <div style="background: ${isCustomerPays ? '#fff3cd' : '#d1ecf1'}; border-radius: 12px; padding: 12px; margin: 15px 0; text-align: center;">
-                            <div style="font-size: 14px; margin-bottom: 5px;">
-                                ${isCustomerPays ? '💰 CUSTOMER NEEDS TO PAY' : '💰 CUSTOMER GETS BACK'}
-                            </div>
-                            <div style="font-size: 28px; font-weight: bold; ${isCustomerPays ? 'color: #dc3545;' : 'color: #28a745;'}">
-                                ₱${amountToSettle.toFixed(2)}
-                            </div>
-                            ${data.paymentMethod ? `<div style="font-size: 12px; margin-top: 5px;">Payment: ${data.paymentMethod}</div>` : ''}
-                            ${data.priceDiff === 0 ? '<div style="font-size: 12px;">No additional payment needed</div>' : ''}
+                        <div style="background:${isCustomerPays ? '#fff3cd' : '#d1ecf1'}; border-radius:12px; padding:12px; margin:15px 0; text-align:center;">
+                            <div style="font-size:14px; margin-bottom:5px;">${isCustomerPays ? '💰 CUSTOMER NEEDS TO PAY' : '💰 CUSTOMER GETS BACK'}</div>
+                            <div style="font-size:28px; font-weight:bold; color:${isCustomerPays ? '#dc3545' : '#28a745'};">₱${amountToSettle.toFixed(2)}</div>
+                            ${data.paymentMethod ? `<div style="font-size:12px; margin-top:5px;">Payment: ${data.paymentMethod}</div>` : ''}
+                            ${priceDiff === 0 ? '<div style="font-size:12px;">No additional payment needed</div>' : ''}
                         </div>
-                        
-                        <!-- Reason -->
-                        <div style="background: #e9ecef; border-radius: 8px; padding: 8px; margin-bottom: 15px;">
-                            <div style="font-size: 12px;">
-                                <i class="fas fa-comment"></i> <strong>Reason:</strong> ${escapeHtml(data.reason)}
-                            </div>
+                        ${cashSectionHtml}
+                        <div style="background:#e9ecef; border-radius:8px; padding:8px; margin-bottom:15px;">
+                            <div style="font-size:12px;"><i class="fas fa-comment"></i> <strong>Reason:</strong> ${escapeHtml(data.reason)}</div>
                         </div>
-                        
-                        <!-- Action Buttons -->
-                        <div style="display: flex; gap: 12px; margin-top: 10px;">
-                            <button id="exchangeSummaryCancelBtn" class="btn-cancel" style="flex: 1; padding: 10px; border-radius: 8px; background: #6c757d; color: white; border: none; cursor: pointer;">
-                                Cancel
-                            </button>
-                            <button id="exchangeSummaryConfirmBtn" class="btn-confirm" style="flex: 1; padding: 10px; border-radius: 8px; background: #28a745; color: white; border: none; cursor: pointer; font-weight: bold;">
-                                ✅ Confirm Exchange
-                            </button>
+                        <div style="display:flex; gap:12px;">
+                            <button id="exchangeSummaryCancelBtn" class="btn-cancel" style="flex:1; padding:10px; border-radius:8px; border:none; cursor:pointer;">Cancel</button>
+                            <button id="exchangeSummaryConfirmBtn" class="btn-confirm" style="flex:1; padding:10px; border-radius:8px; border:none; cursor:pointer; font-weight:bold;">✅ Confirm Exchange</button>
                         </div>
                     </div>
                 </div>
-            </div>
-        `;
-        
-        // Remove existing modal if any
-        const existingModal = document.getElementById('exchangeSummaryModal');
-        if (existingModal) existingModal.remove();
-        
+            </div>`;
+
+        const existing = document.getElementById('exchangeSummaryModal');
+        if (existing) existing.remove();
         document.body.insertAdjacentHTML('beforeend', modalHtml);
-        
-        // Handle Cancel button
-        const cancelBtn = document.getElementById('exchangeSummaryCancelBtn');
-        if (cancelBtn) {
-            cancelBtn.onclick = () => {
-                closeExchangeSummaryModal();
-                resolve(false);
-            };
-        }
-        
-        // Handle Confirm button
-        const confirmBtn = document.getElementById('exchangeSummaryConfirmBtn');
-        if (confirmBtn) {
-            confirmBtn.onclick = async () => {
-                closeExchangeSummaryModal();
-                
-                // Show receipt for the new order
-                if (window.exchangeNewOrderId) {
-                    await showReceiptPopup(window.exchangeNewOrderId);
+
+        const cashInput = document.getElementById('exchangeCashReceived');
+        const changeEl = document.getElementById('exchangeChangeDisplay');
+
+        if (cashInput) {
+            cashInput.focus();
+            cashInput.addEventListener('input', () => {
+                if (cashInput.value === '') {
+                    changeEl.innerText = '₱0.00';
+                    changeEl.style.color = '#16a34a';
+                    return;
                 }
-                
-                // Reset cart
-                cart = [];
-                updateCartDisplay();
-                
-                // Reset exchange flags
-                window.isExchangeReplacement = false;
-                window.exchangeOriginalOrderId = null;
-                window.exchangeStoreCreditApplied = null;
-                window.exchangeAdjustmentAmount = null;
-                window.exchangeNewOrderId = null;
-                
-                resolve(true);
-            };
+                const cash = parseFloat(cashInput.value) || 0;
+                const change = Math.round((cash - amountToSettle) * 100) / 100;
+                if (change < 0) {
+                    changeEl.innerText = `Short by ₱${Math.abs(change).toFixed(2)}`;
+                    changeEl.style.color = '#dc2626';
+                } else {
+                    changeEl.innerText = `₱${change.toFixed(2)}`;
+                    changeEl.style.color = '#16a34a';
+                }
+            });
         }
+
+        document.getElementById('exchangeSummaryCancelBtn').onclick = () => {
+            closeExchangeSummaryModal();
+            resolve({ confirmed: false });
+        };
+
+        document.getElementById('exchangeSummaryConfirmBtn').onclick = async () => {
+            let cashReceived = 0;
+
+            if (isCustomerPays) {
+                cashReceived = cashInput ? parseFloat(cashInput.value) || 0 : 0;
+                if (cashReceived <= 0) {
+                    await showAlert('Please enter the cash received amount.', 'Required', '⚠️');
+                    if (cashInput) cashInput.focus();
+                    return;
+                }
+                if (Math.round(cashReceived * 100) < Math.round(amountToSettle * 100)) {
+                    await showAlert(`Insufficient cash! Kulang ng ₱${(amountToSettle - cashReceived).toFixed(2)}.`, 'Insufficient Amount', '❌');
+                    if (cashInput) cashInput.focus();
+                    return;
+                }
+            }
+
+            closeExchangeSummaryModal();
+            resolve({ confirmed: true, cashReceived: cashReceived });
+        };
     });
 }
 

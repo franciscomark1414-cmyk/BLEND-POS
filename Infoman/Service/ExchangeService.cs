@@ -59,6 +59,32 @@ namespace Infoman.Service
                     return (false, "One or more items do not belong to the original order.", 0);
                 }
 
+                // ✅ Validate quantity: hindi lalampas sa binili, at hindi pwedeng duplicate ang item
+                if (itemsToReturn.Select(i => i.OrderItemId).Distinct().Count() != itemsToReturn.Count)
+                {
+                    await transaction.RollbackAsync();
+                    return (false, "Duplicate items in return list.", 0);
+                }
+
+                foreach (var req in itemsToReturn)
+                {
+                    var dbItem = validItems.First(v => v.OrderItemId == req.OrderItemId);
+                    int alreadyExchanged = dbItem.QuantityExchanged ?? 0;
+                    int available = dbItem.Quantity - alreadyExchanged;
+
+                    if (req.Quantity <= 0)
+                    {
+                        await transaction.RollbackAsync();
+                        return (false, "Return quantity must be at least 1.", 0);
+                    }
+
+                    if (req.Quantity > available)
+                    {
+                        await transaction.RollbackAsync();
+                        return (false, $"Cannot return {req.Quantity}. Only {available} left to exchange for this item.", 0);
+                    }
+                }
+
                 var allActiveItemIds = await _db.OrderItems
                     .Where(oi => oi.OrderId == originalOrderId && !oi.IsVoided && !oi.IsRefunded)
                     .Select(oi => oi.OrderItemId)
@@ -167,7 +193,7 @@ namespace Infoman.Service
                     }
 
                     orderItem.IsExchanged = true;
-                    orderItem.QuantityExchanged = returnItem.Quantity;
+                    orderItem.QuantityExchanged = (orderItem.QuantityExchanged ?? 0) + returnItem.Quantity;
                 }
 
                 // STEP 2: Mark original order

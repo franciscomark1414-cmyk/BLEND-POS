@@ -137,12 +137,8 @@ namespace Infoman.Controllers
 
             // ========== CRITICAL STOCK ALERT ==========
             // ✅ GAMITIN ANG MinQtyInBaseUnit PARA TUGMA SA STOCK (BASE UNIT)
-            int criticalStockCount = await _db.RawMaterials
-     .Where(r => !r.IsDeleted)
-     .Where(r => (_db.RawMaterialBatches
-         .Where(b => b.RawMaterialId == r.RawMaterialId)
-         .Sum(b => (decimal?)b.QuantityRemaining) ?? 0) <= r.MinQtyInBaseUnit)
-     .CountAsync();
+            var lowStockRows = await GetLowStockRowsAsync();
+            int criticalStockCount = lowStockRows.Count;
             ViewBag.CriticalStockCount = criticalStockCount;
 
             // ========== EXPIRING SOON (from BATCHES) ==========
@@ -376,12 +372,14 @@ namespace Infoman.Controllers
 
 
 
-        public IActionResult LowStockRawMaterials()
+        public async Task<IActionResult> LowStockRawMaterials()
         {
-            // ✅ GAMITIN ANG MinQtyInBaseUnit
-            var lowStockMaterials = _db.RawMaterials
-                .Where(c => !c.IsDeleted && c.Stock <= c.MinQtyInBaseUnit)
-                .ToList();
+            var lowStockRows = await GetLowStockRowsAsync();
+            var ids = lowStockRows.Select(r => r.RawMaterialId).ToList();
+
+            var lowStockMaterials = await _db.RawMaterials
+                .Where(r => ids.Contains(r.RawMaterialId))
+                .ToListAsync();
 
             return View(lowStockMaterials);
         }
@@ -1332,52 +1330,27 @@ namespace Infoman.Controllers
         {
             var today = DateTime.Today;
 
-            var allMaterials = await _db.RawMaterials
-                .Include(r => r.CategoryInfo)
-                .Where(r => !r.IsDeleted)
-                .ToListAsync();
-
-            // ========== LOW STOCK ITEMS ==========
             var lowStockItems = new List<object>();
-
-            foreach (var r in allMaterials)
+            foreach (var r in await GetLowStockRowsAsync())
             {
-                // Compute total stock from batches (in base unit)
-                decimal totalStockInBaseUnit = await _db.RawMaterialBatches
-                    .Where(b => b.RawMaterialId == r.RawMaterialId)
-                    .SumAsync(b => (decimal?)b.QuantityRemaining) ?? 0;
+                bool divide = (r.BaseUnit == "g" && r.Unit == "kg") || (r.BaseUnit == "mL" && r.Unit == "L");
+                decimal stock = divide ? r.StockInBaseUnit / 1000 : r.StockInBaseUnit;
+                decimal min = divide ? r.MinQtyInBaseUnit / 1000 : r.MinQtyInBaseUnit;
+                bool isNoStock = r.StockInBaseUnit <= 0;
 
-                // Convert to display unit for comparison
-                decimal totalStockInDisplayUnit = totalStockInBaseUnit;
-                decimal minQtyInDisplayUnit = r.MinQtyInBaseUnit;
-
-                if ((r.BaseUnit == "g" && r.Unit == "kg") || (r.BaseUnit == "mL" && r.Unit == "L"))
+                lowStockItems.Add(new
                 {
-                    totalStockInDisplayUnit = totalStockInBaseUnit / 1000;
-                    minQtyInDisplayUnit = r.MinQtyInBaseUnit / 1000;
-                }
-
-                bool isNoStock = totalStockInDisplayUnit < 0.001m;
-                bool isLowStock = totalStockInDisplayUnit <= minQtyInDisplayUnit && totalStockInDisplayUnit >= 0.001m;
-
-                if (isNoStock || isLowStock)
-                {
-                    lowStockItems.Add(new
-                    {
-                        r.RawMaterialId,
-                        r.Name,
-                        Category = r.CategoryInfo?.Name ?? "Uncategorized",
-                        Stock = totalStockInDisplayUnit,
-                        MinQty = minQtyInDisplayUnit,
-                        r.Unit,
-                        StockWithUnit = $"{totalStockInDisplayUnit:F2} {r.Unit}",
-                        MinQtyWithUnit = $"{minQtyInDisplayUnit:F2} {r.Unit}",
-                        Status = isNoStock ? "No Stock" : "Low Stock"
-                    });
-                }
-            }  // ← DITO TAPOS ANG FOREACH LOOP!
-
-            // ✅ ITO NASA LABAS NA NG LOOP
+                    r.RawMaterialId,
+                    r.Name,
+                    r.Category,
+                    Stock = stock,
+                    MinQty = min,
+                    r.Unit,
+                    StockWithUnit = $"{stock:F2} {r.Unit}",
+                    MinQtyWithUnit = $"{min:F2} {r.Unit}",
+                    Status = isNoStock ? "No Stock" : "Low Stock"
+                });
+            }
             int lowStockCount = lowStockItems.Count;
 
             // ========== EXPIRING SOON ==========
@@ -1500,8 +1473,18 @@ namespace Infoman.Controllers
                 else if (material.Unit == "L" && material.BaseUnit == "mL")
                     quantityInBaseUnit = model.Quantity * 1000;
 
-                if (material.Stock < quantityInBaseUnit)
-                    return Json(new { success = false, message = $"Insufficient stock. Only {material.Stock / 1000} {material.Unit} available." });
+                decimal availableBase = await _db.RawMaterialBatches
+     .Where(b => b.RawMaterialId == model.RawMaterialId)
+     .SumAsync(b => (decimal?)b.QuantityRemaining) ?? 0;
+
+                if (availableBase < quantityInBaseUnit)
+                {
+                    bool divide = (material.BaseUnit == "g" && material.Unit == "kg") ||
+                                  (material.BaseUnit == "mL" && material.Unit == "L");
+                    decimal availableDisplay = divide ? availableBase / 1000 : availableBase;
+
+                    return Json(new { success = false, message = $"Insufficient stock. Only {availableDisplay:F2} {material.Unit} available." });
+                }
 
                 // ✅ GET ALL BATCHES (FEFO: earliest expiry first)
                 var batches = await _db.RawMaterialBatches
@@ -1558,9 +1541,8 @@ namespace Infoman.Controllers
                     totalCost += remainingInDisplayUnit * currentPrice;
                 }
 
-                // ✅ UPDATE MAIN STOCK
-                material.Stock -= quantityInBaseUnit;
                 await _db.SaveChangesAsync();
+                await UpdateStockFromBatches(model.RawMaterialId);
 
                 // ✅ CREATE WASTE LOG - STORE IN BASE UNIT (grams/mL)
                 var wasteLog = new WasteLog
@@ -4716,6 +4698,38 @@ namespace Infoman.Controllers
                 return true; // hindi binago
             return await _db.Categories.AnyAsync(c =>
                 c.Type == CategoryType.Product && c.IsActive && c.Name == name);
+        }
+
+        private async Task<List<LowStockRow>> GetLowStockRowsAsync()
+        {
+            var rows = await _db.RawMaterials
+                .Where(r => !r.IsDeleted)
+                .Select(r => new LowStockRow
+                {
+                    RawMaterialId = r.RawMaterialId,
+                    Name = r.Name,
+                    Category = r.CategoryInfo != null ? r.CategoryInfo.Name : "Uncategorized",
+                    Unit = r.Unit,
+                    BaseUnit = r.BaseUnit,
+                    MinQtyInBaseUnit = r.MinQtyInBaseUnit,
+                    StockInBaseUnit = _db.RawMaterialBatches
+                        .Where(b => b.RawMaterialId == r.RawMaterialId)
+                        .Sum(b => (decimal?)b.QuantityRemaining) ?? 0
+                })
+                .ToListAsync();
+
+            return rows.Where(x => x.StockInBaseUnit <= x.MinQtyInBaseUnit).ToList();
+        }
+
+        private class LowStockRow
+        {
+            public int RawMaterialId { get; set; }
+            public string Name { get; set; }
+            public string Category { get; set; }
+            public string Unit { get; set; }
+            public string BaseUnit { get; set; }
+            public decimal MinQtyInBaseUnit { get; set; }
+            public decimal StockInBaseUnit { get; set; }
         }
 
 

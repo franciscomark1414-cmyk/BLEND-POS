@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -9,8 +10,9 @@ namespace Infoman.Service
 {
     public class PayMongoService
     {
-        // ✅ Your Test Keys
-        private readonly string _secretKey = "sk_test_V9xHNr1czMbDZazRF55Fzb9a";
+        // TIP: ilipat mo ito sa appsettings.json / User Secrets / environment variable.
+        private readonly string _secretKey =
+     Environment.GetEnvironmentVariable("PAYMONGO_SECRET_KEY");
         private readonly string _apiBaseUrl = "https://api.paymongo.com/v1";
 
         public PayMongoService()
@@ -23,6 +25,21 @@ namespace Infoman.Service
         }
 
         /// <summary>
+        /// True kapag test key (sk_test_...) ang gamit. Gamitin ito sa UI para
+        /// ipakita ang "Simulate payment (TEST)" button.
+        /// </summary>
+        public bool IsTestMode => _secretKey != null && _secretKey.StartsWith("sk_test_");
+
+        private HttpClient CreateClient()
+        {
+            var client = new HttpClient();
+            var authToken = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{_secretKey}:"));
+            client.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Basic", authToken);
+            return client;
+        }
+
+        /// <summary>
         /// Creates a checkout session for GCash payment
         /// </summary>
         public async Task<(bool success, string checkoutUrl, string errorMessage, string sessionId)> CreateCheckoutSessionAsync(
@@ -32,23 +49,15 @@ namespace Infoman.Service
         {
             try
             {
-                using (var client = new HttpClient())
+                using (var client = CreateClient())
                 {
-                    // Set Basic Authentication
-                    var authToken = Convert.ToBase64String(
-                        Encoding.ASCII.GetBytes($"{_secretKey}:")
-                    );
-                    client.DefaultRequestHeaders.Authorization =
-                        new AuthenticationHeaderValue("Basic", authToken);
-
-                    // ✅ Payload for checkout session
                     var payload = new
                     {
                         data = new
                         {
                             attributes = new
                             {
-                                amount = (int)(amount * 100), // Convert to centavos
+                                amount = (int)(amount * 100),
                                 currency = "PHP",
                                 payment_method_types = new[] { "gcash" },
                                 description = $"Payment for Order #{orderNumber}",
@@ -76,11 +85,7 @@ namespace Infoman.Service
                     var json = JsonConvert.SerializeObject(payload);
                     var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                    var response = await client.PostAsync(
-                        $"{_apiBaseUrl}/checkout_sessions",
-                        content
-                    );
-
+                    var response = await client.PostAsync($"{_apiBaseUrl}/checkout_sessions", content);
                     var responseString = await response.Content.ReadAsStringAsync();
 
                     if (response.IsSuccessStatusCode)
@@ -91,10 +96,8 @@ namespace Infoman.Service
 
                         return (true, checkoutUrl, null, sessionId);
                     }
-                    else
-                    {
-                        return (false, null, $"PayMongo API Error: {responseString}", null);
-                    }
+
+                    return (false, null, $"PayMongo API Error: {responseString}", null);
                 }
             }
             catch (Exception ex)
@@ -110,31 +113,19 @@ namespace Infoman.Service
         {
             try
             {
-                using (var client = new HttpClient())
+                using (var client = CreateClient())
                 {
-                    var authToken = Convert.ToBase64String(
-                        Encoding.ASCII.GetBytes($"{_secretKey}:")
-                    );
-                    client.DefaultRequestHeaders.Authorization =
-                        new AuthenticationHeaderValue("Basic", authToken);
-
-                    var response = await client.GetAsync(
-                        $"{_apiBaseUrl}/checkout_sessions/{sessionId}"
-                    );
-
+                    var response = await client.GetAsync($"{_apiBaseUrl}/checkout_sessions/{sessionId}");
                     var responseString = await response.Content.ReadAsStringAsync();
 
                     if (response.IsSuccessStatusCode)
                     {
                         dynamic result = JsonConvert.DeserializeObject(responseString);
                         string status = result.data.attributes.status;
-
                         return (true, status, null);
                     }
-                    else
-                    {
-                        return (false, null, $"Error getting status: {responseString}");
-                    }
+
+                    return (false, null, $"Error getting status: {responseString}");
                 }
             }
             catch (Exception ex)
@@ -144,25 +135,19 @@ namespace Infoman.Service
         }
 
         /// <summary>
-        /// Creates a GCash Source (for test mode - no need to enable GCash in dashboard)
+        /// Creates a GCash Source. Sa test mode, may PayMongo test page (Authorize / Fail),
+        /// kaya ligtas ito i-test nang walang totoong pera.
         /// </summary>
         public async Task<(bool success, string checkoutUrl, string errorMessage, string sourceId)> CreateGCashSourceAsync(
-    decimal amount,
-    string orderNumber,
-    string successUrl,
-    string cancelUrl)
+            decimal amount,
+            string orderNumber,
+            string successUrl,
+            string cancelUrl)
         {
             try
             {
-                using (var client = new HttpClient())
+                using (var client = CreateClient())
                 {
-                    var authToken = Convert.ToBase64String(
-                        Encoding.ASCII.GetBytes($"{_secretKey}:")
-                    );
-                    client.DefaultRequestHeaders.Authorization =
-                        new AuthenticationHeaderValue("Basic", authToken);
-
-                    // ✅ GAMITIN ANG SIMPLENG URLS (walang /{id})
                     var payload = new
                     {
                         data = new
@@ -174,8 +159,8 @@ namespace Infoman.Service
                                 type = "gcash",
                                 redirect = new
                                 {
-                                    success = successUrl,   // ✅ Simple URL lang
-                                    failed = cancelUrl     // ✅ Simple URL lang
+                                    success = successUrl,
+                                    failed = cancelUrl
                                 },
                                 billing = new
                                 {
@@ -190,12 +175,7 @@ namespace Infoman.Service
                     System.Diagnostics.Debug.WriteLine($"Request Payload: {json}");
 
                     var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                    var response = await client.PostAsync(
-                        $"{_apiBaseUrl}/sources",
-                        content
-                    );
-
+                    var response = await client.PostAsync($"{_apiBaseUrl}/sources", content);
                     var responseString = await response.Content.ReadAsStringAsync();
                     System.Diagnostics.Debug.WriteLine($"Response: {responseString}");
 
@@ -205,15 +185,10 @@ namespace Infoman.Service
                         string checkoutUrl = result.data.attributes.redirect.checkout_url;
                         string sourceId = result.data.id;
 
-                        System.Diagnostics.Debug.WriteLine($"✅ GCash Source Created - SourceId: {sourceId}");
-                        System.Diagnostics.Debug.WriteLine($"✅ Checkout URL: {checkoutUrl}");
-
                         return (true, checkoutUrl, null, sourceId);
                     }
-                    else
-                    {
-                        return (false, null, $"PayMongo API Error: {responseString}", null);
-                    }
+
+                    return (false, null, $"PayMongo API Error: {responseString}", null);
                 }
             }
             catch (Exception ex)
@@ -229,31 +204,19 @@ namespace Infoman.Service
         {
             try
             {
-                using (var client = new HttpClient())
+                using (var client = CreateClient())
                 {
-                    var authToken = Convert.ToBase64String(
-                        Encoding.ASCII.GetBytes($"{_secretKey}:")
-                    );
-                    client.DefaultRequestHeaders.Authorization =
-                        new AuthenticationHeaderValue("Basic", authToken);
-
-                    var response = await client.GetAsync(
-                        $"{_apiBaseUrl}/sources/{sourceId}"
-                    );
-
+                    var response = await client.GetAsync($"{_apiBaseUrl}/sources/{sourceId}");
                     var responseString = await response.Content.ReadAsStringAsync();
 
                     if (response.IsSuccessStatusCode)
                     {
                         dynamic result = JsonConvert.DeserializeObject(responseString);
                         string status = result.data.attributes.status;
-
                         return (true, status, null);
                     }
-                    else
-                    {
-                        return (false, null, $"Error: {responseString}");
-                    }
+
+                    return (false, null, $"Error: {responseString}");
                 }
             }
             catch (Exception ex)
@@ -263,22 +226,29 @@ namespace Infoman.Service
         }
 
         /// <summary>
-        /// Creates a QRPh payment intent for POS (customer scans with their phone)
+        /// BACKWARD-COMPATIBLE: parehong signature ng dati, kaya hindi masisira ang controller mo.
+        /// Kung kailangan mo ang test_url, gamitin ang CreateQRPhPaymentIntentWithTestUrlAsync.
         /// </summary>
         public async Task<(bool success, string qrCodeBase64, string errorMessage, string paymentIntentId)> CreateQRPhPaymentIntentAsync(
-     decimal amount,
-     string orderNumber)
+            decimal amount,
+            string orderNumber)
+        {
+            var r = await CreateQRPhPaymentIntentWithTestUrlAsync(amount, orderNumber);
+            return (r.success, r.qrCodeBase64, r.errorMessage, r.paymentIntentId);
+        }
+
+        /// <summary>
+        /// Creates a QR Ph payment intent. Ibinabalik din ang testUrl (test mode lang)
+        /// para ma-simulate ang bayad nang HINDI nag-i-scan gamit ang totoong GCash app.
+        /// </summary>
+        public async Task<(bool success, string qrCodeBase64, string errorMessage, string paymentIntentId, string testUrl)> CreateQRPhPaymentIntentWithTestUrlAsync(
+            decimal amount,
+            string orderNumber)
         {
             try
             {
-                using (var client = new HttpClient())
+                using (var client = CreateClient())
                 {
-                    var authToken = Convert.ToBase64String(
-                        Encoding.ASCII.GetBytes($"{_secretKey}:")
-                    );
-                    client.DefaultRequestHeaders.Authorization =
-                        new AuthenticationHeaderValue("Basic", authToken);
-
                     // ========== STEP 1: CREATE PAYMENT INTENT ==========
                     var intentPayload = new
                     {
@@ -288,30 +258,25 @@ namespace Infoman.Service
                             {
                                 amount = (int)(amount * 100),
                                 currency = "PHP",
-                                payment_method_allowed = new[] { "qrph" },  // ✅ QRPH
+                                payment_method_allowed = new[] { "qrph" },
                                 description = $"Payment for Order #{orderNumber}",
                                 capture_type = "automatic"
                             }
                         }
                     };
 
-                    var intentJson = JsonConvert.SerializeObject(intentPayload);
-                    var intentContent = new StringContent(intentJson, Encoding.UTF8, "application/json");
+                    var intentContent = new StringContent(
+                        JsonConvert.SerializeObject(intentPayload), Encoding.UTF8, "application/json");
 
-                    var intentResponse = await client.PostAsync(
-                        $"{_apiBaseUrl}/payment_intents",
-                        intentContent
-                    );
-
+                    var intentResponse = await client.PostAsync($"{_apiBaseUrl}/payment_intents", intentContent);
                     var intentString = await intentResponse.Content.ReadAsStringAsync();
 
                     if (!intentResponse.IsSuccessStatusCode)
                     {
-                        return (false, null, $"Payment Intent Error: {intentString}", null);
+                        return (false, null, $"Payment Intent Error: {intentString}", null, null);
                     }
 
-                    dynamic intentResult = JsonConvert.DeserializeObject(intentString);
-                    string paymentIntentId = intentResult.data.id;
+                    string paymentIntentId = (string)JObject.Parse(intentString)["data"]["id"];
 
                     // ========== STEP 2: CREATE PAYMENT METHOD (QRPH) ==========
                     var methodPayload = new
@@ -320,7 +285,7 @@ namespace Infoman.Service
                         {
                             attributes = new
                             {
-                                type = "qrph",  // ✅ QRPH
+                                type = "qrph",
                                 billing = new
                                 {
                                     name = $"Order #{orderNumber}",
@@ -330,25 +295,20 @@ namespace Infoman.Service
                         }
                     };
 
-                    var methodJson = JsonConvert.SerializeObject(methodPayload);
-                    var methodContent = new StringContent(methodJson, Encoding.UTF8, "application/json");
+                    var methodContent = new StringContent(
+                        JsonConvert.SerializeObject(methodPayload), Encoding.UTF8, "application/json");
 
-                    var methodResponse = await client.PostAsync(
-                        $"{_apiBaseUrl}/payment_methods",
-                        methodContent
-                    );
-
+                    var methodResponse = await client.PostAsync($"{_apiBaseUrl}/payment_methods", methodContent);
                     var methodString = await methodResponse.Content.ReadAsStringAsync();
 
                     if (!methodResponse.IsSuccessStatusCode)
                     {
-                        return (false, null, $"Payment Method Error: {methodString}", null);
+                        return (false, null, $"Payment Method Error: {methodString}", null, null);
                     }
 
-                    dynamic methodResult = JsonConvert.DeserializeObject(methodString);
-                    string paymentMethodId = methodResult.data.id;
+                    string paymentMethodId = (string)JObject.Parse(methodString)["data"]["id"];
 
-                    // ========== STEP 3: ATTACH ==========
+                    // ========== STEP 3: ATTACH PAYMENT METHOD ==========
                     var attachPayload = new
                     {
                         data = new
@@ -360,45 +320,33 @@ namespace Infoman.Service
                         }
                     };
 
-                    var attachJson = JsonConvert.SerializeObject(attachPayload);
-                    var attachContent = new StringContent(attachJson, Encoding.UTF8, "application/json");
+                    var attachContent = new StringContent(
+                        JsonConvert.SerializeObject(attachPayload), Encoding.UTF8, "application/json");
 
                     var attachResponse = await client.PostAsync(
-                        $"{_apiBaseUrl}/payment_intents/{paymentIntentId}/attach",
-                        attachContent
-                    );
-
+                        $"{_apiBaseUrl}/payment_intents/{paymentIntentId}/attach", attachContent);
                     var attachString = await attachResponse.Content.ReadAsStringAsync();
 
                     if (!attachResponse.IsSuccessStatusCode)
                     {
-                        return (false, null, $"Attach Error: {attachString}", null);
+                        return (false, null, $"Attach Error: {attachString}", null, null);
                     }
 
-                    dynamic attachResult = JsonConvert.DeserializeObject(attachString);
+                    // Log ang buong response para makita mo kung nasaan ang test_url
+                    System.Diagnostics.Debug.WriteLine($"QRPh attach response: {attachString}");
 
-                    // ========== STEP 4: GET QR CODE ==========
+                    // ========== STEP 4: GET QR CODE + TEST URL ==========
                     string qrCodeBase64 = null;
+                    string testUrl = null;
 
                     try
                     {
-                        if (attachResult.data.attributes.next_action != null)
-                        {
-                            var nextAction = attachResult.data.attributes.next_action;
+                        var root = JObject.Parse(attachString);
 
-                            // ✅ PARA SA QRPH: next_action.type ay "qr_code"
-                            if (nextAction.type == "qr_code" && nextAction.qr_code != null)
-                            {
-                                qrCodeBase64 = nextAction.qr_code;
-                                System.Diagnostics.Debug.WriteLine("QR Code found in next_action.qr_code");
-                            }
-                            // Fallback para sa code
-                            else if (nextAction.code != null && nextAction.code.image_url != null)
-                            {
-                                qrCodeBase64 = nextAction.code.image_url;
-                                System.Diagnostics.Debug.WriteLine("QR Code found in next_action.code.image_url");
-                            }
-                        }
+                        qrCodeBase64 = (string)root.SelectToken("data.attributes.next_action.code.image_url");
+
+                        // Recursive search, kaya gagana kahit nasaan sa next_action ang test_url
+                        testUrl = (string)root.SelectToken("$..test_url");
                     }
                     catch (Exception ex)
                     {
@@ -407,18 +355,50 @@ namespace Infoman.Service
 
                     if (string.IsNullOrEmpty(qrCodeBase64))
                     {
-                        return (false, null, "No QR code in response. Full response: " + attachString, paymentIntentId);
+                        return (false, null, "No QR code in response. Full response: " + attachString, paymentIntentId, null);
                     }
 
-                    return (true, qrCodeBase64, null, paymentIntentId);
+                    // Ibalik lang ang testUrl kapag test mode (safety)
+                    if (!IsTestMode)
+                    {
+                        testUrl = null;
+                    }
+
+                    return (true, qrCodeBase64, null, paymentIntentId, testUrl);
                 }
             }
             catch (Exception ex)
             {
-                return (false, null, $"Exception: {ex.Message}", null);
+                return (false, null, $"Exception: {ex.Message}", null, null);
             }
         }
 
+        /// <summary>
+        /// Retrieves Payment Intent status (para sa polling ng QR Ph).
+        /// Mga status: awaiting_payment_method, awaiting_next_action, processing, succeeded
+        /// </summary>
+        public async Task<(bool success, string status, string errorMessage)> GetPaymentIntentStatusAsync(string paymentIntentId)
+        {
+            try
+            {
+                using (var client = CreateClient())
+                {
+                    var response = await client.GetAsync($"{_apiBaseUrl}/payment_intents/{paymentIntentId}");
+                    var responseString = await response.Content.ReadAsStringAsync();
 
+                    if (response.IsSuccessStatusCode)
+                    {
+                        string status = (string)JObject.Parse(responseString).SelectToken("data.attributes.status");
+                        return (true, status, null);
+                    }
+
+                    return (false, null, $"Error: {responseString}");
+                }
+            }
+            catch (Exception ex)
+            {
+                return (false, null, $"Exception: {ex.Message}");
+            }
+        }
     }
 }

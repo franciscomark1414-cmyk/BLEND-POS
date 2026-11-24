@@ -118,28 +118,44 @@ namespace Infoman.Controllers
         [HttpGet]
         public async Task<IActionResult> CheckQRPhStatus(string paymentIntentId)
         {
-            // PHASE 1: Gate
             if (!_paymentOptions.EnableQRPh)
                 return Json(new { status = "disabled" });
 
             try
             {
-                // Hanapin ang payment sa database
                 var payment = await _db.Payments
                     .FirstOrDefaultAsync(p => p.PaymentReference == paymentIntentId);
 
-                if (payment != null && payment.Status == "PAID")
+                if (payment == null)
+                    return Json(new { status = "not_found" });
+
+                if (payment.Status == "PAID")
+                    return Json(new { status = "paid" });
+
+                // Itanong direkta sa PayMongo (hindi umaasa sa webhook)
+                var result = await _payMongoService.GetPaymentIntentStatusAsync(paymentIntentId);
+
+                if (result.success && result.status == "succeeded")
                 {
+                    payment.Status = "PAID";
+                    payment.PaymentDate = DateTime.Now;
+
+                    var order = await _db.Orders.FindAsync(payment.OrderId);
+                    if (order != null && order.Status != "COMPLETED")
+                    {
+                        order.Status = "PENDING_BLENDING";
+                        order.PaymentMethod = "QRPh";
+                    }
+
+                    await _db.SaveChangesAsync();
+
+                    if (order != null)
+                        await RecordEmployeePerformance(order.StaffUserId ?? 0, order.TotalAmount);
+
                     return Json(new { status = "paid" });
                 }
-                else if (payment != null && payment.Status == "PENDING")
-                {
-                    return Json(new { status = "pending" });
-                }
-                else
-                {
-                    return Json(new { status = "not_found" });
-                }
+
+                return Json(new { status = "pending" });
             }
             catch (Exception ex)
             {
@@ -369,10 +385,10 @@ namespace Infoman.Controllers
                 }
 
                 // Create QRPh payment intent
-                var result = await _payMongoService.CreateQRPhPaymentIntentAsync(
-                    request.Amount,
-                    order.OrderNumber
-                );
+                var result = await _payMongoService.CreateQRPhPaymentIntentWithTestUrlAsync(
+    request.Amount,
+    order.OrderNumber
+);
 
                 if (!result.success)
                 {
@@ -397,7 +413,8 @@ namespace Infoman.Controllers
                 {
                     success = true,
                     qrCodeBase64 = result.qrCodeBase64,
-                    paymentIntentId = result.paymentIntentId
+                    paymentIntentId = result.paymentIntentId,
+                    testUrl = result.testUrl
                 });
             }
             catch (Exception ex)

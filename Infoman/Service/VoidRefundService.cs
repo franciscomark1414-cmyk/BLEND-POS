@@ -617,35 +617,24 @@ namespace Infoman.Service
         // Net na aktuwal na nabayad ng customer: PAID minus lahat ng dating REFUNDED (negative ang refund rows).
         private async Task<decimal> GetNetPaidAsync(int orderId)
         {
-            // ✅ 1. Kunin ang LAHAT ng payments (PAID, COMPLETED, atbp.) maliban sa refunds
             decimal paid = await _db.Payments
-                .Where(p => p.OrderId == orderId &&
-                           (p.Status == "PAID" || p.Status == "COMPLETED" || p.Status == "SUCCESS"))
+                .Where(p => p.OrderId == orderId && p.Status == "PAID")
                 .SumAsync(p => (decimal?)p.Amount) ?? 0;
 
+            // Negative ang amount ng refund rows
             decimal refunded = await _db.Payments
                 .Where(p => p.OrderId == orderId && p.Status == "REFUNDED")
                 .SumAsync(p => (decimal?)p.Amount) ?? 0;
 
-            // ✅ 2. Kunin ang Store Credit mula sa Exchange (kung meron)
-            var exchangeInfo = await _db.ExchangeTransactions
-                .FirstOrDefaultAsync(e => e.OriginalOrderId == orderId);
+            // Store credit mula sa exchange: nakatala sa mismong EX- order
+            // (gumagana kahit nullable o hindi ang StoreCreditApplied)
+            decimal storeCredit = await _db.Orders
+                .Where(o => o.OrderId == orderId)
+                .Select(o => (decimal?)o.StoreCreditApplied)
+                .FirstOrDefaultAsync() ?? 0;
 
-            decimal storeCredit = exchangeInfo?.TotalReturnedValue ?? 0;
-
-            // ✅ 3. Kung talagang 0 pa rin, gamitin ang OriginalTotalAmount ng order
-            decimal netPaid = paid + refunded + storeCredit;
-
-            if (netPaid <= 0)
-            {
-                var order = await _db.Orders.FindAsync(orderId);
-                if (order != null && order.OriginalTotalAmount > 0)
-                {
-                    netPaid = order.OriginalTotalAmount;
-                }
-            }
-
-            return Money(netPaid);
+            // Walang fallback: kung 0 na, 0 na talaga
+            return Money(paid + refunded + storeCredit);
         }
 
         // Blended na ang order kapag may ProductionUsages rows na galing sa StartBlending.

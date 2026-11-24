@@ -11,12 +11,12 @@ namespace Infoman.Service
     public class PayMongoService
     {
         // TIP: ilipat mo ito sa appsettings.json / User Secrets / environment variable.
-        private readonly string _secretKey =
-     Environment.GetEnvironmentVariable("PAYMONGO_SECRET_KEY");
+        private readonly string _secretKey;
         private readonly string _apiBaseUrl = "https://api.paymongo.com/v1";
 
         public PayMongoService()
         {
+            _secretKey = Environment.GetEnvironmentVariable("PAYMONGO_SECRET_KEY");
         }
 
         public PayMongoService(string secretKey)
@@ -32,6 +32,13 @@ namespace Infoman.Service
 
         private HttpClient CreateClient()
         {
+
+            if (string.IsNullOrWhiteSpace(_secretKey))
+            {
+                throw new InvalidOperationException(
+                    "PayMongo secret key is not configured."
+                );
+            }
             var client = new HttpClient();
             var authToken = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{_secretKey}:"));
             client.DefaultRequestHeaders.Authorization =

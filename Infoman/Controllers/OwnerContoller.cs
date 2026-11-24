@@ -93,11 +93,12 @@ namespace Infoman.Controllers
             // ========== TODAY'S NET REVENUE ==========
             // ✅ KUNIN LANG ANG MGA VALID ORDERS (I-EXCLUDE ANG VOIDED/REFUNDED)
             var todaysOrders = await _db.Orders
-                .Where(o => o.Date.Date == today &&
-                            o.Status != "CANCELLED" &&
-                            o.Status != "VOIDED" &&
-                            o.Status != "REFUNDED")
-                .ToListAsync();
+    .Where(o => o.Date.Date == today &&
+                o.Status != "CANCELLED" &&
+                o.Status != "VOIDED" &&
+                o.Status != "REFUNDED" &&
+                o.Status != "EXCHANGED") // <--- IDINAGDAG ITO
+    .ToListAsync();
 
             ViewBag.TotalOrdersToday = todaysOrders.Count;
 
@@ -183,10 +184,12 @@ namespace Infoman.Controllers
             {
                 // ✅ Isama lahat ng status maliban sa Cancelled at Pending Payment
                 var dayOrders = await _db.Orders
-                    .Include(o => o.Adjustments)
-                    .Where(o => o.Date.Date == day.Date &&
-                               o.Status != "CANCELLED" && o.Status != "PENDING_PAYMENT")
-                    .ToListAsync();
+     .Include(o => o.Adjustments)
+     .Where(o => o.Date.Date == day.Date &&
+                o.Status != "CANCELLED" &&
+                o.Status != "PENDING_PAYMENT" &&
+                o.Status != "EXCHANGED") // <--- IDINAGDAG ITO
+     .ToListAsync();
 
                 // ✅ Para sa chart, gamitin ang NetRevenue (TotalAmount minus Refunds)
                 decimal dayNetRevenue = dayOrders.Sum(o => o.NetRevenue);
@@ -884,6 +887,17 @@ namespace Infoman.Controllers
                     });
                 }
             }
+            decimal displayTotal = order.TotalAmount;
+            if (order.Status == "EXCHANGED" || order.ReturnStatus == "EXCHANGED")
+            {
+                var exchangeTx = await _db.ExchangeTransactions
+                    .FirstOrDefaultAsync(e => e.OriginalOrderId == order.OrderId);
+
+                if (exchangeTx != null)
+                    displayTotal = exchangeTx.OriginalAmount > 0
+                        ? exchangeTx.OriginalAmount
+                        : exchangeTx.TotalReturnedValue;
+            }
 
             var receipt = new
             {
@@ -899,6 +913,7 @@ namespace Infoman.Controllers
                 voucherDiscountPercent = order.VoucherDiscountPercent,
                 voucherDiscountAmount = order.VoucherDiscountAmount,
                 total = order.TotalAmount,
+                displayTotal = displayTotal,
                 paymentMethod = order.PaymentMethod,
 
                 // ✅ ITO YUNG MGA KULANG:

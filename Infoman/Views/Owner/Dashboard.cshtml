@@ -2839,7 +2839,7 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
                     <div class="card-body">
                         <div class="table-responsive">
                             <table class="table table-bordered table-hover">
-                                <thead class="table-light"><tr><th>Receipt #</th><th>Order #</th><th>Date</th><th>Items</th><th>Subtotal</th><th>Discount</th><th>Total</th><th>Payment</th><th>Status</th><th>Actions</th></tr></thead>
+                                <thead class="table-light"><tr><th>Receipt #</th><th>Order #</th><th>Date</th><th>Item Recorded</th><th>Subtotal</th><th>Discount</th><th>Total</th><th>Payment</th><th>Status</th><th>Actions</th></tr></thead>
                                 <tbody id="receiptHistoryBody"></tbody>
                             </table>
                         </div>
@@ -3209,11 +3209,11 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
                 Category Management
             </button>
         </li>
-        <li class="nav-item">
+       <li class="nav-item">
             <button type="button" class="nav-link" id="tab-unit-btn" onclick="switchSettingsTab('unit')">
                 Unit Management
             </button>
-        </li>
+        </li> 
         <li class="nav-item">
             <button type="button" class="nav-link" id="tab-addon-btn" onclick="switchSettingsTab('addon')">
                 Add-ons Management
@@ -5630,7 +5630,7 @@ async function loadFinancials() {
         const count = d.deliveryCount || 0;
         const src = document.getElementById('finPurchasesSource');
         if (src) {
-            src.innerHTML = `<i class="fas fa-truck"></i> From ${count} delivery${count === 1 ? '' : 'ies'}`;
+           src.innerHTML = `<i class="fas fa-truck"></i> From ${count} deliver${count === 1 ? 'y' : 'ies'}`;
         }
         const inflow = d.cashInflow;
         const otherExpenses = d.otherExpenses;
@@ -8258,32 +8258,37 @@ function displayReceiptHistory(receipts) {
         let exchangeIndicator = '';
         let displayTotal = receipt.total; // Default total
 
-// Check order status (REFUNDED, VOIDED, etc.)
-if (receipt.status === 'REFUNDED') {
-    statusBadge = '<span class="badge bg-danger">💰 REFUNDED</span>';
-    
-    // ✅ UNANG COMPUTATION (Para sa REFUNDED)
-    let computedTotal = receipt.subtotal - (receipt.discountAmount || 0) - (receipt.voucherDiscountAmount || 0);
-    displayTotal = computedTotal > 0 ? computedTotal : 0;
+        // Check order status (REFUNDED, VOIDED, etc.)
+        if (receipt.status === 'REFUNDED') {
+            statusBadge = '<span class="badge bg-danger">💰 REFUNDED</span>';
+            
+            // ✅ UNANG COMPUTATION (Para sa REFUNDED)
+            let computedTotal = receipt.subtotal - (receipt.discountAmount || 0) - (receipt.voucherDiscountAmount || 0);
+            displayTotal = computedTotal > 0 ? computedTotal : 0;
 
-} else if (receipt.status === 'PARTIALLY_REFUNDED') {
-    statusBadge = '<span class="badge bg-warning text-dark">⚠️ PARTIAL REFUND</span>';
-} else if (receipt.status === 'VOIDED') {
-    statusBadge = '<span class="badge bg-dark">🚫 VOIDED</span>';
-    
-    // ✅ PANGALAWANG COMPUTATION (Walang 'let' para hindi mag-error)
-    computedTotal = receipt.subtotal - (receipt.discountAmount || 0) - (receipt.voucherDiscountAmount || 0);
-    displayTotal = computedTotal > 0 ? computedTotal : 0;
-}
-// ✅ ITO YUNG NAWALA, IBINALIK KO
-else if (receipt.returnStatus === 'EXCHANGED') {
-    statusBadge = '<span class="badge bg-warning text-dark">🔄 EXCHANGED</span>';
-    if (receipt.originalOrderId) {
-        exchangeIndicator = `<small class="text-muted">(replaces #${receipt.originalOrderId})</small>`;
-    }
-} else if (receipt.returnStatus === 'RETURNED') {
-    statusBadge = '<span class="badge bg-danger">↩️ RETURNED</span>';
-}
+        } else if (receipt.status === 'PARTIALLY_REFUNDED') {
+            statusBadge = '<span class="badge bg-warning text-dark">⚠️ PARTIAL REFUND</span>';
+        } else if (receipt.status === 'VOIDED') {
+            statusBadge = '<span class="badge bg-dark">🚫 VOIDED</span>';
+            
+            // ✅ PANGALAWANG COMPUTATION (Nilagyan ng 'let' para iwas error)
+            let computedTotal = receipt.subtotal - (receipt.discountAmount || 0) - (receipt.voucherDiscountAmount || 0);
+            displayTotal = computedTotal > 0 ? computedTotal : 0;
+        }
+        // ✅ ITO YUNG NAWALA, IBINALIK KO
+        else if (receipt.returnStatus === 'EXCHANGED') {
+            statusBadge = '<span class="badge bg-warning text-dark">🔄 EXCHANGED</span>';
+            if (receipt.originalOrderId) {
+                exchangeIndicator = `<small class="text-muted">(replaces #${receipt.originalOrderId})</small>`;
+            }
+            
+            // 👇 ✅ DITO ANG FIX: Kinocompute natin ang totoong total para lumabas ang ₱56.05
+            let computedTotal = receipt.subtotal - (receipt.discountAmount || 0) - (receipt.voucherDiscountAmount || 0);
+            displayTotal = computedTotal > 0 ? computedTotal : 0;
+
+        } else if (receipt.returnStatus === 'RETURNED') {
+            statusBadge = '<span class="badge bg-danger">↩️ RETURNED</span>';
+        }
 
         // ✅ 2. DISCOUNT DISPLAY
         let discountDisplay = 'None';
@@ -8622,18 +8627,19 @@ let originalAmt = receipt.subtotal;
             </div>
         `;
     } 
-    else if (receipt.returnStatus === 'EXCHANGED') {
-        totalSummaryHtml = `
-            <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; border-top: 2px solid #333; margin-top: 10px; padding-top: 10px;">
-                <span>Total</span>
-                <span>₱${receipt.total.toFixed(2)}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; color: #0ea5e9; font-size: 13px; margin-top: 5px;">
-                <span>Store Credit / Adjustment</span>
-                <span>₱${(receipt.adjustmentAmount || 0).toFixed(2)}</span>
-            </div>
-        `;
-    }
+   else if (receipt.returnStatus === 'EXCHANGED') {
+    const exchangedTotal = receipt.displayTotal != null ? receipt.displayTotal : receipt.total;
+    totalSummaryHtml = `
+        <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; border-top: 2px solid #333; margin-top: 10px; padding-top: 10px;">
+            <span>Total</span>
+            <span>₱${exchangedTotal.toFixed(2)}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; color: #0ea5e9; font-size: 13px; margin-top: 5px;">
+            <span>Exchanged to another order</span>
+            <span>See details above</span>
+        </div>
+    `;
+}
     else {
         totalSummaryHtml = `
             <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; border-top: 2px solid #333; margin-top: 10px; padding-top: 10px;">
@@ -9284,12 +9290,13 @@ async function loadEmployeeDailyOrders() {
                                                                 let daySales = 0;
                                                                 let validOrderCount = 0;
 
-                                                                day.orders.forEach(order => {
-                                                                    if (order.status !== "VOIDED" && order.status !== "REFUNDED") {
-                                                                        daySales += order.totalAmount;
-                                                                        validOrderCount++;
-                                                                    }
-                                                                });
+                                                              day.orders.forEach(order => {
+    // ✅ IDINAGDAG NATIN YUNG EXCHANGED
+    if (order.status !== "VOIDED" && order.status !== "REFUNDED" && order.status !== "EXCHANGED" && order.returnStatus !== "EXCHANGED") {
+        daySales += order.totalAmount;
+        validOrderCount++;
+    }
+});
 
                                                                 totalSales += daySales;
                                                                 totalOrders += validOrderCount;
@@ -9313,7 +9320,7 @@ async function loadEmployeeDailyOrders() {
                                                         <tr>
                                                             <td class="fw-bold">${formattedDate}</td>
                                                             <td class="text-primary fw-bold">₱${daySales.toFixed(2)}</td>
-                                                            <td>${day.orders.length}</td>
+                                                            <td>${validOrderCount}</td>
                                                             <td>-</td>
                                                             <td>
                                                                 <button class="btn btn-sm btn-info" onclick='showDailyOrdersModal(${JSON.stringify(ordersToPass)}, "${formattedDate}")'>

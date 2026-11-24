@@ -879,6 +879,25 @@
             border-color: var(--info);
             color: #0369a1;
         }
+                /* ✅ ITO YUNG KULANG PARA SA QRPH */
+                .payment-btn.qrph:hover,
+                .payment-btn.qrph.active {
+                    background: #f3e8ff; /* Light Purple background */
+                    border-color: #9333ea; /* Purple border */
+                    color: #7e22ce; /* Dark Purple text */
+                }
+
+                .payment-btn.qrph.active {
+                    font-weight: 700;
+                    box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.15); /* Glow effect */
+                }
+
+                /* ✅ Para mawala yung lumalabas na cursor/outline sa button pag clinick */
+                .payment-btn:focus,
+                .discount-btn-pill:focus {
+                    outline: none !important;
+                    box-shadow: none;
+                }
 
         .discount-applied {
             margin-top: 8px;
@@ -2578,12 +2597,20 @@
         <label style="font-size: 11px; font-weight: 700; margin-bottom: 6px; display: block; color: var(--ink-700); text-transform: uppercase; letter-spacing: 0.05em;">
             <i class="fas fa-credit-card"></i> Payment for Difference
         </label>
-        <div style="display: flex; gap: 10px;">
-            <button type="button" class="exchange-payment-btn" data-method="Cash" onclick="selectExchangePayment('Cash')" 
-                    style="flex: 1; padding: 9px; border-radius: var(--radius-md); border: 1.5px solid var(--ink-200); background: var(--surface); cursor: pointer; font-weight: 600; color: var(--ink-700); font-size: 12.5px;">
-                💵 Cash
-            </button>
-        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+    <button type="button" class="exchange-payment-btn" data-method="Cash" onclick="selectExchangePayment('Cash')"
+            style="padding: 9px; border-radius: var(--radius-md); border: 1.5px solid var(--ink-200); background: var(--surface); cursor: pointer; font-weight: 600; color: var(--ink-700); font-size: 12.5px;">
+         Cash
+    </button>
+    <button type="button" class="exchange-payment-btn" data-method="GCash" onclick="selectExchangePayment('GCash')"
+            style="padding: 9px; border-radius: var(--radius-md); border: 1.5px solid var(--ink-200); background: var(--surface); cursor: pointer; font-weight: 600; color: var(--ink-700); font-size: 12.5px;">
+         GCash
+    </button>
+    <button type="button" class="exchange-payment-btn" data-method="QRPh" onclick="selectExchangePayment('QRPh')"
+            style="padding: 9px; border-radius: var(--radius-md); border: 1.5px solid var(--ink-200); background: var(--surface); cursor: pointer; font-weight: 600; color: var(--ink-700); font-size: 12.5px;">
+         QRPh
+    </button>
+</div>
     </div>
 </div>
 
@@ -2842,6 +2869,9 @@
                     <div style="display: flex; justify-content: space-between; font-size: 13px;">
                         <span>Expected Cash:</span> <strong id="endShiftExpectedCash" style="color: #0369a1;">₱0.00</strong>
                     </div>
+                    <div class="d-flex justify-content-between mb-2">
+                         <span>Expected GCash/QRPh:</span>  <strong class="text-info"><span id="expectedGcashDisplay">0.00</span></strong>
+                    </div>
                 </div>
 
                 <!-- Denomination Breakdown -->
@@ -2890,6 +2920,10 @@
                            placeholder="e.g., 2100.00"
                            style="font-size: 16px; padding: 10px; border-radius: 8px; text-align: right; margin-bottom: 4px;">
                 </div>
+                <div class="d-flex justify-content-between mt-2" id="gcashVarianceContainer" style="display: none;">
+    <span class="text-muted">GCash Variance:</span>
+    <strong class="text-danger" id="gcashVarianceDisplay">₱0.00</strong>
+</div>
 
                 <!-- Closing Notes -->
                 <div style="margin-top: 16px;">
@@ -7142,11 +7176,7 @@ async function loadExchangeOrderItems() {
         updateExchangeSummary();
         
         // Reset payment selection
-        selectedExchangePayment = null;
-        document.querySelectorAll('#exchangeTabContent .exchange-payment-btn').forEach(btn => {
-            btn.style.background = 'white';
-            btn.style.color = '#333';
-        });
+       resetExchangePaymentButtons();
         
     } catch (error) {
         console.error('Error:', error);
@@ -7594,18 +7624,26 @@ function updateReplaceQty(index, newQty) {
     updateExchangeSummary();
 }
 
+const EXCHANGE_PAY_COLORS = { Cash: '#16a34a', GCash: '#0ea5e9', QRPh: '#9333ea' };
+
 function selectExchangePayment(method) {
     selectedExchangePayment = method;
     document.querySelectorAll('#exchangeTabContent .exchange-payment-btn').forEach(btn => {
-        if (btn.getAttribute('data-method') === method) {
-            btn.style.background = '#28a745';
-            btn.style.color = 'white';
-        } else {
-            btn.style.background = 'white';
-            btn.style.color = '#333';
-        }
+        const active = btn.getAttribute('data-method') === method;
+        const color = EXCHANGE_PAY_COLORS[btn.getAttribute('data-method')];
+        btn.style.background = active ? color : '#fff';
+        btn.style.color = active ? '#fff' : '#334155';
+        btn.style.borderColor = active ? color : '#e2e8f0';
     });
-    console.log('Exchange payment selected:', method);
+}
+
+function resetExchangePaymentButtons() {
+    selectedExchangePayment = null;
+    document.querySelectorAll('#exchangeTabContent .exchange-payment-btn').forEach(btn => {
+        btn.style.background = '#fff';
+        btn.style.color = '#334155';
+        btn.style.borderColor = '#e2e8f0';
+    });
 }
 
             function updateExchangeSummary() {
@@ -7800,7 +7838,7 @@ function updateExchangeTotals() {
 
                 // Validate payment if positive difference
                 if (priceDiff > 0 && !selectedExchangePayment) {
-                    await showAlert('Please select a payment method for the price difference (Cash or GCash)', 'Payment Required', '⚠️');
+                    await showAlert('Please select a payment method for the price difference (Cash, GCash or QRPh)', 'Payment Required', '⚠️');
                     return;
                 }
 
@@ -7875,15 +7913,11 @@ function updateExchangeTotals() {
 
                         // Reset exchange form
                         exchangeReplaceItemsData = [];
-                        selectedExchangePayment = null;
                         document.getElementById('exchangeOrderSelect').value = '';
                         document.getElementById('exchangeReturnItems').innerHTML = '<div class="text-muted text-center" style="padding: 20px;">Select an order first</div>';
                         renderReplacementItems();
                         updateExchangeSummary();
-                        document.querySelectorAll('#exchangeTabContent .exchange-payment-btn').forEach(btn => {
-                            btn.style.background = 'white';
-                            btn.style.color = '#333';
-                        });
+                        resetExchangePaymentButtons();
 
                         // ✅ Ibinalik: reset ng cart
                         cart = [];
@@ -7920,6 +7954,7 @@ async function showExchangeSummaryModal(data) {
         const isCustomerPays = priceDiff > 0;
         const amountToSettle = Math.abs(priceDiff);
         const discountPercent = window.currentExchangeDiscountPercent || 0;
+        const isCashPayment = isCustomerPays && data.paymentMethod === 'Cash';
 
         let returnedItemsHtml = '';
         data.itemsReturned.forEach(item => {
@@ -7952,7 +7987,7 @@ async function showExchangeSummaryModal(data) {
         });
 
         // ✅ CASH SECTION: lalabas lang kapag may babayaran
-        const cashSectionHtml = isCustomerPays ? `
+        const cashSectionHtml = isCashPayment ? `
             <div style="margin-bottom:15px;">
                 <label style="font-weight:700; font-size:12px; text-transform:uppercase; color:#64748b; display:block; margin-bottom:6px;">Cash Received</label>
                 <input type="number" id="exchangeCashReceived" step="0.01" min="0" placeholder="₱0.00"
@@ -8041,7 +8076,7 @@ async function showExchangeSummaryModal(data) {
         document.getElementById('exchangeSummaryConfirmBtn').onclick = async () => {
             let cashReceived = 0;
 
-            if (isCustomerPays) {
+            if (isCashPayment) {
                 cashReceived = cashInput ? parseFloat(cashInput.value) || 0 : 0;
                 if (cashReceived <= 0) {
                     await showAlert('Please enter the cash received amount.', 'Required', '⚠️');
@@ -8381,91 +8416,135 @@ async function createOrderForGCash() {
 }
 
 // ========== QRPH ORDER CREATION ==========
-async function createOrderForQRPh() {
-    try {
-        if (cart.length === 0) {
-            await showAlert('Cart is empty', 'Cannot proceed');
-            return;
-        }
+            async function createOrderForQRPh() {
+                try {
+                    if (cart.length === 0) {
+                        await showAlert('Cart is empty', 'Cannot proceed');
+                        return;
+                    }
 
-        const discountPercent = currentDiscountPercent;
-        const discountType = currentDiscountType;
-        const paymentMethod = 'QRPh';
-        
-        // Kunin ang unang item (gaya ng ginagawa sa cash flow)
-        const firstItem = cart[0];
-        
-        const orderNumber = `POS-${Date.now()}`;
-        
-        const response = await fetch('/Staff/PlaceOrder', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'RequestVerificationToken': getToken()
-            },
-            body: JSON.stringify({
-                productSizeId: firstItem.productSizeId,
-                quantity: firstItem.quantity,
-                orderNumber: orderNumber,
-                paymentMethod: paymentMethod,
-                discountType: discountType,
-                discountPercent: discountPercent
-            })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            // Save order info for payment
-            window.currentOrderId = result.orderId;
-            window.currentOrderTotal = result.totalAmount;
-            
-            // Build order details for receipt
-            const orderDetails = cart.map(item => ({
-                name: item.productName,
-                size: item.sizeName,
-                quantity: item.quantity,
-                price: item.price,
-                subtotal: item.price * item.quantity
-            }));
-            
-            const discountSavings = currentCartTotal - currentDiscountedTotal;
-            
-            // Show receipt modal
-            showReceiptModal(
-                orderDetails, 
-                'QRPh', 
-                currentDiscountType, 
-                currentDiscountPercent, 
-                discountSavings, 
-                currentDiscountedTotal, 
-                result.orderId, 
-                'PENDING_PAYMENT'
-            );
-            
-            // Show QRPh pay button
-            const qrphPayBtn = document.getElementById('qrphPayBtn');
-            if (qrphPayBtn) {
-                qrphPayBtn.style.display = 'block';
+                    const paymentMethod = 'QRPh';
+                    let lastOrderId = null;
+                    let allSuccessful = true;
+
+                    // ✅ DEFINISYON NG ORDER NUMBER DITO
+                    const sharedOrderNumber = `POS-${Date.now()}`;
+
+                    let orderDetails = [];
+
+                    const voucherCodeToSend = currentVoucher ? currentVoucher.code : null;
+                    const voucherPercentToSend = currentVoucher ? currentVoucher.discountPercent : 0;
+
+                    // ✅ LOOP PARA SA BAWAT ITEM SA CART (Para maipasa lahat pati add-ons)
+                    for (const item of cart) {
+                        const response = await fetch('/Staff/PlaceOrder', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'RequestVerificationToken': getToken()
+                            },
+                            body: JSON.stringify({
+                                productSizeId: item.productSizeId,
+                                quantity: item.quantity,
+                                orderNumber: sharedOrderNumber,
+                                paymentMethod: 'QRPh',
+                                discountType: currentDiscountType,
+                                discountPercent: currentDiscountPercent,
+                                voucherCode: voucherCodeToSend,
+                                voucherDiscountPercent: voucherPercentToSend,
+                                // ✅ DITO NA PAPASOK ANG ADD-ONS
+                                addOns: item.addOns ? item.addOns.map(a => ({ addOnId: a.addOnId, quantity: a.quantity })) : []
+                            })
+                        });
+
+                        const result = await response.json();
+
+                        if (!result.success) {
+                            allSuccessful = false;
+                            await showAlert(`❌ Error with ${item.productName}: ${result.message}`, 'Order Failed', '❌');
+                            break;
+                        }
+
+                        lastOrderId = result.orderId;
+
+                        // ✅ I-BUILD ANG ORDER DETAILS PARA SA RECEIPT (Kasama Add-ons)
+                        orderDetails.push({
+                            name: item.productName,
+                            size: item.sizeName,
+                            quantity: item.quantity,
+                            price: item.price,
+                            subtotal: item.price * item.quantity
+                        });
+
+                        if (item.addOns && item.addOns.length > 0) {
+                            item.addOns.forEach(a => {
+                                orderDetails.push({
+                                    name: '+ ' + a.name,
+                                    size: 'Add-on',
+                                    quantity: a.quantity * item.quantity,
+                                    price: a.price,
+                                    subtotal: a.price * a.quantity * item.quantity
+                                });
+                            });
+                        }
+                    } // END NG LOOP
+
+                    if (allSuccessful && orderDetails.length > 0) {
+                        // Save order info for payment
+                        window.currentOrderId = lastOrderId;
+                        window.currentOrderTotal = currentDiscountedTotal;
+
+                        const manualDiscountAmount = currentCartTotal * currentDiscountPercent;
+
+                        // ✅ I-SET ANG VOUCHER PARA SA RECEIPT
+                        window.receiptVoucher = null;
+                        if (currentVoucher && currentDiscountPercent === 0) {
+                            const vAmount = currentCartTotal * (currentVoucher.discountPercent / 100);
+                            window.receiptVoucher = {
+                                code: currentVoucher.code,
+                                percent: currentVoucher.discountPercent,
+                                amount: vAmount
+                            };
+                        }
+
+                        // Show receipt modal
+                        showReceiptModal(
+                            orderDetails,
+                            'QRPh',
+                            currentDiscountType,
+                            currentDiscountPercent,
+                            manualDiscountAmount, // ✅ Mas accurate kesa discountSavings
+                            currentDiscountedTotal,
+                            lastOrderId,
+                            'PENDING_PAYMENT'
+                        );
+
+                        // Show QRPh pay button
+                        const qrphPayBtn = document.getElementById('qrphPayBtn');
+                        if (qrphPayBtn) {
+                            qrphPayBtn.style.display = 'block';
+                        }
+
+                        // Clear cart at variables
+                        window.receiptVoucher = null;
+                        cart = [];
+                        currentDiscountType = 'None';
+                        currentDiscountPercent = 0;
+                        window.pendingPaymentMethod = null;
+                        updateCartDisplay();
+                        updateDiscountBtnHighlight();
+                        await loadOrderQueue();
+
+                        await showAlert('Order created! Click "Pay with QRPh (Scan QR)" to generate QR code.', 'Order Ready', '✅');
+
+                    } else if (!allSuccessful) {
+                        await showAlert('❌ Order failed. Please try again.', 'Order Failed', '❌');
+                    }
+                } catch (error) {
+                    console.error('Create QRPh order error:', error);
+                    await showAlert('❌ Error processing order: ' + error.message, 'Error', '❌');
+                }
             }
-            
-            // Clear cart
-            cart = [];
-            currentDiscountType = 'None';
-            currentDiscountPercent = 0;
-            updateCartDisplay();
-            updateDiscountBtnHighlight();
-            
-            await showAlert('Order created! Click "Pay with GCash (Scan QR)" to generate QR code.', 'Order Ready', '✅');
-            
-        } else {
-            throw new Error(result.message || 'Failed to create order');
-        }
-    } catch (error) {
-        console.error('Create QRPh order error:', error);
-        throw error;
-    }
-}
 
 async function payWithGCash() {
         if (!ENABLED_PAYMENT_METHODS.includes('GCash')) { await showAlert('GCash is temporarily unavailable. Please use Cash.', 'Not Available', '⚠️'); return; }
@@ -9075,42 +9154,114 @@ async function showEndShiftModalForce(data) {
 // Open End Shift Modal (shared)
 function openEndShiftModal(data, isForce) {
     document.getElementById('endShiftId').innerText = '#' + data.shiftId;
+
     document.getElementById('endShiftStartTime').innerText =
         new Date(data.startTime).toLocaleString('en-PH', {
             month: 'short', day: 'numeric', year: 'numeric',
             hour: '2-digit', minute: '2-digit'
         });
-    document.getElementById('endShiftOpeningFloat').innerText = '₱' + (data.openingFloat || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 });
-    document.getElementById('endShiftExpectedCash').innerText = '₱' + (data.expectedCash || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 });
 
+    document.getElementById('endShiftOpeningFloat').innerText =
+        '₱' + (data.openingFloat || 0).toLocaleString('en-PH', {
+            minimumFractionDigits: 2
+        });
+
+    document.getElementById('endShiftExpectedCash').innerText =
+        '₱' + (data.expectedCash || 0).toLocaleString('en-PH', {
+            minimumFractionDigits: 2
+        });
+
+    // =====================================
+    // EXPECTED GCASH
+    // =====================================
+    const expectedGcash = data.expectedGcash || 0;
+
+    window.currentExpectedGcash = expectedGcash;
+
+    // Hide variance container initially
+    const gcashVarContainer =
+        document.getElementById('gcashVarianceContainer');
+
+    if (gcashVarContainer) {
+        gcashVarContainer.style.display = 'none';
+    }
+
+    // Display Expected GCash (if HTML element exists)
+    const expectedGcashDisplay =
+        document.getElementById('expectedGcashDisplay');
+
+    if (expectedGcashDisplay) {
+        expectedGcashDisplay.innerText =
+            '₱' + expectedGcash.toLocaleString('en-PH', {
+                minimumFractionDigits: 2
+            });
+    }
+
+    // =====================================
+    // WARNING / MODAL TITLE
+    // =====================================
     const warningBox = document.getElementById('endShiftWarningBox');
     const titleText = document.getElementById('endShiftTitleText');
     const subtitle = document.getElementById('endShiftSubtitle');
 
     if (isForce) {
         warningBox.style.display = 'block';
-        document.getElementById('endShiftWarningText').innerHTML = 
+
+        document.getElementById('endShiftWarningText').innerHTML =
             `This shift was not closed properly.<br><br>
              <strong>Staff:</strong> ${data.staffName}<br>
              <strong>Started:</strong> ${data.startTime}<br><br>
              <em>You are about to force-close it. Cash may be commingled with today's cash.</em>`;
+
         titleText.innerText = 'Force Close Shift';
         subtitle.innerText = 'Please count the cash carefully';
+
     } else {
         warningBox.style.display = 'none';
+
         titleText.innerText = 'End Day — Close Shift';
         subtitle.innerText = 'Enter your physical cash count per denomination';
     }
 
-    // ✅ I-RESET ang values
+    // =====================================
+    // RESET INPUTS
+    // =====================================
     document.getElementById('endShiftNotes').value = '';
     document.getElementById('endShiftGcashCounted').value = '';
     document.getElementById('variancePreview').style.display = 'none';
 
-    // ✅ I-BUILD ANG DENOMINATION INPUTS
-    buildDenomInputs(); 
+    // BUILD DENOMINATION INPUTS
+    buildDenomInputs();
 
+    // SHOW MODAL
     document.getElementById('endShiftModal').style.display = 'flex';
+}
+
+function calculateGcashVariance() {
+    const inputVal = parseFloat(document.getElementById('gcashCountedInput').value) || 0;
+    const expected = window.currentExpectedGcash || 0;
+    const container = document.getElementById('gcashVarianceContainer');
+    const display = document.getElementById('gcashVarianceDisplay');
+
+    // Ipakita ang variance container kung may tina-type na ang user
+    if (inputVal > 0) {
+        container.style.display = 'flex';
+        
+        const variance = inputVal - expected;
+        
+        if (variance === 0) {
+            display.innerText = '₱0.00 (Balanced)';
+            display.className = 'text-success';
+        } else if (variance > 0) {
+            display.innerText = `+₱${variance.toFixed(2)} (OVER)`;
+            display.className = 'text-warning';
+        } else {
+            display.innerText = `-₱${Math.abs(variance).toFixed(2)} (SHORT)`;
+            display.className = 'text-danger';
+        }
+    } else {
+        container.style.display = 'none';
+    }
 }
 
 // Compute variance preview while typing

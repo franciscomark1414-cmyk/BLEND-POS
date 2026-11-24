@@ -253,6 +253,19 @@ namespace Infoman.Services
             }
         }
 
+        // ✅ IDAGDAG ITO SA ShiftService.cs
+        public async Task<decimal> CalculateExpectedGcashAsync(int shiftId)
+        {
+            // Sinasama nito ang lahat ng digital payments (GCash/QRPh) na bayad na.
+            var digitalSales = await _db.Orders
+                .Where(o => o.ShiftId == shiftId
+                         && (o.PaymentMethod == "GCash" || o.PaymentMethod == "QRPh")
+                         && (o.Status == "COMPLETED" || o.Status == "PENDING_BLENDING"))
+                .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
+
+            return Math.Round(digitalSales, 2);
+        }
+
 
     }
 }

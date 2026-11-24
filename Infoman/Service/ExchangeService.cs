@@ -285,6 +285,9 @@ namespace Infoman.Service
                     PaymentMethod = (adjustmentAmount > 0 && !string.IsNullOrEmpty(paymentMethodForDifference))
                         ? paymentMethodForDifference
                         : "Store Credit",
+                    // ✅ ITO ANG ILAGAY MO (Walang ?? userId)
+                    // ✅ ITO ANG EXAKTONG ILAGAY (Walang ??, kundi ternary operator)
+                    StaffUserId = (originalOrder.StaffUserId > 0) ? originalOrder.StaffUserId : userId,
 
                     // ✅ Ilipat ang discount at voucher ng original order
                     DiscountType = originalOrder.DiscountType,

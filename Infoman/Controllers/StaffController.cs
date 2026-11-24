@@ -182,6 +182,20 @@ namespace Infoman.Controllers
                 if (userId == 0)
                     return Json(new { success = false, message = "User not logged in", requiresTimeIn = true });
 
+                // ✅ IDAGDAG ITO: Tukuyin kung kanino ipapatala ang benta
+                int assignedStaffId = userId; // Default: kung sino ang naka-login
+
+                // Kung galing ito sa Exchange, kunin ang ID ng orihinal na staff
+                if (request.OriginalOrderId.HasValue && request.OriginalOrderId.Value > 0)
+                {
+                    var originalOrder = await _db.Orders.FindAsync(request.OriginalOrderId.Value);
+                    if (originalOrder != null)
+                    {
+                        // ✅ ITO ANG PALITAN MO
+                        assignedStaffId = originalOrder.StaffUserId ?? userId;
+                    }
+                }
+
                 // PHASE 1: Payment gate
                 if (!IsPaymentMethodAvailable(request.PaymentMethod))
                     return Json(new { success = false, message = "Payment method not available. Please use Cash." });
@@ -313,7 +327,7 @@ namespace Infoman.Controllers
                         ReceiptNumber = await GenerateUniqueReceiptNumberAsync(),
                         OriginalTotalAmount = 0,
                         CreatedAt = DateTime.Now,
-                        StaffUserId = userId,
+                        StaffUserId = assignedStaffId, // ✅ ITO ANG BAGO
                         ShiftId = activeShift?.ShiftId
                     };
 
@@ -455,7 +469,7 @@ namespace Infoman.Controllers
                     }
 
                     await _db.SaveChangesAsync();
-                    await RecordEmployeePerformance(userId, newDiscountedTotal);
+                    await RecordEmployeePerformance(assignedStaffId, newDiscountedTotal);
                 }
 
                 return Json(new
@@ -1353,8 +1367,11 @@ namespace Infoman.Controllers
             if (activeShift == null)
                 return Json(new { success = true, hasActiveShift = false });
 
-            // ✅ Compute live instead of reading the null column
+            // ✅ Existing Cash
             var expectedCash = await _shiftService.CalculateExpectedCashAsync(activeShift.ShiftId);
+
+            // ✅ BAGO: Kunin din ang Expected GCash
+            var expectedGcash = await _shiftService.CalculateExpectedGcashAsync(activeShift.ShiftId);
 
             return Json(new
             {
@@ -1364,6 +1381,7 @@ namespace Infoman.Controllers
                 startTime = activeShift.StartTime.ToString("o"),
                 openingFloat = activeShift.OpeningFloat,
                 expectedCash = expectedCash,
+                expectedGcash = expectedGcash, // ✅ IPASA SA FRONTEND
                 staffName = activeShift.StaffUser?.FullName ?? "Unknown"
             });
         }
@@ -1653,6 +1671,7 @@ namespace Infoman.Controllers
             public List<AddOnSelection> AddOns { get; set; } = new();
             public string? VoucherCode { get; set; }
             public decimal VoucherDiscountPercent { get; set; }
+            public int? OriginalOrderId { get; set; }
         }
 
         [HttpGet]

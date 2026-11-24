@@ -53,9 +53,14 @@ namespace Infoman.Controllers
                 var targetDate = DateTime.Parse(date).Date;
 
                 var orders = await _db.Orders
-                    .Where(o => o.StaffUserId == employeeId
-                                && o.Date.Date == targetDate
-                                && (o.Status == "COMPLETED" || o.Status == "VOIDED" || o.Status == "REFUNDED" || o.Status == "PENDING_BLENDING"))
+    .Where(o => o.StaffUserId == employeeId
+                && o.Date.Date == targetDate
+                && (o.Status == "COMPLETED" ||
+                    o.Status == "VOIDED" ||
+                    o.Status == "REFUNDED" ||
+                    o.Status == "PENDING_BLENDING" ||
+                    o.Status == "EXCHANGED" ||        // ✅ IDINAGDAG
+                    o.ReturnStatus == "EXCHANGED"))   // ✅ IDINAGDAG
                     .Select(o => new
                     {
                         o.OrderId,
@@ -95,21 +100,25 @@ namespace Infoman.Controllers
                 .ToListAsync();
 
             // ✅ IHIWALAY PARA SA COMPUTATION NG CARDS (Net Sales lang)
-            var validOrders = allOrders.Where(o => o.Status != "VOIDED" && o.Status != "REFUNDED").ToList();
+            // ✅ IHIWALAY PARA SA COMPUTATION NG CARDS (Net Sales lang)
+            var validOrders = allOrders.Where(o =>
+                o.Status != "VOIDED" &&
+                o.Status != "REFUNDED" &&
+                o.Status != "EXCHANGED" &&
+                o.ReturnStatus != "EXCHANGED").ToList(); // ✅ IDINAGDAG ANG ReturnStatus
             var voidedOrders = allOrders.Where(o => o.Status == "VOIDED").ToList();
             var refundedOrders = allOrders.Where(o => o.Status == "REFUNDED").ToList();
 
-            // ✅ I-GROUP ANG VALID ORDERS PARA SA TABLE (Net Sales lang ito)
             var netDailyOrders = validOrders
-                .GroupBy(o => o.Date.Date)
-                .Select(g => new
-                {
-                    Date = g.Key,
-                    OrderCount = g.Count(),
-                    TotalSales = g.Sum(o => o.TotalAmount)
-                })
-                .OrderByDescending(d => d.Date)
-                .ToList();
+     .GroupBy(o => o.Date.Date)
+     .Select(g => new
+     {
+         Date = g.Key,
+         OrderCount = g.Count(),
+         TotalSales = g.Sum(o => o.TotalAmount) // Direkta na
+     })
+     .OrderByDescending(d => d.Date)
+    .ToList();
 
             // ✅ I-GROUP ANG LAHAT NG ORDERS PARA SA "VIEW ORDERS" MODAL (Kasama void/refund)
             var allDailyOrders = allOrders
@@ -121,9 +130,12 @@ namespace Infoman.Controllers
                     {
                         o.OrderId,
                         o.OrderNumber,
-                        o.TotalAmount,
+                        TotalAmount = (o.ReturnStatus == "EXCHANGED" || (o.TotalAmount == 0 && o.OriginalTotalAmount > 0))
+                          ? (o.OriginalTotalAmount - o.DiscountAmount - o.VoucherDiscountAmount)
+                          : o.TotalAmount,
                         o.Status,
                         o.Date,
+                        o.ReturnStatus,
                         o.DiscountType,
                         o.DiscountAmount,
                         o.OriginalTotalAmount, // ✅ IDAGDAG ITO PARA MAY REFERENCE
@@ -391,8 +403,10 @@ namespace Infoman.Controllers
      .Where(o => o.StaffUserId == userId && o.Date.Date >= start.Date && o.Date.Date <= end.Date)
      .ToListAsync();
 
-            // 2. I-compute ang TOTAL SALES (EXCLUDING VOIDED AND REFUNDED)
-            var validOrders = allOrders.Where(o => o.Status != "VOIDED" && o.Status != "REFUNDED").ToList();
+            // 2. I-compute ang TOTAL SALES (EXCLUDING VOIDED, REFUNDED, AT EXCHANGED)
+            var validOrders = allOrders.Where(o => o.Status != "VOIDED" && o.Status != "REFUNDED" && o.Status != "EXCHANGED").ToList();
+
+            // Direkta na nating kunin ang TotalAmount kasi wala na tayong EXCHANGED dito
             var totalSales = validOrders.Sum(o => o.TotalAmount);
             var totalOrders = validOrders.Count;
 

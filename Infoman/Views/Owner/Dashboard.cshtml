@@ -3209,11 +3209,6 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
                 Category Management
             </button>
         </li>
-       <li class="nav-item">
-            <button type="button" class="nav-link" id="tab-unit-btn" onclick="switchSettingsTab('unit')">
-                Unit Management
-            </button>
-        </li> 
         <li class="nav-item">
             <button type="button" class="nav-link" id="tab-addon-btn" onclick="switchSettingsTab('addon')">
                 Add-ons Management
@@ -3316,73 +3311,6 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
     </div> 
 
     <!-- UNIT TAB -->
-    <div id="settings-unit-tab" style="display: none;">
-        <div class="row g-4">
-            <div class="col-lg-8">
-                <div class="card shadow-sm border-0">
-                    <div class="card-header bg-white">
-                        <h5 class="section-title mb-0">Units</h5>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle mb-0">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Symbol</th>
-                                        <th>Base Unit</th>
-                                        <th>Conversion</th>
-                                        <th>Status</th>
-                                        <th class="text-end">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="unitTableBody">
-                                    <tr><td colspan="6" class="text-center text-muted py-4">Loading...</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-4">
-                <div class="card shadow-sm border-0">
-                    <div class="card-header bg-white">
-                        <h5 class="section-title" id="unitFormTitle">Add Unit</h5>
-                    </div>
-                    <div class="card-body">
-                        <form id="unitForm" onsubmit="saveUnit(event)">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" id="unitEditId" value="0">
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Name <span class="text-danger">*</span></label>
-                                <input type="text" id="unitName" class="form-control" placeholder="e.g., kilogram" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Symbol <span class="text-danger">*</span></label>
-                                <input type="text" id="unitSymbol" class="form-control" placeholder="e.g., kg" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Base Unit <span class="text-danger">*</span></label>
-                                <input type="text" id="unitBaseUnit" class="form-control" placeholder="e.g., g" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Conversion Factor <span class="text-danger">*</span></label>
-                                <input type="number" id="unitConversionFactor" class="form-control" step="0.01" value="1" required>
-                            </div>
-                            <div class="form-check form-switch mb-3">
-                                <input class="form-check-input" type="checkbox" id="unitIsActive" checked>
-                                <label class="form-check-label" for="unitIsActive">Active</label>
-                            </div>
-                            <div class="d-flex gap-2">
-                                <button type="submit" class="btn btn-primary flex-grow-1">Save</button>
-                                <button type="button" id="unitCancelBtn" class="btn btn-outline-secondary" style="display:none;" onclick="resetUnitForm()">Cancel</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- ADD-ONS TAB -->
     <div id="settings-addon-tab" style="display: none;">
@@ -5079,13 +5007,11 @@ function updateUnitDropdown(selectElement) {
 function switchSettingsTab(tabName) {
     document.getElementById('tab-security-btn').classList.remove('active');
     document.getElementById('tab-category-btn').classList.remove('active');
-    document.getElementById('tab-unit-btn').classList.remove('active');
     document.getElementById('tab-addon-btn').classList.remove('active');  // ✅ BAGO
     document.getElementById('tab-voucher-btn').classList.remove('active');
 
     document.getElementById('settings-security-tab').style.display = 'none';
     document.getElementById('settings-category-tab').style.display = 'none';
-    document.getElementById('settings-unit-tab').style.display = 'none';
     document.getElementById('settings-addon-tab').style.display = 'none';  // ✅ BAGO
     document.getElementById('settings-voucher-tab').style.display = 'none'; 
 
@@ -8815,20 +8741,29 @@ async function loadExchangeDetailsForReceipt(orderId, originalOrderId) {
         return;
     }
     
-    let html = '';
+       let html = '';
     for (let i = 0; i < wasteLogs.length; i++) {
         const w = wasteLogs[i];
         let reasonText = '';
-        switch(w.reason) {
-            case 0: reasonText = '🔄 Exchange'; break;
-            case 1: reasonText = '📦 Expired'; break;
-            case 2: reasonText = '💔 Damaged'; break;
-            case 3: reasonText = '💧 Spilled'; break;
-            case 4: reasonText = '🍳 Overprepared'; break;
-            case 5: reasonText = '⚠️ Quality Issue'; break;
-            case 6: reasonText = '❌ Customer Cancel'; break;
-            default: reasonText = w.reasonText || 'Other';
+        
+        // ✅ BAGONG LOGIC: Kung may 'notes' at galing sa exchange, doon kumuha
+        if (w.notes && w.notes.includes('Exchange from Order')) {
+            // Kukunin lang yung exact reason pagkatapos ng colon (e.g., "Wrong item served")
+            reasonText = w.notes.split(':')[1].trim();
+        } else {
+            // Kung ibang waste (Expired, Spilled, etc.), gamitin yung lumang switch
+            switch(w.reason) {
+                case 0: reasonText = '🔄 Exchange'; break;
+                case 1: reasonText = '📦 Expired'; break;
+                case 2: reasonText = '💔 Damaged'; break;
+                case 3: reasonText = '💧 Spilled'; break;
+                case 4: reasonText = '🍳 Overprepared'; break;
+                case 5: reasonText = '⚠️ Quality Issue'; break;
+                case 6: reasonText = '❌ Customer Cancel'; break;
+                default: reasonText = w.reasonText || w.reason || 'Other';
+            }
         }
+
         html += `
             <tr>
                 <td><strong>${escapeHtml(w.materialName)}</strong></td>

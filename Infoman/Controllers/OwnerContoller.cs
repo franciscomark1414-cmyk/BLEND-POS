@@ -1881,9 +1881,10 @@ namespace Infoman.Controllers
                             : w.Quantity),
                     Unit = w.RawMaterial.Unit,
                     Reason = w.Reason.ToString(),
+                    w.Notes,
                     TotalCost = w.TotalCost,
                     w.RecordedBy,
-                    w.Notes,
+                    
                     ExpiryDate = w.ExpiryDate != null ? w.ExpiryDate.Value.ToString("yyyy-MM-dd") : "N/A"
                 })
                 .ToListAsync();

@@ -1,7 +1,7 @@
 ﻿@using System.Linq;
 @model DashboardViewModel
 @{
-    Layout = null;  // ✅ WALANG LAYOUT
+    Layout = null;  // WALANG LAYOUT
     ViewBag.Title = "Owner Dashboard";
 }
 <!DOCTYPE html>
@@ -9,15 +9,16 @@
 <head>  
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Andeng's Mango & More - Owner Dashboard</title>
+    <title>Andeng's Mango Graham Shake  - Owner Dashboard</title>
     
-    <!-- ✅ CACHE CONTROL -->
+    <!-- CACHE CONTROL -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -1114,17 +1115,26 @@ html.sidebar-collapsed .main-content {
 .sr-foot { padding: 12px 18px; border-top: 1px solid #e2e8f0; text-align: right; }
 .sr-btn { background: #334155; color: #fff; border: none; padding: 8px 18px; border-radius: 8px; cursor: pointer; }
 
+/* ===== LIGHTER GREEN OVERRIDE ===== */
 :root {
-    --forest: #164B35;
-    --forest-dark: #0F3626;
-    --mango: #FF9F1C;
-    --mango-dark: #E08A0A;
-    --cream: #FFF9EF;
-    --text-dark: #292929;
-    --text-muted: #777777;
-    --sidebar-w: 260px;
-    --sidebar-w-collapsed: 78px;
+    --primary: #1F8A4C;
+    --primary-dark: #17703D;
+    --primary-light: #2FA860;
+    --forest: #1F8A4C;
+    --forest-dark: #17703D;
+    --shadow-sm: 0 4px 14px rgba(31, 138, 76, 0.08);
+    --shadow-md: 0 10px 24px rgba(31, 138, 76, 0.16);
 }
+
+/* Sidebar: puting pill para lumitaw sa gradient */
+.sidebar .nav-item.active {
+    background: #fff;
+    color: #17703D;
+    font-weight: 700;
+    text-shadow: none;
+}
+.sidebar-toggle { background: #17703D; }
+.sidebar-toggle:hover { background: #125C32; }
    /* ========== DASHBOARD MODULE (REDESIGN) ========== */
 .dash-header {
     display: flex;
@@ -1608,13 +1618,13 @@ html.sidebar-collapsed .main-content {
 .emp-btn.danger { color: #dc2626; }
 .emp-btn.danger:hover { background: #fee2e2; border-color: #fecaca; }
 
-/* ✅ Itago ang default eye icon ng browser */
+/* Itago ang default eye icon ng browser */
 input[type="password"]::-ms-reveal,
 input[type="password"]::-ms-clear {
     display: none !important;
 }
 
-/* ✅ Para sa Chrome/Safari */
+/* Para sa Chrome/Safari */
 input[type="password"]::-webkit-textfield-decoration-container {
     display: none !important;
 }
@@ -1651,6 +1661,375 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
     50%      { box-shadow: 0 0 0 5px rgba(220, 53, 69, 0.10); }
 }
 
+/* =====================================================================
+   OWNER DASHBOARD THEME - SAGE (COMPLETE, SINGLE BLOCK)
+   Paste at the VERY BOTTOM of <style>. Delete all earlier theme pastes.
+   Sage = every primary button | Red = destructive | Gray = neutral
+   Mango = accent only | KPI = white card + left bar + colored number
+   ===================================================================== */
+
+/* ---------- 1. TOKENS ---------- */
+:root {
+    --primary: #5A8F6C;
+    --primary-dark: #467857;
+    --primary-light: #7BA88B;
+
+    --forest: #5A8F6C;
+    --forest-dark: #467857;
+    --sage-soft: #F1F6F3;
+    --sage-tint: #E6F0EA;
+
+    --mango: #FF9F1C;
+    --mango-dark: #D98300;
+    --danger: #DC3545;
+    --slate: #64748B;
+    --info: #2F6F8F;
+    --ok: #2F7A4A;
+
+    --ink: #292929;
+    --ink-100: #EEF2EC;
+    --muted: #6B7280;
+    --line: #EEF2EC;
+    --shadow-sm: 0 4px 14px rgba(90, 143, 108, 0.10);
+    --shadow-md: 0 10px 24px rgba(90, 143, 108, 0.18);
+
+    --font: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+
+    /* Layout tokens (from your original :root - do NOT delete) */
+    --sidebar-w: 260px;
+    --sidebar-w-collapsed: 78px;
+    --cream: #FFF9EF;
+    --text-dark: #292929;
+    --text-muted: #777777;
+}
+
+/* ---------- 2. TYPOGRAPHY ---------- */
+html, body, button, input, select, textarea, .btn, .form-control, .form-select,
+.table, .modal, .card, .badge, .nav-link,
+.sidebar .nav-label, .sidebar .brand-text, .sidebar .brand-text * {
+    font-family: var(--font) !important;
+}
+/* Keep Font Awesome icons on their own icon font (never override these) */
+.fas, .fa, .fa-solid { font-family: "Font Awesome 6 Free" !important; font-weight: 900 !important; }
+.far, .fa-regular    { font-family: "Font Awesome 6 Free" !important; font-weight: 400 !important; }
+.fab, .fa-brands     { font-family: "Font Awesome 6 Brands" !important; font-weight: 400 !important; }
+body { color: var(--ink); font-size: 0.9rem; -webkit-font-smoothing: antialiased; }
+
+.page-header-title,
+#returnsModule > div:first-child > h3,
+#receivingModule .page-header-title,
+#receivingHistoryModule .page-header-title,
+.dash-title {
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+    color: var(--forest-dark) !important;
+    display: flex; align-items: center; gap: .5rem;
+    margin: 0 0 .2rem !important;
+}
+.page-header-title > i,
+#returnsModule > div:first-child > h3 > i { color: var(--mango-dark) !important; }
+.page-header-subtitle, .dash-subtitle { font-size: .9rem !important; color: var(--muted) !important; }
+.section-title, .card-header h5, .dash-panel-head h5 {
+    font-size: 1.05rem !important; font-weight: 600 !important; color: var(--forest-dark) !important;
+}
+.card-header h5 i, .dash-panel-head h5 i { color: var(--mango-dark) !important; }
+.modal-title { font-size: 1.05rem; font-weight: 600; }
+.form-label { font-weight: 600; font-size: .85rem; color: #374151; }
+.text-muted { color: var(--muted) !important; }
+
+/* ---------- 3. BUTTONS ---------- */
+.btn {
+    border-radius: 10px !important;
+    font-size: .875rem !important;
+    font-weight: 600 !important;
+    padding: .45rem .95rem;
+    box-shadow: none !important;
+    transition: background .2s ease, color .2s ease, border-color .2s ease, transform .15s ease;
+}
+.btn-sm { padding: .3rem .7rem; font-size: .8rem !important; border-radius: 8px !important; }
+
+.btn-primary, .btn-success, .btn-warning, .btn-info,
+.btn[style*="linear-gradient"], .btn[style*="#ff6b35"], button[style*="#ff6b35"] {
+    background: var(--forest) !important;
+    border: 1px solid var(--forest) !important;
+    color: #fff !important;
+}
+.btn-primary:hover, .btn-success:hover, .btn-warning:hover, .btn-info:hover,
+.btn[style*="linear-gradient"]:hover, button[style*="#ff6b35"]:hover {
+    background: var(--forest-dark) !important;
+    border-color: var(--forest-dark) !important;
+    color: #fff !important;
+    transform: translateY(-1px);
+}
+
+.btn-outline-primary, .btn-outline-warning, .btn-outline-success, .btn-outline-info {
+    background: transparent !important;
+    border: 1px solid var(--forest) !important;
+    color: var(--forest-dark) !important;
+}
+.btn-outline-primary:hover, .btn-outline-warning:hover,
+.btn-outline-success:hover, .btn-outline-info:hover {
+    background: var(--forest) !important;
+    color: #fff !important;
+}
+
+.btn-danger { background: var(--danger) !important; border: 1px solid var(--danger) !important; color: #fff !important; }
+.btn-danger:hover { background: #b02a37 !important; border-color: #b02a37 !important; }
+.btn-outline-danger { background: transparent !important; border: 1px solid var(--danger) !important; color: var(--danger) !important; }
+.btn-outline-danger:hover { background: var(--danger) !important; color: #fff !important; }
+
+.btn-secondary, .btn-outline-secondary, .btn-dark, .btn-outline-dark {
+    background: #fff !important; border: 1px solid #D1D5DB !important; color: #374151 !important;
+}
+.btn-secondary:hover, .btn-outline-secondary:hover, .btn-dark:hover, .btn-outline-dark:hover {
+    background: #F3F4F6 !important; color: #111 !important;
+}
+
+#confirmOkBtn, #alertCloseBtn { background: var(--forest) !important; color: #fff !important; border-radius: 10px; }
+#confirmOkBtn:hover, #alertCloseBtn:hover { background: var(--forest-dark) !important; }
+.btn-cancel { background: #fff; border: 1px solid #D1D5DB; border-radius: 10px; color: #374151; font-weight: 600; }
+
+/* ---------- 4. LINKS / TEXT COLORS ---------- */
+a { color: var(--forest-dark) !important; }
+.kpi-card, .kpi-card:hover { color: inherit !important; text-decoration: none; }
+.text-warning { color: var(--mango-dark) !important; }
+.text-primary { color: var(--forest-dark) !important; }
+.text-success { color: var(--ok) !important; }
+.text-info    { color: var(--info) !important; }
+.text-danger  { color: var(--danger) !important; }
+
+/* ---------- 5. KPI CARDS ---------- */
+.kpi-card,
+.card-revenue, .card-profit, .card-waste,
+.border-left-warning, .border-left-info, .border-left-secondary,
+#financialsModule .row > [class*="col-md-3"] > .card,
+#supplierTab .row > [class*="col-md-3"] > .card,
+#employeePerformanceTab .row > [class*="col-md-3"] > .card {
+    --kpi: var(--forest);
+    background: #fff !important;
+    border: 1px solid var(--line) !important;
+    border-left: 5px solid var(--kpi) !important;
+    border-radius: 16px !important;
+    box-shadow: var(--shadow-sm) !important;
+    color: var(--ink) !important;
+    transition: transform .2s ease, box-shadow .2s ease;
+}
+.kpi-card:hover, .card-revenue:hover, .card-profit:hover, .card-waste:hover,
+#financialsModule .row > [class*="col-md-3"] > .card:hover,
+#supplierTab .row > [class*="col-md-3"] > .card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md) !important;
+}
+
+.card-revenue { --kpi: var(--forest); }
+.card-profit  { --kpi: var(--mango); }
+.card-waste   { --kpi: var(--danger); }
+.border-left-warning   { --kpi: var(--mango); }
+.border-left-info      { --kpi: var(--info); }
+.border-left-secondary { --kpi: var(--slate); }
+
+.kpi-card:has(.kpi-icon.forest) { --kpi: var(--forest); }
+.kpi-card:has(.kpi-icon.mango)  { --kpi: var(--mango); }
+.kpi-card.critical, .kpi-card:has(.kpi-icon.danger) { --kpi: var(--danger); }
+
+#financialsModule .row > [class*="col-md-3"]:nth-child(1) > .card { --kpi: var(--forest); }
+#financialsModule .row > [class*="col-md-3"]:nth-child(2) > .card { --kpi: var(--mango); }
+#financialsModule .row > [class*="col-md-3"]:nth-child(3) > .card { --kpi: var(--slate); }
+#financialsModule .row > [class*="col-md-3"]:nth-child(4) > .card { --kpi: var(--forest); }
+
+#supplierTab .row > [class*="col-md-3"]:nth-child(1) > .card { --kpi: var(--mango); }
+#supplierTab .row > [class*="col-md-3"]:nth-child(2) > .card { --kpi: var(--forest); }
+#supplierTab .row > [class*="col-md-3"]:nth-child(3) > .card { --kpi: var(--danger); }
+#supplierTab .row > [class*="col-md-3"]:nth-child(4) > .card { --kpi: var(--info); }
+
+#employeePerformanceTab .row > [class*="col-md-3"]:nth-child(1) > .card { --kpi: var(--forest); }
+#employeePerformanceTab .row > [class*="col-md-3"]:nth-child(2) > .card { --kpi: var(--mango); }
+#employeePerformanceTab .row > [class*="col-md-3"]:nth-child(3) > .card { --kpi: var(--danger); }
+#employeePerformanceTab .row > [class*="col-md-3"]:nth-child(4) > .card { --kpi: var(--slate); }
+
+.kpi-value, .stat-value,
+#financialsModule .row > [class*="col-md-3"] > .card h3,
+#supplierTab .row > [class*="col-md-3"] > .card h2,
+#employeePerformanceTab .row > [class*="col-md-3"] h3,
+.border-left-warning .h5, .border-left-info .h5, .border-left-secondary .h5 {
+    color: var(--kpi) !important;
+    font-size: 1.6rem !important;
+    font-weight: 700 !important;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+}
+.kpi-card.critical .kpi-value { color: var(--danger) !important; }
+
+.kpi-label, .stat-title,
+#financialsModule .row > [class*="col-md-3"] > .card h6,
+#supplierTab .row > [class*="col-md-3"] > .card h6,
+#employeePerformanceTab .row > [class*="col-md-3"] h6,
+.border-left-warning .text-xs, .border-left-info .text-xs, .border-left-secondary .text-xs {
+    color: var(--muted) !important;
+    font-size: .85rem !important;
+    font-weight: 600 !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+}
+.kpi-sub, .stat-subtitle, #financialsModule .row > [class*="col-md-3"] > .card small {
+    color: var(--muted) !important; font-size: .75rem;
+}
+
+.kpi-card { position: relative; flex-direction: column; align-items: flex-start; justify-content: center; gap: 4px; padding: 18px 20px; }
+.kpi-icon { position: absolute; top: 14px; right: 14px; width: 34px; height: 34px; border-radius: 10px; font-size: 14px; }
+.kpi-icon.mango  { background: rgba(255,159,28,.14); color: var(--mango-dark); }
+.kpi-icon.forest { background: rgba(90,143,108,.14); color: var(--forest-dark); }
+.kpi-icon.danger { background: rgba(220,53,69,.10);  color: var(--danger); }
+.stat-card-simple { position: relative; padding: 18px 20px; }
+.stat-card-simple .stat-icon { position: absolute; top: 14px; right: 16px; font-size: 18px; margin: 0; opacity: .9; }
+.card-revenue .stat-icon { color: var(--forest-dark); }
+.card-profit  .stat-icon { color: var(--mango-dark); }
+.card-waste   .stat-icon { color: var(--danger); }
+
+/* ---------- 6. CARDS / MODALS ---------- */
+.card { border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-sm); }
+.card-header { background: #fff; border-bottom: 1px solid var(--line); }
+.card-header.bg-warning, .card-header.bg-info, .card-header.bg-secondary, .card-header.bg-primary {
+    background: var(--sage-soft) !important; color: var(--forest-dark) !important;
+}
+.card.border-warning { border-color: var(--line) !important; }
+
+.modal-content { border: none; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+.modal-header,
+.modal-header.bg-warning, .modal-header.bg-primary, .modal-header.bg-success, .modal-header.bg-info,
+.modal-header[style*="linear-gradient"] {
+    background: var(--forest) !important;
+    color: #fff !important;
+    border-bottom: none;
+}
+.modal-header .modal-title { color: #fff !important; }
+.modal-header .btn-close { filter: invert(1) grayscale(100%) brightness(200%); opacity: .9; }
+.modal-footer { border-top: 1px solid var(--line); }
+
+/* ---------- 7. TABLES ---------- */
+.table th, .table thead.table-light th, .table thead.table-dark th, .table thead.table-warning th,
+.table thead.table-info th, .table thead.table-danger th, .table thead.table-secondary th {
+    background: var(--forest) !important;
+    color: #fff !important;
+    border-color: var(--forest-dark) !important;
+}
+.table tfoot .table-warning, .table tfoot.table-warning, .table tfoot .table-info {
+    --bs-table-bg: var(--sage-soft); background: var(--sage-soft) !important;
+}
+.table-hover tbody tr:hover { background: #F7FAF8 !important; }
+
+/* ---------- 8. TABS ---------- */
+.nav-tabs { border-bottom: 1px solid var(--line); }
+.nav-tabs .nav-link { color: var(--muted); background: transparent; border: none; font-weight: 600; }
+.nav-tabs .nav-link:hover { color: var(--forest-dark); }
+.nav-tabs .nav-link.active { color: var(--forest-dark); border-bottom: 3px solid var(--mango) !important; background: transparent; }
+
+/* ---------- 9. BADGES ---------- */
+.badge { font-weight: 600; border-radius: 999px; padding: .35em .7em; }
+.badge.bg-success   { background: #E3F1E8 !important; color: var(--ok) !important; }
+.badge.bg-primary   { background: var(--sage-tint) !important; color: var(--forest-dark) !important; }
+.badge.bg-warning   { background: #FFF1DB !important; color: #A85F00 !important; }
+.badge.bg-danger    { background: #FDE8EA !important; color: #B02A37 !important; }
+.badge.bg-info      { background: #E3EFF5 !important; color: var(--info) !important; }
+.badge.bg-secondary { background: #F1F5F9 !important; color: var(--slate) !important; }
+
+/* ---------- 10. FORMS ---------- */
+.form-control, .form-select { border-radius: 10px; border-color: #D9DED8; font-size: .9rem !important; }
+.form-control:focus, .form-select:focus {
+    border-color: var(--forest);
+    box-shadow: 0 0 0 .2rem rgba(90, 143, 108, .20);
+}
+.form-check-input:checked { background-color: var(--forest); border-color: var(--forest); }
+
+/* ---------- 11. ALERTS ---------- */
+.alert { border-radius: 12px; border: 1px solid transparent; border-left-width: 4px; }
+.alert-info      { background: #EEF5F8; border-color: var(--info);  color: #1F4B61; }
+.alert-warning   { background: #FFF6E5; border-color: var(--mango); color: #6B4200; }
+.alert-success   { background: #EAF6EE; border-color: var(--ok);    color: #14532D; }
+.alert-secondary { background: #F4F6F8; border-color: var(--slate); color: #334155; }
+
+/* ---------- 12. SIZE DOT ---------- */
+.size-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; background: var(--slate); }
+.size-dot.sm { background: #16A34A; }
+.size-dot.md { background: var(--mango); }
+.size-dot.lg { background: var(--danger); }
+
+/* ---------- 13. SIDEBAR (white pill on gradient) ---------- */
+.sidebar .nav-item.active {
+    background: #fff;
+    color: var(--forest-dark);
+    font-weight: 700;
+    text-shadow: none;
+}
+.sidebar-toggle { background: var(--forest-dark); }
+.sidebar-toggle:hover { background: #3A6648; }
+
+/* ---------- 14. JS-GENERATED UI (alert icons, shift report, size rows) ---------- */
+.ui-icon { font-size: 48px; line-height: 1; margin-bottom: 10px; display: inline-block; }
+.ui-icon.success { color: var(--ok); }
+.ui-icon.danger  { color: var(--danger); }
+.ui-icon.warn    { color: var(--mango-dark); }
+.ui-icon.info    { color: var(--info); }
+.ui-icon.confirm { color: var(--forest); }
+
+.modal-qty-content { border-radius: 16px; }
+
+.sr-head { background: var(--forest); }
+.sr-btn  { background: var(--forest); border-radius: 10px; font-weight: 600; }
+.sr-btn:hover { background: var(--forest-dark); }
+
+.size-row { background: var(--sage-soft) !important; border-color: var(--line) !important; border-radius: 12px !important; }
+.size-row .btn-remove-size { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+.size-row .btn-remove-size:hover { background: var(--danger); color: #fff; }
+
+#confirmOkBtn.is-danger { background: var(--danger) !important; border-color: var(--danger) !important; }
+#confirmOkBtn.is-danger:hover { background: #b02a37 !important; }
+
+
+/* Receipt / custom modals: laging kasya sa screen, scrollable kapag mahaba */
+.modal-qty {
+    overflow-y: auto;
+    padding: 16px;
+    box-sizing: border-box;
+}
+.modal-qty-content {
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+}
+
+/* Close button laging nakikita sa baba ng receipt */
+#receiptModalForReports .modal-qty-content > div:last-child {
+    position: sticky;
+    bottom: -25px;
+    background: #fff;
+    padding: 10px 0 0;
+    border-top: 1px solid var(--line);
+}
+
+/* Reports tabs: isang linya lang, compact */
+#reportsModule .nav-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+}
+#reportsModule .nav-tabs .nav-link {
+    white-space: nowrap;
+    padding: .65rem .9rem;
+    font-size: .9rem;
+}
+#reportsModule .nav-tabs .nav-link i { margin-right: .35rem !important; }
+
+/* Para hindi mag-2 linya ang "View Details" button */
+#shiftsTableBody .btn { white-space: nowrap; }
+
+/* Lahat ng bg-primary = sage, para pareho sa buong app */
+.bg-primary,
+.card.bg-primary {
+    background-color: var(--forest) !important;
+    border-color: var(--forest) !important;
+}
+
     </style>
 
     <script>
@@ -1677,12 +2056,12 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
 
     <div class="sidebar-brand">
     <div class="brand-logo" id="brandLogo">
-        <img src="/images/logo.png" alt="Andeng's Mango & More logo"
+        <img src="/images/logo.png" alt="Andeng's Mango Graham Shake logo"
              onerror="this.parentElement.classList.add('no-image')">
         <span class="brand-fallback">NM</span>
     </div>
     <div class="brand-text">
-        <h5>Andeng's Mango</h5>
+        <h5>Andeng's Mango Graham Shake </h5>
         <small>Owner Portal</small>
     </div>
 </div>
@@ -1793,15 +2172,15 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
                     <div class="kpi-badges">
                         @if (ViewBag.ExpiringCount > 0)
                         {
-                            <span class="badge bg-info me-1">⏰ @ViewBag.ExpiringCount</span>
+                            <span class="badge bg-info me-1">@ViewBag.ExpiringCount</span>
                         }
                         @if (ViewBag.ExpiredCount > 0)
                         {
-                            <span class="badge bg-danger me-1">❌ @ViewBag.ExpiredCount</span>
+                            <span class="badge bg-danger me-1">@ViewBag.ExpiredCount</span>
                         }
                         @if (ViewBag.WasteCount > 0)
                         {
-                            <span class="badge bg-secondary">🗑️ @ViewBag.WasteCount</span>
+                            <span class="badge bg-secondary">@ViewBag.WasteCount</span>
                         }
                     </div>
                 }
@@ -2019,7 +2398,7 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
         <div class="mb-3">
             <label class="form-label fw-bold">Critical Stock Level <span class="text-danger">*</span></label>
             <input type="number" name="MinQty" id="MinQty" class="form-control" required value="0" step="0.1" min="0" oninput="validateMinQty(this)">
-            <small class="text-muted text-danger">⚠️ Must be 0 or positive (cannot be negative)</small>
+            <small class="text-muted text-danger">Must be 0 or positive (cannot be negative)</small>
         </div>
 
         <hr>
@@ -2090,7 +2469,7 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
                     <div class="card-header bg-white d-flex justify-content-between align-items-center" style="cursor: pointer;" onclick="toggleProductCard(this)">
                         <div>
                             <i class="fas fa-chevron-down me-2 toggle-icon" style="transition: transform 0.2s;"></i>
-                            <h4 class="mb-0 d-inline-block">🥤 @product.Name</h4>
+                            <h4 class="mb-0 d-inline-block">@product.Name</h4>
                             <br />
                             <small class="text-muted ms-4">SKU: @product.SKU | Category: @product.Category</small>
                         </div>
@@ -2106,7 +2485,7 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
                     
                     <div class="card-body product-card-body">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="mb-0">📊 Sizes & Inventory</h5>
+                            <h5 class="mb-0">Sizes & Inventory</h5>
                             <button class="btn btn-sm btn-success" onclick="addSize(@product.ProductId)">
                                 <i class="fas fa-plus"></i> Add Size
                             </button>
@@ -2131,21 +2510,18 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
                                         {
                                             <tr data-size-id="@size.ProductSizeId">
                                                 <td>
-                                                    @{
-                                                        string emoji = size.SizeName == "Small" ? "🟢" : (size.SizeName == "Medium" ? "🟡" : "🔴");
-                                                    }
-                                                    @emoji @size.SizeName
+                                                    <span class="size-dot @(size.SizeName == "Small" ? "sm" : size.SizeName == "Medium" ? "md" : "lg")"></span>@size.SizeName
                                                 </td>
                                                 <td><code>@(string.IsNullOrEmpty(size.SKU) ? "—" : size.SKU)</code></td>
                                                             <td>₱@size.Price.ToString("N2")</td>
                                                 <td id="pos-status-@size.ProductSizeId">
                                                     @if (size.IsAvailableInPOS)
                                                     {
-                                                        <span class="badge bg-success">✅ Displayed in POS</span>
+                                                        <span class="badge bg-success">Displayed in POS</span>
                                                     }
                                                     else
                                                     {
-                                                        <span class="badge bg-secondary">⚫ Hidden from POS</span>
+                                                        <span class="badge bg-secondary">Hidden from POS</span>
                                                     }
                                                 </td>
                                                 <td>
@@ -2177,7 +2553,7 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
                                     else
                                     {
                                         <tr>
-                                            <td colspan="6" class="text-center text-muted">➕ No sizes added yet. Click "Add Size" to add.</td>
+                                            <td colspan="6" class="text-center text-muted">No sizes added yet. Click "Add Size" to add.</td>
                                         </tr>
                                     }
                                 </tbody>
@@ -2190,7 +2566,7 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
         else
         {
             <div class="text-center py-5">
-                <h4 class="text-muted">📭 No products yet</h4>
+                <h4 class="text-muted">No products yet</h4>
                 <p>Click <strong>"Add Product"</strong> to get started</p>
             </div>
         }
@@ -2201,7 +2577,7 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header bg-warning">
-                        <h5 class="modal-title">⚠️ Cannot Delete - Used in Products</h5>
+                        <h5 class="modal-title">Cannot Delete - Used in Products</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
@@ -2223,7 +2599,7 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">➕ Add New Product</h5>
+                        <h5 class="modal-title">Add New Product</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <form asp-action="AddProduct" asp-controller="Owner" method="post" id="addProductForm">
@@ -2237,7 +2613,7 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
                                 </div>
                               <div class="col-md-6">
     <label class="form-label">Auto-Generated SKU Prefix</label>
-    <!-- ✅ TINANGGAL ANG required, GINAWANG lowercase ang placeholder para sa matching -->
+    <!-- TINANGGAL ANG required, GINAWANG lowercase ang placeholder para sa matching -->
     <input type="text" id="skuPrefixInput" name="SKU" class="form-control" readonly 
            style="background-color: var(--ink-100); font-weight: bold; text-transform: uppercase;" 
            placeholder="Will be auto-generated" />
@@ -2512,7 +2888,7 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
             <div class="container-fluid">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <div>
-                        <h2 class="page-header-title">⚠️ Alerts & Monitoring</h2>
+                        <h2 class="page-header-title">Alerts & Monitoring</h2>
 <p class="page-header-subtitle">Track inventory alerts, waste, and expiring items</p>
                     </div>
                 </div>
@@ -2581,7 +2957,7 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header bg-success text-white">
-                        <h5 class="modal-title">📦 Restock Raw Material</h5>
+                        <h5 class="modal-title">Restock Raw Material</h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
@@ -2614,7 +2990,7 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="button" class="btn btn-success" onclick="confirmRestock(event)">✅ Add Stock</button>
+                        <button type="button" class="btn btn-success" onclick="confirmRestock(event)">Add Stock</button>
                     </div>
                 </div>
             </div>
@@ -2625,7 +3001,7 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header bg-warning">
-                        <h5 class="modal-title">🗑️ Log Waste</h5>
+                        <h5 class="modal-title">Log Waste</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
@@ -2910,7 +3286,7 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
        <div id="receiptModalForReports" class="modal-qty" style="display: none; z-index: 100000;">
            <div class="modal-qty-content" style="width: 380px; max-width: 90%;">
     <div style="text-align: center; margin-bottom: 20px;">
-        <h3 style="margin: 5px 0;">Andeng's Mango & More</h3>
+        <h3 style="margin: 5px 0;">Andeng's Mango Graham Shake </h3>
         <small style="color: #666;">Official Receipt</small>
         <hr style="margin: 10px 0;">
     </div>
@@ -2965,7 +3341,7 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
          
 <div id="employeePerformanceTab" style="display:none;">
     
-    <!-- ✅ 1. ITO YUNG NAAWALANG SELECT EMPLOYEE DROPDOWN -->
+    <!-- 1. ITO YUNG NAAWALANG SELECT EMPLOYEE DROPDOWN -->
     <div class="row mb-4">
         <div class="col-md-4">
             <div class="card border-0 shadow-sm rounded-4" style="background-color: var(--forest);">
@@ -2979,7 +3355,7 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
         </div>
     </div>
 
-    <!-- ✅ 2. MGA CARDS (PARE-PAREHONG PROFESSIONAL NA KULAY) -->
+    <!-- 2. MGA CARDS (PARE-PAREHONG PROFESSIONAL NA KULAY) -->
     <div class="row g-3 mb-4">
         <!-- Total Sales -->
         <div class="col-md-3">
@@ -3028,7 +3404,7 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
         </div>
     </div>
 
-    <!-- ✅ 3. PERFORMANCE HISTORY TABLE (Binalik) -->
+    <!-- 3. PERFORMANCE HISTORY TABLE (Binalik) -->
     <div class="card border-0 shadow-sm rounded-4">
         <div class="card-header bg-white fw-semibold border-0 pt-3 pb-2">
             <i class="fas fa-chart-line me-2" style="color:var(--mango);"></i> Performance History
@@ -3642,7 +4018,7 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
 <div id="supplierReturnReceiptModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 10004;">
     <div style="background: white; border-radius: 12px; width: 400px; max-width: 90%; padding: 25px;">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h4 class="mb-0">🧾 Supplier Return Receipt</h4>
+            <h4 class="mb-0">Supplier Return Receipt</h4>
             <button onclick="closeSupplierReturnReceipt()" style="background: none; border: none; font-size: 24px;">&times;</button>
         </div>
         <div id="receiptContent" style="font-family: monospace; font-size: 14px;">
@@ -3693,7 +4069,7 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
                       
                         <div id="returnsModule" class="module">
                             <div class="d-flex justify-content-between align-items-center mb-4">
-                                <h3><i class="fas fa-undo-alt text-warning me-2"></i> Returns & Void Management</h3>
+                               <h3 class="page-header-title"><i class="fas fa-undo-alt"></i> Returns & Void Management</h3>
                             </div>
 
                             <ul class="nav nav-tabs mb-3">
@@ -3898,7 +4274,7 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
                     <div class="mb-3">
                         <label class="form-label">Phone</label>
                         <input type="text" id="supplierPhone" class="form-control" maxlength="13" placeholder="e.g., 09123456789">
-                        <!-- ✅ HINT: Nakalagay na ang tamang format -->
+                        <!-- HINT: Nakalagay na ang tamang format -->
                         <small class="text-muted" id="hintSupplierPhone">Format: 09XXXXXXXXX (11 digits) or +639XXXXXXXXX</small>
                         <small class="text-danger d-none" id="errSupplierPhone">Invalid phone format.</small>
                     </div>
@@ -3936,7 +4312,7 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
                         <!-- Custom Modal for Supplier Return -->
                         <div id="supplierReturnModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 10002;">
                             <div style="background: white; border-radius: 12px; width: 400px; max-width: 90%; padding: 25px;">
-                                <h4 class="mb-3">🔄 Return to Supplier</h4>
+                                <h4 class="mb-3">Return to Supplier</h4>
                                 <div id="supplierReturnItemInfo" class="mb-3"></div>
         
                                 <div class="mb-3">
@@ -3948,12 +4324,12 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
                                 <div class="mb-3">
                                     <label class="form-label">Reason for Return:</label>
                                     <select id="returnReason" class="form-control">
-                                        <option value="Damaged Packaging">📦 Damaged Packaging</option>
-                                        <option value="Overripe/Expired">🍂 Overripe/Expired</option>
-                                        <option value="Wrong Item">❌ Wrong Item</option>
-                                        <option value="Quality Issue">⚠️ Quality Issue</option>
-                                        <option value="Short Dated">📅 Short Dated</option>
-                                        <option value="Other">📝 Other (specify)</option>
+                                        <option value="Damaged Packaging"> Damaged Packaging</option>
+                                        <option value="Overripe/Expired"> Overripe/Expired</option>
+                                        <option value="Wrong Item"> Wrong Item</option>
+                                        <option value="Quality Issue"> Quality Issue</option>
+                                        <option value="Short Dated"> Short Dated</option>
+                                        <option value="Other"> Other (specify)</option>
                                     </select>
                                     <input type="text" id="returnOtherReason" class="form-control mt-2" placeholder="Please specify..." style="display: none;">
                                 </div>
@@ -3969,7 +4345,7 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
 <div id="customConfirmModal" class="modal-qty" style="display: none;">
     <div class="modal-qty-content" style="width: 350px; max-width: 90%;">
         <div style="text-align: center;">
-            <div id="confirmIcon" style="font-size: 48px; margin-bottom: 10px;">❓</div>
+            <div id="confirmIcon" style="font-size: 48px; margin-bottom: 10px;"></div>
             <h4 id="confirmTitle" style="margin-bottom: 15px;">Confirm Action</h4>
             <p id="confirmMessage" style="margin-bottom: 20px; color: #666;"></p>
             <div style="display: flex; gap: 10px;">
@@ -3984,7 +4360,7 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
 <div id="customAlertModal" class="modal-qty" style="display: none;">
     <div class="modal-qty-content" style="width: 320px; max-width: 90%;">
         <div style="text-align: center;">
-            <div id="alertIcon" style="font-size: 48px; margin-bottom: 10px;">ℹ️</div>
+            <div id="alertIcon" style="font-size: 48px; margin-bottom: 10px;"></div>
             <h4 id="alertTitle" style="margin-bottom: 15px;">Notice</h4>
             <p id="alertMessage" style="margin-bottom: 20px; color: #666;"></p>
             <button id="alertCloseBtn" class="btn-confirm" style="width: 100%; padding: 10px;">OK</button>
@@ -4108,15 +4484,15 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
                     <label class="form-label fw-bold">Reason for Adjustment <span class="text-danger">*</span></label>
                     <select id="editReason" class="form-control" style="border-radius: 10px; padding: 10px;" onchange="toggleOtherReason()">
                         <option value="">-- Select Reason --</option>
-                        <option value="Typo Error - Correction">✏️ Typo Error (Correction only - no waste log)</option>
-                        <option value="Spoilage">🍂 Spoilage (will create waste log)</option>
-                        <option value="Damage">💔 Damage (will create waste log)</option>
-                        <option value="Quality Issue">⚠️ Quality Issue (will create waste log)</option>
-                        <option value="Overripe">🍌 Overripe (will create waste log)</option>
-                        <option value="Physical Count - Missing">📊 Physical Count - Missing (will create waste log)</option>
-                        <option value="Physical Count - Excess">📊 Physical Count - Excess (increase stock)</option>
-                        <option value="Theft/Loss">🔒 Theft/Loss (will create waste log)</option>
-                        <option value="Other">📝 Other</option>
+                        <option value="Typo Error - Correction">Typo Error (Correction only - no waste log)</option>
+                        <option value="Spoilage">Spoilage (will create waste log)</option>
+                        <option value="Damage">Damage (will create waste log)</option>
+                        <option value="Quality Issue">Quality Issue (will create waste log)</option>
+                        <option value="Overripe">Overripe (will create waste log)</option>
+                        <option value="Physical Count - Missing">Physical Count - Missing (will create waste log)</option>
+                        <option value="Physical Count - Excess">Physical Count - Excess (increase stock)</option>
+                        <option value="Theft/Loss">Theft/Loss (will create waste log)</option>
+                        <option value="Other">Other</option>
                     </select>
                     <input type="text" id="editOtherReason" class="form-control mt-2" placeholder="Please specify reason..." style="display: none; border-radius: 10px;">
                 </div>
@@ -4156,7 +4532,7 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">➕ Add New Size for: <span id="addSizeProductName"></span></h5>
+                <h5 class="modal-title">Add New Size for: <span id="addSizeProductName"></span></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -4189,12 +4565,12 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
                 <hr />
                 
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="mb-0">📋 Recipe / Ingredients</h6>
+                    <h6 class="mb-0">Recipe / Ingredients</h6>
                     <button type="button" class="btn btn-sm btn-success" onclick="addNewIngredientRow()">
                         <i class="fas fa-plus"></i> Add Ingredient
                     </button>
                 </div>
-                                <!-- ✅ ITO ANG TAMANG CONTAINER PARA SA JS -->
+                                <!-- ITO ANG TAMANG CONTAINER PARA SA JS -->
                <div class="table-responsive">
                     <table class="table table-bordered" id="newSizeIngredientsTable">
                         <thead class="table-light">
@@ -4229,14 +4605,14 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">✏️ Edit Product: <span id="editProductName"></span></h5>
+                <h5 class="modal-title">Edit Product: <span id="editProductName"></span></h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="editProductId">
                 
                 <!-- BASIC INFORMATION -->
-                <h6 class="mb-3">📝 Basic Information</h6>
+                <h6 class="mb-3">Basic Information</h6>
                 <div class="row mb-3">
                     <div class="col-md-12">
                         <label class="form-label fw-bold">Product Name <span class="text-danger">*</span></label>
@@ -4264,7 +4640,7 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
                 
                 <!-- SIZE VARIANTS MANAGEMENT -->
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="mb-0">📊 Size Variants</h6>
+                    <h6 class="mb-0">Size Variants</h6>
                     <button type="button" class="btn btn-sm btn-success" onclick="addNewSizeFromEdit()">
                         <i class="fas fa-plus"></i> Add Size
                     </button>
@@ -4612,7 +4988,7 @@ html.sidebar-collapsed .sidebar .nav-item .nav-badge {
 <div id="printableFinancialReport" style="display: none;">
     <!-- Header ng Report -->
     <div style="text-align: center; margin-bottom: 20px;">
-        <h2 style="margin: 0;">Andeng's Mango & More</h2>
+        <h2 style="margin: 0;">Andeng's Mango Graham Shake </h2>
         <p style="margin: 5px 0;">Financial Report</p>
         <p style="margin: 0; font-size: 12px;" id="printDateRange">Period: Monthly | Date: 01/11/2026</p>
         <hr style="border: 1px solid #000;">
@@ -4799,12 +5175,12 @@ function toggleSessionTimeout(element) {
 
     if (isEnabled) {
         resetSessionTimer();
-        showAlert('Session timeout is now ON (5 minutes).', 'Settings Updated', '✅');
+        showAlert('Session timeout is now ON (5 minutes).', 'Settings Updated', '');
     } else {
         clearTimeout(timeoutId);
         sessionStorage.removeItem(LOCK_FLAG_KEY);
         sessionStorage.removeItem(LAST_ACTIVITY_KEY);
-        showAlert('Session timeout is now OFF.', 'Settings Updated', 'ℹ️');
+        showAlert('Session timeout is now OFF.', 'Settings Updated', '');
     }
 }
 
@@ -4854,7 +5230,7 @@ function restoreSessionLock() {
     }
 }
 
-// ✅ BAGONG FUNCTION: Para mag-unlock
+// BAGONG FUNCTION: Para mag-unlock
 async function unlockSession() {
     const password = document.getElementById('unlockPasswordInput').value;
     const errorEl = document.getElementById('unlockError');
@@ -4885,7 +5261,7 @@ async function unlockSession() {
         const result = await response.json();
 
         if (result.success) {
-            // ✅ Tama ang password — i-close ang modal at i-reset ang timer
+            // Tama ang password — i-close ang modal at i-reset ang timer
             const lockModal = bootstrap.Modal.getInstance(document.getElementById('sessionLockModal'));
             lockModal.hide();
             
@@ -5007,12 +5383,12 @@ function updateUnitDropdown(selectElement) {
 function switchSettingsTab(tabName) {
     document.getElementById('tab-security-btn').classList.remove('active');
     document.getElementById('tab-category-btn').classList.remove('active');
-    document.getElementById('tab-addon-btn').classList.remove('active');  // ✅ BAGO
+    document.getElementById('tab-addon-btn').classList.remove('active');  // BAGO
     document.getElementById('tab-voucher-btn').classList.remove('active');
 
     document.getElementById('settings-security-tab').style.display = 'none';
     document.getElementById('settings-category-tab').style.display = 'none';
-    document.getElementById('settings-addon-tab').style.display = 'none';  // ✅ BAGO
+    document.getElementById('settings-addon-tab').style.display = 'none';  // BAGO
     document.getElementById('settings-voucher-tab').style.display = 'none'; 
 
     if (tabName === 'security') {
@@ -5030,7 +5406,7 @@ function switchSettingsTab(tabName) {
     document.getElementById('tab-addon-btn').classList.add('active');
     document.getElementById('settings-addon-tab').style.display = 'block';
     
-    // ✅ ITO ANG KULANG: Tawagin ang loadCategoryDropdown para lumabas ang "Extras" at "hehe"
+    // ITO ANG KULANG: Tawagin ang loadCategoryDropdown para lumabas ang "Extras" at "hehe"
     loadCategoryDropdown('addOnCategory', 'AddOn', { 
         valueKey: 'name', 
         placeholder: '-- Select Category --' 
@@ -5116,7 +5492,7 @@ function editCategory(id) {
     document.getElementById('catEditId').value = c.id;
     document.getElementById('catName').value = c.name;
     
-    // ✅ I-SET ANG VALUE (AddOn, Product, o RawMaterial)
+    // I-SET ANG VALUE (AddOn, Product, o RawMaterial)
     document.getElementById('catType').value = c.type; 
     
     document.getElementById('catType').disabled = true;
@@ -5155,16 +5531,16 @@ function editCategory(id) {
                                                         hideLoading();
 
                                                         if (data.success) {
-                                                            await showAlert(data.message, 'Success', '✅');
+                                                            await showAlert(data.message, 'Success', '');
                                                             resetCategoryForm();
                                                             await loadCategories();
                                                             await refreshAllCategoryDropdowns();
                                                         } else {
-                                                            await showAlert(data.message, 'Cannot Save', '❌');
+                                                            await showAlert(data.message, 'Cannot Save', '');
                                                         }
                                                     } catch (err) {
                                                         hideLoading();
-                                                        await showAlert('Error: ' + err.message, 'Error', '❌');
+                                                        await showAlert('Error: ' + err.message, 'Error', '');
                                                     }
                                                 }
 
@@ -5186,7 +5562,7 @@ async function deleteCategory(id) {
         hideLoading();
 
         if (data.success) {
-            await showAlert(data.message, 'Deleted', '✅');
+            await showAlert(data.message, 'Deleted', '');
             resetCategoryForm();
             await loadCategories();
 
@@ -5195,17 +5571,17 @@ async function deleteCategory(id) {
     await refreshAllCategoryDropdowns();
         } else if (data.inUse) {
             // Blocking error: ipakita ang message + bilang ng apektado
-            await showAlert(data.message, 'Cannot Delete Category', '🚫');
+            await showAlert(data.message, 'Cannot Delete Category', '');
         } else {
-            await showAlert(data.message, 'Error', '❌');
+            await showAlert(data.message, 'Error', '');
         }
     } catch (err) {
         hideLoading();
-        await showAlert('Error: ' + err.message, 'Error', '❌');
+        await showAlert('Error: ' + err.message, 'Error', '');
     }
 }
 
-// ✅ Function para i-refresh ang RAW MATERIALS table (Master List)
+// Function para i-refresh ang RAW MATERIALS table (Master List)
 async function refreshRawMaterialsTable() {
     try {
         const response = await fetch('/Owner/GetInventoryData');
@@ -5260,7 +5636,7 @@ async function loadCategoryDropdown(selectId, type, opts = {}) {
 
         select.innerHTML = '';
         
-        // ✅ ITO ANG DEFAULT NA "-- No Category --"
+        // ITO ANG DEFAULT NA "-- No Category --"
         const ph = document.createElement('option');
         ph.value = '';
         ph.textContent = placeholder;
@@ -5316,12 +5692,12 @@ async function validateIngredientsUnits() {
             else if (materialCategory === 'volume') expectedUnits = 'L or mL';
             else if (materialCategory === 'count') expectedUnits = 'pcs';
             
-            errors.push(`❌ "${materialName}" uses ${materialUnit}.\n   You cannot use "${selectedUnit}" in recipe. Please use ${expectedUnits}.`);
+            errors.push(`"${materialName}" uses ${materialUnit}.\n   You cannot use "${selectedUnit}" in recipe. Please use ${expectedUnits}.`);
         }
     });
     
     if (errors.length > 0) {
-        await showAlert('⚠️ UNIT COMPATIBILITY ERRORS:\n\n' + errors.join('\n\n'), 'Error', '⚠️');
+        await showAlert('UNIT COMPATIBILITY ERRORS:\n\n' + errors.join('\n\n'), 'Error', '');
         return false;
     }
     return true;
@@ -5347,9 +5723,9 @@ async function approveRequest(requestId) {
         hideLoading();
         
         if (data.success) {
-            await showAlert('✅ ' + data.message, 'Success');
+            await showAlert('' + data.message, 'Success');
             
-            // ✅✅✅ ITO ANG TAMANG PARAAN ✅✅✅
+            // ITO ANG TAMANG PARAAN 
             // I-refresh ang lahat ng tabs para mag-sync ang display
             
             // 1. I-refresh ang Pending Requests tab (para mawala ang approved request)
@@ -5369,11 +5745,11 @@ async function approveRequest(requestId) {
             // saveAndReload();  // ← TANGGALIN ITO!
             
         } else {
-            await showAlert('❌ Error: ' + data.message, 'Error');
+            await showAlert('Error: ' + data.message, 'Error');
         }
     } catch (error) {
         hideLoading();
-        await showAlert('❌ Error: ' + error.message, 'Error');
+        await showAlert('Error: ' + error.message, 'Error');
     }
 }
 
@@ -5396,7 +5772,7 @@ async function rejectRequest(requestId) {
         hideLoading();
         
         if (data.success) {
-            await showAlert('✅ Request rejected', 'Success', '✅');
+            await showAlert('Request rejected', 'Success', '');
             
             // I-refresh ang pending requests (para mawala ang rejected)
             await loadPendingRequests();
@@ -5405,11 +5781,11 @@ async function rejectRequest(requestId) {
             // saveAndReload(); // ← TANGGALIN ITO!
             
         } else {
-            await showAlert('❌ Error: ' + data.message, 'Error', '❌');
+            await showAlert('Error: ' + data.message, 'Error', '');
         }
     } catch (error) {
         hideLoading();
-        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+        await showAlert('Error: ' + error.message, 'Error', '');
     }
 }
 
@@ -5471,7 +5847,7 @@ async function showModule(module) {
         loadSuppliers();
     }
         if (module === 'receiving') {
-        // ✅ I-load LANG KUNG WALANG LAMAN (para hindi mag-reset ang form)
+        // I-load LANG KUNG WALANG LAMAN (para hindi mag-reset ang form)
         if (document.getElementById('receivingItemsBody').children.length === 0) {
             loadReceivingFormData();
         }
@@ -5638,17 +6014,17 @@ function showAddDeliveryForm() {
     const unit = selectedOption ? selectedOption.getAttribute('data-unit') : null;
 
     if (!rawMaterialId || rawMaterialId === '') {
-        await showAlert('Please select a raw material', 'Required', '⚠️');
+        await showAlert('Please select a raw material', 'Required', '');
         return;
     }
 
     if (!quantity || quantity <= 0) {
-        await showAlert('Please enter a valid quantity', 'Required', '⚠️');
+        await showAlert('Please enter a valid quantity', 'Required', '');
         return;
     }
 
     if (!unitPrice || unitPrice <= 0) {
-        await showAlert('Please enter a valid unit price', 'Required', '⚠️');
+        await showAlert('Please enter a valid unit price', 'Required', '');
         return;
     }
 
@@ -5680,46 +6056,46 @@ function showAddDeliveryForm() {
         const result = await response.json();
 
         if (result.success) {
-            // ✅ IBA-IBANG MESSAGE DEPENDE SA RESULT
+            // IBA-IBANG MESSAGE DEPENDE SA RESULT
             if (result.isExpired) {
-                await showAlert(result.message, 'Expired Material Added', '⚠️');
+                await showAlert(result.message, 'Expired Material Added', '');
             } else if (result.warning) {
-                await showAlert(result.message, 'Warning', '⚠️');
+                await showAlert(result.message, 'Warning', '');
             } else {
-                await showAlert(result.message, 'Success', '✅');
+                await showAlert(result.message, 'Success', '');
             }
             
-            // ✅ I-HIDE ANG PANEL
+            // I-HIDE ANG PANEL
             document.getElementById('addDeliveryPanel').style.display = 'none';
             
-            // ✅ RESET FORM
+            // RESET FORM
             document.getElementById('addDeliveryForm').reset();
             
-            // ✅ SMOOTH REFRESH - UPDATE INVENTORY TABLE WITHOUT PAGE RELOAD
+            // SMOOTH REFRESH - UPDATE INVENTORY TABLE WITHOUT PAGE RELOAD
             await refreshInventoryTableData();
             
-            // ✅ UPDATE DROPDOWN (para updated ang stock display)
+            // UPDATE DROPDOWN (para updated ang stock display)
             await refreshDeliveryMaterialDropdown();
             
-            // ✅ I-UPDATE DIN ANG ALERTS KUNG NASA INVENTORY ALERTS MODULE
+            // I-UPDATE DIN ANG ALERTS KUNG NASA INVENTORY ALERTS MODULE
             const alertsModule = document.getElementById('inventoryAlertsModule');
             if (alertsModule && alertsModule.classList.contains('active')) {
                 loadInventoryAlerts();
             }
             
         } else {
-            await showAlert(' Error: ' + result.message, 'Error', '❌');
+            await showAlert(' Error: ' + result.message, 'Error', '');
         }
     } catch (error) {
         console.error('Error details:', error);
-        await showAlert(' Error adding delivery: ' + error.message, 'Error', '❌');
+        await showAlert(' Error adding delivery: ' + error.message, 'Error', '');
     } finally {
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
     }
 });
 
-// ✅ FUNCTION: Refresh delivery material dropdown
+// FUNCTION: Refresh delivery material dropdown
 async function refreshDeliveryMaterialDropdown() {
     try {
         const response = await fetch('/Owner/GetInventoryData');
@@ -5782,7 +6158,7 @@ async function editMaterial(id) {
     var minQtyWithUnit = row.children[4]?.innerText || '';
 
     var unit = extractUnit(stockWithUnit);
-    var stockValue = parseFloat(stockWithUnit.split(' ')[0]) || 0; // ✅ Kunin ang stock value
+    var stockValue = parseFloat(stockWithUnit.split(' ')[0]) || 0; // Kunin ang stock value
     var minQty = parseFloat(minQtyWithUnit.split(' ')[0]);
 
     document.getElementById('RawMaterialId').value = id;
@@ -5793,7 +6169,7 @@ async function editMaterial(id) {
         selectedLabel: row.children[2]?.innerText || '' 
     });
 
-    // ✅ IMPORTANT: Set the dropdown value for Unit
+    // IMPORTANT: Set the dropdown value for Unit
     var unitDropdown = document.getElementById('Unit');
     if (unitDropdown && unit) {
         var optionExists = false;
@@ -5814,7 +6190,7 @@ async function editMaterial(id) {
         }
     }
 
-    // ✅ ANG FIX NATIN: I-disable ang Unit kung may stock
+    // ANG FIX NATIN: I-disable ang Unit kung may stock
     if (stockValue > 0) {
         unitDropdown.disabled = true;
         unitDropdown.style.backgroundColor = '#e9ecef';
@@ -5825,7 +6201,7 @@ async function editMaterial(id) {
             let warning = document.createElement('small');
             warning.id = 'unitWarning';
             warning.className = 'text-danger fw-bold mt-1 d-block';
-            warning.innerHTML = '⚠️ Cannot change unit: This material already has stock.';
+            warning.innerHTML = 'Cannot change unit: This material already has stock.';
             unitDropdown.parentElement.appendChild(warning);
         }
     } else {
@@ -5857,7 +6233,7 @@ async function editMaterial(id) {
 
     const token = document.querySelector('input[name="__RequestVerificationToken"]');
     if (!token) {
-        await showAlert('Security token missing. Please refresh the page.', 'Error', '❌');
+        await showAlert('Security token missing. Please refresh the page.', 'Error', '');
         deleteButton.innerText = originalText;
         deleteButton.disabled = false;
         return;
@@ -5917,7 +6293,7 @@ async function editMaterial(id) {
     if (!unit) { await showAlert('Please enter a unit', 'Required'); return; }
     if (isNaN(categoryId)) { await showAlert('Please select a valid category', 'Required'); return; }
 
-    // ✅ 1. CHECK KUNG MAY KAPAREHONG PANGALAN SA TABLE (Kung bagong add lang, hindi edit)
+    // 1. CHECK KUNG MAY KAPAREHONG PANGALAN SA TABLE (Kung bagong add lang, hindi edit)
     if (!id || id === '0') {
         let isDuplicate = false;
         const rows = document.querySelectorAll('#rawMaterialTable2 tbody tr');
@@ -5933,7 +6309,7 @@ async function editMaterial(id) {
 
         if (isDuplicate) {
             const confirmed = await showConfirm(
-                `⚠️ Warning: A raw material named "${name}" already exists.\n\nDo you still want to proceed and save this as a separate record? (It will generate a new unique SKU).`, 
+                `Warning: A raw material named "${name}" already exists.\n\nDo you still want to proceed and save this as a separate record? (It will generate a new unique SKU).`, 
                 'Duplicate Name Detected'
             );
             
@@ -5943,7 +6319,7 @@ async function editMaterial(id) {
         }
     }
 
-    // ✅ I-DISABLE ANG BUTTON PARA HINDI MAKA-DOUBLE CLICK
+    // I-DISABLE ANG BUTTON PARA HINDI MAKA-DOUBLE CLICK
     const form = this;
     const submitBtn = form.querySelector('button[type="submit"]');
     const originalText = submitBtn.innerHTML;
@@ -6070,14 +6446,14 @@ function showAddProductModal() {
     const form = document.getElementById('addProductForm');
     if (!form) {
         console.error('addProductForm not found');
-        showAlert('Form not found. Please refresh the page.', 'Error', '❌');
+        showAlert('Form not found. Please refresh the page.', 'Error', '');
         return;
     }
     
-    // ✅ 1. RESET FORM
+    // 1. RESET FORM
     form.reset();
     
-    // ✅ 2. I-CLEAR ANG SKU PREFIX INPUT
+    // 2. I-CLEAR ANG SKU PREFIX INPUT
     const skuInput = document.getElementById('skuPrefixInput');
     if (skuInput) {
         skuInput.value = ''; // Clear the "AUTO-GENERATED..." placeholder
@@ -6107,22 +6483,22 @@ function showAddProductModal() {
         console.error('Error loading sizes:', err);
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalText;
-        showAlert('Error loading form. Please refresh and try again.', 'Error', '❌');
+        showAlert('Error loading form. Please refresh and try again.', 'Error', '');
     });
     
-    // ✅ 3. ADD THE FORM SUBMIT HANDLER HERE
+    // 3. ADD THE FORM SUBMIT HANDLER HERE
     form.onsubmit = async function(e) {
         e.preventDefault();
 
          const unitSelects = form.querySelectorAll('.unit-select');
     for (let select of unitSelects) {
         if (select.value === "") {
-            await showAlert('Please select a unit for all ingredients.', 'Missing Unit', '⚠️');
+            await showAlert('Please select a unit for all ingredients.', 'Missing Unit', '');
             return;
         }
     }
 
-        // ✅ 4. FINAL SAFETY CHECK: Kung blangko pa rin ang SKU, i-generate natin bago mag-submit
+        // 4. FINAL SAFETY CHECK: Kung blangko pa rin ang SKU, i-generate natin bago mag-submit
         const skuField = document.getElementById('skuPrefixInput');
         const nameField = form.querySelector('input[name="Name"]');
         
@@ -6236,7 +6612,7 @@ function showAddProductModal() {
         modal.show();
     } else {
         console.error('addProductModal not found');
-        showAlert('Modal not found. Please refresh the page.', 'Error', '❌');
+        showAlert('Modal not found. Please refresh the page.', 'Error', '');
     }
 }
 
@@ -6293,7 +6669,7 @@ function addSizeRowPromise(predefinedName = null, enableManualPrice = true) {
                 
                 const sizeHtml = `
                     <div class="size-row border p-3 mb-3 rounded" data-size-id="${sizeId}" data-manual-price="${enableManualPrice}" style="background: #fef9e6; position: relative;">
-                        <button type="button" class="btn-remove-size" onclick="removeSizeRow(this)">✕</button>
+                        <button type="button" class="btn-remove-size" onclick="removeSizeRow(this)">&times;</button>
                         <div class="row">
                             <div class="col-md-3 mb-2">
                                 <label class="form-label fw-bold">Size Name</label>
@@ -6307,7 +6683,7 @@ function addSizeRowPromise(predefinedName = null, enableManualPrice = true) {
                                 <label class="form-label fw-bold">Recipe / Ingredients</label>
                                 <div class="recipe-items" id="recipe-items-${sizeId}">
                                     
-                                    <!-- ✅ UNANG ROW (FLEXBOX) -->
+                                    <!-- UNANG ROW (FLEXBOX) -->
                                     <div class="ingredient-row">
                                         <select name="Sizes[${sizeId}].RecipeItems[0].RawMaterialId" class="form-control form-control-sm" required onchange="updateUnitDropdown(this)" style="flex: 1;">
                                             ${materialOptions}
@@ -6315,11 +6691,11 @@ function addSizeRowPromise(predefinedName = null, enableManualPrice = true) {
                                         <input type="number" name="Sizes[${sizeId}].RecipeItems[0].Quantity" class="form-control form-control-sm" placeholder="Qty" step="0.01" min="0.01" value="1" required style="width: 70px; flex-shrink: 0;">
                                         <select name="Sizes[${sizeId}].RecipeItems[0].UnitUsed" class="form-control form-control-sm unit-select" required style="width: 110px; flex-shrink: 0;">
                                         <option value="" disabled selected>-- Select Unit --</option>
-                                            <option value="kg">📦 kg</option>
-                                            <option value="g">⚖️ g</option>
-                                            <option value="L">💧 L</option>
-                                            <option value="mL">🧪 mL</option>
-                                            <option value="pcs">🔢 pcs</option>
+                                            <option value="kg">kg</option>
+                                            <option value="g">g</option>
+                                            <option value="L">L</option>
+                                            <option value="mL">mL</option>
+                                            <option value="pcs">pcs</option>
                                         </select>
                                         <div style="width: 28px; flex-shrink: 0;"></div> <!-- Spacer para pantay sa may X button -->
                                     </div>
@@ -6379,11 +6755,11 @@ function addSizeRow(predefinedName = null) {
                 <input type="number" name="Sizes[${sizeIndex}].RecipeItems[${itemCount}].Quantity" class="form-control form-control-sm" placeholder="Qty" step="0.01" min="0.01" value="1" required style="width: 70px; flex-shrink: 0;">
                 <select name="Sizes[${sizeIndex}].RecipeItems[${itemCount}].UnitUsed" class="form-control form-control-sm unit-select" required style="width: 110px; flex-shrink: 0;">
                     <option value="" disabled selected>-- Select Unit --</option>
-                    <option value="kg">📦 kg</option>
-                    <option value="g">⚖️ g</option>
-                    <option value="L">💧 L</option>
-                    <option value="mL">🧪 mL</option>
-                    <option value="pcs">🔢 pcs</option>
+                    <option value="kg">kg</option>
+                    <option value="g">g</option>
+                    <option value="L">L</option>
+                    <option value="mL">mL</option>
+                    <option value="pcs">pcs</option>
                 </select>
                 <button type="button" class="btn-remove-ing" onclick="this.closest('.ingredient-row').remove()" title="Remove Ingredient">
                     <i class="fas fa-times"></i>
@@ -6432,11 +6808,11 @@ function addSizeRow(predefinedName = null) {
             const modal = new bootstrap.Modal(document.getElementById('editProductModal'));
             modal.show();
         } else {
-            await showAlert('Product not found', 'Error', '❌');
+            await showAlert('Product not found', 'Error', '');
         }
     } catch (error) {
         console.error('Error:', error);
-        await showAlert('Error loading product details', 'Error', '❌');
+        await showAlert('Error loading product details', 'Error', '');
     }
 }
 
@@ -6456,8 +6832,8 @@ function displayEditSizesTable(sizes) {
         const deleteBadge = isPendingDelete ? '<span class="badge bg-danger ms-2">Will be deleted</span>' : '';
         
         const posStatus = size.isAvailableInPOS ? 
-            '<span class="badge bg-success">✅ Displayed</span>' : 
-            '<span class="badge bg-secondary">⚫ Hidden</span>';
+            '<span class="badge bg-success">Displayed</span>' : 
+            '<span class="badge bg-secondary">Hidden</span>';
         
         html += `
             <tr data-size-id="${size.productSizeId}" class="${deleteClass}">
@@ -6505,7 +6881,7 @@ function unmarkSizeForDeletion(productSizeId) {
 function editSizeRecipe(productSizeId) {
     // Check if size is pending deletion
     if (pendingDeleteSizeIds.includes(productSizeId)) {
-        showAlert('Cannot edit a size that is marked for deletion. Undo delete first.', 'Warning', '⚠️');
+        showAlert('Cannot edit a size that is marked for deletion. Undo delete first.', 'Warning', '');
         return;
     }
     
@@ -6543,7 +6919,7 @@ async function saveProductEdit() {
     const imagePath = document.getElementById('editProductImagePath').value.trim();
     
     if (!name) {
-        await showAlert('Please enter a product name', 'Required', '⚠️');
+        await showAlert('Please enter a product name', 'Required', '');
         return;
     }
     
@@ -6572,7 +6948,7 @@ async function saveProductEdit() {
         
         if (!updateResult.success) {
             hideLoading();
-            await showAlert('Error updating product: ' + updateResult.message, 'Error', '❌');
+            await showAlert('Error updating product: ' + updateResult.message, 'Error', '');
             return;
         }
         
@@ -6589,7 +6965,7 @@ async function saveProductEdit() {
         }
         
         hideLoading();
-        await showAlert('Product updated successfully!', 'Success', '✅');
+        await showAlert('Product updated successfully!', 'Success', '');
         
         const modal = bootstrap.Modal.getInstance(document.getElementById('editProductModal'));
         if (modal) modal.hide();
@@ -6597,7 +6973,7 @@ async function saveProductEdit() {
         
     } catch (error) {
         hideLoading();
-        await showAlert('Error: ' + error.message, 'Error', '❌');
+        await showAlert('Error: ' + error.message, 'Error', '');
     }
 }
 
@@ -6628,16 +7004,16 @@ async function deleteSizeVariant(productSizeId, sizeName) {
         hideLoading();
         
         if (result.success) {
-            await showAlert('Size variant deleted successfully!', 'Success', '✅');
+            await showAlert('Size variant deleted successfully!', 'Success', '');
             // Refresh the sizes list
             const productId = document.getElementById('editProductId').value;
             await refreshProductSizes(productId);
         } else {
-            await showAlert('Error: ' + result.message, 'Error', '❌');
+            await showAlert('Error: ' + result.message, 'Error', '');
         }
     } catch (error) {
         hideLoading();
-        await showAlert('Error: ' + error.message, 'Error', '❌');
+        await showAlert('Error: ' + error.message, 'Error', '');
     }
 }
 async function refreshProductSizes(productId) {
@@ -6688,11 +7064,11 @@ async function refreshProductSizes(productId) {
         if (data.success) {
             showAddSizeModal(productId, data.product.name);
         } else {
-            await showAlert('Product not found', 'Error', '❌');
+            await showAlert('Product not found', 'Error', '');
         }
     } catch (error) {
         console.error('Error:', error);
-        await showAlert('Error loading product details', 'Error', '❌');
+        await showAlert('Error loading product details', 'Error', '');
     }
 }
 
@@ -6725,17 +7101,16 @@ async function showAddSizeModal(productId, productName) {
         <td>
             <select class="form-control form-control-sm unit-select">
                 <option value="" disabled selected>-- Select Unit --</option>
-                <option value="kg">📦 kg</option>
-                <option value="g">⚖️ g</option>
-                <option value="L">💧 L</option>
-                <option value="mL">🧪 mL</option>
-                <option value="pcs">🔢 pcs</option>
+                <option value="kg">kg</option>
+                <option value="g">g</option>
+                <option value="L">L</option>
+                <option value="mL">mL</option>
+                <option value="pcs">pcs</option>
             </select>
         </td>
         <td class="text-center">
-            <button type="button" class="btn btn-sm btn-danger" onclick="removeNewIngredientRow(this)" title="Remove Ingredient">
-                <i class="fas fa-times"></i>
-            </button>
+           <button type="button" class="btn btn-sm btn-danger"
+        onclick="removeIngredientRow(this)">&times;</button>
         </td>
     </tr>
 `;
@@ -6760,7 +7135,7 @@ async function showAddSizeModal(productId, productName) {
 }
 
 function updateNewIngredientUnitDropdown(selectElement) {
-    // ✅ FIX: Hanapin ang .ingredient-row o tr
+    // FIX: Hanapin ang .ingredient-row o tr
     const row = selectElement.closest('.ingredient-row') || selectElement.closest('tr');
     if (!row) return;
 
@@ -6791,7 +7166,7 @@ function updateNewIngredientUnitDropdown(selectElement) {
         }
     }
 
-    // ✅ Auto-select sa unang valid na unit (e.g., 'kg' kung weight)
+    // Auto-select sa unang valid na unit (e.g., 'kg' kung weight)
     if (!allowedUnits.includes(unitSelect.value)) {
         unitSelect.value = allowedUnits[0]; 
     }
@@ -6887,17 +7262,17 @@ document.getElementById('viewMarkup').innerText = markupPct.toFixed(0);
                     // I-set ang currentProductSizeId
                     currentProductSizeId = recipeData.productSizeId;
 
-                    // ✅ I-fill ang modal fields (title)
+                    // I-fill ang modal fields (title)
                     document.getElementById('recipeProductName').innerText = recipeData.productName;
                     document.getElementById('recipeSizeName').innerText = recipeData.sizeName;
                     
-                    // ✅ ITO ANG KULANG! I-fill ang input fields sa modal body
+                    // ITO ANG KULANG! I-fill ang input fields sa modal body
                     document.getElementById('recipeProductDisplay').value = recipeData.productName;
                     document.getElementById('recipeSizeDisplay').value = recipeData.sizeName;
                     
                     document.getElementById('recipeTotalCost').value = `₱${recipeData.totalCost.toFixed(2)}`;
 
-                    // ✅ I-set ang manual price checkbox state
+                    // I-set ang manual price checkbox state
 const manualCheckbox = document.getElementById('manualPriceCheckbox');
 const priceInput = document.getElementById('recipeSellingPriceInput');
 
@@ -6938,7 +7313,7 @@ marginSelect.value = marginVal;
                 })
                 .catch(async (err) => {
                     console.error('Error:', err);
-                    await showAlert('Error loading recipe: ' + err.message, 'Error', '❌');
+                    await showAlert('Error loading recipe: ' + err.message, 'Error', '');
                 });
         })
         .catch(async (err) => {
@@ -7009,7 +7384,7 @@ function updateSellingPrice() {
      function addIngredientRowToTable(ingredient, index) {
     const tbody = document.getElementById('ingredientsBody');
     
-    // ✅ FIX: Gawing malinis ang options. 
+    // FIX: Gawing malinis ang options. 
     const unitOptions = `
         <option value="" disabled selected>-- Unit --</option>
         <option value="kg">kg</option>
@@ -7040,7 +7415,7 @@ function updateSellingPrice() {
             <td class="total-cost">₱0.00</td>
             <td>
                 <button type="button" class="btn btn-sm btn-danger" 
-                        onclick="removeIngredientRow(this)">✕</button>
+                        onclick="removeIngredientRow(this)">&times;</button>
             </td>
         </tr>
     `;
@@ -7077,7 +7452,7 @@ function updateSellingPrice() {
                     if (selectedOption) selectedOption.setAttribute('data-price', ingredient.price);
                 }
                 
-                // ✅ I-trigger ang unit compatibility at recalculation
+                // I-trigger ang unit compatibility at recalculation
                 updateUnitDropdown(select);
                 calculateIngredientTotal(select); 
             }
@@ -7095,24 +7470,43 @@ function closeSizeModal() {
     if (window.returnToEditModal) {
         window.returnToEditModal = false;
         
-        // ✅ GET THE EDIT MODAL ELEMENT
+        // GET THE EDIT MODAL ELEMENT
         const editModalEl = document.getElementById('editProductModal');
         if (editModalEl) {
-            // ✅ TRY TO GET EXISTING INSTANCE FIRST
+            // TRY TO GET EXISTING INSTANCE FIRST
             let editModal = bootstrap.Modal.getInstance(editModalEl);
             if (!editModal) {
-                // ✅ IF NO INSTANCE, CREATE NEW ONE
+                // IF NO INSTANCE, CREATE NEW ONE
                 editModal = new bootstrap.Modal(editModalEl);
             }
             editModal.show();
             
-            // ✅ REFRESH SIZES LIST PARA MAKITA ANG MGA CHANGES
+            // REFRESH SIZES LIST PARA MAKITA ANG MGA CHANGES
             const productId = document.getElementById('editProductId')?.value;
             if (productId) {
                 refreshProductSizes(productId);
             }
         }
     }
+}
+
+function uiIconHtml(kind) {
+    const map = {
+        success: ['fa-check-circle', 'success'],
+        error:   ['fa-times-circle', 'danger'],
+        warning: ['fa-exclamation-triangle', 'warn'],
+        info:    ['fa-info-circle', 'info'],
+        confirm: ['fa-question-circle', 'confirm']
+    };
+    const [icon, cls] = map[kind] || map.info;
+    return `<i class="fas ${icon} ui-icon ${cls}"></i>`;
+}
+function detectAlertKind(title) {
+    const t = (title || '').toLowerCase();
+    if (/error|failed|cannot|invalid|incorrect|denied/.test(t)) return 'error';
+    if (/success|saved|deleted|updated|added|received/.test(t)) return 'success';
+    if (/required|warning|missing|duplicate|expired/.test(t)) return 'warning';
+    return 'info';
 }
 
 function closeQuantityModal() {
@@ -7124,18 +7518,18 @@ function closeQuantityModal() {
     if (window.returnToEditModal) {
         window.returnToEditModal = false;
         
-        // ✅ GET THE EDIT MODAL ELEMENT
+        // GET THE EDIT MODAL ELEMENT
         const editModalEl = document.getElementById('editProductModal');
         if (editModalEl) {
-            // ✅ TRY TO GET EXISTING INSTANCE FIRST
+            // TRY TO GET EXISTING INSTANCE FIRST
             let editModal = bootstrap.Modal.getInstance(editModalEl);
             if (!editModal) {
-                // ✅ IF NO INSTANCE, CREATE NEW ONE
+                // IF NO INSTANCE, CREATE NEW ONE
                 editModal = new bootstrap.Modal(editModalEl);
             }
             editModal.show();
             
-            // ✅ REFRESH SIZES LIST
+            // REFRESH SIZES LIST
             const productId = document.getElementById('editProductId')?.value;
             if (productId) {
                 refreshProductSizes(productId);
@@ -7170,7 +7564,7 @@ function calculateIngredientTotal(element) {
 
     let quantityForCost = quantity;
 
-    // ✅ Tamang conversion para sa grams at mL
+    // Tamang conversion para sa grams at mL
     if (materialUnit === 'g' || materialUnit === 'kg') {
         if (selectedUnit === 'kg') quantityForCost = quantity;           
         else if (selectedUnit === 'g') quantityForCost = quantity / 1000; 
@@ -7203,7 +7597,7 @@ function calculateIngredientTotal(element) {
     const margin = parseFloat(document.getElementById('marginSelect')?.value || 0.3);
     const autoPrice = roundToPriceEnding(totalCost / (1 - margin));
 
-    // ✅ NEW: check the checkbox FIRST
+    // NEW: check the checkbox FIRST
     const isManual = document.getElementById('manualPriceCheckbox')?.checked === true;
     const priceInput = document.getElementById('recipeSellingPriceInput');
 
@@ -7222,14 +7616,14 @@ function calculateIngredientTotal(element) {
     profitLossDisplay.innerHTML = `₱${profitLoss.toFixed(2)}`;
     profitLossDisplay.className = profitLoss >= 0 ? 'fw-bold text-success' : 'fw-bold text-danger';
 }
-   async function saveRecipe() { // ✅ Dapat may async
+   async function saveRecipe() { // Dapat may async
     const ingredients = [];
     
-    // ✅ ITO YUNG CHECK NA DAPAT NANDITO
+    // ITO YUNG CHECK NA DAPAT NANDITO
     const unitSelects = document.querySelectorAll('#ingredientsBody .unit-select');
     for (let select of unitSelects) {
         if (select.value === "") {
-            await showAlert('Please select a unit for all ingredients.', 'Missing Unit', '⚠️');
+            await showAlert('Please select a unit for all ingredients.', 'Missing Unit', '');
             return;
         }
     }
@@ -7286,11 +7680,11 @@ function calculateIngredientTotal(element) {
     fetch('/Owner/GetInventoryAlertsData')
         .then(response => response.json())
         .then(data => {
-            // ✅ I-DEBUG ANG BUONG RESPONSE
+            // I-DEBUG ANG BUONG RESPONSE
             console.log('=== FULL RESPONSE ===');
             console.log(data);
             
-            // ✅ I-EXTRACT ANG MGA ARRAY (dahil sa $values)
+            // I-EXTRACT ANG MGA ARRAY (dahil sa $values)
             const lowStockItems = data.lowStockItems?.$values || data.lowStockItems || [];
             const expiringItems = data.expiringItems?.$values || data.expiringItems || [];
             const wasteLogs = data.wasteLogs?.$values || data.wasteLogs || [];
@@ -7321,7 +7715,7 @@ function loadLowStockTab(items) {
         container.innerHTML = `
             <div class="empty-state" style="text-align: center; padding: 40px 20px;">
                 <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
-                <h4 class="text-success">✨ All Good!</h4>
+                <h4 class="text-success">All Good!</h4>
                 <p class="text-muted">No low stock items found.</p>
                 <small>All raw materials have sufficient stock levels.</small>
             </div>
@@ -7342,12 +7736,12 @@ function loadLowStockTab(items) {
                     </thead>
                     <tbody>
                         ${items.map(item => {
-                            // ✅ GAMITIN ANG STATUS MULA SA SERVER
+                            // GAMITIN ANG STATUS MULA SA SERVER
                             let statusBadge = '';
                             if (item.status === 'No Stock') {
-                                statusBadge = '<span class="badge bg-danger">❌ No Stock</span>';
+                                statusBadge = '<span class="badge bg-danger">No Stock</span>';
                             } else {
-                                statusBadge = '<span class="badge bg-warning">⚠️ Low Stock</span>';
+                                statusBadge = '<span class="badge bg-warning">Low Stock</span>';
                             }
                             
                             return `
@@ -7359,7 +7753,7 @@ function loadLowStockTab(items) {
                                 <td>${statusBadge}</td>
                                 <td>
                                    <button class="btn btn-sm btn-outline-success" onclick="goToReceiveWithMaterial(${item.rawMaterialId})">
-                                        📦 Restock
+                                        Restock
                                     </button>
                                  </td>
                              </tr>
@@ -7373,7 +7767,7 @@ function loadLowStockTab(items) {
         function loadExpiringTab(items) {
         const container = document.getElementById('expiringContent');
         if (!items || items.length === 0) {
-            container.innerHTML = '<div class="empty-state">✨ No items expiring soon</div>';
+            container.innerHTML = '<div class="empty-state">No items expiring soon</div>';
         } else {
             container.innerHTML = `
                 <div class="table-responsive">
@@ -7400,7 +7794,7 @@ function loadLowStockTab(items) {
                                     </td>
                                     <td class="text-danger">${item.expiryDate ? new Date(item.expiryDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</td>
                                     <td class="text-danger fw-bold">${item.daysLeft} days</td>
-                                    <td><span class="badge bg-info">⏰ Expiring Soon</span></td>
+                                    <td><span class="badge bg-info">Expiring Soon</span></td>
                                     <td>
                                         <button class="btn btn-sm btn-outline-warning" onclick="useMaterialFirst(${item.rawMaterialId})">
                                             Use First
@@ -7417,8 +7811,8 @@ function loadLowStockTab(items) {
 
     function loadExpiredTab(items) {
         const container = document.getElementById('expiredContent');
-        if (!items || items.length === 0) container.innerHTML = '<div class="empty-state"><i class="fas fa-leaf fa-4x text-success mb-3"></i><h4 class="text-success">✨ Clean Record!</h4><p class="text-muted">No expired items found.</p></div>';
-        else container.innerHTML = `<div class="table-responsive"><table class="table table-bordered"><thead class="table-danger"><tr><th>Name</th><th>Category</th><th>Current Stock</th><th>Expiry Date</th><th>Days Overdue</th><th>Status</th><th>Action</th></tr></thead><tbody>${items.map(item => `<tr><td><strong>${escapeHtml(item.name)}</strong></td><td>${escapeHtml(item.category)}</td><td class="text-danger">${item.stockWithUnit}</td><td class="text-danger">${item.expiryDate}</td><td class="text-danger fw-bold">${item.daysOverdue} days ago</td><td><span class="badge bg-danger">❌ Expired</span></td><td><button class="btn btn-sm btn-outline-danger" onclick="logExpiredAsWaste(${item.rawMaterialId})">Log as Waste</button></td></tr>`).join('')}</tbody></table></div>`;
+        if (!items || items.length === 0) container.innerHTML = '<div class="empty-state"><i class="fas fa-leaf fa-4x text-success mb-3"></i><h4 class="text-success">Clean Record!</h4><p class="text-muted">No expired items found.</p></div>';
+        else container.innerHTML = `<div class="table-responsive"><table class="table table-bordered"><thead class="table-danger"><tr><th>Name</th><th>Category</th><th>Current Stock</th><th>Expiry Date</th><th>Days Overdue</th><th>Status</th><th>Action</th></tr></thead><tbody>${items.map(item => `<tr><td><strong>${escapeHtml(item.name)}</strong></td><td>${escapeHtml(item.category)}</td><td class="text-danger">${item.stockWithUnit}</td><td class="text-danger">${item.expiryDate}</td><td class="text-danger fw-bold">${item.daysOverdue} days ago</td><td><span class="badge bg-danger">Expired</span></td><td><button class="btn btn-sm btn-outline-danger" onclick="logExpiredAsWaste(${item.rawMaterialId})">Log as Waste</button></td></tr>`).join('')}</tbody></table></div>`;
     }
 
  function loadWasteTab(wasteLogs) {
@@ -7549,7 +7943,7 @@ function loadLowStockTab(items) {
     function showAddWasteModal() { document.getElementById('wasteForm').reset(); new bootstrap.Modal(document.getElementById('addWasteModal')).show(); }
         let currentRestockMaterialId = null;
 
-     let currentRestockUnit = ''; // ✅ IDINAGDAG ITO SA TAAS NG FUNCTION O SA GLOBAL SCOPE
+     let currentRestockUnit = ''; // IDINAGDAG ITO SA TAAS NG FUNCTION O SA GLOBAL SCOPE
 
     async function restockMaterial(materialId) {
         fetch(`/RawMaterial/GetMaterialDetails/${materialId}`)
@@ -7557,7 +7951,7 @@ function loadLowStockTab(items) {
             .then(async (data) => {
                 if (data.success) {
                     currentRestockMaterialId = materialId;
-                    currentRestockUnit = data.unit; // ✅ I-SAVE ANG UNIT
+                    currentRestockUnit = data.unit; // I-SAVE ANG UNIT
                     
                     document.getElementById('restockMaterialId').value = materialId;
                     document.getElementById('restockMaterialName').value = data.name;
@@ -7566,7 +7960,7 @@ function loadLowStockTab(items) {
                     document.getElementById('restockUnitPrice').value = data.price;
                     document.getElementById('restockExpiryDate').value = '';
 
-                    // ✅ I-UPDATE ANG LABEL PARA MAKITA NG USER ANG UNIT
+                    // I-UPDATE ANG LABEL PARA MAKITA NG USER ANG UNIT
                     const qtyLabel = document.querySelector('label[for="restockQuantity"]');
                     if (qtyLabel) {
                         qtyLabel.innerHTML = `Quantity to Add (${data.unit}) <span class="text-danger">*</span>`;
@@ -7593,12 +7987,12 @@ function loadLowStockTab(items) {
     const expiryDate = document.getElementById('restockExpiryDate').value;
 
     if (!quantity || quantity <= 0) {
-        await showAlert('Please enter a valid quantity', 'Required', '⚠️');
+        await showAlert('Please enter a valid quantity', 'Required', '');
         return;
     }
 
     if (!unitPrice || unitPrice <= 0) {
-        await showAlert('Please enter a valid unit price', 'Required', '⚠️');
+        await showAlert('Please enter a valid unit price', 'Required', '');
         return;
     }
 
@@ -7612,7 +8006,7 @@ function loadLowStockTab(items) {
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
     submitBtn.disabled = true;
 
-    // ✅ CONVERT TO BASE UNIT (g or mL) BAGO IPASA SA SERVER
+    // CONVERT TO BASE UNIT (g or mL) BAGO IPASA SA SERVER
     let quantityForBackend = quantity;
     if (typeof currentRestockUnit !== 'undefined' && (currentRestockUnit === 'kg' || currentRestockUnit === 'L')) {
         quantityForBackend = quantity * 1000; 
@@ -7627,8 +8021,8 @@ function loadLowStockTab(items) {
             },
                                                             body: JSON.stringify({
                                                                 rawMaterialId: parseInt(materialId),
-                                                                quantity: quantity, // ✅ IPADALA ANG ORIGINAL INPUT (hindi na converted, server na ang bahala)
-                                                                unit: currentRestockUnit, // ✅ IPADALA ANG UNIT
+                                                                quantity: quantity, // IPADALA ANG ORIGINAL INPUT (hindi na converted, server na ang bahala)
+                                                                unit: currentRestockUnit, // IPADALA ANG UNIT
                                                                 unitPrice: parseFloat(unitPrice),
                                                                 expiryDate: expiryDate || null
                                                             })
@@ -7637,15 +8031,15 @@ function loadLowStockTab(items) {
         const data = await response.json();
 
         if (data.success) {
-            await showAlert('✅ ' + data.message, 'Success', '✅');
+            await showAlert('' + data.message, 'Success', '');
             bootstrap.Modal.getInstance(document.getElementById('restockModal')).hide();
             loadInventoryAlerts();
             saveAndReload();
         } else {
-            await showAlert('❌ Error: ' + data.message, 'Error', '❌');
+            await showAlert('Error: ' + data.message, 'Error', '');
         }
     } catch (error) {
-        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+        await showAlert('Error: ' + error.message, 'Error', '');
     } finally {
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
@@ -7690,7 +8084,7 @@ function loadLowStockTab(items) {
             loadInventoryAlerts();
             await showAlert('Waste logged successfully!', 'Success');
         } else {
-            await showAlert('Error: ' + data.message, 'Error', '❌');
+            await showAlert('Error: ' + data.message, 'Error', '');
         }
     } catch (error) {
         await showAlert('An error occurred: ' + error.message, 'Error');
@@ -7772,20 +8166,20 @@ async function produceProduct(productSizeId, sizeName, currentStock) {
         let totalRemaining = 0;
 
         batches.forEach((batch, index) => {
-            // ✅ I-DECLARE ANG MGA VARIABLES
+            // I-DECLARE ANG MGA VARIABLES
             const quantityReceived = batch.quantityReceived;
             const quantityRemaining = batch.quantityRemaining;
             
             let status = '';
             let statusClass = '';
             if (quantityRemaining <= 0) {
-                status = '<span class="badge bg-secondary">❌ Depleted</span>';
+                status = '<span class="badge bg-secondary">Depleted</span>';
                 statusClass = 'table-secondary';
             } else if (index === 0 && quantityRemaining > 0) {
-                status = '<span class="badge bg-success">✅ ACTIVE (Next to Use)</span>';
+                status = '<span class="badge bg-success">ACTIVE (Next to Use)</span>';
                 statusClass = 'table-success';
             } else if (quantityRemaining > 0) {
-                status = '<span class="badge bg-info">📦 In Stock</span>';
+                status = '<span class="badge bg-info">In Stock</span>';
                 statusClass = 'table-info';
             }
             
@@ -7811,16 +8205,16 @@ async function produceProduct(productSizeId, sizeName, currentStock) {
     <div class="action-stack">
         ${batch.usage?.length > 0 ?
             `<button class="btn btn-sm btn-outline-info" onclick='showUsageDetails(${JSON.stringify(batch.usage)})'>
-                📋 Usage (${batch.usage.length})
+                Usage (${batch.usage.length})
             </button>` :
             '<span class="text-muted small">No usage</span>'}
         <button class="btn btn-sm btn-outline-warning"
                 onclick="showEditStockModal(${batch.batchId}, ${batch.quantityRemainingInBaseUnit}, '${materialName}', '${unit}', ${batch.rawMaterialId})">
-            ✏️ Edit Stock
+            Edit Stock
         </button>
         <button class="btn btn-sm btn-outline-info"
                 onclick="requestExpiryEdit(${batch.batchId}, '${batch.expiryDate ? batch.expiryDate.split('T')[0] : ''}', '${materialName}')">
-            📅 Expiry
+            Expiry
         </button>
     </div>
 </td>
@@ -7866,14 +8260,14 @@ async function saveBatchExpiry() {
 
         if (data.success) {
             bootstrap.Modal.getInstance(document.getElementById('editExpiryModal')).hide();
-            await showAlert('Expiry date updated.', 'Success', '✅');
+            await showAlert('Expiry date updated.', 'Success', '');
             saveAndReload();
         } else {
-            await showAlert('Error: ' + data.message, 'Error', '❌');
+            await showAlert('Error: ' + data.message, 'Error', '');
         }
     } catch (err) {
         hideLoading();
-        await showAlert('Error: ' + err.message, 'Error', '❌');
+        await showAlert('Error: ' + err.message, 'Error', '');
     }
 }
 
@@ -7907,7 +8301,7 @@ async function displayInPOS(productSizeId, productName, sizeName) {
 
         if (data.success) {
             await showAlert(` "${productName} - ${sizeName}" is now DISPLAYED in POS menu.`, 'Success');
-            // ✅ Auto refresh after 1 second
+            // Auto refresh after 1 second
             setTimeout(function() {
                 saveAndReload();
             }, 1000);
@@ -7952,7 +8346,7 @@ async function displayInPOS(productSizeId, productName, sizeName) {
 
         if (data.success) {
             await showAlert(`"${productName} - ${sizeName}" is now HIDDEN from POS menu.`, 'Success');
-            // ✅ Auto refresh after 1 second
+            // Auto refresh after 1 second
             setTimeout(function() {
                 saveAndReload();
             }, 1000);
@@ -8018,7 +8412,7 @@ async function displayInPOS(productSizeId, productName, sizeName) {
         tbody.appendChild(row);
     });
     
-    // ✅ IDAGDAG ITO - I-update ang modal title na may count
+    // IDAGDAG ITO - I-update ang modal title na may count
     const modalTitle = document.querySelector('#usageDetailsModal .modal-title');
     if (modalTitle) {
         modalTitle.innerHTML = `<i class="fas fa-history"></i> Batch Usage History (${usageList.length} records)`;
@@ -8116,13 +8510,13 @@ async function displayInPOS(productSizeId, productName, sizeName) {
             renderSalesChart(data.salesPerformance);
             renderCategoryPieChart(data.categoryDistribution);
 
-            // ✅ UPDATE WASTE COST CARD
+            // UPDATE WASTE COST CARD
             const topWasteCard = document.querySelector('.card-waste .stat-value');
             if (topWasteCard) {
                 topWasteCard.innerHTML = '₱' + (data.totalWasteCost || 0).toFixed(2);
             }
 
-            // ✅ BAGONG DAGDAG: I-UPDATE ANG ITEMS SOLD CARD
+            // BAGONG DAGDAG: I-UPDATE ANG ITEMS SOLD CARD
             const itemsSoldCard = document.querySelector('.card-profit .stat-value');
             if (itemsSoldCard) {
                 itemsSoldCard.innerHTML = data.totalItemsSold || 0;
@@ -8171,7 +8565,7 @@ function displayReceiptHistory(receipts) {
         tbody.innerHTML = `
             <tr>
                 <td colspan="10" class="text-center text-muted">
-                    📋 No receipts found.<br>
+                    No receipts found.<br>
                     <small>Make a sale in POS to generate receipts.</small>
                 </td>
             </tr>`;
@@ -8179,44 +8573,44 @@ function displayReceiptHistory(receipts) {
     }
 
     tbody.innerHTML = currentReceiptList.map(receipt => {
-        // ✅ 1. I-DETERMINE ANG STATUS BASE SA ORDER STATUS
-        let statusBadge = '<span class="badge bg-success">✅ ACTIVE</span>';
+        // 1. I-DETERMINE ANG STATUS BASE SA ORDER STATUS
+        let statusBadge = '<span class="badge bg-success">ACTIVE</span>';
         let exchangeIndicator = '';
         let displayTotal = receipt.total; // Default total
 
         // Check order status (REFUNDED, VOIDED, etc.)
         if (receipt.status === 'REFUNDED') {
-            statusBadge = '<span class="badge bg-danger">💰 REFUNDED</span>';
+            statusBadge = '<span class="badge bg-danger">REFUNDED</span>';
             
-            // ✅ UNANG COMPUTATION (Para sa REFUNDED)
+            // UNANG COMPUTATION (Para sa REFUNDED)
             let computedTotal = receipt.subtotal - (receipt.discountAmount || 0) - (receipt.voucherDiscountAmount || 0);
             displayTotal = computedTotal > 0 ? computedTotal : 0;
 
         } else if (receipt.status === 'PARTIALLY_REFUNDED') {
-            statusBadge = '<span class="badge bg-warning text-dark">⚠️ PARTIAL REFUND</span>';
+            statusBadge = '<span class="badge bg-warning text-dark">PARTIAL REFUND</span>';
         } else if (receipt.status === 'VOIDED') {
-            statusBadge = '<span class="badge bg-dark">🚫 VOIDED</span>';
+            statusBadge = '<span class="badge bg-dark">VOIDED</span>';
             
-            // ✅ PANGALAWANG COMPUTATION (Nilagyan ng 'let' para iwas error)
+            // PANGALAWANG COMPUTATION (Nilagyan ng 'let' para iwas error)
             let computedTotal = receipt.subtotal - (receipt.discountAmount || 0) - (receipt.voucherDiscountAmount || 0);
             displayTotal = computedTotal > 0 ? computedTotal : 0;
         }
-        // ✅ ITO YUNG NAWALA, IBINALIK KO
+        // ITO YUNG NAWALA, IBINALIK KO
         else if (receipt.returnStatus === 'EXCHANGED') {
-            statusBadge = '<span class="badge bg-warning text-dark">🔄 EXCHANGED</span>';
+            statusBadge = '<span class="badge bg-warning text-dark">EXCHANGED</span>';
             if (receipt.originalOrderId) {
                 exchangeIndicator = `<small class="text-muted">(replaces #${receipt.originalOrderId})</small>`;
             }
             
-            // 👇 ✅ DITO ANG FIX: Kinocompute natin ang totoong total para lumabas ang ₱56.05
+            // DITO ANG FIX: Kinocompute natin ang totoong total para lumabas ang ₱56.05
             let computedTotal = receipt.subtotal - (receipt.discountAmount || 0) - (receipt.voucherDiscountAmount || 0);
             displayTotal = computedTotal > 0 ? computedTotal : 0;
 
         } else if (receipt.returnStatus === 'RETURNED') {
-            statusBadge = '<span class="badge bg-danger">↩️ RETURNED</span>';
+            statusBadge = '<span class="badge bg-danger">RETURNED</span>';
         }
 
-        // ✅ 2. DISCOUNT DISPLAY
+        // 2. DISCOUNT DISPLAY
         let discountDisplay = 'None';
         if (receipt.discountPercent > 0) {
             discountDisplay = `${receipt.discountType} (${receipt.discountPercent * 100}%)<br>-₱${receipt.discountAmount.toFixed(2)}`;
@@ -8280,9 +8674,9 @@ function buildReceiptPrintHtml(r) {
 
     return `
         <div class="receipt">
-            ${r.isVoided ? '<div class="void">⚠ VOIDED ORDER ⚠</div>' : ''}
+            ${r.isVoided ? '<div class="void">VOIDED ORDER </div>' : ''}
             <div class="center">
-                <div style="font-size:16px;font-weight:bold;">Andeng's Mango &amp; More</div>
+                <div style="font-size:16px;font-weight:bold;">Andeng's Mango Graham Shake  &amp; </div>
                 <div>Official Receipt</div>
                 <div class="line"></div>
                 <div>${dateStr}</div>
@@ -8356,20 +8750,20 @@ async function printReceipt(orderId) {
         const data = await res.json();
 
         if (!data.success || !data.receipt) {
-            await showAlert('Unable to load receipt for printing.', 'Error', '❌');
+            await showAlert('Unable to load receipt for printing.', 'Error', '');
             return;
         }
 
         printHtmlDocument(buildReceiptPrintHtml(data.receipt));
     } catch (error) {
         console.error('Print error:', error);
-        await showAlert('Error printing receipt: ' + error.message, 'Error', '❌');
+        await showAlert('Error printing receipt: ' + error.message, 'Error', '');
     }
 }
 
 async function printAllReceipts() {
     if (!currentReceiptList || currentReceiptList.length === 0) {
-        await showAlert('No receipts to print.', 'Notice', 'ℹ️');
+        await showAlert('No receipts to print.', 'Notice', '');
         return;
     }
 
@@ -8390,7 +8784,7 @@ async function printAllReceipts() {
         hideLoading();
 
         if (!html) {
-            await showAlert('No printable receipts found.', 'Notice', 'ℹ️');
+            await showAlert('No printable receipts found.', 'Notice', '');
             return;
         }
 
@@ -8398,7 +8792,7 @@ async function printAllReceipts() {
     } catch (error) {
         hideLoading();
         console.error('Print all error:', error);
-        await showAlert('Error preparing receipts: ' + error.message, 'Error', '❌');
+        await showAlert('Error preparing receipts: ' + error.message, 'Error', '');
     }
 }
 
@@ -8410,11 +8804,11 @@ function viewReceiptDetail(orderId, isVoided = false) {
         .then(async (data) => {
             console.log("Receipt data received:", data);
             if (data.success) {
-                // ✅ Kung voided, i-override ang status
+                // Kung voided, i-override ang status
                 if (isVoided && data.receipt) {
                     data.receipt.isVoided = true;
-                    data.receipt.voidNotice = "⚠️ THIS ORDER HAS BEEN VOIDED ⚠️";
-                    data.receipt.status = "VOIDED"; // ✅ I-set ang status
+                    data.receipt.voidNotice = "THIS ORDER HAS BEEN VOIDED ";
+                    data.receipt.status = "VOIDED"; // I-set ang status
                 }
                 showReceiptModalFromData(data.receipt);
             } else {
@@ -8478,7 +8872,7 @@ function showReceiptModalFromData(receipt) {
             </div>`;
     }
     
-    // ✅ BUILD EXCHANGE INFO
+    // BUILD EXCHANGE INFO
     let exchangeInfoHtml = '';
     if (receipt.returnStatus === 'EXCHANGED') {
         exchangeInfoHtml = `
@@ -8504,36 +8898,36 @@ function showReceiptModalFromData(receipt) {
         `;
     }
 
-    // ✅ DETERMINE STATUS DISPLAY
+    // DETERMINE STATUS DISPLAY
     let displayStatus = 'Order Completed';
     let displayColor = '#28a745'; // Green
-    let statusIcon = '✅';
+    let statusIcon = '';
 
     if (receipt.isVoided || receipt.status === 'VOIDED') {
         displayStatus = 'Order Voided';
         displayColor = '#6c757d'; // Gray
-        statusIcon = '🚫';
+        statusIcon = '';
     } 
     else if (receipt.status === 'REFUNDED') {
         displayStatus = 'Fully Refunded';
         displayColor = '#dc3545'; // Red
-        statusIcon = '💰';
+        statusIcon = '';
     } 
     else if (receipt.status === 'PARTIALLY_REFUNDED') {
         displayStatus = 'Partially Refunded';
         displayColor = '#f59e0b'; // Yellow
-        statusIcon = '⚠️';
+        statusIcon = '';
     }
     else if (receipt.returnStatus === 'EXCHANGED') {
         displayStatus = 'Order Exchanged';
         displayColor = '#0ea5e9'; // Blue
-        statusIcon = '🔄';
+        statusIcon = '';
     }
     
-    // ✅ COMPUTE ORIGINAL AMOUNT (Ang Subtotal na galing backend ay OriginalTotalAmount na)
+    // COMPUTE ORIGINAL AMOUNT (Ang Subtotal na galing backend ay OriginalTotalAmount na)
 let originalAmt = receipt.subtotal;
     
-    // ✅ BUILD TOTAL SUMMARY (Dynamic base sa status)
+    // BUILD TOTAL SUMMARY (Dynamic base sa status)
     let totalSummaryHtml = '';
     
     if (receipt.status === 'REFUNDED') {
@@ -8575,7 +8969,7 @@ let originalAmt = receipt.subtotal;
         `;
     }
     
-    // ✅ MAIN RECEIPT HTML
+    // MAIN RECEIPT HTML
     receiptDiv.innerHTML = `
         <div style="text-align: center; margin-bottom: 15px;">
             <div><strong>${now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</strong></div>
@@ -8597,7 +8991,7 @@ let originalAmt = receipt.subtotal;
         </div>
         ${discountHtml}
         
-        <!-- ✅ BAGONG TOTAL SUMMARY -->
+        <!-- BAGONG TOTAL SUMMARY -->
         ${totalSummaryHtml}
         
         <div style="margin-top: 15px; text-align: center; padding-top: 10px; border-top: 1px dashed #ccc;">
@@ -8612,7 +9006,7 @@ let originalAmt = receipt.subtotal;
         </div>
     `;
     
-    // ✅ Load exchange details kung meron
+    // Load exchange details kung meron
     if (receipt.returnStatus === 'EXCHANGED' || (receipt.originalOrderId && receipt.originalOrderId > 0)) {
         loadExchangeDetailsForReceipt(receipt.orderId, receipt.originalOrderId);
     }
@@ -8623,7 +9017,7 @@ let originalAmt = receipt.subtotal;
     }
 }
 
-// ✅ BAGONG FUNCTION: Load exchange details
+// BAGONG FUNCTION: Load exchange details
 async function loadExchangeDetailsForReceipt(orderId, originalOrderId) {
     try {
         const response = await fetch(`/Owner/GetExchangeDetails?orderId=${orderId}`);
@@ -8746,20 +9140,20 @@ async function loadExchangeDetailsForReceipt(orderId, originalOrderId) {
         const w = wasteLogs[i];
         let reasonText = '';
         
-        // ✅ BAGONG LOGIC: Kung may 'notes' at galing sa exchange, doon kumuha
+        // BAGONG LOGIC: Kung may 'notes' at galing sa exchange, doon kumuha
         if (w.notes && w.notes.includes('Exchange from Order')) {
             // Kukunin lang yung exact reason pagkatapos ng colon (e.g., "Wrong item served")
             reasonText = w.notes.split(':')[1].trim();
         } else {
             // Kung ibang waste (Expired, Spilled, etc.), gamitin yung lumang switch
             switch(w.reason) {
-                case 0: reasonText = '🔄 Exchange'; break;
-                case 1: reasonText = '📦 Expired'; break;
-                case 2: reasonText = '💔 Damaged'; break;
-                case 3: reasonText = '💧 Spilled'; break;
-                case 4: reasonText = '🍳 Overprepared'; break;
-                case 5: reasonText = '⚠️ Quality Issue'; break;
-                case 6: reasonText = '❌ Customer Cancel'; break;
+                case 0: reasonText = 'Exchange'; break;
+                case 1: reasonText = 'Expired'; break;
+                case 2: reasonText = 'Damaged'; break;
+                case 3: reasonText = 'Spilled'; break;
+                case 4: reasonText = 'Overprepared'; break;
+                case 5: reasonText = 'Quality Issue'; break;
+                case 6: reasonText = 'Customer Cancel'; break;
                 default: reasonText = w.reasonText || w.reason || 'Other';
             }
         }
@@ -8793,9 +9187,9 @@ async function loadExchangeDetailsForReceipt(orderId, originalOrderId) {
             // Piliin ang badge color batay sa discount type
             var discountTypeBadge = '';
             if (r.discountType === 'Senior Citizen') {
-                discountTypeBadge = '<span class="badge bg-primary">👴 Senior Citizen</span>';
+                discountTypeBadge = '<span class="badge bg-primary">Senior Citizen</span>';
             } else if (r.discountType === 'PWD') {
-                discountTypeBadge = '<span class="badge bg-info">♿ PWD</span>';
+                discountTypeBadge = '<span class="badge bg-info">PWD</span>';
             } else {
                 discountTypeBadge = '<span class="badge bg-secondary">None</span>';
             }
@@ -8916,8 +9310,8 @@ function renderSalesChart(data) {
     var labels = (categories && categories.length) ? categories.map(function(c) { return c.category; }) : ['No Data'];
     var values = (categories && categories.length) ? categories.map(function(c) { return c.revenue; }) : [1];
     
-    // ✅ COLORS MULA SA GRADIENT MO (Green → Yellow → Orange)
-    var colors = ['#00B533', '#8AAE12', '#D4B000', '#FF8A00', '#E8A317'];
+    // COLORS MULA SA GRADIENT MO (Green → Yellow → Orange)
+   var colors = ['#5A8F6C', '#FF9F1C', '#7BA88B', '#2F6F8F', '#D98300', '#A8C5B0'];
     
     new Chart(ctx, {
         type: 'pie',
@@ -9122,7 +9516,7 @@ function initEmployeeModule() {
                 });
                 perfSelect.innerHTML = options;
                 
-                // ✅ I-RESTORE ang dating napiling employee (kung meron)
+                // I-RESTORE ang dating napiling employee (kung meron)
                 const oldValue = sessionStorage.getItem('selectedEmployeeId');
                 if (oldValue) {
                     perfSelect.value = oldValue;
@@ -9182,11 +9576,11 @@ async function handleLogout() {
     sessionStorage.removeItem('pendingPaymentAmount');
             window.location.href = '/Account/Login';
         } else {
-            await showAlert('Error: ' + data.message, 'Logout Failed', '❌');
+            await showAlert('Error: ' + data.message, 'Logout Failed', '');
         }
     } catch (error) {
         hideLoading();
-        await showAlert('Error: ' + error.message, 'Error', '❌');
+        await showAlert('Error: ' + error.message, 'Error', '');
     }
 }
 
@@ -9219,14 +9613,14 @@ async function loadEmployeeDailyOrders() {
             let totalSales = 0;
             let totalOrders = 0;
             let html = '';
-                                             // ✅ ITO ANG TAMANG LOOP PARA SA TABLE (KASAMA ANG VOIDED/REFUNDED)
+                                             // ITO ANG TAMANG LOOP PARA SA TABLE (KASAMA ANG VOIDED/REFUNDED)
                                                             data.allDailyOrders.forEach(day => {
                                                                 // I-compute ang valid sales lang (para sa Total Sales card)
                                                                 let daySales = 0;
                                                                 let validOrderCount = 0;
 
                                                               day.orders.forEach(order => {
-    // ✅ IDINAGDAG NATIN YUNG EXCHANGED
+    // IDINAGDAG NATIN YUNG EXCHANGED
     if (order.status !== "VOIDED" && order.status !== "REFUNDED" && order.status !== "EXCHANGED" && order.returnStatus !== "EXCHANGED") {
         daySales += order.totalAmount;
         validOrderCount++;
@@ -9250,7 +9644,7 @@ async function loadEmployeeDailyOrders() {
 
                                                                 const ordersToPass = day.orders || [];
 
-                                                                // ✅ IPAPAKITA ANG ROW KAHIT VOIDED LANG (Para may ma-click na View Orders)
+                                                                // IPAPAKITA ANG ROW KAHIT VOIDED LANG (Para may ma-click na View Orders)
                                                                 html += `
                                                         <tr>
                                                             <td class="fw-bold">${formattedDate}</td>
@@ -9285,7 +9679,7 @@ async function loadEmployeeDailyOrders() {
         }
     } catch (error) {
         console.error('Error:', error);
-        await showAlert('Error loading employee orders', 'Error', '❌');
+        await showAlert('Error loading employee orders', 'Error', '');
     } finally {
         hideLoading();
     }
@@ -9312,45 +9706,45 @@ function showDailyOrdersModal(orders, dateString) {
         let statusIcon = '';
         
         if (order.status === 'COMPLETED') {
-            statusBadge = '<span class="badge bg-success">✅ COMPLETED</span>';
-            statusIcon = '✅';
+            statusBadge = '<span class="badge bg-success">COMPLETED</span>';
+            statusIcon = '';
         } else if (order.status === 'VOIDED') {
-            statusBadge = '<span class="badge bg-danger">⚠️ VOIDED</span>';
-            statusIcon = '⚠️';
+            statusBadge = '<span class="badge bg-danger">VOIDED</span>';
+            statusIcon = '';
         } else if (order.status === 'REFUNDED') {
-            statusBadge = '<span class="badge bg-warning text-dark">💰 REFUNDED</span>';
-            statusIcon = '💰';
+            statusBadge = '<span class="badge bg-warning text-dark">REFUNDED</span>';
+            statusIcon = '';
         } else if (order.status === 'PENDING_BLENDING') {
-            statusBadge = '<span class="badge bg-info">⏳ PENDING BLENDING</span>';
-            statusIcon = '⏳';
+            statusBadge = '<span class="badge bg-info">PENDING BLENDING</span>';
+            statusIcon = '';
         } else {
             statusBadge = `<span class="badge bg-secondary">${order.status}</span>`;
-            statusIcon = '📋';
+            statusIcon = '';
         }
         
         // Check for exchange
         if (order.returnStatus === 'EXCHANGED') {
-            statusBadge = '<span class="badge bg-warning text-dark">🔄 EXCHANGED</span>';
-            statusIcon = '🔄';
+            statusBadge = '<span class="badge bg-warning text-dark">EXCHANGED</span>';
+            statusIcon = '';
         }
         
-        // Add warning flag for problematic orders
         let warningFlag = '';
-        if (order.status === 'VOIDED') {
-            warningFlag = '<span class="text-danger ms-2"><i class="fas fa-ban"></i> VOID</span>';
-        } else if (order.status === 'REFUNDED') {
-            warningFlag = '<span class="text-warning ms-2"><i class="fas fa-money-bill-wave"></i> REFUND</span>';
-        } else if (order.returnStatus === 'EXCHANGED') {
-            warningFlag = '<span class="text-warning ms-2"><i class="fas fa-exchange-alt"></i> EXCHANGE</span>';
-        }
+let borderColor = 'var(--ok)';
+
+if (order.status === 'VOIDED') {
+    warningFlag = '<span class="text-danger ms-2"><i class="fas fa-ban"></i> VOID</span>';
+    borderColor = 'var(--danger)';
+} else if (order.status === 'REFUNDED') {
+    warningFlag = '<span class="text-warning ms-2"><i class="fas fa-money-bill-wave"></i> REFUND</span>';
+    borderColor = 'var(--mango)';
+} else if (order.returnStatus === 'EXCHANGED') {
+    warningFlag = '<span class="text-warning ms-2"><i class="fas fa-exchange-alt"></i> EXCHANGE</span>';
+    borderColor = 'var(--mango-dark)';
+}
         
         const orderTime = new Date(order.date).toLocaleTimeString();
         
-        // Determine border color based on order status
-        let borderColor = '#28a745';
-        if (order.status === 'VOIDED') borderColor = '#dc3545';
-        else if (order.status === 'REFUNDED') borderColor = '#ffc107';
-        else if (order.returnStatus === 'EXCHANGED') borderColor = '#fd7e14';
+       
         
         html += `
             <div class="list-group-item d-flex justify-content-between align-items-center" style="border-left: 4px solid ${borderColor};">
@@ -9456,11 +9850,11 @@ function editEmployee(id) {  // Hindi na kailangan ng async dito
                 var modal = new bootstrap.Modal(document.getElementById('employeeModal'));
                 modal.show();
             } else {
-                await showAlert('Error loading employee', 'Error', '❌');
+                await showAlert('Error loading employee', 'Error', '');
             }
         })
         .catch(async (err) => {
-            await showAlert('Error: ' + err.message, 'Error', '❌');
+            await showAlert('Error: ' + err.message, 'Error', '');
         });
 }
 
@@ -9685,7 +10079,7 @@ function loadPerformanceData() {
         return;
     }
 
-   // ✅ GUMAMIT NG LOCAL DATE, HINDI UTC
+   // GUMAMIT NG LOCAL DATE, HINDI UTC
 function getLocalDateString(date) {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -9764,7 +10158,7 @@ const endDateStr = getLocalDateString(endDate);
             document.getElementById('addRawMaterialForm').reset();
             document.getElementById('RawMaterialId').value = '';
             
-            // ✅ I-reset ang Unit dropdown at warning
+            // I-reset ang Unit dropdown at warning
             var unitDropdown = document.getElementById('Unit');
             if (unitDropdown) {
                 unitDropdown.disabled = false;
@@ -9793,7 +10187,7 @@ async function deleteRawMaterial(id) {
 // Redirect from Inventory to Raw Materials module for EDIT
 async function editMaterialFromInventory(materialId, materialName) {
     const confirmed = await showConfirm(
-        `⚠️ Edit Master Record\n\n"${materialName}" is a master record.\n\nDo you want to go to RAW MATERIALS module to edit this?`,
+        `Edit Master Record\n\n"${materialName}" is a master record.\n\nDo you want to go to RAW MATERIALS module to edit this?`,
         'Edit Master Record'
     );
     if (confirmed) {
@@ -9807,7 +10201,7 @@ async function editMaterialFromInventory(materialId, materialName) {
 // Redirect from Inventory to Raw Materials module for DELETE
 async function deleteMaterialFromInventory(materialId, materialName) {
     const confirmed = await showConfirm(
-        `⚠️ Delete Master Record\n\n"${materialName}" will be PERMANENTLY deleted.\n\n⚠️ WARNING: If this material is used in any recipe, deletion will be BLOCKED.\n\nDo you want to go to RAW MATERIALS module to delete this?`,
+        `Delete Master Record\n\n"${materialName}" will be PERMANENTLY deleted.\n\nWARNING: If this material is used in any recipe, deletion will be BLOCKED.\n\nDo you want to go to RAW MATERIALS module to delete this?`,
         'Delete Master Record'
     );
     if (confirmed) {
@@ -10034,7 +10428,7 @@ function loadReceivingFormData() {
                 });
             }
             
-            // ✅ I-SAVE ANG LISTAHAN NG RAW MATERIALS
+            // I-SAVE ANG LISTAHAN NG RAW MATERIALS
             if (data.rawMaterials && data.rawMaterials.length > 0) {
                 rawMaterialsList = data.rawMaterials;
             } else {
@@ -10054,7 +10448,7 @@ function loadReceivingFormData() {
         })
         .catch(async error => {
             console.error('Error loading form data:', error);
-            await showAlert('Error loading form data: ' + error.message, 'Error', '❌');
+            await showAlert('Error loading form data: ' + error.message, 'Error', '');
         });
 }
 
@@ -10094,7 +10488,7 @@ function addReceivingRow() {
                 </div>
             </td>
             <td>
-                <!-- ✅ ITO ANG DISPLAY UNIT (kg, L, pcs) — consistent sa Raw Materials -->
+                <!-- ITO ANG DISPLAY UNIT (kg, L, pcs) — consistent sa Raw Materials -->
                 <input type="text" class="form-control form-control-sm text-center recv-unit bg-light" data-row="${rowId}" readonly placeholder="--">
             </td>
             <td>
@@ -10149,9 +10543,9 @@ function checkExpiryDate(rowId) {
     if (selectedDate < today && dateInput.value !== '') {
         // Mag-show ng warning
         showAlert(
-            '⚠️ WARNING: The expiry date you entered is in the PAST. This item will be automatically logged as WASTE upon saving.',
+            'WARNING: The expiry date you entered is in the PAST. This item will be automatically logged as WASTE upon saving.',
             'Expired Item Warning',
-            '⚠️'
+            ''
         ).then(() => {
             // Optional: Highlight the input
             dateInput.style.borderColor = 'red';
@@ -10170,7 +10564,7 @@ function updateReceivingUnit(rowId) {
         return;
     }
 
-    // ✅ IPAKITA ANG DISPLAY UNIT (kg, L, pcs) — HINDI ANG BASE UNIT!
+    // IPAKITA ANG DISPLAY UNIT (kg, L, pcs) — HINDI ANG BASE UNIT!
     const displayUnit = selectedOption.getAttribute('data-unit') || '';
     const recvUnitInput = document.querySelector(`.recv-unit[data-row="${rowId}"]`);
     if (recvUnitInput) recvUnitInput.value = displayUnit;
@@ -10262,7 +10656,7 @@ function calculateReceivingRow(rowId) {
     const conv = parseFloat(convInput.value) || 1;
     const totalPrice = parseFloat(totalPriceInput.value) || 0;
 
-    // ✅ BAGONG CHECK: Kung blangko ang Accepted, huwag munang mag-compute ng Rejected
+    // BAGONG CHECK: Kung blangko ang Accepted, huwag munang mag-compute ng Rejected
     if (acceptedInput.value.trim() === '') {
         rejectedInput.value = '0';
         convertedOut.value = '0.00';
@@ -10273,7 +10667,7 @@ function calculateReceivingRow(rowId) {
         // Warning sa price kahit blangko ang accepted
         if (received > 0 && totalPrice <= 0) {
             totalPriceInput.style.borderColor = 'red';
-            if (priceLabel) priceLabel.textContent = '⚠️ Missing Price';
+            if (priceLabel) priceLabel.textContent = 'Missing Price';
         } else {
             totalPriceInput.style.borderColor = '';
         }
@@ -10302,7 +10696,7 @@ function calculateReceivingRow(rowId) {
 
     if (received > 0 && totalPrice <= 0) {
         totalPriceInput.style.borderColor = 'red';
-        if (priceLabel) priceLabel.textContent = '⚠️ Missing Price';
+        if (priceLabel) priceLabel.textContent = 'Missing Price';
     } else {
         totalPriceInput.style.borderColor = '';
     }
@@ -10321,7 +10715,7 @@ function resetReceivingForm() {
     loadReceivingFormData();
 }
 
-// ✅ I-ADD ITO PARA MA-FIX ANG ERROR
+// I-ADD ITO PARA MA-FIX ANG ERROR
 async function generateDRNumberFromServer() {
     try {
         const res = await fetch('/Owner/GenerateDRNumber');
@@ -10355,12 +10749,12 @@ document.getElementById('receivingForm')?.addEventListener('submit', async funct
         await showAlert(
             'Please provide either a Supplier or a Store Name.\n\nAt least one is required to identify this delivery.',
             'Missing Information',
-            '⚠️'
+            ''
         );
         return;
     }
 
-    // ✅ FIRST LOOP: VALIDATION LANG
+    // FIRST LOOP: VALIDATION LANG
     for (let row of document.querySelectorAll('#receivingItemsBody tr')) {
         const rowId = row.id.split('-').pop();
         const mat = document.querySelector(`.material-select[data-row="${rowId}"]`);
@@ -10370,12 +10764,12 @@ document.getElementById('receivingForm')?.addEventListener('submit', async funct
         const total = parseFloat(document.querySelector(`.total-price[data-row="${rowId}"]`).value) || 0;
 
         if (received > 0 && total <= 0) {
-            await showAlert('❌ Total Price is required and must be greater than 0 for received items.', 'Missing Price', '⚠️');
+            await showAlert('Total Price is required and must be greater than 0 for received items.', 'Missing Price', '');
             return;
         }
     }
 
-    // ✅ WARNING KUNG WALANG EXPIRY DATE (hindi hard block)
+    // WARNING KUNG WALANG EXPIRY DATE (hindi hard block)
 const noExpiryItems = [];
 for (let row of document.querySelectorAll('#receivingItemsBody tr')) {
     const rowId = row.id.split('-').pop();
@@ -10406,7 +10800,7 @@ if (noExpiryItems.length > 0) {
     const items = [];
     const rows = document.querySelectorAll('#receivingItemsBody tr');
 
-    // ✅ SECOND LOOP: BUILD ITEMS WITH CONVERSION
+    // SECOND LOOP: BUILD ITEMS WITH CONVERSION
     for (let row of rows) {
         const rowId = row.id.split('-').pop();
 
@@ -10419,7 +10813,7 @@ if (noExpiryItems.length > 0) {
 
         const r4 = (n) => Math.round(n * 10000) / 10000;
 
-        // ✅ LAHAT NG QTY AY NASA DISPLAY UNIT (kg, L, pcs)
+        // LAHAT NG QTY AY NASA DISPLAY UNIT (kg, L, pcs)
         const receivedPkg = parseFloat(document.querySelector(`.received-qty[data-row="${rowId}"]`).value) || 0;
         const acceptedPkg = parseFloat(document.querySelector(`.accepted-qty[data-row="${rowId}"]`).value) || 0;
         const rejectedPkg = parseFloat(document.querySelector(`.rejected-qty[data-row="${rowId}"]`).value) || 0;
@@ -10429,11 +10823,11 @@ if (noExpiryItems.length > 0) {
         const reason = document.querySelector(`.reason-select[data-row="${rowId}"]`)?.value || 'Damaged';
 
         if (Math.abs((acceptedPkg + rejectedPkg) - receivedPkg) > 0.0001) {
-            await showAlert(`Row ${rowId}: Accepted + Rejected must equal Received.`, 'Validation Error', '⚠️');
+            await showAlert(`Row ${rowId}: Accepted + Rejected must equal Received.`, 'Validation Error', '');
             return;
         }
 
-        // ✅ CONVERT FROM DISPLAY UNIT TO BASE UNIT
+        // CONVERT FROM DISPLAY UNIT TO BASE UNIT
         // Halimbawa: 10 kg → 10,000 g  |  5 L → 5,000 mL  |  10 pcs → 10 pcs
         let conversionFactor = 1;
         if (displayUnit === 'kg' && baseUnit === 'g') conversionFactor = 1000;
@@ -10441,19 +10835,19 @@ if (noExpiryItems.length > 0) {
         else if (displayUnit === 'g' && baseUnit === 'g') conversionFactor = 1;
         else if (displayUnit === 'mL' && baseUnit === 'mL') conversionFactor = 1;
 
-        // ✅ RECEIVED/ACCEPTED/REJECTED in DISPLAY unit → BASE unit
+        // RECEIVED/ACCEPTED/REJECTED in DISPLAY unit → BASE unit
         const receivedInDisplay = r4(receivedPkg * conv);   // e.g., 10 kg
         const acceptedInDisplay = r4(acceptedPkg * conv);   // e.g., 10 kg
         const rejectedInDisplay = r4(rejectedPkg * conv);   // e.g., 0 kg
 
-        // ✅ CONVERT TO BASE UNIT FOR BACKEND
+        // CONVERT TO BASE UNIT FOR BACKEND
         const receivedBase = r4(receivedInDisplay * conversionFactor);  // e.g., 10,000 g
         const acceptedBase = r4(acceptedInDisplay * conversionFactor);  // e.g., 10,000 g
         const rejectedBase = r4(rejectedInDisplay * conversionFactor);  // e.g., 0 g
 
         if (receivedBase <= 0) continue;
 
-        // ✅ UNIT PRICE — per DISPLAY UNIT (per kg, per L, per pcs)
+        // UNIT PRICE — per DISPLAY UNIT (per kg, per L, per pcs)
         // Ito ang ipapasa sa backend — naka-standarize na per display unit
         const acceptedTotalPrice = totalPrice * (acceptedPkg / receivedPkg);
         const unitPricePerDisplay = acceptedInDisplay > 0
@@ -10479,7 +10873,7 @@ items.push({
     }
 
     if (items.length === 0) {
-        await showAlert('Please add at least one item.', 'Required', '⚠️');
+        await showAlert('Please add at least one item.', 'Required', '');
         return;
     }
 
@@ -10494,7 +10888,7 @@ items.push({
 };
 
     if (!data.drNumber) {
-        await showAlert('DR Number is required.', 'Required', '⚠️');
+        await showAlert('DR Number is required.', 'Required', '');
         return;
     }
 
@@ -10519,11 +10913,11 @@ items.push({
             await refreshInventoryTableData();
             loadDeliveryHistory();
         } else {
-            await showAlert('Error: ' + result.message, 'Error', '❌');
+            await showAlert('Error: ' + result.message, 'Error', '');
         }
     })
     .catch(async (error) => {
-        await showAlert('Error: ' + error.message, 'Error', '❌');
+        await showAlert('Error: ' + error.message, 'Error', '');
     })
     .finally(() => {
         submitBtn.innerHTML = originalText;
@@ -10531,7 +10925,7 @@ items.push({
     });
 });
 
-// ✅ BAGONG FUNCTION: Refresh inventory table without page reload
+// BAGONG FUNCTION: Refresh inventory table without page reload
 async function refreshInventoryTableData() {
     try {
         const response = await fetch('/Owner/GetInventoryData');
@@ -10540,7 +10934,7 @@ async function refreshInventoryTableData() {
         if (data.success && data.rawMaterials) {
             updateInventoryTable(data.rawMaterials);
             
-            // ✅ Also refresh the delivery history
+            // Also refresh the delivery history
             loadDeliveryHistory();
         }
     } catch (error) {
@@ -10581,7 +10975,7 @@ function updateInventoryTable(rawMaterials) {
 }
 
 // ==========================================
-// ✅ BAGONG FUNCTIONS PARA SA AUTO-REFRESH
+// BAGONG FUNCTIONS PARA SA AUTO-REFRESH
 // ==========================================
 
 // Function para i-refresh ang Inventory Table nang walang page reload
@@ -10642,7 +11036,7 @@ async function refreshAllCategoryDropdowns() {
 function validateMinQty(input) {
     if (input.value < 0) {
         input.value = 0;
-        showAlert('⚠️ Minimum quantity cannot be negative. Value has been set to 0.', 'Invalid Input', '⚠️');
+        showAlert('Minimum quantity cannot be negative. Value has been set to 0.', 'Invalid Input', '');
     }
 }
 
@@ -10697,8 +11091,8 @@ function viewDeliveryDetails(receivingId) {
         const acceptedPriceFmt = `₱${item.acceptedPrice.toFixed(2)}`;
 
         let returnBadge = '';
-        if (item.returnStatus === 'RETURNED') returnBadge = '<span class="badge bg-info ms-2">✅ Returned</span>';
-        else if (item.returnStatus === 'PENDING') returnBadge = '<span class="badge bg-warning ms-2">⏳ Pending Return</span>';
+        if (item.returnStatus === 'RETURNED') returnBadge = '<span class="badge bg-info ms-2">Returned</span>';
+        else if (item.returnStatus === 'PENDING') returnBadge = '<span class="badge bg-warning ms-2">Pending Return</span>';
 
         itemsHtml += `
             <tr>
@@ -10773,8 +11167,8 @@ function viewDeliveryDetails(receivingId) {
 }
 
 function createSupplierReturn(receivingItemId, maxQty, itemName, unitPrice) {
-    // ✅ HIDDEN FEATURE: SUPPLIER RETURN DISABLED
-    showAlert('Supplier Returns feature is currently disabled.', 'Notice', 'ℹ️');
+    // HIDDEN FEATURE: SUPPLIER RETURN DISABLED
+    showAlert('Supplier Returns feature is currently disabled.', 'Notice', '');
     return;
 
     /* ORIGINAL CODE COMMENTED OUT:
@@ -10824,10 +11218,10 @@ async function confirmSupplierReturn() {
         return;
     }
     
-    // ✅ CLOSE THE SUPPLIER RETURN MODAL FIRST
+    // CLOSE THE SUPPLIER RETURN MODAL FIRST
     closeSupplierReturnModal();
     
-    // ✅ Use custom confirm (ito na mismo ang magpo-pop up sa unahan)
+    // Use custom confirm (ito na mismo ang magpo-pop up sa unahan)
     const confirmed = await showConfirm(
         `Return ${qty} ${currentReturnData.itemName} to supplier?\n\nThis will record the return in the system.`,
         'Confirm Return'
@@ -10855,16 +11249,16 @@ async function confirmSupplierReturn() {
         hideLoading();
         
         if (result.success) {
-            await showAlert(result.message, 'Success', '✅');
+            await showAlert(result.message, 'Success', '');
             // Refresh the data
             loadDeliveryHistory();
             loadSupplierReturns();
         } else {
-            await showAlert('Error: ' + result.message, 'Error', '❌');
+            await showAlert('Error: ' + result.message, 'Error', '');
         }
     } catch (error) {
         hideLoading();
-        await showAlert('Error: ' + error.message, 'Error', '❌');
+        await showAlert('Error: ' + error.message, 'Error', '');
     }
 }
 function closeReceiptModalForReports() {
@@ -11017,7 +11411,7 @@ function updateReturnSummary(returns) {
     let voidCount = 0, refundCount = 0;
 
     returns.forEach(r => {
-        // ✅ GAWING POSITIVE ANG TOTAL
+        // GAWING POSITIVE ANG TOTAL
         const total = Math.abs(r.total || 0);
         totalValue += total;
         
@@ -11057,15 +11451,15 @@ async function updateReturnStatus(id, status) {
     .then(async result => {
         hideLoading();
         if (result.success) {
-            await showAlert( result.message, 'Success', '✅');
+            await showAlert( result.message, 'Success', '');
             loadReturns();
         } else {
-            await showAlert(' Error: ' + result.message, 'Error', '❌');
+            await showAlert(' Error: ' + result.message, 'Error', '');
         }
     })
     .catch(async error => {
         hideLoading();
-        await showAlert(' Error: ' + error.message, 'Error', '❌');
+        await showAlert(' Error: ' + error.message, 'Error', '');
     });
 }
             async function deleteReturn(id) {
@@ -11086,15 +11480,15 @@ async function updateReturnStatus(id, status) {
     .then(async result => {
         hideLoading();
         if (result.success) {
-            await showAlert('✅ ' + result.message, 'Success', '✅');
+            await showAlert('' + result.message, 'Success', '');
             loadReturns();
         } else {
-            await showAlert('❌ Error: ' + result.message, 'Error', '❌');
+            await showAlert('Error: ' + result.message, 'Error', '');
         }
     })
     .catch(async error => {
         hideLoading();
-        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+        await showAlert('Error: ' + error.message, 'Error', '');
     });
 }
 
@@ -11130,7 +11524,7 @@ function closeReturnDetailModal() {
         loadVoidHistory();
     } else if (tabName === 'supplier') {
         document.getElementById('supplierTab').style.display = 'block';
-        loadSupplierReturns();  // ✅ ITO ANG TAMA, hindi loadAllReturns
+        loadSupplierReturns();  // ITO ANG TAMA, hindi loadAllReturns
     }
 }
 
@@ -11174,7 +11568,7 @@ async function loadPendingRequests() {
 const formattedDate = isNaN(date.getTime()) ? req.requestedAt : 
     `${date.getMonth()+1}/${date.getDate()}/${date.getFullYear()}, ${date.toLocaleTimeString()}`;
             
-            // ✅ CORRECTED ORDER NG COLUMNS
+            // CORRECTED ORDER NG COLUMNS
             html += `
                 <tr>
                     <td style="white-space: nowrap;">${formattedDate}</td>
@@ -11245,7 +11639,7 @@ async function loadApprovedReturns() {
                 displayType = 'REFUND';
             }
             
-            // ✅ Check if this is a direct void (has Source = 'DIRECT')
+            // Check if this is a direct void (has Source = 'DIRECT')
             const isPendingRequest = r.source !== 'DIRECT';  // Direct voids are NOT in PendingRequests
             
             html += `
@@ -11295,7 +11689,7 @@ async function loadSupplierReturns() {
             let statusActions = '';
             
             if (r.status === 'Pending Return') {
-                statusBadge = '<span class="badge bg-warning">⏳ Pending Return</span>';
+                statusBadge = '<span class="badge bg-warning">Pending Return</span>';
                 statusActions = `
                     <button class="btn btn-sm btn-success me-1" onclick="markReturnCompleted(${r.returnId})">
                         <i class="fas fa-check"></i> Mark Returned
@@ -11305,14 +11699,14 @@ async function loadSupplierReturns() {
                     </button>
                 `;
             } else if (r.status === 'Returned') {
-                statusBadge = '<span class="badge bg-success">✅ Returned to Supplier</span>';
+                statusBadge = '<span class="badge bg-success">Returned to Supplier</span>';
                 statusActions = `
                     <button class="btn btn-sm btn-info" onclick="viewSupplierReturnReceipt(${r.returnId})">
                         <i class="fas fa-receipt"></i> View Receipt
                     </button>
                 `;
             } else {
-                statusBadge = '<span class="badge bg-secondary">❌ Cancelled</span>';
+                statusBadge = '<span class="badge bg-secondary">Cancelled</span>';
                 statusActions = '';
             }
             
@@ -11379,14 +11773,14 @@ async function markReturnCompleted(returnId) {
         hideLoading();
         
         if (result.success) {
-            await showAlert('✅ ' + result.message, 'Success', '✅');
+            await showAlert('' + result.message, 'Success', '');
             loadSupplierReturns();
         } else {
-            await showAlert('❌ Error: ' + result.message, 'Error', '❌');
+            await showAlert('Error: ' + result.message, 'Error', '');
         }
     } catch (error) {
         hideLoading();
-        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+        await showAlert('Error: ' + error.message, 'Error', '');
     }
 }
 
@@ -11401,11 +11795,11 @@ async function viewSupplierReturnReceipt(returnId) {
         if (data.success && data.return) {
             displaySupplierReturnReceipt(data.return);
         } else {
-            await showAlert('Error loading receipt: ' + (data.message || 'Unknown error'), 'Error', '❌');
+            await showAlert('Error loading receipt: ' + (data.message || 'Unknown error'), 'Error', '');
         }
     } catch (error) {
         hideLoading();
-        await showAlert('Error: ' + error.message, 'Error', '❌');
+        await showAlert('Error: ' + error.message, 'Error', '');
     }
 }
 
@@ -11420,7 +11814,7 @@ function displaySupplierReturnReceipt(returnData) {
     
     receiptDiv.innerHTML = `
         <div style="text-align: center; margin-bottom: 20px;">
-            <h3 style="margin: 5px 0;">Andeng's Mango & More</h3>
+            <h3 style="margin: 5px 0;">Andeng's Mango Graham Shake </h3>
             <small style="color: #666;">Supplier Return Receipt</small>
             <hr style="margin: 10px 0;">
         </div>
@@ -11478,14 +11872,14 @@ function closeSupplierReturnReceipt() {
         hideLoading();
         
         if (result.success) {
-            await showAlert('✅ ' + result.message, 'Success', '✅');
+            await showAlert('' + result.message, 'Success', '');
             loadSupplierReturns();
         } else {
-            await showAlert('❌ Error: ' + result.message, 'Error', '❌');
+            await showAlert('Error: ' + result.message, 'Error', '');
         }
     } catch (error) {
         hideLoading();
-        await showAlert('❌ Error: ' + error.message, 'Error', '❌');
+        await showAlert('Error: ' + error.message, 'Error', '');
     }
 }
 
@@ -11509,7 +11903,7 @@ function closeSupplierReturnReceipt() {
                     <div id="supplierReturnModal" class="modal-qty" style="display: flex; z-index: 10001;">
                     <div class="modal-qty-content" style="width: 500px; max-width: 90%;">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h4 class="mb-0">🏭 Supplier Return Details</h4>
+                    <h4 class="mb-0">Supplier Return Details</h4>
                     <button onclick="closeModal('supplierReturnModal')" style="background: none; border: none; font-size: 24px;">&times;</button>
                     </div>
                     <hr>
@@ -11543,7 +11937,7 @@ function closeSupplierReturnReceipt() {
     console.log('viewReturnDetails called with requestId:', requestId);
     
     if (!requestId || requestId === 0) {
-        await showAlert('Invalid request ID', 'Error', '❌');
+        await showAlert('Invalid request ID', 'Error', '');
         return;
     }
     
@@ -11561,12 +11955,12 @@ function closeSupplierReturnReceipt() {
         if (data.success) {
             showReturnDetailModal(data);
         } else {
-            await showAlert('Error loading details: ' + (data.message || 'Unknown error'), 'Error', '❌');
+            await showAlert('Error loading details: ' + (data.message || 'Unknown error'), 'Error', '');
         }
     } catch (error) {
         hideLoading();
         console.error('Error in viewReturnDetails:', error);
-        await showAlert('Error loading return details: ' + error.message, 'Error', '❌');
+        await showAlert('Error loading return details: ' + error.message, 'Error', '');
     }
 }
 
@@ -11575,7 +11969,7 @@ function closeSupplierReturnReceipt() {
                     <div id="returnDetailModal" class="modal-qty" style="display: flex; z-index: 10001;">
                     <div class="modal-qty-content" style="width: 500px; max-width: 90%;">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h4 class="mb-0">📋 ${data.requestType} Details</h4>
+                    <h4 class="mb-0">${data.requestType} Details</h4>
                     <button onclick="closeModal('returnDetailModal')" style="background: none; border: none; font-size: 24px;">&times;</button>
                     </div>
                     <hr>
@@ -11613,7 +12007,7 @@ function closeSupplierReturnReceipt() {
                     }
 
                     async function exportSupplierReturns() {
-    await showAlert('Export feature coming soon!', 'Notice', 'ℹ️');
+    await showAlert('Export feature coming soon!', 'Notice', '');
 }
 
 
@@ -11673,7 +12067,7 @@ function filterProducts() {
 
 
 
-function showAlert(message, title = "Notice", icon = "ℹ️") {
+function showAlert(message, title = "Notice", icon = "") {
     return new Promise((resolve) => {
         const modal = document.getElementById('customAlertModal');
         
@@ -11690,7 +12084,7 @@ function showAlert(message, title = "Notice", icon = "ℹ️") {
         
         titleEl.textContent = title;
         messageEl.textContent = message;
-        iconEl.textContent = icon;
+        iconEl.innerHTML = uiIconHtml(detectAlertKind(title));
         
         modal.style.display = 'flex';
         modal.style.position = 'fixed';
@@ -11740,7 +12134,7 @@ function showConfirm(message, title = "Confirm Action") {
         
         titleEl.textContent = title;
         messageEl.textContent = message;
-        iconEl.textContent = "❓";
+        iconEl.innerHTML = uiIconHtml('confirm');
         
         // I-set ang display at styling
         modal.style.display = 'flex';
@@ -11762,6 +12156,10 @@ function showConfirm(message, title = "Confirm Action") {
         const newCancelBtn = cancelBtn.cloneNode(true);
         confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
         cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+
+           const isDanger = /delete|remove|void|reject/i.test(title);
+        newConfirmBtn.classList.toggle('is-danger', isDanger);
+        iconEl.innerHTML = uiIconHtml(isDanger ? 'warning' : 'confirm');
         
         const cleanup = () => {
             modal.style.display = 'none';
@@ -11839,7 +12237,7 @@ function saveAndReload() {
 let pendingBatchData = null;  // para i-store ang batch info habang naghihintay ng password
 
 function showEditStockModal(batchId, currentRemainingInBaseUnit, materialName, unit, materialId) {
-    // ✅ I-store muna ang data — hindi pa natin bubuksan ang edit modal
+    // I-store muna ang data — hindi pa natin bubuksan ang edit modal
     pendingBatchData = {
         batchId: batchId,
         currentRemainingInBaseUnit: currentRemainingInBaseUnit,
@@ -11848,16 +12246,16 @@ function showEditStockModal(batchId, currentRemainingInBaseUnit, materialName, u
         materialId: materialId
     };
 
-    // ✅ I-reset ang password field at error message
+    // I-reset ang password field at error message
                                                     document.getElementById('gateActionText').innerText = 'modify stock';
     document.getElementById('gatePasswordInput').value = '';
     document.getElementById('gatePasswordError').style.display = 'none';
 
-    // ✅ Ipakita ang password gate modal
+    // Ipakita ang password gate modal
     const gateModal = new bootstrap.Modal(document.getElementById('passwordGateModal'));
     gateModal.show();
 
-    // ✅ Focus agad sa password field
+    // Focus agad sa password field
     setTimeout(() => document.getElementById('gatePasswordInput').focus(), 300);
 }
 
@@ -11942,7 +12340,7 @@ function openActualEditStockModal(batchId, currentRemainingInBaseUnit, materialN
     currentEditMaterialName = materialName;
     currentEditUnit = unit;
     
-    // ✅ CONVERT FROM BASE UNIT TO DISPLAY UNIT
+    // CONVERT FROM BASE UNIT TO DISPLAY UNIT
     let displayCurrentStock = currentRemainingInBaseUnit;
     if (unit === 'kg' || unit === 'L') {
         displayCurrentStock = currentRemainingInBaseUnit / 1000;
@@ -11957,11 +12355,11 @@ function openActualEditStockModal(batchId, currentRemainingInBaseUnit, materialN
     document.getElementById('editNewQuantity').value = displayCurrentStock;
     document.getElementById('editNewQuantity').placeholder = `Current: ${displayCurrentStock.toFixed(2)} ${unit}`;
     
-    // ✅ I-SET ANG MAX VALUE SA CURRENT STOCK (BAWAL MAGDAGDAG)
+    // I-SET ANG MAX VALUE SA CURRENT STOCK (BAWAL MAGDAGDAG)
     document.getElementById('editNewQuantity').setAttribute('max', displayCurrentStock);
     document.getElementById('editNewQuantity').setAttribute('min', '0');
     
-    // ✅ I-UPDATE ANG HINT TEXT
+    // I-UPDATE ANG HINT TEXT
     const hintEl = document.getElementById('editStockHint');
     if (hintEl) {
         hintEl.innerHTML = `Enter the new remaining stock quantity. <strong>Max: ${displayCurrentStock.toFixed(2)} ${unit}</strong> (cannot increase)`;
@@ -11980,7 +12378,7 @@ function openActualEditStockModal(batchId, currentRemainingInBaseUnit, materialN
     modal.show();
 }
 
-// ✅ BAGONG FUNCTION: I-check kung lumalampas sa max
+// BAGONG FUNCTION: I-check kung lumalampas sa max
 function validateEditStockInput(input) {
     const max = parseFloat(input.getAttribute('max'));
     const value = parseFloat(input.value);
@@ -12030,33 +12428,33 @@ async function confirmStockAdjustment() {
     
     // Validation
     if (isNaN(newQuantityInDisplayUnit) || newQuantityInDisplayUnit < 0) {
-        await showAlert('Please enter a valid quantity (0 or positive number)', 'Invalid Input', '⚠️');
+        await showAlert('Please enter a valid quantity (0 or positive number)', 'Invalid Input', '');
         return;
     }
     
-    // ✅ BAGONG VALIDATION: BAWAL MAGDAGDAG
+    // BAGONG VALIDATION: BAWAL MAGDAGDAG
     if (newQuantityInDisplayUnit > currentEditBatchRemaining) {
         await showAlert(
-            `❌ Cannot increase stock.\n\nCurrent stock: ${currentEditBatchRemaining.toFixed(2)} ${currentEditUnit}\nYour input: ${newQuantityInDisplayUnit.toFixed(2)} ${currentEditUnit}\n\nIf you need to increase stock, use "Receive Delivery" instead.`,
+            `Cannot increase stock.\n\nCurrent stock: ${currentEditBatchRemaining.toFixed(2)} ${currentEditUnit}\nYour input: ${newQuantityInDisplayUnit.toFixed(2)} ${currentEditUnit}\n\nIf you need to increase stock, use "Receive Delivery" instead.`,
             'Cannot Increase Stock',
-            '🚫'
+            ''
         );
         return;
     }
     
     // Validation
     if (isNaN(newQuantityInDisplayUnit) || newQuantityInDisplayUnit < 0) {
-        await showAlert('Please enter a valid quantity (0 or positive number)', 'Invalid Input', '⚠️');
+        await showAlert('Please enter a valid quantity (0 or positive number)', 'Invalid Input', '');
         return;
     }
     
     if (!reason) {
-        await showAlert('Please select a reason for adjustment', 'Required', '⚠️');
+        await showAlert('Please select a reason for adjustment', 'Required', '');
         return;
     }
     
     if (reason === 'Other' && !otherReason) {
-        await showAlert('Please specify the reason', 'Required', '⚠️');
+        await showAlert('Please specify the reason', 'Required', '');
         return;
     }
     
@@ -12066,7 +12464,7 @@ async function confirmStockAdjustment() {
     
     // Compare using display unit values
     if (newQuantityInDisplayUnit === currentEditBatchRemaining) {
-        await showAlert('No changes made. Quantity is the same as current stock.', 'Notice', 'ℹ️');
+        await showAlert('No changes made. Quantity is the same as current stock.', 'Notice', '');
         return;
     }
     
@@ -12101,7 +12499,7 @@ async function confirmStockAdjustment() {
             },
             body: JSON.stringify({
                 batchId: currentEditBatchId,
-                newQuantity: newQuantityInDisplayUnit,  // ✅ Send in display unit (kg/L)
+                newQuantity: newQuantityInDisplayUnit,  // Send in display unit (kg/L)
                 reason: reason,
                 notes: notes
             })
@@ -12111,13 +12509,13 @@ async function confirmStockAdjustment() {
         hideLoading();
         
         if (result.success) {
-            await showAlert(result.message, 'Success', '✅');
+            await showAlert(result.message, 'Success', '');
             
             // Close modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('editStockModal'));
             if (modal) modal.hide();
             
-            // ✅ Refresh the batch history modal to show updated data
+            // Refresh the batch history modal to show updated data
             const materialName = document.getElementById('modalBatchMaterialName').innerText;
             // You need to store the materialId when showing batch history
             if (window.currentBatchMaterialId) {
@@ -12135,12 +12533,12 @@ async function confirmStockAdjustment() {
                 saveAndReload();
             }, 1000);
         } else {
-            await showAlert('Error: ' + result.message, 'Error', '❌');
+            await showAlert('Error: ' + result.message, 'Error', '');
         }
     } catch (error) {
         hideLoading();
         console.error('Error:', error);
-        await showAlert('Error: ' + error.message, 'Error', '❌');
+        await showAlert('Error: ' + error.message, 'Error', '');
     }
 }
 
@@ -12197,7 +12595,7 @@ function printAdjustmentHistory() {
 }
 
 async function exportAdjustmentHistory() {
-    await showAlert('Export feature coming soon!', 'Notice', 'ℹ️');
+    await showAlert('Export feature coming soon!', 'Notice', '');
 }
 
 
@@ -12272,7 +12670,7 @@ async function loadVoidHistory() {
             const date = new Date(v.recordedAt);
             const formattedDate = `${date.getMonth()+1}/${date.getDate()}/${date.getFullYear()}`;
             
-            // ✅ Check if amount is valid
+            // Check if amount is valid
             const amount = v.amount || 0;
             
             html += `
@@ -12311,16 +12709,16 @@ async function viewVoidOrderReceipt(orderId) {
             // Add a note that this is a voided order
             if (data.receipt) {
                 data.receipt.isVoided = true;
-                data.receipt.voidNotice = "⚠️ THIS ORDER HAS BEEN VOIDED ⚠️";
+                data.receipt.voidNotice = "THIS ORDER HAS BEEN VOIDED ";
             }
             showReceiptModalFromData(data.receipt);
         } else {
-            await showAlert('Error loading receipt details: ' + (data.message || 'Unknown error'), 'Error', '❌');
+            await showAlert('Error loading receipt details: ' + (data.message || 'Unknown error'), 'Error', '');
         }
     } catch (error) {
         hideLoading();
         console.error('Error:', error);
-        await showAlert('Error loading receipt details: ' + error.message, 'Error', '❌');
+        await showAlert('Error loading receipt details: ' + error.message, 'Error', '');
     }
 }
 
@@ -12371,11 +12769,11 @@ function addNewIngredientRow() {
         <td>
             <select class="form-control form-control-sm unit-select">
                 <option value="" disabled selected>-- Select Unit --</option>
-                <option value="kg">📦 kg</option>
-                <option value="g">⚖️ g</option>
-                <option value="L">💧 L</option>
-                <option value="mL">🧪 mL</option>
-                <option value="pcs">🔢 pcs</option>
+                <option value="kg">kg</option>
+                <option value="g">g</option>
+                <option value="L">L</option>
+                <option value="mL">mL</option>
+                <option value="pcs">pcs</option>
             </select>
         </td>
         <td class="text-center">
@@ -12389,7 +12787,7 @@ tbody.insertAdjacentHTML('beforeend', html);
         });
 }
 function removeNewIngredientRow(btn) {
-    const row = btn.closest('tr'); // ✅ Binago mula .ingredient-row papuntang tr
+    const row = btn.closest('tr'); // Binago mula .ingredient-row papuntang tr
     if (row) row.remove();
 }
 
@@ -12399,7 +12797,7 @@ async function saveNewSize() {
     const priceInput = document.getElementById('newSizePrice');
     
     if (!productIdInput || !productIdInput.value) {
-        await showAlert('Product ID not found', 'Error', '❌');
+        await showAlert('Product ID not found', 'Error', '');
         return;
     }
     
@@ -12408,7 +12806,7 @@ async function saveNewSize() {
     const price = priceInput ? parseFloat(priceInput.value) || 0 : 0;
     
     if (!sizeName) {
-        await showAlert('Please enter a size name', 'Required', '⚠️');
+        await showAlert('Please enter a size name', 'Required', '');
         return;
     }
     
@@ -12422,11 +12820,11 @@ async function saveNewSize() {
         
         if (select && select.value) {
             if (!unitSelect.value) {
-                await showAlert('Please select a unit for all ingredients.', 'Missing Unit', '⚠️');
+                await showAlert('Please select a unit for all ingredients.', 'Missing Unit', '');
                 return;
             }
             if (!quantity.value || parseFloat(quantity.value) <= 0) {
-                await showAlert('Please enter a valid quantity.', 'Invalid Quantity', '⚠️');
+                await showAlert('Please enter a valid quantity.', 'Invalid Quantity', '');
                 return;
             }
             ingredients.push({
@@ -12438,7 +12836,7 @@ async function saveNewSize() {
     }
     
     if (ingredients.length === 0) {
-        await showAlert('Please add at least one ingredient', 'Required', '⚠️');
+        await showAlert('Please add at least one ingredient', 'Required', '');
         return;
     }
     
@@ -12464,7 +12862,7 @@ async function saveNewSize() {
             })
         });
         
-        // ✅ ITAGO MUNA ANG LOADING BAGO MAG-ALERT PARA HINDI MAGPATONG
+        // ITAGO MUNA ANG LOADING BAGO MAG-ALERT PARA HINDI MAGPATONG
         hideLoading(); 
 
         if (!response.ok) {
@@ -12479,7 +12877,7 @@ async function saveNewSize() {
             const modal = bootstrap.Modal.getInstance(modalElement);
             if (modal) modal.hide();
             
-            await showAlert('Size added successfully!', 'Success', '✅');
+            await showAlert('Size added successfully!', 'Success', '');
             
             if (window.returnToEditModal) {
                 window.returnToEditModal = false;
@@ -12495,14 +12893,14 @@ async function saveNewSize() {
                 saveAndReload();
             }
         } else {
-            // ❌ DITO LALABAS ANG DETALYADONG ERROR
-            await showAlert('Error: ' + result.message, 'Error', '❌');
+            // DITO LALABAS ANG DETALYADONG ERROR
+            await showAlert('Error: ' + result.message, 'Error', '');
         }
     } catch (error) {
-        // ✅ SIGURADUHING NAKA-HIDE ANG LOADING PAGKA-CRASH
+        // SIGURADUHING NAKA-HIDE ANG LOADING PAGKA-CRASH
         hideLoading(); 
         console.error('Critical Error in saveNewSize:', error);
-        await showAlert('An error occurred: ' + error.message, 'Error', '❌');
+        await showAlert('An error occurred: ' + error.message, 'Error', '');
     }
 }
 
@@ -12584,7 +12982,7 @@ async function saveExpense(event) {
     };
 
     if (!payload.expenseDate || !payload.category || !(payload.amount > 0)) {
-        await showAlert('Please fill in all required fields properly.', 'Required', '⚠️');
+        await showAlert('Please fill in all required fields properly.', 'Required', '');
         return;
     }
 
@@ -12602,14 +13000,14 @@ async function saveExpense(event) {
         if (result.success) {
             bootstrap.Modal.getInstance(document.getElementById('addExpenseModal'))?.hide();
             document.getElementById('expenseForm').reset();
-            await showAlert('Expense added successfully!', 'Success', '✅');
+            await showAlert('Expense added successfully!', 'Success', '');
             loadExpenses();
             loadFinancials();
         } else {
-            await showAlert(result.message || 'Failed to add expense.', 'Error', '❌');
+            await showAlert(result.message || 'Failed to add expense.', 'Error', '');
         }
     } catch (err) {
-        await showAlert('Error: ' + err.message, 'Error', '❌');
+        await showAlert('Error: ' + err.message, 'Error', '');
     }
 }
 
@@ -12629,10 +13027,10 @@ async function deleteExpense(id) {
             loadExpenses();
             loadFinancials();
         } else {
-            await showAlert(result.message || 'Failed to delete.', 'Error', '❌');
+            await showAlert(result.message || 'Failed to delete.', 'Error', '');
         }
     } catch (err) {
-        await showAlert('Error: ' + err.message, 'Error', '❌');
+        await showAlert('Error: ' + err.message, 'Error', '');
     }
 }
 
@@ -12662,7 +13060,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// ✅ BAGONG FUNCTION: Success Modal para sa Receive Delivery
+// BAGONG FUNCTION: Success Modal para sa Receive Delivery
 function showDeliverySuccessModal(receivingId) {
     // Alisin ang lumang modal kung meron man
     const existing = document.getElementById('deliverySuccessModal');
@@ -12671,7 +13069,7 @@ function showDeliverySuccessModal(receivingId) {
     const modalHtml = `
         <div id="deliverySuccessModal" class="modal-qty" style="display: flex; z-index: 10005;">
             <div class="modal-qty-content" style="width: 400px; max-width: 90%; text-align: center; padding: 30px;">
-                <div style="font-size: 60px; color: #28a745; margin-bottom: 15px;">
+                <div style="font-size: 60px; color: var(--ok); margin-bottom: 15px;">
                     <i class="fas fa-check-circle"></i>
                 </div>
                 <h3 style="font-weight: 700; color: #333; margin-bottom: 10px;">Delivery Received!</h3>
@@ -12679,11 +13077,11 @@ function showDeliverySuccessModal(receivingId) {
                     The delivery has been successfully saved to the system and inventory has been updated.
                 </p>
                 
-                <div style="display: flex; flex-direction: column; gap: 10px;">
-                    <button onclick="goToDeliveryHistoryFromModal()" class="btn btn-primary" style="padding: 12px; font-weight: 600; background: #D4B000; border: none; color: white; border-radius: 8px;">
+                <div style="font-size: 60px; color: var(--ok); margin-bottom: 15px;">
+                    <button onclick="goToDeliveryHistoryFromModal()" class="btn btn-primary" style="padding: 12px;">
                         <i class="fas fa-history"></i> View in Delivery History
                     </button>
-                    <button onclick="closeDeliverySuccessModal()" class="btn btn-outline-secondary" style="padding: 12px; font-weight: 600; border-radius: 8px;">
+                     <button onclick="closeDeliverySuccessModal()" class="btn btn-outline-secondary" style="padding: 12px;">
                         Receive Another Delivery
                     </button>
                 </div>
@@ -12694,7 +13092,7 @@ function showDeliverySuccessModal(receivingId) {
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
-// ✅ Function para isara ang Success Modal
+// Function para isara ang Success Modal
 function closeDeliverySuccessModal() {
     const modal = document.getElementById('deliverySuccessModal');
     if (modal) modal.remove();
@@ -12703,13 +13101,13 @@ function closeDeliverySuccessModal() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// ✅ Function para pumunta sa Delivery History
+// Function para pumunta sa Delivery History
 function goToDeliveryHistoryFromModal() {
     closeDeliverySuccessModal();
     showModule('receivingHistory'); // Lilipat sa Delivery History module
 }
 
-// ✅ BAGONG FUNCTION: Custom Success Modal para sa New Product
+// BAGONG FUNCTION: Custom Success Modal para sa New Product
 function showProductSuccessModal(productId, productName) {
     // Alisin ang lumang modal kung meron man
     const existing = document.getElementById('productSuccessModal');
@@ -12733,9 +13131,9 @@ function showProductSuccessModal(productId, productName) {
                     </p>
                 </div>
                 
-                <div style="display: flex; flex-direction: column; gap: 10px;">
+                <div style="font-size: 60px; color: var(--ok); margin-bottom: 15px;">
                     <!-- Button para pumunta sa POS display -->
-                    <button onclick="goToProductDisplay(${productId})" class="btn btn-success" style="padding: 12px; font-weight: 600; background: #ff9800; border: none; color: white; border-radius: 8px; font-size: 15px;">
+                   <button onclick="goToProductDisplay(${productId})" class="btn btn-primary" style="padding: 12px;">
                         <i class="fas fa-tv"></i> Go to Display in POS
                     </button>
                     <!-- Button para tapusin na -->
@@ -12750,7 +13148,7 @@ function showProductSuccessModal(productId, productName) {
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
-// ✅ Function para isara at mag-reload
+// Function para isara at mag-reload
 function closeProductSuccessAndReload() {
     const modal = document.getElementById('productSuccessModal');
     if (modal) modal.remove();
@@ -12760,7 +13158,7 @@ function closeProductSuccessAndReload() {
     window.location.href = window.location.pathname + '?fromProductSave=true';
 }
 
-// ✅ Function para pumunta sa "Display in POS" section
+// Function para pumunta sa "Display in POS" section
 function goToProductDisplay(productId) {
     // I-close ang modal
     const modal = document.getElementById('productSuccessModal');
@@ -12782,7 +13180,7 @@ async function autoDisplayProductInPOS() {
     
     console.log('Auto-displaying product in POS:', highlightProductId);
     
-    // ✅ Mag-antay ng konti para naka-render na ang lahat ng cards
+    // Mag-antay ng konti para naka-render na ang lahat ng cards
     await new Promise(resolve => setTimeout(resolve, 500));
     
     // Hanapin ang specific na product card
@@ -12801,7 +13199,7 @@ async function autoDisplayProductInPOS() {
         return;
     }
     
-    // ✅ I-expand ang card
+    // I-expand ang card
     var cardBody = targetCard.querySelector('.product-card-body');
     if (cardBody && cardBody.style.display === 'none') {
         cardBody.style.display = 'block';
@@ -12813,7 +13211,7 @@ async function autoDisplayProductInPOS() {
         }
     }
     
-    // ✅ Kunin lahat ng "Display in POS" buttons
+    // Kunin lahat ng "Display in POS" buttons
     var displayButtons = [];
     var allButtons = targetCard.querySelectorAll('button');
     for (var j = 0; j < allButtons.length; j++) {
@@ -12830,14 +13228,14 @@ async function autoDisplayProductInPOS() {
     
     console.log(`Found ${displayButtons.length} sizes to display`);
     
-    // ✅ Ipakita ang CUSTOM modal para sa "Display ALL" decision
+    // Ipakita ang CUSTOM modal para sa "Display ALL" decision
     const shouldDisplayAll = await showConfirm(
         `This product has ${displayButtons.length} size(s) that are hidden from POS.\n\nDo you want to display ALL of them in the POS menu?`,
         'Display Product in POS'
     );
     
     if (shouldDisplayAll) {
-        // ✅ I-display lahat nang paisa-isa (walang confirm modal para mabilis)
+        // I-display lahat nang paisa-isa (walang confirm modal para mabilis)
         showLoading('Displaying sizes in POS...');
         
         for (var k = 0; k < displayButtons.length; k++) {
@@ -12849,7 +13247,7 @@ async function autoDisplayProductInPOS() {
                 if (match && match[1]) {
                     var productSizeId = parseInt(match[1]);
                     
-                    // ✅ Directly call ang backend API (skip ang UI confirm)
+                    // Directly call ang backend API (skip ang UI confirm)
                     var token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
                     var response = await fetch('/Owner/TogglePOSVisibility', {
                         method: 'POST',
@@ -12874,20 +13272,20 @@ async function autoDisplayProductInPOS() {
         }
         
         hideLoading();
-        await showAlert('✅ All sizes are now displayed in the POS menu!', 'Success', '✅');
+        await showAlert('All sizes are now displayed in the POS menu!', 'Success', '');
         
-        // ✅ I-reload para makita ang updated status
+        // I-reload para makita ang updated status
         sessionStorage.setItem('activeModule', 'products');
         window.location.href = window.location.pathname;
         
     } else {
-        // ✅ Kung "No", hayaan ang user na mag-click manually
-        await showAlert('You can manually click "Display in POS" for each size you want to show.', 'Info', 'ℹ️');
+        // Kung "No", hayaan ang user na mag-click manually
+        await showAlert('You can manually click "Display in POS" for each size you want to show.', 'Info', '');
         window.history.replaceState({}, document.title, window.location.pathname);
     }
 }
 
-    // ✅ Tawagin ang function pagka-load ng page
+    // Tawagin ang function pagka-load ng page
     document.addEventListener('DOMContentLoaded', function() {
         autoDisplayProductInPOS();
     });
@@ -12969,7 +13367,7 @@ function resetUnitForm() {
     document.getElementById('unitBaseUnit').value = '';
     document.getElementById('unitConversionFactor').value = '1';
     document.getElementById('unitIsActive').checked = true;
-    document.getElementById('unitFormTitle').innerText = '➕ Add Unit';
+    document.getElementById('unitFormTitle').innerText = 'Add Unit';
     document.getElementById('unitCancelBtn').style.display = 'none';
 }
 
@@ -12984,7 +13382,7 @@ function editUnit(id) {
     document.getElementById('unitConversionFactor').value = u.conversionFactor;
     document.getElementById('unitIsActive').checked = u.isActive;
     
-    document.getElementById('unitFormTitle').innerText = '✏️ Edit Unit';
+    document.getElementById('unitFormTitle').innerText = 'Edit Unit';
     document.getElementById('unitCancelBtn').style.display = 'inline-block';
     document.getElementById('unitName').focus();
 }
@@ -13003,7 +13401,7 @@ async function saveUnit(e) {
     };
 
     if (!payload.name || !payload.symbol || !payload.baseUnit) {
-        await showAlert('Please fill in all required fields.', 'Required', '⚠️');
+        await showAlert('Please fill in all required fields.', 'Required', '');
         return;
     }
 
@@ -13018,18 +13416,18 @@ async function saveUnit(e) {
         hideLoading();
 
         if (data.success) {
-            await showAlert(data.message, 'Success', '✅');
+            await showAlert(data.message, 'Success', '');
             resetUnitForm();
             await loadUnits();
             
-            // ✅ I-refresh din ang mga dropdowns kung mayroon man
+            // I-refresh din ang mga dropdowns kung mayroon man
             // await refreshAllUnitDropdowns(); 
         } else {
-            await showAlert(data.message, 'Cannot Save', '❌');
+            await showAlert(data.message, 'Cannot Save', '');
         }
     } catch (err) {
         hideLoading();
-        await showAlert('Error: ' + err.message, 'Error', '❌');
+        await showAlert('Error: ' + err.message, 'Error', '');
     }
 }
 
@@ -13050,15 +13448,15 @@ async function deleteUnit(id) {
         hideLoading();
 
         if (data.success) {
-            await showAlert(data.message, 'Deleted', '✅');
+            await showAlert(data.message, 'Deleted', '');
             resetUnitForm();
             await loadUnits();
         } else {
-            await showAlert(data.message, 'Error', '❌');
+            await showAlert(data.message, 'Error', '');
         }
     } catch (err) {
         hideLoading();
-        await showAlert('Error: ' + err.message, 'Error', '❌');
+        await showAlert('Error: ' + err.message, 'Error', '');
     }
 }
        
@@ -13123,22 +13521,22 @@ async function loadShifts() {
             // Status badge
             let statusBadge = '';
             if (shift.status === 'OPEN') {
-                statusBadge = '<span class="badge bg-info">🟢 OPEN</span>';
+                statusBadge = '<span class="badge bg-info">OPEN</span>';
             } else if (shift.status === 'CLOSED') {
-                statusBadge = '<span class="badge bg-success">✅ CLOSED</span>';
+                statusBadge = '<span class="badge bg-success">CLOSED</span>';
             } else if (shift.status === 'FORCE_CLOSED') {
-                statusBadge = '<span class="badge bg-warning text-dark">⚠️ FORCE CLOSED</span>';
+                statusBadge = '<span class="badge bg-warning text-dark">FORCE CLOSED</span>';
             }
 
             // Variance color
             let varianceHtml = '<span class="text-muted">—</span>';
             if (shift.variance !== null && shift.variance !== undefined) {
                 if (shift.variance === 0) {
-                    varianceHtml = '<span class="text-success fw-bold">₱0.00 ✅</span>';
+                    varianceHtml = '<span class="text-success fw-bold">₱0.00 </span>';
                 } else if (shift.variance > 0) {
-                    varianceHtml = `<span class="text-info fw-bold">+₱${shift.variance.toFixed(2)} 🔵</span>`;
+                    varianceHtml = `<span class="text-info fw-bold">+₱${shift.variance.toFixed(2)} </span>`;
                 } else {
-                    varianceHtml = `<span class="text-danger fw-bold">-₱${Math.abs(shift.variance).toFixed(2)} 🔴</span>`;
+                    varianceHtml = `<span class="text-danger fw-bold">-₱${Math.abs(shift.variance).toFixed(2)} </span>`;
                 }
             }
 
@@ -13208,13 +13606,13 @@ async function viewShiftDetails(shiftId) {
         hideLoading();
 
         if (!data.success) {
-            await showAlert(data.message || 'Unable to load shift details.', 'Error', '❌');
+            await showAlert(data.message || 'Unable to load shift details.', 'Error', '');
             return;
         }
         renderShiftReport(data);
     } catch (err) {
         hideLoading();
-        await showAlert('Error loading shift details: ' + err.message, 'Error', '❌');
+        await showAlert('Error loading shift details: ' + err.message, 'Error', '');
     }
 }
 
@@ -13419,7 +13817,7 @@ async function loadAddOns() {
     const tbody = document.getElementById('addOnTableBody');
     if (!tbody) return;
 
-    // ✅ I-load din ang categories
+    // I-load din ang categories
     await loadCategoryDropdown('addOnCategory', 'AddOn', { 
         valueKey: 'name', 
         placeholder: '-- Select Category --' 
@@ -13494,7 +13892,7 @@ function resetAddOnForm() {
     document.getElementById('addOnIngredientsBody').innerHTML = '';
     document.getElementById('addOnRecipeCost').innerText = '₱0.00';
     document.getElementById('addOnAutoPriceDisplay').innerText = '₱0.00';
-    document.getElementById('addOnFormTitle').innerText = '➕ Add Add-on';
+    document.getElementById('addOnFormTitle').innerText = 'Add Add-on';
     document.getElementById('addOnCancelBtn').style.display = 'none';
     document.getElementById('addOnActiveSection').style.display = 'none';
     toggleAddOnPriceMode();
@@ -13549,7 +13947,7 @@ async function addAddOnIngredientRow(selectedData = null) {
     const materials = await loadAddOnRawMaterials();
 
     if (materials.length === 0) {
-        await showAlert('No raw materials found. Add raw materials first.', 'No Materials', '⚠️');
+        await showAlert('No raw materials found. Add raw materials first.', 'No Materials', '');
         return;
     }
 
@@ -13587,10 +13985,10 @@ async function addAddOnIngredientRow(selectedData = null) {
     matSelect.value = selectedData.rawMaterialId;
 
     const qtyInput = row.querySelector('.addon-ing-qty');
-    qtyInput.value = parseFloat(selectedData.quantity);  // ✅ DIRECT, WALANG CONVERSION
+    qtyInput.value = parseFloat(selectedData.quantity);  // DIRECT, WALANG CONVERSION
 
     const unitSelect = row.querySelector('.addon-ing-unit');
-    unitSelect.value = selectedData.unitUsed || selectedData.unit; // ✅ DAPAT "g"
+    unitSelect.value = selectedData.unitUsed || selectedData.unit; // DAPAT "g"
 
     onAddOnMaterialChange(matSelect);
 }
@@ -13622,7 +14020,7 @@ async function refreshReturnsBadge() {
                     document.title = `(${count}) Owner Dashboard`;
                 } else {
                     if (badge) badge.remove();
-                    document.title = "Andeng's Mango & More - Owner Dashboard";
+                    document.title = "Andeng's Mango Graham Shake  - Owner Dashboard";
                 }
             }
         }
@@ -13731,7 +14129,7 @@ async function saveAddOn(e) {
     }
 
     if (!category || category.trim() === '') {
-        await showAlert('Please select a category.', 'Required', '⚠️');
+        await showAlert('Please select a category.', 'Required', '');
         return;
     }
 
@@ -13765,7 +14163,7 @@ async function saveAddOn(e) {
             return;
         }
     } else {
-        // ✅ FIX: I-check kung 0 ang recipe cost bago mag-compute
+        // FIX: I-check kung 0 ang recipe cost bago mag-compute
         margin = parseFloat(document.getElementById('addOnMargin').value) || 0.3;
         
         recalcAddOnRecipeCost();
@@ -13778,7 +14176,7 @@ async function saveAddOn(e) {
             await showAlert(
                 'Recipe cost is 0.00. This means your ingredients have NO BATCH PRICE (UnitPrice = 0).\n\nPlease go to "Receive Delivery" to add stock with a valid price for these ingredients first.',
                 'Cannot Compute Price', 
-                '⚠️'
+                ''
             );
             return;
         }
@@ -13787,7 +14185,7 @@ async function saveAddOn(e) {
     }
 
     if (price <= 0) {
-        await showAlert('Computed price is invalid. Please check your recipe and margin.', 'Invalid Price', '⚠️');
+        await showAlert('Computed price is invalid. Please check your recipe and margin.', 'Invalid Price', '');
         return;
     }
 
@@ -13815,15 +14213,15 @@ async function saveAddOn(e) {
         hideLoading();
 
         if (data.success) {
-            await showAlert(data.message, 'Success', '✅');
+            await showAlert(data.message, 'Success', '');
             resetAddOnForm();
             await loadAddOns();
         } else {
-            await showAlert(data.message, 'Error', '❌');
+            await showAlert(data.message, 'Error', '');
         }
     } catch (err) {
         hideLoading();
-        await showAlert('Error: ' + err.message, 'Error', '❌');
+        await showAlert('Error: ' + err.message, 'Error', '');
     }
 }
 
@@ -13838,7 +14236,7 @@ async function editAddOn(addOnId) {
     document.getElementById('addOnIsActive').checked = addOn.isActive;
     document.getElementById('addOnIsActive').disabled = false;
 
-    // ✅ I-LOAD ANG CATEGORY SA DROPDOWN
+    // I-LOAD ANG CATEGORY SA DROPDOWN
     await loadCategoryDropdown('addOnCategory', 'AddOn', {
         valueKey: 'name',
         selected: addOn.category || null,
@@ -13896,14 +14294,14 @@ async function toggleAddOn(addOnId, currentActive) {
         hideLoading();
 
         if (data.success) {
-            await showAlert(data.message, 'Success', '✅');
+            await showAlert(data.message, 'Success', '');
             await loadAddOns();
         } else {
-            await showAlert(data.message, 'Error', '❌');
+            await showAlert(data.message, 'Error', '');
         }
     } catch (err) {
         hideLoading();
-        await showAlert('Error: ' + err.message, 'Error', '❌');
+        await showAlert('Error: ' + err.message, 'Error', '');
     }
 }
 
@@ -13928,15 +14326,15 @@ async function deleteAddOn(addOnId) {
         hideLoading();
 
         if (data.success) {
-            await showAlert(data.message, 'Deleted', '✅');
+            await showAlert(data.message, 'Deleted', '');
             resetAddOnForm();
             await loadAddOns();
         } else {
-            await showAlert(data.message, 'Error', '❌');
+            await showAlert(data.message, 'Error', '');
         }
     } catch (err) {
         hideLoading();
-        await showAlert('Error: ' + err.message, 'Error', '❌');
+        await showAlert('Error: ' + err.message, 'Error', '');
     }
 }
 
@@ -13989,7 +14387,7 @@ function getVoucherStatus(v) {
     // 2. Check kung Inactive (pinasadya)
     if (!v.isActive) return { text: 'Inactive', cls: 'bg-secondary' };
 
-    // 3. ✅ Check kung Expired na (Nalampasan na ang ExpiryDate)
+    // 3. Check kung Expired na (Nalampasan na ang ExpiryDate)
     if (v.expiryDate) {
         const expiry = new Date(v.expiryDate);
         const today = new Date();
@@ -14123,16 +14521,16 @@ function filterVouchers() {
     renderVoucherTable(filtered);
 }
 
-// ✅ ITO ANG NAWALANG FUNCTION
+// ITO ANG NAWALANG FUNCTION
 function openGenerateVoucherModal() {
-    // ✅ Refresh dynamic events every time modal opens
+    // Refresh dynamic events every time modal opens
     loadVoucherEventNames();
 
-    // ✅ Reset dropdown to placeholder
+    // Reset dropdown to placeholder
     const select = document.getElementById('voucherEvent');
     if (select) select.value = '';
 
-    // ✅ Reset the "Others" input
+    // Reset the "Others" input
     const otherInput = document.getElementById('voucherEventOther');
     if (otherInput) {
         otherInput.value = '';
@@ -14210,10 +14608,10 @@ async function saveGeneratedVoucher(e) {
     const expiry = document.getElementById('voucherExpiry').value || null;
     const discountPercent = parseFloat(document.getElementById('voucherDiscount').value);
 
-    // ✅ GAMITIN ANG getVoucherEventName()
+    // GAMITIN ANG getVoucherEventName()
     const eventName = getVoucherEventName();
     if (!eventName) {
-        await showAlert('Please specify the event name.', 'Required', '⚠️');
+        await showAlert('Please specify the event name.', 'Required', '');
         return;
     }
 
@@ -14236,14 +14634,14 @@ async function saveGeneratedVoucher(e) {
         const data = await res.json();
         if (data.success) {
             closeGenerateVoucherModal();
-            await showAlert(`${qty} voucher(s) generated successfully!`, 'Success', '✅');
+            await showAlert(`${qty} voucher(s) generated successfully!`, 'Success', '');
             loadVouchers();
-            loadVoucherEventNames();   // ✅ Refresh dropdown para kasama na ang bagong event
+            loadVoucherEventNames();   // Refresh dropdown para kasama na ang bagong event
         } else {
-            await showAlert(data.message, 'Error', '❌');
+            await showAlert(data.message, 'Error', '');
         }
     } catch (err) {
-        await showAlert('Error: ' + err.message, 'Error', '❌');
+        await showAlert('Error: ' + err.message, 'Error', '');
     } finally {
         btn.innerHTML = orig;
         btn.disabled = false;
@@ -14257,13 +14655,13 @@ async function deleteVoucher(id) {
         const res = await fetch(`/Voucher/Delete?id=${id}`, { method: 'POST', headers: { 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value } });
         const data = await res.json();
         if (data.success) {
-            await showAlert('Voucher deleted.', 'Success', '✅');
+            await showAlert('Voucher deleted.', 'Success', '');
             loadVouchers();
         } else {
-            await showAlert(data.message, 'Error', '❌');
+            await showAlert(data.message, 'Error', '');
         }
     } catch (err) {
-        await showAlert('Error: ' + err.message, 'Error', '❌');
+        await showAlert('Error: ' + err.message, 'Error', '');
     }
 }
 
@@ -14273,7 +14671,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // ==========================================
     loadCategoryDropdown('filterCategory', 'Product', { valueKey: 'name', placeholder: 'All Categories' });
     
-    // ✅ I-CLEAR muna ang localStorage (cleanup ng dati)
+    // I-CLEAR muna ang localStorage (cleanup ng dati)
     localStorage.removeItem('activeModule');
     
     var urlParams = new URLSearchParams(window.location.search);
@@ -14289,7 +14687,7 @@ document.addEventListener('DOMContentLoaded', function() {
     } else if (savedModule) {
         showModule(savedModule); // reload lang ito within same session
     } else {
-         showModule('dashboard'); // ✅ bagong login = laging dashboard
+         showModule('dashboard'); // bagong login = laging dashboard
     }
     document.getElementById('initialModuleStyle')?.remove();
 
@@ -14316,7 +14714,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
 
-     // ✅ ====== IDAGDAG ITO DITO ======
+     // ====== IDAGDAG ITO DITO ======
     const priceInput = document.getElementById('recipeSellingPriceInput');
     if (priceInput) {
         priceInput.addEventListener('input', function () {

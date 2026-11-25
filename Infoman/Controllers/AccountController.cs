@@ -1,5 +1,6 @@
 ﻿using Infoman.Data;
 using Infoman.Models;
+using Infoman.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -44,7 +45,7 @@ namespace Infoman.Controllers
             var user = _context.Users
     .FirstOrDefault(u => u.Username.Trim().ToLower() == username.ToLower());
 
-            if (user == null || !PasswordMatches(user, password))
+            if (user == null || !PasswordVerifier.Matches(user, password))
             {
                 ViewBag.Error = "Invalid Username or Password";
                 return View(model);

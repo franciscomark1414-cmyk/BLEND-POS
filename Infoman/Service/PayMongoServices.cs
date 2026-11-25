@@ -11,7 +11,7 @@ namespace Infoman.Service
     public class PayMongoService
     {
         // TIP: ilipat mo ito sa appsettings.json / User Secrets / environment variable.
-        private readonly string _secretKey;
+        private readonly string _secretKey = "sk_test_ktWDbcAYijTdB2erdvTmzs3H";
         private readonly string _apiBaseUrl = "https://api.paymongo.com/v1";
 
         public PayMongoService()

@@ -4202,30 +4202,27 @@ namespace Infoman.Controllers
         {
             try
             {
-                // Kunin ang User ID (Owner o Staff)
-                var ownerId = HttpContext.Session.GetInt32("Owner_UserId");
-                var staffId = HttpContext.Session.GetInt32("Staff_UserId");
-                var userId = ownerId ?? staffId;
+                var userId = HttpContext.Session.GetInt32("Owner_UserId")
+                             ?? HttpContext.Session.GetInt32("Staff_UserId");
 
                 if (userId == null)
                     return Json(new { success = false, message = "Session expired. Please login again." });
 
                 var user = await _db.Users.FindAsync(userId);
-
                 if (user == null)
                     return Json(new { success = false, message = "User not found." });
 
-                // Check kung tama ang password (same logic sa Login mo)
-                if (user.Password.Trim() == request.Password?.Trim())
-                {
+                if (string.IsNullOrWhiteSpace(request.Password))
+                    return Json(new { success = false, message = "Please enter your password." });
+
+                if (PasswordVerifier.Matches(user, request.Password))
                     return Json(new { success = true });
-                }
 
                 return Json(new { success = false, message = "Incorrect password. Please try again." });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return Json(new { success = false, message = "Error: " + ex.Message });
+                return Json(new { success = false, message = "Something went wrong. Please try again." });
             }
         }
 

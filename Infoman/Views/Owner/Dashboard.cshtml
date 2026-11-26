@@ -2030,6 +2030,33 @@ a { color: var(--forest-dark) !important; }
     border-color: var(--forest) !important;
 }
 
+#totalWasteQty { font-size: 1.6rem; }
+#totalWasteQty .waste-sep { color: var(--muted); font-weight: 400; }
+
+/* UPDATED BRAND TEXT FIX */
+.brand-text {
+    min-width: 0;
+    flex: 1; /* Para sakupin ang natitirang space at mag-shrink kung kailangan */
+    padding-right: 15px; /* Bigyan ng espasyo para hindi matamaan ang floating toggle button sa kanan */
+    transition: opacity 0.2s ease;
+}
+
+.brand-text h5,
+.brand-text small {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; /* Ito ang maglalagay ng "..." sa dulo */
+    display: block;
+    width: 100%;
+    margin: 0;
+}
+
+.brand-text h5 {
+    color: #fff;
+    font-weight: 700;
+    font-size: 1rem;
+}
+
     </style>
 
     <script>
@@ -9107,18 +9134,36 @@ async function loadExchangeDetailsForReceipt(orderId, originalOrderId) {
                 container.innerHTML = html;
             }
 
-                      function updateWasteSummary(wasteLogs) {
-    let totalQty = 0, totalCost = 0;
+                     function updateWasteSummary(wasteLogs) {
+    let totalCost = 0;
+    const qtyByUnit = {};   // halimbawa: { kg: 0.18, pcs: 1 }
+
+    // g -> kg, mL -> L para hindi magkahiwalay ang parehong uri
+    const normalize = (qty, unit) => {
+        const u = (unit || '').trim();
+        if (u === 'g')  return { qty: qty / 1000, unit: 'kg' };
+        if (u === 'mL') return { qty: qty / 1000, unit: 'L' };
+        return { qty: qty, unit: u || 'unit' };
+    };
+
     if (wasteLogs) {
         for (let i = 0; i < wasteLogs.length; i++) {
-            totalQty += wasteLogs[i].quantity || 0;
-            totalCost += wasteLogs[i].totalCost || 0;
+            const w = wasteLogs[i];
+            const n = normalize(w.quantity || 0, w.unit);
+            qtyByUnit[n.unit] = (qtyByUnit[n.unit] || 0) + n.qty;
+            totalCost += w.totalCost || 0;
         }
     }
-    
+
     // Update displays
     const totalQtyEl = document.getElementById('totalWasteQty');
-    if (totalQtyEl) totalQtyEl.innerText = totalQty.toFixed(2);
+    if (totalQtyEl) {
+        const parts = Object.entries(qtyByUnit)
+            .map(([unit, qty]) => `${qty.toFixed(2)} ${escapeHtml(unit)}`);
+        totalQtyEl.innerHTML = parts.length
+            ? parts.join('<span class="waste-sep"> + </span>')
+            : '0';
+    }
     
     const totalCostEl2 = document.getElementById('totalWasteCostDisplay2');
     if (totalCostEl2) totalCostEl2.innerHTML = '₱' + totalCost.toFixed(2);

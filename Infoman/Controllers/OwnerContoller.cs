@@ -4199,27 +4199,47 @@ namespace Infoman.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> VerifySessionPassword([FromBody] VerifySessionPasswordRequest request)
         {
             try
             {
+                // 1. Check Session
                 var userId = HttpContext.Session.GetInt32("Owner_UserId")
                              ?? HttpContext.Session.GetInt32("Staff_UserId");
 
                 if (userId == null)
-                    return Json(new { success = false, message = "Session expired. Please login again." });
+                    return Json(new { success = false, forceLogout = true, message = "Session expired." });
 
-                var user = await _db.Users.FindAsync(userId);
-                if (user == null)
-                    return Json(new { success = false, message = "User not found." });
-
+                // 2. Validate Input
                 if (string.IsNullOrWhiteSpace(request.Password))
                     return Json(new { success = false, message = "Please enter your password." });
 
-                if (PasswordVerifier.Matches(user, request.Password))
-                    return Json(new { success = true });
+                // 3. Check User in DB
+                var user = await _db.Users.FindAsync(userId);
+                if (user == null)
+                    return Json(new { success = false, forceLogout = true, message = "User not found." });
 
-                return Json(new { success = false, message = "Incorrect password. Please try again." });
+                // 4. Verify Password
+                if (PasswordVerifier.Matches(user, request.Password.Trim()))
+                {
+                    HttpContext.Session.Remove("UnlockFailedAttempts");
+                    return Json(new { success = true });
+                }
+
+                // 5. Brute-force Protection (Ang logic na nawala sa Version 2)
+                int failedAttempts = HttpContext.Session.GetInt32("UnlockFailedAttempts") ?? 0;
+                failedAttempts++;
+                HttpContext.Session.SetInt32("UnlockFailedAttempts", failedAttempts);
+
+                if (failedAttempts >= 5)
+                {
+                    HttpContext.Session.Clear();
+                    return Json(new { success = false, forceLogout = true, message = "Too many failed attempts. You have been logged out." });
+                }
+
+                int remaining = 5 - failedAttempts;
+                return Json(new { success = false, message = $"Incorrect password. You have {remaining} attempt(s) left." });
             }
             catch (Exception)
             {

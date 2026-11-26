@@ -645,9 +645,10 @@ namespace Infoman.Controllers
             if (user == null)
                 return Json(new { success = false, message = "User not found." });
 
-            // ✅ Plain-text comparison — same logic as AccountController.Login
-            if (string.IsNullOrEmpty(user.Password) || user.Password.Trim() != request.Password.Trim())
-                return Json(new { success = false, message = "❌ Incorrect password. Time out denied." });
+            if (!PasswordVerifier.Matches(user, request.Password))
+            {
+                return Json(new { success = false, message = "Incorrect password." });
+            }
 
             var today = DateTime.Today;
             var attendance = await _db.EmployeeAttendances

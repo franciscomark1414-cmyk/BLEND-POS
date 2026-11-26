@@ -4751,10 +4751,12 @@ a { color: var(--forest-dark) !important; }
 <!-- Filter Bar (Original UI, with new options) -->
 <div class="bg-white p-3 rounded-3 shadow-sm border mb-4">
     <div class="row g-3 align-items-end">
-        <div class="col-md-3">
+        
+        <!-- 1. Period -->
+        <div class="col-md-3 col-sm-6">
             <label class="form-label text-muted small mb-1 fw-bold">Period</label>
-            <!-- Dapat may onchange na tatawag sa function mo -->
-            <select class="form-select form-select-sm" id="financialPeriod" onchange="loadFinancials()">
+            <!-- Tinawag natin ang toggleCustomDate() at loadFinancials() -->
+            <select class="form-select form-select-sm" id="financialPeriod" onchange="toggleCustomDate();">
                 <option value="daily">Daily</option>
                 <option value="monthly" selected>Monthly</option>
                 <option value="quarterly">Quarterly</option>
@@ -4762,11 +4764,19 @@ a { color: var(--forest-dark) !important; }
                 <option value="custom">Custom Range</option>
             </select>
         </div>
-        <div class="col-md-3">
+
+        <!-- 2. Start Date -->
+        <div class="col-md-3 col-sm-6">
             <label class="form-label text-muted small mb-1 fw-bold">Select Month/Date</label>
-            <!-- Dapat may onchange din ito -->
             <input type="date" class="form-control form-control-sm" id="financialDate" onchange="loadFinancials()">
         </div>
+
+        <!-- 3. End Date (Inayos: Nilagyan ng col-md-3 col-sm-6) -->
+        <div class="col-md-3 col-sm-6" id="endDateContainer" style="display: none;">
+            <label class="form-label text-muted small mb-1 fw-bold">End Date</label>
+            <input type="date" class="form-control form-control-sm" id="financialEndDate" onchange="loadFinancials()" />
+        </div>
+
     </div>
 </div>
 
@@ -5002,7 +5012,7 @@ a { color: var(--forest-dark) !important; }
                     <small class="text-danger" id="unlockError" style="display: none;"></small>
                 </div>
                 
-                <button type="button" class="btn w-100 fw-bold" onclick="unlockSession()" 
+                <button type="button" class="btn w-100 fw-bold" onclick="unlockSession()" id="btnUnlock" 
                         style="border-radius: 10px; padding: 12px; background: linear-gradient(135deg, #ff6b35, #f7931e); color: white; border: none;">
                     <i class="fas fa-unlock me-2"></i> Unlock Session
                 </button>
@@ -5261,7 +5271,7 @@ function restoreSessionLock() {
 async function unlockSession() {
     const password = document.getElementById('unlockPasswordInput').value;
     const errorEl = document.getElementById('unlockError');
-    const btn = event.target;
+    const btn = document.getElementById('btnUnlock');
 
     if (!password) {
         errorEl.innerText = "Please enter your password.";
@@ -5273,7 +5283,7 @@ async function unlockSession() {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Verifying...';
     btn.disabled = true;
 
-    try {
+        try {
         const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
         
         const response = await fetch('/Owner/VerifySessionPassword', {
@@ -5285,21 +5295,32 @@ async function unlockSession() {
             body: JSON.stringify({ password: password })
         });
 
+        // 🛑 ITO ANG KULANG KANINA: I-check kung OK ang server response bago mag-JSON
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error("Server Error Response:", errorText);
+            throw new Error(`Server returned ${response.status}. Check F12 Console.`);
+        }
+
         const result = await response.json();
 
         if (result.success) {
-            // Tama ang password — i-close ang modal at i-reset ang timer
             const lockModal = bootstrap.Modal.getInstance(document.getElementById('sessionLockModal'));
             lockModal.hide();
-            
             document.getElementById('unlockPasswordInput').value = '';
             errorEl.style.display = 'none';
-
             sessionStorage.removeItem(LOCK_FLAG_KEY);
-            
-            // Reset timer ulit
-            resetSessionTimer();
-        } else {
+            resetSessionTimer(); 
+        } 
+        else if (result.forceLogout) {
+            errorEl.innerText = result.message;
+            errorEl.style.display = 'block';
+            sessionStorage.clear(); 
+            setTimeout(() => {
+                window.location.href = '/Account/Login'; 
+            }, 1500); 
+        } 
+        else {
             errorEl.innerText = result.message || 'Incorrect password.';
             errorEl.style.display = 'block';
             document.getElementById('unlockPasswordInput').value = '';
@@ -5930,6 +5951,40 @@ function peso(n) {
     });
 }
 
+function toggleCustomDate() {
+    const period = document.getElementById('financialPeriod').value;
+    const endDateContainer = document.getElementById('endDateContainer');
+    const dateInput = document.getElementById('financialDate');
+    const endDateInput = document.getElementById('financialEndDate');
+
+    // 1. Ipakita kung Custom, itago kung hindi
+    if (period === 'custom') {
+        endDateContainer.style.display = 'block';
+    } else {
+        endDateContainer.style.display = 'none';
+        if (endDateInput) endDateInput.value = ''; // Burahin End Date
+        
+        // 2. I-reset ang Start Date base sa piniling Period para may visual feedback
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        
+        if (period === 'daily') {
+            dateInput.value = `${yyyy}-${mm}-${String(today.getDate()).padStart(2, '0')}`;
+        } else if (period === 'monthly') {
+            dateInput.value = `${yyyy}-${mm}-01`;
+        } else if (period === 'quarterly') {
+            const qStartMonth = String(Math.floor(today.getMonth() / 3) * 3 + 1).padStart(2, '0');
+            dateInput.value = `${yyyy}-${qStartMonth}-01`;
+        } else if (period === 'yearly') {
+            dateInput.value = `${yyyy}-01-01`;
+        }
+    }
+    
+    // 3. Isang beses lang tatawag para hindi redundant
+    loadFinancials(); 
+}
+
 function setText(id, value) {
     const el = document.getElementById(id);
     if (el) el.innerText = value;
@@ -5937,7 +5992,11 @@ function setText(id, value) {
 
 async function loadFinancials() {
     const period = document.getElementById('financialPeriod').value;
-    const dateParam = document.getElementById('financialDate').value || todayLocalString();
+    const startDate  = document.getElementById('financialDate').value || todayLocalString();
+     const endDate = document.getElementById('financialEndDate')?.value || '';
+
+      // Ipasa sa API
+    
 
     // Loading state
     ['finTotalSales', 'finPurchases', 'finOtherExpenses', 'finNetProfit',
@@ -5946,7 +6005,7 @@ async function loadFinancials() {
         .forEach(id => setText(id, '...'));
 
     try {
-        const res = await fetch(`/Finance/GetSummary?periodType=${period}&startDate=${dateParam}`);
+        const res = await fetch(`/Finance/GetSummary?periodType=${period}&startDate=${startDate}&endDate=${endDate}`);
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const d = await res.json();
 
@@ -8725,6 +8784,18 @@ function buildReceiptPrintHtml(r) {
             </div>
         </div>`;
 }
+
+// Ipapakita lang ang End Date kapag "Custom" ang pinili
+document.getElementById('financialPeriod').addEventListener('change', function() {
+    const endDateContainer = document.getElementById('endDateContainer');
+    if (this.value === 'custom') {
+        endDateContainer.style.display = 'block';
+    } else {
+        endDateContainer.style.display = 'none';
+        // Optional: Burahin ang laman kapag hindi Custom para walang confusion
+        document.getElementById('financialEndDate').value = ''; 
+    }
+});
 
 function printHtmlDocument(bodyHtml) {
     let frame = document.getElementById('receiptPrintFrame');
@@ -14486,10 +14557,10 @@ function openPrintPreview() {
     var netProfit = document.getElementById('finNetProfit')?.innerText || '₱0.00';
     
     // 2. Kunin ang Period at Date (Gamit ang existing IDs)
-    var periodSelect = document.getElementById('financialsPeriodSelect');
+    var periodSelect = document.getElementById('financialPeriod');
     var periodText = periodSelect ? periodSelect.options[periodSelect.selectedIndex].text : 'Monthly';
     
-    var dateInput = document.getElementById('financialsDatePicker');
+    var dateInput = document.getElementById('financialDate'); 
     var dateStr = dateInput ? dateInput.value : '';
 
     // 3. I-set ang values sa print container

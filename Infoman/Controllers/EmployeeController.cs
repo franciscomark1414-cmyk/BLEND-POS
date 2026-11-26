@@ -315,8 +315,6 @@ namespace Infoman.Controllers
                         return Json(new { success = false, message = "Password must contain uppercase, lowercase, number, and special character." });
                     }
                     employee.Password = PasswordVerifier.Hash(employee, model.Password);
-                    // ✅ ITO ANG KULANG KANINA! Dapat i-save ang bagong password.
-                    employee.Password = model.Password;
                 }
 
                 await _db.SaveChangesAsync();

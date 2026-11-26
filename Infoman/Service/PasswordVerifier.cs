@@ -6,6 +6,13 @@ namespace Infoman.Services
 {
     public static class PasswordVerifier
     {
+        // 🔐 IDINAGDAG ITO PARA MA-FIX ANG ERROR
+        public static string Hash(User user, string plainPassword)
+        {
+            var hasher = new PasswordHasher<User>();
+            return hasher.HashPassword(user, plainPassword);
+        }
+
         public static bool Matches(User user, string input)
         {
             var stored = user.Password?.Trim() ?? "";
@@ -13,8 +20,11 @@ namespace Infoman.Services
             if (stored.Length == 0 || input.Length == 0) return false;
 
             if (stored.StartsWith("AQAAAA") && stored.Length >= 80)
-                return new PasswordHasher<User>().VerifyHashedPassword(user, stored, input)
+            {
+                var hasher = new PasswordHasher<User>();
+                return hasher.VerifyHashedPassword(user, stored, input)
                        != PasswordVerificationResult.Failed;
+            }
 
             return stored == input;
         }

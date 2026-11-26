@@ -95,6 +95,7 @@ namespace Infoman.Controllers
             var todaysOrders = await _db.Orders
     .Where(o => o.Date.Date == today &&
                 o.Status != "CANCELLED" &&
+                o.Status != "PENDING_PAYMENT" &&
                 o.Status != "VOIDED" &&
                 o.Status != "REFUNDED" &&
                 o.Status != "EXCHANGED") // <--- IDINAGDAG ITO

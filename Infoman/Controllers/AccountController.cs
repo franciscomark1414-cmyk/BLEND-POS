@@ -68,9 +68,17 @@ namespace Infoman.Controllers
             HttpContext.Session.SetString(sessionPrefix + "Username", user.Username);
             HttpContext.Session.SetString(sessionPrefix + "UserRole", user.Role);
 
-            // ✅ IDAGDAG ITO: Record login time
+
+            // ✅ Auto-upgrade legacy plain text → hashed on next login
+            var stored = (user.Password ?? "").Trim();
+            if (!stored.StartsWith("AQAAAA"))
+            {
+                user.Password = PasswordVerifier.Hash(user, password);
+            }
+
             user.IsLoggedIn = true;
             user.LastLoginTime = DateTime.Now;
+            await _context.SaveChangesAsync();
             await _context.SaveChangesAsync();
 
             // ✅ DO NOT clear the other role's session

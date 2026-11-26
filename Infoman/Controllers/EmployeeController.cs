@@ -1,8 +1,9 @@
 ﻿using Infoman.Data;
 using Infoman.Models;
+using Infoman.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Authorization;
 
 namespace Infoman.Controllers
 {
@@ -262,6 +263,8 @@ namespace Infoman.Controllers
                     DateJoined = DateTime.Now
                 };
 
+                employee.Password = PasswordVerifier.Hash(employee, model.Password);
+
                 _db.Users.Add(employee);
                 await _db.SaveChangesAsync();
 
@@ -311,7 +314,7 @@ namespace Infoman.Controllers
                     {
                         return Json(new { success = false, message = "Password must contain uppercase, lowercase, number, and special character." });
                     }
-
+                    employee.Password = PasswordVerifier.Hash(employee, model.Password);
                     // ✅ ITO ANG KULANG KANINA! Dapat i-save ang bagong password.
                     employee.Password = model.Password;
                 }

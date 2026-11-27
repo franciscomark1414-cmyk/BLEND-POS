@@ -1,6 +1,7 @@
 ﻿using Infoman.Data;
 using Infoman.Models;
 using Infoman.Service;
+using Infoman.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -1135,9 +1136,8 @@ namespace Infoman.Controllers
                     return Json(new { success = false, message = "User not found." });
                 }
 
-                // ⚠️ PLAIN TEXT COMPARISON — TRIM para safe
-                bool isValid = !string.IsNullOrEmpty(owner.Password) &&
-                               owner.Password.Trim() == request.Password.Trim();
+                // 🛑 ITO ANG FIX: Gamitin ang PasswordVerifier.Matches
+                bool isValid = PasswordVerifier.Matches(owner, request.Password);
 
                 if (!isValid)
                 {

@@ -2311,7 +2311,20 @@ a { color: var(--forest-dark) !important; }
                                 <td data-value="@item.CategoryId">@item.CategoryName</td>
                                 <td data-stock="@item.Stock" data-unit="@item.Unit">@($"{item.Stock:F2} {item.Unit}")</td>
                                 <td data-minqty="@item.MinQty" data-unit="@item.Unit">@($"{item.MinQty:F2} {item.Unit}")</td>
-                                <td>@item.Status</td>
+                                 <td>
+                @if (item.Status == "No Stock")
+                {
+                    <span class="badge bg-danger rounded-pill px-3 py-2">No Stock</span>
+                }
+                else if (item.Status == "Low Stock")
+                {
+                    <span class="badge bg-warning text-dark rounded-pill px-3 py-2">Low Stock</span>
+                }
+                else
+                {
+                    <span class="badge bg-success rounded-pill px-3 py-2">In Stock</span>
+                }
+            </td>
                                 <td>
                                     <button class="btn btn-sm btn-info" onclick="viewBatchHistory(@item.RawMaterialId, '@item.Name')"> Batches</button>
                                     <button class="btn btn-sm btn-primary" onclick="editMaterialFromInventory(@item.RawMaterialId, '@item.Name')"> Edit</button>
@@ -2371,7 +2384,20 @@ a { color: var(--forest-dark) !important; }
                                         <td>@item.Name</td>
                                         <td>@item.CategoryName</td>
                                         <td>@item.Unit</td>
-                                        <td>@item.Status</td>
+                                        <td>
+    @if (item.Status == "No Stock")
+    {
+        <span class="badge bg-danger rounded-pill px-3 py-2">No Stock</span>
+    }
+    else if (item.Status == "Low Stock")
+    {
+        <span class="badge bg-warning text-dark rounded-pill px-3 py-2">Low Stock</span>
+    }
+    else
+    {
+        <span class="badge bg-success rounded-pill px-3 py-2">In Stock</span>
+    }
+</td>
                                         <td>
                                             <button class="btn btn-sm btn-primary" onclick="editRawMaterial(@item.RawMaterialId)">Edit</button>
                                             <button class="btn btn-sm btn-danger" onclick="deleteRawMaterial(@item.RawMaterialId)">Delete</button>
@@ -14190,42 +14216,42 @@ function onAddOnMaterialChange(selectEl) {
 }
 
 function recalcAddOnRecipeCost() {
-    const rows = document.querySelectorAll('#addOnIngredientsBody .ingredient-row');
     let totalCost = 0;
+    const rows = document.querySelectorAll('#addOnIngredientsBody .ingredient-row');
 
     rows.forEach(row => {
         const matSelect = row.querySelector('.addon-ing-material');
-        const qtyInput = row.querySelector('.addon-ing-qty');
-        const unitSelect = row.querySelector('.addon-ing-unit');
+        const selectedOption = matSelect.options[matSelect.selectedIndex];
+        if (!selectedOption || !selectedOption.value) return;
 
-        const matId = parseInt(matSelect.value);
-        const qty = parseFloat(qtyInput.value) || 0;
-        const unit = unitSelect.value;
+        const materialId = selectedOption.value;
+        const qty = parseFloat(row.querySelector('.addon-ing-qty').value) || 0;
+        const unit = row.querySelector('.addon-ing-unit').value;
 
-        if (!matId || qty <= 0) return;
-
-        const mat = addOnRawMaterialsList.find(m => m.id === matId);
+        // Hanapin ang material sa cache natin
+        const mat = addOnRawMaterialsList.find(m => m.id == materialId);
         if (!mat) return;
 
-        // Get price per base/cost unit
-        const price = mat.latestBatchPrice > 0 ? mat.latestBatchPrice : (mat.defaultPrice || 0);
+        // Kunin ang price (latestBatchPrice o defaultPrice)
+        let price = mat.latestBatchPrice || mat.defaultPrice || 0;
 
-        // Convert qty to cost unit (kg / L / pcs)
-        let qtyForCost = qty;
-        if (unit === 'g' && mat.unit === 'kg') qtyForCost = qty / 1000;
-        else if (unit === 'kg' && mat.unit === 'g') qtyForCost = qty * 1000;
-        else if (unit === 'mL' && mat.unit === 'L') qtyForCost = qty / 1000;
-        else if (unit === 'L' && mat.unit === 'mL') qtyForCost = qty * 1000;
+        // ✅ ITO ANG FIX: I-convert ang Qty sa Base Unit (kg/L) para tumugma sa presyo
+        let costQty = qty;
+        if (unit === 'g') {
+            costQty = qty / 1000; // 30g -> 0.03kg
+        } else if (unit === 'mL') {
+            costQty = qty / 1000; // 500mL -> 0.5L
+        }
 
-        totalCost += qtyForCost * price;
+        // I-multiply ang na-convert na qty sa presyo
+        totalCost += costQty * price;
     });
 
+    // I-update ang UI display
     document.getElementById('addOnRecipeCost').innerText = '₱' + totalCost.toFixed(2);
-
-    // Update auto-price display if in auto mode
-    if (document.getElementById('addOnPriceAuto').checked) {
-        updateAddOnAutoPrice();
-    }
+    
+    // I-update din ang auto-computed price (kung naka-Auto mode)
+    updateAddOnAutoPrice();
 }
 
 // ============ FORM: SAVE ============
